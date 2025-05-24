@@ -18,3 +18,4 @@ Makefile
 .ruff_cache
 ci
 .helm
+.venv

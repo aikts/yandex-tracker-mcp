@@ -32,6 +32,7 @@ async def tracker_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
 
 mcp = FastMCP(
     name="Yandex Tracker MCP Server",
+    host=settings.host,
     port=settings.port,
     lifespan=tracker_lifespan,
 )
