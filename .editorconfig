@@ -1,0 +1,29 @@
+root = true
+
+[*]
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{py, lua}]
+charset = utf-8
+
+[*.{py, lua, sh}]
+indent_style = space
+indent_size = 4
+ij_continuation_indent_size = 8
+trim_trailing_whitespace = true
+
+[Makefile]
+indent_style = tab
+
+[{package.json,.gitlab-ci.yml}]
+indent_style = space
+indent_size = 2
+
+[{env,.env, .venv}/**]
+indent_style = none
+indent_size = none
+end_of_line = none
+trim_trailing_whitespace = none
+charset = none
