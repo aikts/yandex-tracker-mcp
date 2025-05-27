@@ -6,7 +6,6 @@ from mcp.server import FastMCP
 from mcp.server.fastmcp import Context
 from mcp.types import TextContent
 from pydantic import Field
-from pydantic.v1 import PositiveInt
 
 from mcp_tracker.mcp.context import AppContext
 from mcp_tracker.mcp.errors import TrackerError
@@ -136,13 +135,13 @@ async def issues_find(
         ),
     ],
     per_page: Annotated[
-        PositiveInt,
+        int,
         Field(
             description="Number of issues to return per page, default is 100",
         ),
     ] = 100,
     page: Annotated[
-        PositiveInt,
+        int,
         Field(
             description="Page number to return, default is 1",
         ),
