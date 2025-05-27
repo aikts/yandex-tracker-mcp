@@ -12,7 +12,9 @@ from mcp_tracker.mcp.errors import TrackerError
 from mcp_tracker.mcp.helpers import dump_list, prepare_text_content
 from mcp_tracker.mcp.params import IssueID, IssueIDs
 from mcp_tracker.settings import Settings
+from mcp_tracker.tracker.caching.client import make_cached_protocols
 from mcp_tracker.tracker.custom.client import TrackerClient
+from mcp_tracker.tracker.proto.types.queues import Queue
 
 settings = Settings()
 
@@ -24,8 +26,20 @@ async def tracker_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
         cloud_org_id=settings.tracker_cloud_org_id,
         org_id=settings.tracker_org_id,
     )
+
+    if settings.cache_enabled:
+        queues_wrap, issues_wrap = make_cached_protocols(settings.cache_kwargs())
+        queues = queues_wrap(tracker)
+        issues = issues_wrap(tracker)
+    else:
+        queues = tracker
+        issues = tracker
+
     try:
-        yield AppContext(tracker=tracker)
+        yield AppContext(
+            queues=queues,
+            issues=issues,
+        )
     finally:
         await tracker.close()
 
@@ -38,28 +52,40 @@ mcp = FastMCP(
 )
 
 
+def check_issue_id(issue_id: str) -> None:
+    queue, _ = issue_id.split("-")
+    if settings.tracker_limit_queues and queue not in settings.tracker_limit_queues:
+        raise TrackerError(f"Issue `{issue_id}` not found.")
+
+
 @mcp.tool(
     description="Find all Yandex Tracker queues available to the user (queue is a project in some sense)"
 )
 async def queues_get_all(
     ctx: Context[Any, AppContext],
-    per_page: Annotated[
-        int,
-        Field(
-            description="Number of issues to return per page, default is 15",
-        ),
-    ] = 100,
-    page: Annotated[
-        int,
-        Field(
-            description="Page number to return, default is 1",
-        ),
-    ] = 1,
 ) -> TextContent:
-    queues = await ctx.request_context.lifespan_context.tracker.queues_list(
-        per_page=per_page, page=page
-    )
-    return prepare_text_content(queues)
+    result: list[Queue] = []
+    per_page = 100
+    page = 1
+
+    while True:
+        queues = await ctx.request_context.lifespan_context.queues.queues_list(
+            per_page=per_page, page=page
+        )
+        if len(queues) == 0:
+            break
+
+        if settings.tracker_limit_queues:
+            queues = [
+                queue
+                for queue in queues
+                if queue.key in set(settings.tracker_limit_queues)
+            ]
+
+        result.extend(queues)
+        page += 1
+
+    return prepare_text_content(result)
 
 
 @mcp.tool(description="Get a Yandex Tracker issue url by its id")
@@ -74,7 +100,9 @@ async def issue_get(
     ctx: Context[Any, AppContext],
     issue_id: IssueID,
 ) -> TextContent:
-    issue = await ctx.request_context.lifespan_context.tracker.issue_get(issue_id)
+    check_issue_id(issue_id)
+
+    issue = await ctx.request_context.lifespan_context.issues.issue_get(issue_id)
     if issue is None:
         raise TrackerError(f"Issue `{issue_id}` not found.")
 
@@ -86,7 +114,9 @@ async def issue_get_comments(
     ctx: Context[Any, AppContext],
     issue_id: IssueID,
 ) -> TextContent:
-    comments = await ctx.request_context.lifespan_context.tracker.issue_get_comments(
+    check_issue_id(issue_id)
+
+    comments = await ctx.request_context.lifespan_context.issues.issue_get_comments(
         issue_id
     )
     if comments is None:
@@ -102,9 +132,9 @@ async def issue_get_links(
     ctx: Context[Any, AppContext],
     issue_id: IssueID,
 ) -> TextContent:
-    links = await ctx.request_context.lifespan_context.tracker.issues_get_links(
-        issue_id
-    )
+    check_issue_id(issue_id)
+
+    links = await ctx.request_context.lifespan_context.issues.issues_get_links(issue_id)
     if links is None:
         raise TrackerError(f"Issue `{issue_id}` not found.")
 
@@ -134,12 +164,12 @@ async def issues_find(
             description="Date to search until, in format YYYY-MM-DD. It is non-inclusive",
         ),
     ],
-    per_page: Annotated[
-        int,
-        Field(
-            description="Number of issues to return per page, default is 100",
-        ),
-    ] = 100,
+    # per_page: Annotated[
+    #     int,
+    #     Field(
+    #         description="Number of issues to return per page, default is 100",
+    #     ),
+    # ] = 100,
     page: Annotated[
         int,
         Field(
@@ -147,7 +177,12 @@ async def issues_find(
         ),
     ] = 1,
 ) -> TextContent:
-    issues = await ctx.request_context.lifespan_context.tracker.issues_find(
+    per_page = 500
+
+    if settings.tracker_limit_queues and queue not in settings.tracker_limit_queues:
+        raise TrackerError(f"Queue `{queue}` not found or not allowed.")
+
+    issues = await ctx.request_context.lifespan_context.issues.issues_find(
         queue,
         created_from=dateutil.parser.parse(created_from) if created_from else None,
         created_to=dateutil.parser.parse(created_to) if created_to else None,
@@ -163,12 +198,13 @@ async def issue_get_worklogs(
     ctx: Context[Any, AppContext],
     issue_ids: IssueIDs,
 ) -> TextContent:
+    for issue_id in issue_ids:
+        check_issue_id(issue_id)
+
     result: dict[str, Any] = {}
     for issue_id in issue_ids:
-        worklogs = (
-            await ctx.request_context.lifespan_context.tracker.issue_get_worklogs(
-                issue_id
-            )
+        worklogs = await ctx.request_context.lifespan_context.issues.issue_get_worklogs(
+            issue_id
         )
         if not worklogs:
             result[issue_id] = []

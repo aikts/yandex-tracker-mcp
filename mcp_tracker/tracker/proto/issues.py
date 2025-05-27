@@ -18,3 +18,8 @@ class IssueProtocol(Protocol):
         page: int = 1,
     ) -> list[Issue]: ...
     async def issue_get_worklogs(self, issue_id: str) -> list[Worklog] | None: ...
+
+
+class IssueProtocolWrap(IssueProtocol):
+    def __init__(self, original: IssueProtocol):
+        self._original = original

@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 
-from mcp_tracker.tracker.custom.client import TrackerClient
+from mcp_tracker.tracker.proto.issues import IssueProtocol
+from mcp_tracker.tracker.proto.queues import QueuesProtocol
 
 
 @dataclass
 class AppContext:
-    tracker: TrackerClient
+    queues: QueuesProtocol
+    issues: IssueProtocol
