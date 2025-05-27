@@ -1,18 +1,19 @@
 from contextlib import asynccontextmanager
-from typing import AsyncIterator, Any, Annotated
+from typing import Annotated, Any, AsyncIterator
 
 import dateutil.parser
 from mcp.server import FastMCP
 from mcp.server.fastmcp import Context
 from mcp.types import TextContent
 from pydantic import Field
+from pydantic.v1 import PositiveInt
 
 from mcp_tracker.mcp.context import AppContext
-from mcp_tracker.mcp.helpers import prepare_text_content, dump_json_list
+from mcp_tracker.mcp.errors import TrackerError
+from mcp_tracker.mcp.helpers import dump_list, prepare_text_content
 from mcp_tracker.mcp.params import IssueID, IssueIDs
 from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.custom.client import TrackerClient
-from mcp_tracker.tracker.proto.types.issues import Worklog
 
 settings = Settings()
 
@@ -56,23 +57,17 @@ async def queues_get_all(
         ),
     ] = 1,
 ) -> TextContent:
-    queues = await ctx.request_context.lifespan_context.tracker.queues_list(per_page=per_page, page=page)
-    if not queues:
-        return TextContent(
-            type="text",
-            text="No available queues found.",
-        )
-
-    return prepare_text_content(f"Found {len(queues)} queues", queues)
+    queues = await ctx.request_context.lifespan_context.tracker.queues_list(
+        per_page=per_page, page=page
+    )
+    return prepare_text_content(queues)
 
 
 @mcp.tool(description="Get a Yandex Tracker issue url by its id")
 async def issue_get_url(
     issue_id: IssueID,
 ) -> TextContent:
-    return prepare_text_content(
-        f"URL to issue `{issue_id}`", f"https://tracker.yandex.ru/{issue_id}"
-    )
+    return prepare_text_content({"url": f"https://tracker.yandex.ru/{issue_id}"})
 
 
 @mcp.tool(description="Get a Yandex Tracker issue by its id")
@@ -82,12 +77,9 @@ async def issue_get(
 ) -> TextContent:
     issue = await ctx.request_context.lifespan_context.tracker.issue_get(issue_id)
     if issue is None:
-        return TextContent(
-            type="text",
-            text=f"Issue `{issue_id}` not found.",
-        )
+        raise TrackerError(f"Issue `{issue_id}` not found.")
 
-    return prepare_text_content(f"Found issue `{issue_id}`", issue)
+    return prepare_text_content(issue)
 
 
 @mcp.tool(description="Get comments of a Yandex Tracker issue by its id")
@@ -99,12 +91,9 @@ async def issue_get_comments(
         issue_id
     )
     if comments is None:
-        return TextContent(
-            type="text",
-            text=f"Issue `{issue_id}` not found.",
-        )
+        raise TrackerError(f"Issue `{issue_id}` not found.")
 
-    return prepare_text_content(f"Found issue `{issue_id}` comments", comments)
+    return prepare_text_content(comments)
 
 
 @mcp.tool(
@@ -118,12 +107,9 @@ async def issue_get_links(
         issue_id
     )
     if links is None:
-        return TextContent(
-            type="text",
-            text=f"Issue `{issue_id}` has no links.",
-        )
+        raise TrackerError(f"Issue `{issue_id}` not found.")
 
-    return prepare_text_content(f"Found {len(links)} links to issue {issue_id}", links)
+    return prepare_text_content(links)
 
 
 @mcp.tool(description="Find Yandex Tracker issues by queue and/or created date")
@@ -150,13 +136,13 @@ async def issues_find(
         ),
     ],
     per_page: Annotated[
-        int,
+        PositiveInt,
         Field(
-            description="Number of issues to return per page, default is 15",
+            description="Number of issues to return per page, default is 100",
         ),
-    ] = 15,
+    ] = 100,
     page: Annotated[
-        int,
+        PositiveInt,
         Field(
             description="Page number to return, default is 1",
         ),
@@ -169,13 +155,8 @@ async def issues_find(
         per_page=per_page,
         page=page,
     )
-    if not issues:
-        return TextContent(
-            type="text",
-            text=f"No issues found in queue `{queue}` on page {page}.",
-        )
 
-    return prepare_text_content(f"Found {len(issues)} issues on page {page}", issues)
+    return prepare_text_content(issues)
 
 
 @mcp.tool(description="Get worklogs of a Yandex Tracker issue by its id")
@@ -183,28 +164,16 @@ async def issue_get_worklogs(
     ctx: Context[Any, AppContext],
     issue_ids: IssueIDs,
 ) -> TextContent:
-    result: dict[str, list[Worklog]] = {}
+    result: dict[str, Any] = {}
     for issue_id in issue_ids:
-        worklogs = await ctx.request_context.lifespan_context.tracker.issue_get_worklogs(
-            issue_id
-        )
-        if worklogs is None:
-            return TextContent(
-                type="text",
-                text=f"Issue `{issue_id}` not found.",
+        worklogs = (
+            await ctx.request_context.lifespan_context.tracker.issue_get_worklogs(
+                issue_id
             )
-        result[issue_id] = worklogs
+        )
+        if not worklogs:
+            result[issue_id] = []
 
-    result_text = "\n".join(
-        "<issue_worklogs>\n"
-        "<issue_id>\n"
-        f"{issue_id}\n"
-        "</issue_id>\n"
-        "<worklogs>\n"
-        f"{dump_json_list(worklogs)}\n"
-        "</worklogs>\n"
-        "</issue_worklogs>"
-        for issue_id, worklogs in result.items()
-    )
+        result[issue_id] = dump_list(worklogs)
 
-    return prepare_text_content("Found worklogs", result_text)
+    return prepare_text_content(result)

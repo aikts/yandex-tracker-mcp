@@ -1,17 +1,18 @@
 import datetime
 
-from pydantic import Field, AliasChoices, BaseModel
+from pydantic import AliasChoices, Field
 
 from mcp_tracker.tracker.proto.types.base import BaseTrackerEntity
 from mcp_tracker.tracker.proto.types.mixins import CreatedUpdatedMixin
 from mcp_tracker.tracker.proto.types.refs import (
+    BaseReference,
+    ComponentReference,
+    IssueReference,
     IssueTypeReference,
     PriorityReference,
     QueueReference,
     StatusReference,
     UserReference,
-    IssueReference,
-    ComponentReference, BaseReference,
 )
 
 
@@ -34,12 +35,16 @@ class Issue(CreatedUpdatedMixin, BaseTrackerEntity):
     priority: PriorityReference | None = None
     assignee: UserReference | None = None
     status: StatusReference | None = None
-    previous_status: StatusReference | None = Field(None, validation_alias=AliasChoices("previousStatus", "previous_status"))
+    previous_status: StatusReference | None = Field(
+        None, validation_alias=AliasChoices("previousStatus", "previous_status")
+    )
     deadline: datetime.date | None = None
     components: list[ComponentReference] | None = None
     start: datetime.date | None = None
     end: datetime.date | None = None
-    story_points: float | None = Field(None, validation_alias=AliasChoices("storyPoints", "story_points"))
+    story_points: float | None = Field(
+        None, validation_alias=AliasChoices("storyPoints", "story_points")
+    )
     tags: list[str] = Field(default_factory=list)
     votes: int | None = None
     queue: QueueReference | None = None
@@ -47,7 +52,9 @@ class Issue(CreatedUpdatedMixin, BaseTrackerEntity):
 
 class IssueComment(CreatedUpdatedMixin, BaseTrackerEntity):
     id: int
-    long_id: str | None = Field(None, validation_alias=AliasChoices("longId", "long_id"))
+    long_id: str | None = Field(
+        None, validation_alias=AliasChoices("longId", "long_id")
+    )
     text: str | None = None
     transport: str | None = None
     text_html: str | None = Field(
@@ -69,15 +76,6 @@ class IssueLink(CreatedUpdatedMixin, BaseTrackerEntity):
     assignee: UserReference | None = None
     status: StatusReference | None = None
 
-
-class WorklogDuration(BaseModel):
-    seconds: int | None = None
-    minutes: int | None = None
-    hours: int | None = None
-    days: int | None = None
-
-    def __str__(self) -> str:
-        return f"{self.days}d {self.hours}h {self.minutes}m {self.seconds}s" if self.days else f"{self.hours}h {self.minutes}m {self.seconds}s"
 
 class Worklog(CreatedUpdatedMixin, BaseTrackerEntity):
     id: int

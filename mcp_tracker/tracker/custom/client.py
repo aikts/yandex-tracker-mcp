@@ -8,18 +8,18 @@ from mcp_tracker.tracker.proto.issues import IssueProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
 from mcp_tracker.tracker.proto.types.issues import (
     Issue,
-    IssueLink,
     IssueComment,
+    IssueLink,
     Worklog,
 )
 from mcp_tracker.tracker.proto.types.queues import Queue
-
 
 QueueList = RootModel[list[Queue]]
 IssueLinkList = RootModel[list[IssueLink]]
 IssueList = RootModel[list[Issue]]
 IssueCommentList = RootModel[list[IssueComment]]
 WorklogList = RootModel[list[Worklog]]
+
 
 class TrackerClient(QueuesProtocol, IssueProtocol):
     def __init__(
@@ -44,9 +44,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol):
 
         self._session = ClientSession(
             base_url=base_url,
-            timeout=ClientTimeout(
-                total=timeout
-            ),
+            timeout=ClientTimeout(total=timeout),
             headers=headers,
         )
 
@@ -113,7 +111,9 @@ class TrackerClient(QueuesProtocol, IssueProtocol):
             body["filter"].setdefault("created", {})
             body["filter"]["created"]["to"] = created_to.isoformat()
 
-        async with self._session.post("v3/issues/_search", json=body, params=params) as response:
+        async with self._session.post(
+            "v3/issues/_search", json=body, params=params
+        ) as response:
             response.raise_for_status()
             return IssueList.model_validate_json(await response.read()).root
 

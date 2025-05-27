@@ -1,6 +1,6 @@
 import datetime
 
-from pydantic import Field, AliasChoices
+from pydantic import AliasChoices, Field
 
 from mcp_tracker.tracker.proto.types.refs import UserReference
 

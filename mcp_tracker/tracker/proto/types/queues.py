@@ -1,5 +1,3 @@
-from pydantic import BaseModel
-
 from mcp_tracker.tracker.proto.types.base import BaseTrackerEntity
 from mcp_tracker.tracker.proto.types.refs import IssueTypeReference, PriorityReference
 

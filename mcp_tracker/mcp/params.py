@@ -9,5 +9,7 @@ IssueID = Annotated[
 
 IssueIDs = Annotated[
     list[str],
-    Field(description="Multiple Issue IDs. Each issue id is in the format '<project>-<id>', like 'SOMEPROJECT-1'"),
+    Field(
+        description="Multiple Issue IDs. Each issue id is in the format '<project>-<id>', like 'SOMEPROJECT-1'"
+    ),
 ]
