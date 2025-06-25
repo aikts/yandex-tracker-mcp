@@ -12,6 +12,7 @@ ruff-check:
 
 format:
 	ruff format .
+	ruff check --select I,F401 --fix .
 
 format-check:
 	ruff format --check .

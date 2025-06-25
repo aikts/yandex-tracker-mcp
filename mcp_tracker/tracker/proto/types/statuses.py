@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from mcp_tracker.tracker.proto.types.base import BaseTrackerEntity
 
