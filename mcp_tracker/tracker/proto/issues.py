@@ -1,4 +1,3 @@
-import datetime
 from typing import Protocol
 
 from .types.issues import Issue, IssueComment, IssueLink, Worklog

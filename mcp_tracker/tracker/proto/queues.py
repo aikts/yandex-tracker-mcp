@@ -1,7 +1,7 @@
 from typing import Protocol
 
-from .types.queues import Queue
 from .types.fields import LocalField
+from .types.queues import Queue
 
 
 class QueuesProtocol(Protocol):
