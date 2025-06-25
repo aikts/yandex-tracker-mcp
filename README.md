@@ -8,6 +8,7 @@ A comprehensive Model Context Protocol (MCP) server that enables AI assistants t
 
 - **Complete Queue Management**: List and access all available Yandex Tracker queues with pagination support
 - **Issue Operations**: Retrieve detailed issue information, comments, related links, and worklogs
+- **Field Management**: Access global fields and queue-specific local fields
 - **Advanced Search**: Find issues by queue with flexible date range filtering
 - **Performance Caching**: Optional Redis caching layer for improved response times
 - **Security Controls**: Configurable queue access restrictions and secure token handling
@@ -505,6 +506,16 @@ The server exposes the following tools through the MCP protocol:
 - **`queues_get_all`**: List all available Yandex Tracker queues
   - Returns paginated queue information
   - Respects `TRACKER_LIMIT_QUEUES` restrictions
+
+- **`queue_get_local_fields`**: Get local fields for a specific queue
+  - Parameters: `queue_id` (string, queue key like "SOMEPROJECT")
+  - Returns queue-specific custom fields with id, name, and key
+  - Respects `TRACKER_LIMIT_QUEUES` restrictions
+
+### Field Management
+- **`get_global_fields`**: Get all global fields available in Yandex Tracker
+  - Returns complete list of global fields that can be used in issues
+  - Includes field schema, type information, and configuration
 
 ### Issue Operations
 - **`issue_get`**: Retrieve detailed issue information by ID
