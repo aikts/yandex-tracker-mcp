@@ -32,7 +32,7 @@ You can find your organization ID in the Yandex Tracker URL or organization sett
 ### Using uv (Recommended)
 
 ```bash
-uv tool install mcp-yandex-tracker
+uv tool install yandex-tracker-mcp
 ```
 
 ### MCP Client Configuration
@@ -335,21 +335,21 @@ The server exposes the following tools through the MCP protocol:
 ### Building the Image
 
 ```bash
-docker build -t mcp-yandex-tracker .
+docker build -t yandex-tracker-mcp .
 ```
 
 ### Running with Docker
 
 ```bash
 # Using environment file
-docker run --env-file .env -p 8001:8001 mcp-yandex-tracker
+docker run --env-file .env -p 8001:8001 yandex-tracker-mcp
 
 # With inline environment variables
 docker run -e TRACKER_TOKEN=your_token \
            -e TRACKER_CLOUD_ORG_ID=your_org_id \
            -e CACHE_ENABLED=true \
            -p 8001:8001 \
-           mcp-yandex-tracker
+           yandex-tracker-mcp
 ```
 
 ### Docker Compose
@@ -364,15 +364,6 @@ services:
     environment:
       - TRACKER_TOKEN=${TRACKER_TOKEN}
       - TRACKER_CLOUD_ORG_ID=${TRACKER_CLOUD_ORG_ID}
-      - CACHE_ENABLED=true
-      - CACHE_REDIS_ENDPOINT=redis
-    depends_on:
-      - redis
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
 ```
 
 ## Running in SSE Mode
@@ -421,7 +412,7 @@ uvx yandex-tracker-mcp
 ```bash
 # Clone and setup
 git clone https://github.com/aikts/yandex-tracker-mcp
-cd mcp-yandex-tracker
+cd yandex-tracker-mcp
 
 # Install development dependencies
 uv sync --dev
