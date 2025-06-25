@@ -14,3 +14,10 @@ dependencies = [
     "yandex-tracker-client>=2.8",
     "yarl>=1.20.0",
 ]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.8.0",
+    "ruff>=0.8.0",
+    "pytest>=8.0.0",
+]
