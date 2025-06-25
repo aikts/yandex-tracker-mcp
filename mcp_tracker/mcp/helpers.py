@@ -1,14 +1,16 @@
-from typing import Any
+from typing import Any, TypeVar
 
 from mcp.types import TextContent
 from pydantic import BaseModel, RootModel
 
+T = TypeVar("T")
 
-def dump_json_list[T](items: list[T], indent: int | None = 2) -> str:
+
+def dump_json_list(items: list[T], indent: int | None = 2) -> str:
     return RootModel(items).model_dump_json(indent=indent, exclude_none=True)
 
 
-def dump_list[T](items: list[T]) -> dict[str, Any]:
+def dump_list(items: list[T]) -> dict[str, Any]:
     return RootModel(items).model_dump(exclude_none=True)
 
 
