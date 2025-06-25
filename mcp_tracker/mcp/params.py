@@ -7,6 +7,13 @@ IssueID = Annotated[
     Field(description="Issue ID in the format '<project>-<id>', like 'SOMEPROJECT-1'"),
 ]
 
+QueueID = Annotated[
+    str,
+    Field(
+        description="Queue (Project ID) to search in, like 'SOMEPROJECT'",
+    ),
+]
+
 IssueIDs = Annotated[
     list[str],
     Field(

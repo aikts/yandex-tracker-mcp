@@ -50,3 +50,9 @@ class GlobalField(BaseTrackerEntity):
     optionsProvider: OptionsProvider | None = None
     queryProvider: QueryProvider | None = None
     category: CategoryRef | None = None
+
+
+class LocalField(GlobalField):
+    """Queue-specific local field"""
+
+    description: str | None = None

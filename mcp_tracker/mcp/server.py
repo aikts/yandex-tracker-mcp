@@ -10,7 +10,7 @@ from pydantic import Field
 from mcp_tracker.mcp.context import AppContext
 from mcp_tracker.mcp.errors import TrackerError
 from mcp_tracker.mcp.helpers import dump_list, prepare_text_content
-from mcp_tracker.mcp.params import IssueID, IssueIDs
+from mcp_tracker.mcp.params import IssueID, IssueIDs, QueueID
 from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.caching.client import make_cached_protocols
 from mcp_tracker.tracker.custom.client import TrackerClient
@@ -96,6 +96,22 @@ async def queues_get_all(
 
 
 @mcp.tool(
+    description="Get local fields for a specific Yandex Tracker queue (queue-specific custom fields)"
+)
+async def queue_get_local_fields(
+    ctx: Context[Any, AppContext],
+    queue_id: QueueID,
+) -> TextContent:
+    if settings.tracker_limit_queues and queue_id not in settings.tracker_limit_queues:
+        raise TrackerError(f"Queue `{queue_id}` not found or not allowed.")
+
+    fields = await ctx.request_context.lifespan_context.queues.queues_get_local_fields(
+        queue_id
+    )
+    return prepare_text_content(fields)
+
+
+@mcp.tool(
     description="Get all global fields available in Yandex Tracker that can be used in issues"
 )
 async def get_global_fields(
@@ -161,12 +177,7 @@ async def issue_get_links(
 @mcp.tool(description="Find Yandex Tracker issues by queue and/or created date")
 async def issues_find(
     ctx: Context[Any, AppContext],
-    queue: Annotated[
-        str,
-        Field(
-            description="Queue (Project ID) to search in, like 'SOMEPROJECT'",
-        ),
-    ],
+    queue: QueueID,
     created_from: Annotated[
         str | None,
         Field(

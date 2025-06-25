@@ -6,7 +6,7 @@ from aiocache import cached
 from mcp_tracker.tracker.proto.fields import FieldsProtocolWrap
 from mcp_tracker.tracker.proto.issues import IssueProtocolWrap
 from mcp_tracker.tracker.proto.queues import QueuesProtocolWrap
-from mcp_tracker.tracker.proto.types.fields import GlobalField
+from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
 from mcp_tracker.tracker.proto.types.issues import (
     Issue,
     IssueComment,
@@ -23,6 +23,10 @@ def make_cached_protocols(
         @cached(**cache_config)
         async def queues_list(self, per_page: int = 100, page: int = 1) -> list[Queue]:
             return await self._original.queues_list(per_page=per_page, page=page)
+
+        @cached(**cache_config)
+        async def queues_get_local_fields(self, queue_id: str) -> list[LocalField]:
+            return await self._original.queues_get_local_fields(queue_id)
 
     class CachingIssuesProtocol(IssueProtocolWrap):
         @cached(**cache_config)

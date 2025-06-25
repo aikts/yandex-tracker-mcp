@@ -1,10 +1,13 @@
 from typing import Protocol
 
 from .types.queues import Queue
+from .types.fields import LocalField
 
 
 class QueuesProtocol(Protocol):
     async def queues_list(self, per_page: int = 100, page: int = 1) -> list[Queue]: ...
+
+    async def queues_get_local_fields(self, queue_id: str) -> list[LocalField]: ...
 
 
 class QueuesProtocolWrap(QueuesProtocol):

@@ -7,7 +7,7 @@ from pydantic import RootModel
 from mcp_tracker.tracker.proto.fields import FieldsProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
-from mcp_tracker.tracker.proto.types.fields import GlobalField
+from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
 from mcp_tracker.tracker.proto.types.issues import (
     Issue,
     IssueComment,
@@ -17,6 +17,7 @@ from mcp_tracker.tracker.proto.types.issues import (
 from mcp_tracker.tracker.proto.types.queues import Queue
 
 QueueList = RootModel[list[Queue]]
+LocalFieldList = RootModel[list[LocalField]]
 IssueLinkList = RootModel[list[IssueLink]]
 IssueList = RootModel[list[Issue]]
 IssueCommentList = RootModel[list[IssueComment]]
@@ -62,6 +63,11 @@ class TrackerClient(QueuesProtocol, IssueProtocol, FieldsProtocol):
         async with self._session.get("v3/queues", params=params) as response:
             response.raise_for_status()
             return QueueList.model_validate_json(await response.read()).root
+
+    async def queues_get_local_fields(self, queue_id: str) -> list[LocalField]:
+        async with self._session.get(f"v3/queues/{queue_id}/localFields") as response:
+            response.raise_for_status()
+            return LocalFieldList.model_validate_json(await response.read()).root
 
     async def get_global_fields(self) -> list[GlobalField]:
         async with self._session.get("v3/fields") as response:
