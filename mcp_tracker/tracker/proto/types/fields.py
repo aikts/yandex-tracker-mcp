@@ -24,7 +24,7 @@ class QueryProvider(BaseModel):
 
 class OptionsProvider(BaseModel):
     type: str | None = None
-    values: list[Any] | None = None
+    values: Any | None = None
 
 
 class CategoryRef(BaseReference):

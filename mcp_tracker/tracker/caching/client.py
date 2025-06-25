@@ -6,6 +6,7 @@ from mcp_tracker.tracker.proto.fields import GlobalDataProtocolWrap
 from mcp_tracker.tracker.proto.issues import IssueProtocolWrap
 from mcp_tracker.tracker.proto.queues import QueuesProtocolWrap
 from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
+from mcp_tracker.tracker.proto.types.issue_types import IssueType
 from mcp_tracker.tracker.proto.types.issues import (
     Issue,
     IssueComment,
@@ -61,7 +62,7 @@ def make_cached_protocols(
         async def issue_get_worklogs(self, issue_id: str) -> list[Worklog] | None:
             return await self._original.issue_get_worklogs(issue_id)
 
-    class CachingFieldsProtocol(GlobalDataProtocolWrap):
+    class CachingGlobalDataProtocol(GlobalDataProtocolWrap):
         @cached(**cache_config)
         async def get_global_fields(self) -> list[GlobalField]:
             return await self._original.get_global_fields()
@@ -70,4 +71,8 @@ def make_cached_protocols(
         async def get_statuses(self) -> list[Status]:
             return await self._original.get_statuses()
 
-    return CachingQueuesProtocol, CachingIssuesProtocol, CachingFieldsProtocol
+        @cached(**cache_config)
+        async def get_issue_types(self) -> list[IssueType]:
+            return await self._original.get_issue_types()
+
+    return CachingQueuesProtocol, CachingIssuesProtocol, CachingGlobalDataProtocol

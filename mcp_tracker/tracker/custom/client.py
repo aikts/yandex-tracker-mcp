@@ -7,6 +7,7 @@ from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
 from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
+from mcp_tracker.tracker.proto.types.issue_types import IssueType
 from mcp_tracker.tracker.proto.types.issues import (
     Issue,
     IssueComment,
@@ -24,6 +25,7 @@ IssueCommentList = RootModel[list[IssueComment]]
 WorklogList = RootModel[list[Worklog]]
 GlobalFieldList = RootModel[list[GlobalField]]
 StatusList = RootModel[list[Status]]
+IssueTypeList = RootModel[list[IssueType]]
 
 
 class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol):
@@ -79,6 +81,11 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol):
         async with self._session.get("v3/statuses") as response:
             response.raise_for_status()
             return StatusList.model_validate_json(await response.read()).root
+
+    async def get_issue_types(self) -> list[IssueType]:
+        async with self._session.get("v3/issuetypes") as response:
+            response.raise_for_status()
+            return IssueTypeList.model_validate_json(await response.read()).root
 
     async def issue_get(self, issue_id: str) -> Issue | None:
         async with self._session.get(f"v3/issues/{issue_id}") as response:

@@ -130,6 +130,16 @@ async def get_statuses(
     return prepare_text_content(statuses)
 
 
+@mcp.tool(
+    description="Get all issue types available in Yandex Tracker that can be used when creating or updating issues"
+)
+async def get_issue_types(
+    ctx: Context[Any, AppContext],
+) -> TextContent:
+    issue_types = await ctx.request_context.lifespan_context.fields.get_issue_types()
+    return prepare_text_content(issue_types)
+
+
 @mcp.tool(description="Get a Yandex Tracker issue url by its id")
 async def issue_get_url(
     issue_id: IssueID,
