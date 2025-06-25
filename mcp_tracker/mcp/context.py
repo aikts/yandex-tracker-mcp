@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from mcp_tracker.tracker.proto.fields import FieldsProtocol
+from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
 
@@ -9,4 +9,4 @@ from mcp_tracker.tracker.proto.queues import QueuesProtocol
 class AppContext:
     queues: QueuesProtocol
     issues: IssueProtocol
-    fields: FieldsProtocol
+    fields: GlobalDataProtocol

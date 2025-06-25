@@ -36,7 +36,7 @@ uv run mcp-tracker stdio  # or sse
 ### Core Components
 
 1. **Protocol-Based Design**: The codebase uses Python protocols (`mcp_tracker/tracker/proto/`) to define interfaces:
-   - `IssueProtocol`, `QueuesProtocol`, `FieldsProtocol` define the API contracts
+   - `IssueProtocol`, `QueuesProtocol`, `GlobalDataProtocol` define the API contracts
    - Implementations in `mcp_tracker/tracker/custom/client.py`
    - Caching layer in `mcp_tracker/tracker/caching/client.py` wraps the protocols
 

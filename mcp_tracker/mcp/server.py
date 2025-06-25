@@ -13,7 +13,7 @@ from mcp_tracker.mcp.params import IssueID, IssueIDs, QueueID
 from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.caching.client import make_cached_protocols
 from mcp_tracker.tracker.custom.client import TrackerClient
-from mcp_tracker.tracker.proto.fields import FieldsProtocol
+from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
 from mcp_tracker.tracker.proto.types.queues import Queue
@@ -31,7 +31,7 @@ async def tracker_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
 
     queues: QueuesProtocol = tracker
     issues: IssueProtocol = tracker
-    fields: FieldsProtocol = tracker
+    fields: GlobalDataProtocol = tracker
     if settings.cache_enabled:
         queues_wrap, issues_wrap, fields_wrap = make_cached_protocols(
             settings.cache_kwargs()
@@ -118,6 +118,16 @@ async def get_global_fields(
 ) -> TextContent:
     fields = await ctx.request_context.lifespan_context.fields.get_global_fields()
     return prepare_text_content(fields)
+
+
+@mcp.tool(
+    description="Get all statuses available in Yandex Tracker that can be used in issues"
+)
+async def get_statuses(
+    ctx: Context[Any, AppContext],
+) -> TextContent:
+    statuses = await ctx.request_context.lifespan_context.fields.get_statuses()
+    return prepare_text_content(statuses)
 
 
 @mcp.tool(description="Get a Yandex Tracker issue url by its id")

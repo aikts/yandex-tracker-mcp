@@ -3,7 +3,7 @@ from typing import Any
 from aiohttp import ClientSession, ClientTimeout
 from pydantic import RootModel
 
-from mcp_tracker.tracker.proto.fields import FieldsProtocol
+from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
 from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
@@ -14,6 +14,7 @@ from mcp_tracker.tracker.proto.types.issues import (
     Worklog,
 )
 from mcp_tracker.tracker.proto.types.queues import Queue
+from mcp_tracker.tracker.proto.types.statuses import Status
 
 QueueList = RootModel[list[Queue]]
 LocalFieldList = RootModel[list[LocalField]]
@@ -22,9 +23,10 @@ IssueList = RootModel[list[Issue]]
 IssueCommentList = RootModel[list[IssueComment]]
 WorklogList = RootModel[list[Worklog]]
 GlobalFieldList = RootModel[list[GlobalField]]
+StatusList = RootModel[list[Status]]
 
 
-class TrackerClient(QueuesProtocol, IssueProtocol, FieldsProtocol):
+class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol):
     def __init__(
         self,
         *,
@@ -72,6 +74,11 @@ class TrackerClient(QueuesProtocol, IssueProtocol, FieldsProtocol):
         async with self._session.get("v3/fields") as response:
             response.raise_for_status()
             return GlobalFieldList.model_validate_json(await response.read()).root
+
+    async def get_statuses(self) -> list[Status]:
+        async with self._session.get("v3/statuses") as response:
+            response.raise_for_status()
+            return StatusList.model_validate_json(await response.read()).root
 
     async def issue_get(self, issue_id: str) -> Issue | None:
         async with self._session.get(f"v3/issues/{issue_id}") as response:
