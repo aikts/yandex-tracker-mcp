@@ -14,6 +14,7 @@ from mcp_tracker.mcp.params import IssueID, IssueIDs
 from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.caching.client import make_cached_protocols
 from mcp_tracker.tracker.custom.client import TrackerClient
+from mcp_tracker.tracker.proto.fields import FieldsProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
 from mcp_tracker.tracker.proto.types.queues import Queue
@@ -29,20 +30,22 @@ async def tracker_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
         org_id=settings.tracker_org_id,
     )
 
-    queues: QueuesProtocol
-    issues: IssueProtocol
+    queues: QueuesProtocol = tracker
+    issues: IssueProtocol = tracker
+    fields: FieldsProtocol = tracker
     if settings.cache_enabled:
-        queues_wrap, issues_wrap = make_cached_protocols(settings.cache_kwargs())
-        queues = queues_wrap(tracker)
-        issues = issues_wrap(tracker)
-    else:
-        queues = tracker
-        issues = tracker
+        queues_wrap, issues_wrap, fields_wrap = make_cached_protocols(
+            settings.cache_kwargs()
+        )
+        queues = queues_wrap(queues)
+        issues = issues_wrap(issues)
+        fields = fields_wrap(fields)
 
     try:
         yield AppContext(
             queues=queues,
             issues=issues,
+            fields=fields,
         )
     finally:
         await tracker.close()
@@ -90,6 +93,16 @@ async def queues_get_all(
         page += 1
 
     return prepare_text_content(result)
+
+
+@mcp.tool(
+    description="Get all global fields available in Yandex Tracker that can be used in issues"
+)
+async def get_global_fields(
+    ctx: Context[Any, AppContext],
+) -> TextContent:
+    fields = await ctx.request_context.lifespan_context.fields.get_global_fields()
+    return prepare_text_content(fields)
 
 
 @mcp.tool(description="Get a Yandex Tracker issue url by its id")

@@ -3,8 +3,10 @@ from typing import Any
 
 from aiocache import cached
 
+from mcp_tracker.tracker.proto.fields import FieldsProtocolWrap
 from mcp_tracker.tracker.proto.issues import IssueProtocolWrap
 from mcp_tracker.tracker.proto.queues import QueuesProtocolWrap
+from mcp_tracker.tracker.proto.types.fields import GlobalField
 from mcp_tracker.tracker.proto.types.issues import (
     Issue,
     IssueComment,
@@ -16,7 +18,7 @@ from mcp_tracker.tracker.proto.types.queues import Queue
 
 def make_cached_protocols(
     cache_config: dict[str, Any],
-) -> tuple[type[QueuesProtocolWrap], type[IssueProtocolWrap]]:
+) -> tuple[type[QueuesProtocolWrap], type[IssueProtocolWrap], type[FieldsProtocolWrap]]:
     class CachingQueuesProtocol(QueuesProtocolWrap):
         @cached(**cache_config)
         async def queues_list(self, per_page: int = 100, page: int = 1) -> list[Queue]:
@@ -57,4 +59,9 @@ def make_cached_protocols(
         async def issue_get_worklogs(self, issue_id: str) -> list[Worklog] | None:
             return await self._original.issue_get_worklogs(issue_id)
 
-    return CachingQueuesProtocol, CachingIssuesProtocol
+    class CachingFieldsProtocol(FieldsProtocolWrap):
+        @cached(**cache_config)
+        async def get_global_fields(self) -> list[GlobalField]:
+            return await self._original.get_global_fields()
+
+    return CachingQueuesProtocol, CachingIssuesProtocol, CachingFieldsProtocol

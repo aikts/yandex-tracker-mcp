@@ -4,8 +4,10 @@ from typing import Any
 from aiohttp import ClientSession, ClientTimeout
 from pydantic import RootModel
 
+from mcp_tracker.tracker.proto.fields import FieldsProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
+from mcp_tracker.tracker.proto.types.fields import GlobalField
 from mcp_tracker.tracker.proto.types.issues import (
     Issue,
     IssueComment,
@@ -19,9 +21,10 @@ IssueLinkList = RootModel[list[IssueLink]]
 IssueList = RootModel[list[Issue]]
 IssueCommentList = RootModel[list[IssueComment]]
 WorklogList = RootModel[list[Worklog]]
+GlobalFieldList = RootModel[list[GlobalField]]
 
 
-class TrackerClient(QueuesProtocol, IssueProtocol):
+class TrackerClient(QueuesProtocol, IssueProtocol, FieldsProtocol):
     def __init__(
         self,
         *,
@@ -59,6 +62,11 @@ class TrackerClient(QueuesProtocol, IssueProtocol):
         async with self._session.get("v3/queues", params=params) as response:
             response.raise_for_status()
             return QueueList.model_validate_json(await response.read()).root
+
+    async def get_global_fields(self) -> list[GlobalField]:
+        async with self._session.get("v3/fields") as response:
+            response.raise_for_status()
+            return GlobalFieldList.model_validate_json(await response.read()).root
 
     async def issue_get(self, issue_id: str) -> Issue | None:
         async with self._session.get(f"v3/issues/{issue_id}") as response:
