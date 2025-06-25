@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     cache_redis_endpoint: str = "localhost"
     cache_redis_port: int = 6379
     cache_redis_db: int = 0
+    cache_redis_ttl: int | None = 3600
 
     @field_validator("tracker_limit_queues", mode="before")
     @classmethod
@@ -39,4 +40,5 @@ class Settings(BaseSettings):
             "pool_max_size": 10,
             "serializer": PickleSerializer(),
             "noself": True,
+            "ttl": self.cache_redis_ttl,
         }
