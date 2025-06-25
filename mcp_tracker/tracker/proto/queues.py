@@ -9,6 +9,8 @@ class QueuesProtocol(Protocol):
 
     async def queues_get_local_fields(self, queue_id: str) -> list[LocalField]: ...
 
+    async def queues_get_tags(self, queue_id: str) -> list[str]: ...
+
 
 class QueuesProtocolWrap(QueuesProtocol):
     def __init__(self, original: QueuesProtocol):

@@ -9,6 +9,7 @@ from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
 from mcp_tracker.tracker.proto.types.issue_types import IssueType
 from mcp_tracker.tracker.proto.types.issues import (
     Issue,
+    IssueAttachment,
     IssueComment,
     IssueLink,
     Worklog,
@@ -30,6 +31,10 @@ def make_cached_protocols(
         @cached(**cache_config)
         async def queues_get_local_fields(self, queue_id: str) -> list[LocalField]:
             return await self._original.queues_get_local_fields(queue_id)
+
+        @cached(**cache_config)
+        async def queues_get_tags(self, queue_id: str) -> list[str]:
+            return await self._original.queues_get_tags(queue_id)
 
     class CachingIssuesProtocol(IssueProtocolWrap):
         @cached(**cache_config)
@@ -61,6 +66,12 @@ def make_cached_protocols(
         @cached(**cache_config)
         async def issue_get_worklogs(self, issue_id: str) -> list[Worklog] | None:
             return await self._original.issue_get_worklogs(issue_id)
+
+        @cached(**cache_config)
+        async def issue_get_attachments(
+            self, issue_id: str
+        ) -> list[IssueAttachment] | None:
+            return await self._original.issue_get_attachments(issue_id)
 
     class CachingGlobalDataProtocol(GlobalDataProtocolWrap):
         @cached(**cache_config)

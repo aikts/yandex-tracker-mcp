@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from .types.issues import Issue, IssueComment, IssueLink, Worklog
+from .types.issues import Issue, IssueAttachment, IssueComment, IssueLink, Worklog
 
 
 class IssueProtocol(Protocol):
@@ -15,6 +15,9 @@ class IssueProtocol(Protocol):
         page: int = 1,
     ) -> list[Issue]: ...
     async def issue_get_worklogs(self, issue_id: str) -> list[Worklog] | None: ...
+    async def issue_get_attachments(
+        self, issue_id: str
+    ) -> list[IssueAttachment] | None: ...
 
 
 class IssueProtocolWrap(IssueProtocol):

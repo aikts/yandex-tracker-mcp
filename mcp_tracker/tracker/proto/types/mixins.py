@@ -18,3 +18,12 @@ class CreatedUpdatedMixin:
     updated_by: UserReference | None = Field(
         None, validation_alias=AliasChoices("updatedBy", "updated_by")
     )
+
+
+class CreatedMixin:
+    created_at: datetime.datetime | None = Field(
+        None, validation_alias=AliasChoices("createdAt", "created_at")
+    )
+    created_by: UserReference | None = Field(
+        None, validation_alias=AliasChoices("createdBy", "created_by")
+    )

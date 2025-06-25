@@ -110,6 +110,18 @@ async def queue_get_local_fields(
     return prepare_text_content(fields)
 
 
+@mcp.tool(description="Get all tags for a specific Yandex Tracker queue")
+async def queue_get_tags(
+    ctx: Context[Any, AppContext],
+    queue_id: QueueID,
+) -> TextContent:
+    if settings.tracker_limit_queues and queue_id not in settings.tracker_limit_queues:
+        raise TrackerError(f"Queue `{queue_id}` not found or not allowed.")
+
+    tags = await ctx.request_context.lifespan_context.queues.queues_get_tags(queue_id)
+    return prepare_text_content(tags)
+
+
 @mcp.tool(
     description="Get all global fields available in Yandex Tracker that can be used in issues"
 )
@@ -270,3 +282,21 @@ async def issue_get_worklogs(
             result[issue_id] = dump_list(worklogs)
 
     return prepare_text_content(result)
+
+
+@mcp.tool(description="Get attachments of a Yandex Tracker issue by its id")
+async def issue_get_attachments(
+    ctx: Context[Any, AppContext],
+    issue_id: IssueID,
+) -> TextContent:
+    check_issue_id(issue_id)
+
+    attachments = (
+        await ctx.request_context.lifespan_context.issues.issue_get_attachments(
+            issue_id
+        )
+    )
+    if attachments is None:
+        raise TrackerError(f"Issue `{issue_id}` not found.")
+
+    return prepare_text_content(attachments)

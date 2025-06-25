@@ -3,7 +3,7 @@ import datetime
 from pydantic import AliasChoices, Field
 
 from mcp_tracker.tracker.proto.types.base import BaseTrackerEntity
-from mcp_tracker.tracker.proto.types.mixins import CreatedUpdatedMixin
+from mcp_tracker.tracker.proto.types.mixins import CreatedMixin, CreatedUpdatedMixin
 from mcp_tracker.tracker.proto.types.refs import (
     BaseReference,
     ComponentReference,
@@ -83,3 +83,14 @@ class Worklog(CreatedUpdatedMixin, BaseTrackerEntity):
     duration: datetime.timedelta | None = None
     issue: IssueReference | None = None
     comment: str | None = None
+
+
+class IssueAttachment(CreatedMixin, BaseTrackerEntity):
+    id: str
+    name: str
+    content: str | None = None
+    size: int | None = None
+    mimetype: str | None = Field(
+        None, validation_alias=AliasChoices("mimeType", "mimetype")
+    )
+    metadata: dict[str, str] | None = None
