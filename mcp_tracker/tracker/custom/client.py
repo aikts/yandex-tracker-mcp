@@ -97,10 +97,8 @@ class TrackerClient(QueuesProtocol, IssueProtocol, FieldsProtocol):
 
     async def issues_find(
         self,
-        queue: str,
+        query: str,
         *,
-        created_from: datetime.datetime | None = None,
-        created_to: datetime.datetime | None = None,
         per_page: int = 15,
         page: int = 1,
     ) -> list[Issue]:
@@ -110,20 +108,8 @@ class TrackerClient(QueuesProtocol, IssueProtocol, FieldsProtocol):
         }
 
         body: dict[str, Any] = {
-            "filter": {
-                "queue": queue,
-            },
+            "query": query,
         }
-
-        if created_from is not None:
-            body["filter"]["created"] = {
-                "from": created_from.isoformat(),
-            }
-            body["filter"]["created"]["from"] = created_from.isoformat()
-
-        if created_to is not None:
-            body["filter"].setdefault("created", {})
-            body["filter"]["created"]["to"] = created_to.isoformat()
 
         async with self._session.post(
             "v3/issues/_search", json=body, params=params

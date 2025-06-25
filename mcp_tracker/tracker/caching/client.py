@@ -44,17 +44,13 @@ def make_cached_protocols(
         @cached(**cache_config)
         async def issues_find(
             self,
-            queue: str,
+            query: str,
             *,
-            created_from: datetime.datetime | None = None,
-            created_to: datetime.datetime | None = None,
             per_page: int = 15,
             page: int = 1,
         ) -> list[Issue]:
             return await self._original.issues_find(
-                queue=queue,
-                created_from=created_from,
-                created_to=created_to,
+                query=query,
                 per_page=per_page,
                 page=page,
             )

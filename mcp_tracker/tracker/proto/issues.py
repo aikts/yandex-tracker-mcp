@@ -10,10 +10,8 @@ class IssueProtocol(Protocol):
     async def issues_get_links(self, issue_id: str) -> list[IssueLink] | None: ...
     async def issues_find(
         self,
-        queue: str,
+        query: str,
         *,
-        created_from: datetime.datetime | None = None,
-        created_to: datetime.datetime | None = None,
         per_page: int = 15,
         page: int = 1,
     ) -> list[Issue]: ...

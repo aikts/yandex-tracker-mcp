@@ -1,7 +1,6 @@
 from contextlib import asynccontextmanager
 from typing import Annotated, Any, AsyncIterator
 
-import dateutil.parser
 from mcp.server import FastMCP
 from mcp.server.fastmcp import Context
 from mcp.types import TextContent
@@ -177,27 +176,43 @@ async def issue_get_links(
 @mcp.tool(description="Find Yandex Tracker issues by queue and/or created date")
 async def issues_find(
     ctx: Context[Any, AppContext],
-    queue: QueueID,
-    created_from: Annotated[
-        str | None,
+    query: Annotated[
+        str,
         Field(
-            None,
-            description="Date to search from, in format YYYY-MM-DD",
+            description=(
+                """Search query to filter issues using Yandex Tracker Query Language, Instructions:\n"""
+                """# General instructions\n"""
+                """1. To search by a specific field use the following syntax: `Description: "some issue description"`\n"""
+                """2. Multiple fields should be separated by space: `Description: "some issue description" Created: today()`\n"""
+                """3. If you need to specify multiple values for the same field - provide them using comma (,), e.g.: `author: "vpupkin","iivanov"`\n"""
+                """4. You may specify multiple conditions and combine them using `AND` and `OR` statements, e.g. `<param_1>: "<value_1>" AND <param_2>: "<value_2>"`\n"""
+                """5. You may use brackets for complex logical expressions\n"""
+                """6. To find issues with exact string matching in the field use this syntax: `Summary: #"Version 2.0"`. If you need to pass special characters - you must escape them using `\\` symbol\n"""
+                """7. To find issues that don't contain the specified text use this syntax: `Summary: !"Version 2.0"`. If you need to pass special characters - you must escape them using `\\` symbol\n"""
+                """8. If you need to search by local queue field use the following syntax: `<QUEUE>.<LOCAL_FIELD_KEY>: "<value>", where <QUEUE> is a queue key, <LOCAL_FIELD_KEY> is a local field's key from the `queue_get_local_fields` tool result.\n"""
+                """9. For dates use the format YYYY-MM-DD.\n"""
+                """10. For numerical values you may use comparison operators (>, <, >=, <=): `<param>: ><value>`.\n"""
+                """11. To sort the result specify the `Sort By` directive (you may provide ASC or DESC for the sort order): `"Sort By": Created ASC`.\n"""
+                """# Functions\n"""
+                """These functions may be used, for example: `Created: week()` - return issues created on the current week"\n"""
+                """* `empty()` - empty value\n"""
+                """* `notEmpty()` - not empty value\n"""
+                """* `now()` - current time\n"""
+                """* `today()` - current date\n"""
+                """* `week()` - current week\n"""
+                """* `month()` - current month\n"""
+                """* `quarter()` - current quarter\n"""
+                """* `year()` - current year\n"""
+                """* `unresolved()` - there is no resolution\n"""
+                """# Examples\n"""
+                """Find issues in a specific queue: `"Queue": "PROJ"`\n"""
+                """Find issues by an assignee: `"Assignee": "Иван Иванов"`\n"""
+                """Find issues in specific status: `"Status": "Открыт", "В работе"`\n"""
+                """Find issues created in a specific range: `"Created": "2017-01-01".."2017-01-30"`\n"""
+                """Find issues created no earlier than 1 week and 1 day before today: `Created: > today() - "1w 1d"`\n"""
+            )
         ),
     ],
-    created_to: Annotated[
-        str | None,
-        Field(
-            None,
-            description="Date to search until, in format YYYY-MM-DD. It is non-inclusive",
-        ),
-    ],
-    # per_page: Annotated[
-    #     int,
-    #     Field(
-    #         description="Number of issues to return per page, default is 100",
-    #     ),
-    # ] = 100,
     page: Annotated[
         int,
         Field(
@@ -207,13 +222,8 @@ async def issues_find(
 ) -> TextContent:
     per_page = 500
 
-    if settings.tracker_limit_queues and queue not in settings.tracker_limit_queues:
-        raise TrackerError(f"Queue `{queue}` not found or not allowed.")
-
     issues = await ctx.request_context.lifespan_context.issues.issues_find(
-        queue,
-        created_from=dateutil.parser.parse(created_from) if created_from else None,
-        created_to=dateutil.parser.parse(created_to) if created_to else None,
+        query=query,
         per_page=per_page,
         page=page,
     )
