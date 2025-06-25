@@ -1,5 +1,7 @@
 # Yandex Tracker MCP Server
 
+![PyPI - Version](https://img.shields.io/pypi/v/yandex-tracker-mcp)
+
 A comprehensive Model Context Protocol (MCP) server that enables AI assistants to interact with Yandex Tracker APIs. This server provides secure, authenticated access to Yandex Tracker issues, queues, comments, worklogs, and search functionality with optional Redis caching for improved performance.
 
 ## Features
