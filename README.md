@@ -40,12 +40,12 @@ uv tool install yandex-tracker-mcp
 ```bash
 docker run --rm -e TRACKER_TOKEN=your_token \
            -e TRACKER_CLOUD_ORG_ID=your_org_id \
-           ghcr.io/aikts/mcp-yandex-tracker:latest
+           ghcr.io/aikts/yandex-tracker-mcp:latest
 ```
 
 ### MCP Client Configuration
 
-The following sections show how to configure the MCP server for different AI clients. You can use either `uvx yandex-tracker-mcp` or the Docker image `ghcr.io/aikts/mcp-yandex-tracker:latest`. Both require these environment variables:
+The following sections show how to configure the MCP server for different AI clients. You can use either `uvx yandex-tracker-mcp` or the Docker image `ghcr.io/aikts/yandex-tracker-mcp:latest`. Both require these environment variables:
 
 - `TRACKER_TOKEN` - Your Yandex Tracker OAuth token (required)
 - `TRACKER_CLOUD_ORG_ID` - Your Yandex Cloud organization ID
@@ -86,7 +86,7 @@ The following sections show how to configure the MCP server for different AI cli
         "-e", "TRACKER_TOKEN",
         "-e", "TRACKER_CLOUD_ORG_ID",
         "-e", "TRACKER_ORG_ID",
-        "ghcr.io/aikts/mcp-yandex-tracker:latest"
+        "ghcr.io/aikts/yandex-tracker-mcp:latest"
       ],
       "env": {
         "TRACKER_TOKEN": "your_tracker_token_here",
@@ -114,7 +114,7 @@ claude mcp add yandex-tracker uvx yandex-tracker-mcp \
 
 **Using Docker:**
 ```bash
-claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=your_tracker_token_here -e TRACKER_CLOUD_ORG_ID=your_cloud_org_id_here -e TRACKER_ORG_ID=your_org_id_here -e TRANSPORT=stdio ghcr.io/aikts/mcp-yandex-tracker:latest"
+claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=your_tracker_token_here -e TRACKER_CLOUD_ORG_ID=your_cloud_org_id_here -e TRACKER_ORG_ID=your_org_id_here -e TRANSPORT=stdio ghcr.io/aikts/yandex-tracker-mcp:latest"
 ```
 
 </details>
@@ -154,7 +154,7 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=your_tracker_
         "-e", "TRACKER_TOKEN",
         "-e", "TRACKER_CLOUD_ORG_ID",
         "-e", "TRACKER_ORG_ID",
-        "ghcr.io/aikts/mcp-yandex-tracker:latest"
+        "ghcr.io/aikts/yandex-tracker-mcp:latest"
       ],
       "env": {
         "TRACKER_TOKEN": "your_tracker_token_here",
@@ -204,7 +204,7 @@ Access via: Windsurf Settings → Cascade tab → Model Context Protocol (MCP) S
         "-e", "TRACKER_TOKEN",
         "-e", "TRACKER_CLOUD_ORG_ID",
         "-e", "TRACKER_ORG_ID",
-        "ghcr.io/aikts/mcp-yandex-tracker:latest"
+        "ghcr.io/aikts/yandex-tracker-mcp:latest"
       ],
       "env": {
         "TRACKER_TOKEN": "your_tracker_token_here",
@@ -233,6 +233,7 @@ Access via: `Cmd+,` (macOS) or `Ctrl+,` (Linux/Windows) or command palette: "zed
 {
   "context_servers": {
     "yandex-tracker": {
+      "source": "custom",
       "command": {
         "path": "uvx",
         "args": ["yandex-tracker-mcp"],
@@ -252,15 +253,16 @@ Access via: `Cmd+,` (macOS) or `Ctrl+,` (Linux/Windows) or command palette: "zed
 {
   "context_servers": {
     "yandex-tracker": {
+      "source": "custom",
       "command": {
         "path": "docker",
         "args": [
-        "run", "--rm", "-i",
-        "-e", "TRACKER_TOKEN",
-        "-e", "TRACKER_CLOUD_ORG_ID",
-        "-e", "TRACKER_ORG_ID",
-        "ghcr.io/aikts/mcp-yandex-tracker:latest"
-      ],
+          "run", "--rm", "-i",
+          "-e", "TRACKER_TOKEN",
+          "-e", "TRACKER_CLOUD_ORG_ID",
+          "-e", "TRACKER_ORG_ID",
+          "ghcr.io/aikts/yandex-tracker-mcp:latest"
+        ],
         "env": {
           "TRACKER_TOKEN": "your_tracker_token_here",
           "TRACKER_CLOUD_ORG_ID": "your_cloud_org_id_here",
@@ -352,7 +354,7 @@ Create `.vscode/mcp.json`:
         "-e", "TRACKER_TOKEN",
         "-e", "TRACKER_CLOUD_ORG_ID",
         "-e", "TRACKER_ORG_ID",
-        "ghcr.io/aikts/mcp-yandex-tracker:latest"
+        "ghcr.io/aikts/yandex-tracker-mcp:latest"
       ],
       "env": {
         "TRACKER_TOKEN": "${input:tracker-token}",
@@ -399,7 +401,7 @@ Add to VS Code `settings.json`:
         "-e", "TRACKER_TOKEN",
         "-e", "TRACKER_CLOUD_ORG_ID",
         "-e", "TRACKER_ORG_ID",
-        "ghcr.io/aikts/mcp-yandex-tracker:latest"
+        "ghcr.io/aikts/yandex-tracker-mcp:latest"
       ],
       "env": {
         "TRACKER_TOKEN": "your_tracker_token_here",
@@ -446,7 +448,7 @@ For other MCP-compatible clients, use the standard MCP server configuration form
         "-e", "TRACKER_TOKEN",
         "-e", "TRACKER_CLOUD_ORG_ID",
         "-e", "TRACKER_ORG_ID",
-        "ghcr.io/aikts/mcp-yandex-tracker:latest"
+        "ghcr.io/aikts/yandex-tracker-mcp:latest"
       ],
       "env": {
         "TRACKER_TOKEN": "your_tracker_token_here",
@@ -539,14 +541,14 @@ The server exposes the following tools through the MCP protocol:
 
 ```bash
 # Using environment file
-docker run --env-file .env -p 8001:8001 ghcr.io/aikts/mcp-yandex-tracker:latest
+docker run --env-file .env -p 8001:8001 ghcr.io/aikts/yandex-tracker-mcp:latest
 
 # With inline environment variables
 docker run -e TRACKER_TOKEN=your_token \
            -e TRACKER_CLOUD_ORG_ID=your_org_id \
            -e CACHE_ENABLED=true \
            -p 8001:8001 \
-           ghcr.io/aikts/mcp-yandex-tracker:latest
+           ghcr.io/aikts/yandex-tracker-mcp:latest
 ```
 
 ### Building the Image Locally
@@ -562,7 +564,7 @@ docker build -t yandex-tracker-mcp .
 version: '3.8'
 services:
   mcp-tracker:
-    image: ghcr.io/aikts/mcp-yandex-tracker:latest
+    image: ghcr.io/aikts/yandex-tracker-mcp:latest
     ports:
       - "8001:8001"
     environment:
