@@ -14,6 +14,8 @@ from mcp_tracker.mcp.params import IssueID, IssueIDs
 from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.caching.client import make_cached_protocols
 from mcp_tracker.tracker.custom.client import TrackerClient
+from mcp_tracker.tracker.proto.issues import IssueProtocol
+from mcp_tracker.tracker.proto.queues import QueuesProtocol
 from mcp_tracker.tracker.proto.types.queues import Queue
 
 settings = Settings()
@@ -27,6 +29,8 @@ async def tracker_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
         org_id=settings.tracker_org_id,
     )
 
+    queues: QueuesProtocol
+    issues: IssueProtocol
     if settings.cache_enabled:
         queues_wrap, issues_wrap = make_cached_protocols(settings.cache_kwargs())
         queues = queues_wrap(tracker)
@@ -208,7 +212,7 @@ async def issue_get_worklogs(
         )
         if not worklogs:
             result[issue_id] = []
-
-        result[issue_id] = dump_list(worklogs)
+        else:
+            result[issue_id] = dump_list(worklogs)
 
     return prepare_text_content(result)

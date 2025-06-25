@@ -1,6 +1,6 @@
 [project]
 name = "yandex-tracker-mcp"
-version = "0.1.3"
+version = "0.1.4"
 description = "Yandex Tracker MCP Server"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -24,3 +24,80 @@ dev = [
     "ruff>=0.8.0",
     "pytest>=8.0.0",
 ]
+
+[tool.mypy]
+plugins = [
+    "pydantic.mypy"
+]
+exclude = [
+    'app/store/pg/migrations',
+]
+
+[[tool.mypy.overrides]]
+module = '*.*'
+ignore_missing_imports = true
+check_untyped_defs = true
+enable_error_code = 'ignore-without-code'
+
+[tool.ruff]
+
+[tool.ruff.format]
+# Аналогично black, двойные кавычки
+quote-style = "double"
+
+# Аналогично black, пробелы вместо табов
+indent-style = "space"
+
+# Аналогично black, уважаем trailing commas
+skip-magic-trailing-comma = false
+
+# Аналогично black, автоматически определяем подходящее окончание строки.
+line-ending = "auto"
+
+[tool.ruff.lint]
+# Список кодов или префиксов правил, которые следует считать исправляемыми. (https://docs.astral.sh/ruff/settings/#fixable)
+# По умолчанию все правила считаются исправляемыми.
+fixable = ["I", "RUF022", "RUF023", "F401"]
+preview = true
+
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "C",   # flake8-comprehensions
+    "B",   # flake8-bugbear
+    "T20", # flake8-print
+]
+ignore = [
+    "E501", # line too long, handled by black
+    "B008", # do not perform function calls in argument defaults
+    "C901", # too complex
+]
+
+[tool.ruff.lint.isort]
+# Позволяет использовать as в комбинации с группировкой  (https://docs.astral.sh/ruff/settings/#isort-combine-as-imports)
+#from package import (
+#    func1 as foo,
+#    func2 as boo,
+#)
+combine-as-imports = true
+
+# Воспринимать следующие пакеты в качестве stdlib       (https://docs.astral.sh/ruff/settings/#isort-extra-standard-library)
+extra-standard-library = ["typing_extensions"]
+
+section-order = [
+  "future",
+  "standard-library",
+  "third-party",
+  "first-party",
+  "local-folder"
+]
+
+# Не добавлять пустую строку перед данными секциям      (https://docs.astral.sh/ruff/settings/#isort-no-lines-before)
+no-lines-before = []
+
+[tool.ruff.lint.pep8-naming]
+# если навесить данные декораторы, то можно использовать cls    (https://docs.astral.sh/ruff/settings/#pep8-naming-classmethod-decorators)
+# в качестве первого аргумента.
+classmethod-decorators = ["cached_classproperty", "classproperty"]
