@@ -8,8 +8,8 @@ A comprehensive Model Context Protocol (MCP) server that enables AI assistants t
 
 - **Complete Queue Management**: List and access all available Yandex Tracker queues with pagination support
 - **Issue Operations**: Retrieve detailed issue information, comments, related links, and worklogs
-- **Field Management**: Access global fields and queue-specific local fields
-- **Advanced Search**: Find issues by queue with flexible date range filtering
+- **Field Management**: Access global fields, queue-specific local fields, statuses, and issue types
+- **Advanced Query Language**: Full Yandex Tracker Query Language support with complex filtering, sorting, and date functions
 - **Performance Caching**: Optional Redis caching layer for improved response times
 - **Security Controls**: Configurable queue access restrictions and secure token handling
 - **Multiple Transport Options**: Support for stdio and SSE transports
@@ -30,25 +30,10 @@ Choose one of the following based on your Yandex organization type:
 
 You can find your organization ID in the Yandex Tracker URL or organization settings.
 
-## Installation
 
-### Using uv
+## MCP Client Configuration
 
-```bash
-uv tool install yandex-tracker-mcp
-```
-
-### Using Docker
-
-```bash
-docker run --rm -e TRACKER_TOKEN=your_token \
-           -e TRACKER_CLOUD_ORG_ID=your_org_id \
-           ghcr.io/aikts/yandex-tracker-mcp:latest
-```
-
-### MCP Client Configuration
-
-The following sections show how to configure the MCP server for different AI clients. You can use either `uvx yandex-tracker-mcp` or the Docker image `ghcr.io/aikts/yandex-tracker-mcp:latest`. Both require these environment variables:
+The following sections show how to configure the MCP server for different AI clients. You can use either `uvx yandex-tracker-mcp@latest` or the Docker image `ghcr.io/aikts/yandex-tracker-mcp:latest`. Both require these environment variables:
 
 - `TRACKER_TOKEN` - Your Yandex Tracker OAuth token (required)
 - `TRACKER_CLOUD_ORG_ID` - Your Yandex Cloud organization ID
@@ -67,7 +52,7 @@ The following sections show how to configure the MCP server for different AI cli
   "mcpServers": {
     "yandex-tracker": {
       "command": "uvx",
-      "args": ["yandex-tracker-mcp"],
+      "args": ["yandex-tracker-mcp@latest"],
       "env": {
         "TRACKER_TOKEN": "your_tracker_token_here",
         "TRACKER_CLOUD_ORG_ID": "your_cloud_org_id_here",
@@ -108,7 +93,7 @@ The following sections show how to configure the MCP server for different AI cli
 
 **Using uvx:**
 ```bash
-claude mcp add yandex-tracker uvx yandex-tracker-mcp \
+claude mcp add yandex-tracker uvx yandex-tracker-mcp@latest \
   -e TRACKER_TOKEN=your_tracker_token_here \
   -e TRACKER_CLOUD_ORG_ID=your_cloud_org_id_here \
   -e TRACKER_ORG_ID=your_org_id_here \
@@ -135,7 +120,7 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=your_tracker_
   "mcpServers": {
     "yandex-tracker": {
       "command": "uvx",
-      "args": ["yandex-tracker-mcp"],
+      "args": ["yandex-tracker-mcp@latest"],
       "env": {
         "TRACKER_TOKEN": "your_tracker_token_here",
         "TRACKER_CLOUD_ORG_ID": "your_cloud_org_id_here",
@@ -185,7 +170,7 @@ Access via: Windsurf Settings → Cascade tab → Model Context Protocol (MCP) S
   "mcpServers": {
     "yandex-tracker": {
       "command": "uvx",
-      "args": ["yandex-tracker-mcp"],
+      "args": ["yandex-tracker-mcp@latest"],
       "env": {
         "TRACKER_TOKEN": "your_tracker_token_here",
         "TRACKER_CLOUD_ORG_ID": "your_cloud_org_id_here",
@@ -239,7 +224,7 @@ Access via: `Cmd+,` (macOS) or `Ctrl+,` (Linux/Windows) or command palette: "zed
       "source": "custom",
       "command": {
         "path": "uvx",
-        "args": ["yandex-tracker-mcp"],
+        "args": ["yandex-tracker-mcp@latest"],
         "env": {
           "TRACKER_TOKEN": "your_tracker_token_here",
           "TRACKER_CLOUD_ORG_ID": "your_cloud_org_id_here",
@@ -315,7 +300,7 @@ Create `.vscode/mcp.json`:
     "yandex-tracker": {
       "type": "stdio",
       "command": "uvx",
-      "args": ["yandex-tracker-mcp"],
+      "args": ["yandex-tracker-mcp@latest"],
       "env": {
         "TRACKER_TOKEN": "${input:tracker-token}",
         "TRACKER_CLOUD_ORG_ID": "${input:cloud-org-id}",
@@ -381,7 +366,7 @@ Add to VS Code `settings.json`:
     "yandex-tracker": {
       "type": "stdio",
       "command": "uvx",
-      "args": ["yandex-tracker-mcp"],
+      "args": ["yandex-tracker-mcp@latest"],
       "env": {
         "TRACKER_TOKEN": "your_tracker_token_here",
         "TRACKER_CLOUD_ORG_ID": "your_cloud_org_id_here",
@@ -429,7 +414,7 @@ For other MCP-compatible clients, use the standard MCP server configuration form
   "mcpServers": {
     "yandex-tracker": {
       "command": "uvx",
-      "args": ["yandex-tracker-mcp"],
+      "args": ["yandex-tracker-mcp@latest"],
       "env": {
         "TRACKER_TOKEN": "your_tracker_token_here",
         "TRACKER_CLOUD_ORG_ID": "your_cloud_org_id_here",
@@ -471,6 +456,62 @@ For other MCP-compatible clients, use the standard MCP server configuration form
 - Ensure `uvx` is installed and available in your system PATH
 - For production use, consider using environment variables instead of hardcoding tokens
 
+## Available MCP Tools
+
+The server exposes the following tools through the MCP protocol:
+
+### Queue Management
+- **`queues_get_all`**: List all available Yandex Tracker queues
+  - Returns paginated queue information
+  - Respects `TRACKER_LIMIT_QUEUES` restrictions
+
+- **`queue_get_local_fields`**: Get local fields for a specific queue
+  - Parameters: `queue_id` (string, queue key like "SOMEPROJECT")
+  - Returns queue-specific custom fields with id, name, and key
+  - Respects `TRACKER_LIMIT_QUEUES` restrictions
+
+### Field Management
+- **`get_global_fields`**: Get all global fields available in Yandex Tracker
+  - Returns complete list of global fields that can be used in issues
+  - Includes field schema, type information, and configuration
+
+### Status and Type Management
+- **`get_statuses`**: Get all available issue statuses
+  - Returns complete list of issue statuses that can be assigned
+  - Includes status IDs, names, and type information
+
+- **`get_issue_types`**: Get all available issue types
+  - Returns complete list of issue types for creating/updating issues
+  - Includes type IDs, names, and configuration details
+
+### Issue Operations
+- **`issue_get`**: Retrieve detailed issue information by ID
+  - Parameters: `issue_id` (string, format: "QUEUE-123")
+  - Returns complete issue data including status, assignee, description, etc.
+
+- **`issue_get_url`**: Generate web URL for an issue
+  - Parameters: `issue_id` (string)
+  - Returns: `https://tracker.yandex.ru/{issue_id}`
+
+- **`issue_get_comments`**: Fetch all comments for an issue
+  - Parameters: `issue_id` (string)
+  - Returns chronological list of comments with metadata
+
+- **`issue_get_links`**: Get related issue links
+  - Parameters: `issue_id` (string)
+  - Returns links to related, blocked, or duplicate issues
+
+- **`issue_get_worklogs`**: Retrieve worklog entries
+  - Parameters: `issue_ids` (array of strings)
+  - Returns time tracking data for specified issues
+
+### Search and Discovery
+- **`issues_find`**: Search issues using [Yandex Tracker Query Language](https://yandex.ru/support/tracker/ru/user/query-filter)
+  - Parameters:
+    - `query` (required): Query string using Yandex Tracker Query Language syntax
+    - `page` (optional): Page number for pagination (default: 1)
+  - Returns up to 500 issues per page
+
 ## Configuration
 
 ### Environment Variables
@@ -497,56 +538,6 @@ CACHE_REDIS_ENDPOINT=localhost            # Default: localhost
 CACHE_REDIS_PORT=6379                     # Default: 6379
 CACHE_REDIS_DB=0                          # Default: 0
 ```
-
-## Available MCP Tools
-
-The server exposes the following tools through the MCP protocol:
-
-### Queue Management
-- **`queues_get_all`**: List all available Yandex Tracker queues
-  - Returns paginated queue information
-  - Respects `TRACKER_LIMIT_QUEUES` restrictions
-
-- **`queue_get_local_fields`**: Get local fields for a specific queue
-  - Parameters: `queue_id` (string, queue key like "SOMEPROJECT")
-  - Returns queue-specific custom fields with id, name, and key
-  - Respects `TRACKER_LIMIT_QUEUES` restrictions
-
-### Field Management
-- **`get_global_fields`**: Get all global fields available in Yandex Tracker
-  - Returns complete list of global fields that can be used in issues
-  - Includes field schema, type information, and configuration
-
-### Issue Operations
-- **`issue_get`**: Retrieve detailed issue information by ID
-  - Parameters: `issue_id` (string, format: "QUEUE-123")
-  - Returns complete issue data including status, assignee, description, etc.
-
-- **`issue_get_url`**: Generate web URL for an issue
-  - Parameters: `issue_id` (string)
-  - Returns: `https://tracker.yandex.ru/{issue_id}`
-
-- **`issue_get_comments`**: Fetch all comments for an issue
-  - Parameters: `issue_id` (string)
-  - Returns chronological list of comments with metadata
-
-- **`issue_get_links`**: Get related issue links
-  - Parameters: `issue_id` (string)
-  - Returns links to related, blocked, or duplicate issues
-
-- **`issue_get_worklogs`**: Retrieve worklog entries
-  - Parameters: `issue_ids` (array of strings)
-  - Returns time tracking data for specified issues
-
-### Search and Discovery
-- **`issues_find`**: Search issues with flexible criteria
-  - Parameters:
-    - `queue` (required): Queue key to search in
-    - `created_from` (optional): Start date (YYYY-MM-DD format)
-    - `created_to` (optional): End date (YYYY-MM-DD, non-inclusive)
-    - `page` (optional): Page number for pagination (default: 1)
-  - Returns up to 500 issues per page
-
 
 ## Docker Deployment
 
@@ -625,10 +616,10 @@ TRACKER_LIMIT_QUEUES=PROJ1,PROJ2,DEV      # Comma-separated queue keys
 
 ```bash
 # Basic SSE server startup
-TRANSPORT=sse uvx yandex-tracker-mcp
+TRANSPORT=sse uvx yandex-tracker-mcp@latest
 
 # With custom host and port
-TRANSPORT=sse HOST=localhost PORT=9000 uvx yandex-tracker-mcp
+TRANSPORT=sse HOST=localhost PORT=9000 uvx yandex-tracker-mcp@latest
 
 # With all environment variables
 TRANSPORT=sse \
@@ -636,7 +627,7 @@ HOST=0.0.0.0 \
 PORT=8001 \
 TRACKER_TOKEN=your_token \
 TRACKER_CLOUD_ORG_ID=your_org_id \
-uvx yandex-tracker-mcp
+uvx yandex-tracker-mcp@latest
 ```
 
 ### Development Setup
