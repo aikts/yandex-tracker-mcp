@@ -9,7 +9,7 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
     host: str = "0.0.0.0"
-    port: int = 8001
+    port: int = 8000
     transport: Literal["stdio", "sse", "streamable-http"] = "stdio"
     tracker_token: str
     tracker_cloud_org_id: str | None = None

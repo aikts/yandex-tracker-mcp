@@ -19,3 +19,6 @@ Makefile
 ci
 .helm
 .venv
+smithery.yaml
+Dockerfile
+*.Dockerfile

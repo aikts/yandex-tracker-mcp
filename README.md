@@ -564,7 +564,7 @@ TRACKER_LIMIT_QUEUES=PROJ1,PROJ2,DEV      # Comma-separated queue keys
 
 # Server Configuration
 HOST=0.0.0.0                              # Default: 0.0.0.0
-PORT=8001                                 # Default: 8001
+PORT=8000                                 # Default: 8000
 TRANSPORT=stdio                           # Options: stdio, streamable-http, sse
 
 # Redis Caching (optional but recommended for production)
@@ -580,13 +580,13 @@ CACHE_REDIS_DB=0                          # Default: 0
 
 ```bash
 # Using environment file
-docker run --env-file .env -p 8001:8001 ghcr.io/aikts/yandex-tracker-mcp:latest
+docker run --env-file .env -p 8000:8000 ghcr.io/aikts/yandex-tracker-mcp:latest
 
 # With inline environment variables
 docker run -e TRACKER_TOKEN=your_token \
            -e TRACKER_CLOUD_ORG_ID=your_org_id \
            -e CACHE_ENABLED=true \
-           -p 8001:8001 \
+           -p 8000:8000 \
            ghcr.io/aikts/yandex-tracker-mcp:latest
 ```
 
@@ -605,7 +605,7 @@ services:
   mcp-tracker:
     image: ghcr.io/aikts/yandex-tracker-mcp:latest
     ports:
-      - "8001:8001"
+      - "8000:8000"
     environment:
       - TRACKER_TOKEN=${TRACKER_TOKEN}
       - TRACKER_CLOUD_ORG_ID=${TRACKER_CLOUD_ORG_ID}
@@ -618,7 +618,7 @@ services:
   mcp-tracker:
     build: .
     ports:
-      - "8001:8001"
+      - "8000:8000"
     environment:
       - TRACKER_TOKEN=${TRACKER_TOKEN}
       - TRACKER_CLOUD_ORG_ID=${TRACKER_CLOUD_ORG_ID}
@@ -636,7 +636,7 @@ TRANSPORT=streamable-http
 
 # Server Configuration
 HOST=0.0.0.0                              # Default: 0.0.0.0 (all interfaces)
-PORT=8001                                 # Default: 8001
+PORT=8000                                 # Default: 8000
 
 # Required - Yandex Tracker API credentials
 TRACKER_TOKEN=your_yandex_tracker_oauth_token
@@ -659,7 +659,7 @@ TRANSPORT=streamable-http HOST=localhost PORT=9000 uvx yandex-tracker-mcp@latest
 # With all environment variables
 TRANSPORT=streamable-http \
 HOST=0.0.0.0 \
-PORT=8001 \
+PORT=8000 \
 TRACKER_TOKEN=your_token \
 TRACKER_CLOUD_ORG_ID=your_org_id \
 uvx yandex-tracker-mcp@latest
