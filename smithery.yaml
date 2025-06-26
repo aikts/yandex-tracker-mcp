@@ -25,10 +25,9 @@ startCommand:
         "TRANSPORT": "stdio",
         "TRACKER_TOKEN": config.trackerToken,
         "TRACKER_CLOUD_ORG_ID": config.cloudOrgId || "",
-        "TRACKER_ORG_ID": config.orgId || "",
-        "PORT": String(config.port)
+        "TRACKER_ORG_ID": config.orgId || ""
       }
     })
 build:
-  dockerfile: "smitherly.Dockerfile"
+  dockerfile: "smithery.Dockerfile"
   dockerBuildPath: "."
