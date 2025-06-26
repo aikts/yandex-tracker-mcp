@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.10] - 2025-06-26
+
+### Internal
+- Remove branch restriction from Docker workflow configuration
+
 ## [0.2.9] - 2025-01-26
 
 ### Features
