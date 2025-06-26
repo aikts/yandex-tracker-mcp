@@ -14,6 +14,9 @@ startCommand:
         type: "string"
         description: "Yandex 360 Org Id"
     required: ["trackerToken"]
+  exampleConfig:
+    trackerToken: "some-tracker-token"
+    cloudOrgId: "someCloudOrgId"
   commandFunction: |
     (config) => ({
       "command": "python",
