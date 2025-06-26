@@ -17,6 +17,7 @@ from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
 from mcp_tracker.tracker.proto.types.queues import Queue
+from mcp_tracker.tracker.proto.users import UsersProtocol
 
 settings = Settings()
 
@@ -32,19 +33,22 @@ async def tracker_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     queues: QueuesProtocol = tracker
     issues: IssueProtocol = tracker
     fields: GlobalDataProtocol = tracker
+    users: UsersProtocol = tracker
     if settings.cache_enabled:
-        queues_wrap, issues_wrap, fields_wrap = make_cached_protocols(
+        queues_wrap, issues_wrap, fields_wrap, users_wrap = make_cached_protocols(
             settings.cache_kwargs()
         )
         queues = queues_wrap(queues)
         issues = issues_wrap(issues)
         fields = fields_wrap(fields)
+        users = users_wrap(users)
 
     try:
         yield AppContext(
             queues=queues,
             issues=issues,
             fields=fields,
+            users=users,
         )
     finally:
         await tracker.close()
@@ -300,3 +304,29 @@ async def issue_get_attachments(
         raise TrackerError(f"Issue `{issue_id}` not found.")
 
     return prepare_text_content(attachments)
+
+
+@mcp.tool(
+    description="Get information about user accounts registered in the organization"
+)
+async def users_get_all(
+    ctx: Context[Any, AppContext],
+    per_page: Annotated[
+        int,
+        Field(
+            description="Number of users per page (default: 50)",
+            ge=1,
+        ),
+    ] = 50,
+    page: Annotated[
+        int,
+        Field(
+            description="Page number to return (default: 1)",
+            ge=1,
+        ),
+    ] = 1,
+) -> TextContent:
+    users = await ctx.request_context.lifespan_context.users.users_list(
+        per_page=per_page, page=page
+    )
+    return prepare_text_content(users)

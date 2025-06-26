@@ -7,6 +7,7 @@ A comprehensive Model Context Protocol (MCP) server that enables AI assistants t
 ## Features
 
 - **Complete Queue Management**: List and access all available Yandex Tracker queues with pagination support and tag retrieval
+- **User Management**: Retrieve user account information, including login details, email addresses, license status, and organizational data
 - **Issue Operations**: Retrieve detailed issue information, comments, related links, worklogs, and attachments
 - **Field Management**: Access global fields, queue-specific local fields, statuses, and issue types
 - **Advanced Query Language**: Full Yandex Tracker Query Language support with complex filtering, sorting, and date functions
@@ -474,6 +475,14 @@ The server exposes the following tools through the MCP protocol:
   - Parameters: `queue_id` (string, queue key like "SOMEPROJECT")
   - Returns list of available tags in the specified queue
   - Respects `TRACKER_LIMIT_QUEUES` restrictions
+
+### User Management
+- **`users_get_all`**: Get information about user accounts registered in the organization
+  - Parameters:
+    - `per_page` (optional): Number of users per page (default: 50)
+    - `page` (optional): Page number to return (default: 1)
+  - Returns paginated list of users with login, email, license status, and organizational details
+  - Includes user metadata such as external status, dismissal status, and notification preferences
 
 ### Field Management
 - **`get_global_fields`**: Get all global fields available in Yandex Tracker

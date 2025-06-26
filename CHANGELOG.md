@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.7] - 2025-01-26
+
+### Features
+- Add MCP tool for retrieving user information (`users_get_all`)
+
+### Architecture
+- Add `UsersProtocol` interface for user-related operations
+
+### Documentation
+- Update CLAUDE.md with BaseTrackerEntity requirement guidelines
+
 ## [0.2.6] - 2025-01-26
 
 ### Documentation

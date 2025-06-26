@@ -17,6 +17,8 @@ from mcp_tracker.tracker.proto.types.issues import (
 )
 from mcp_tracker.tracker.proto.types.queues import Queue
 from mcp_tracker.tracker.proto.types.statuses import Status
+from mcp_tracker.tracker.proto.types.users import User
+from mcp_tracker.tracker.proto.users import UsersProtocol
 
 QueueList = RootModel[list[Queue]]
 LocalFieldList = RootModel[list[LocalField]]
@@ -29,9 +31,10 @@ IssueAttachmentList = RootModel[list[IssueAttachment]]
 GlobalFieldList = RootModel[list[GlobalField]]
 StatusList = RootModel[list[Status]]
 IssueTypeList = RootModel[list[IssueType]]
+UserList = RootModel[list[User]]
 
 
-class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol):
+class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProtocol):
     def __init__(
         self,
         *,
@@ -153,3 +156,12 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol):
                 return None
             response.raise_for_status()
             return IssueAttachmentList.model_validate_json(await response.read()).root
+
+    async def users_list(self, per_page: int = 50, page: int = 1) -> list[User]:
+        params: dict[str, str | int] = {
+            "perPage": per_page,
+            "page": page,
+        }
+        async with self._session.get("v2/users", params=params) as response:
+            response.raise_for_status()
+            return UserList.model_validate_json(await response.read()).root

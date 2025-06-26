@@ -57,6 +57,7 @@ uv run mcp-tracker stdio  # or sse
 ### Key Patterns
 
 - **Type Safety**: All API responses modeled with Pydantic (`mcp_tracker/tracker/proto/types/`)
+- **Base Entity**: All base Yandex Tracker entities (users, issues, etc.) must inherit from `BaseTrackerEntity` in `mcp_tracker/tracker/proto/types/base.py`. This base class handles the common `self` field that appears in all Yandex Tracker API responses.
 - **Caching**: Optional Redis caching applied via decorators in caching client
 - **Security**: Queue access restrictions enforced at the server level
 - **Error Handling**: Custom exceptions for better error messages

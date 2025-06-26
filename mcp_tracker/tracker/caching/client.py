@@ -16,12 +16,17 @@ from mcp_tracker.tracker.proto.types.issues import (
 )
 from mcp_tracker.tracker.proto.types.queues import Queue
 from mcp_tracker.tracker.proto.types.statuses import Status
+from mcp_tracker.tracker.proto.types.users import User
+from mcp_tracker.tracker.proto.users import UsersProtocolWrap
 
 
 def make_cached_protocols(
     cache_config: dict[str, Any],
 ) -> tuple[
-    type[QueuesProtocolWrap], type[IssueProtocolWrap], type[GlobalDataProtocolWrap]
+    type[QueuesProtocolWrap],
+    type[IssueProtocolWrap],
+    type[GlobalDataProtocolWrap],
+    type[UsersProtocolWrap],
 ]:
     class CachingQueuesProtocol(QueuesProtocolWrap):
         @cached(**cache_config)
@@ -86,4 +91,14 @@ def make_cached_protocols(
         async def get_issue_types(self) -> list[IssueType]:
             return await self._original.get_issue_types()
 
-    return CachingQueuesProtocol, CachingIssuesProtocol, CachingGlobalDataProtocol
+    class CachingUsersProtocol(UsersProtocolWrap):
+        @cached(**cache_config)
+        async def users_list(self, per_page: int = 50, page: int = 1) -> list[User]:
+            return await self._original.users_list(per_page=per_page, page=page)
+
+    return (
+        CachingQueuesProtocol,
+        CachingIssuesProtocol,
+        CachingGlobalDataProtocol,
+        CachingUsersProtocol,
+    )
