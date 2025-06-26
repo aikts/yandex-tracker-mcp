@@ -24,3 +24,6 @@ startCommand:
         "TRACKER_ORG_ID": config.orgId || ""
       }
     })
+build:
+  dockerfile: "smitherly.Dockerfile"
+  dockerBuildPath: "."
