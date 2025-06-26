@@ -84,3 +84,10 @@ The project uses:
 - MyPy for type checking with Pydantic plugin enabled
 - Python 3.10+ features (union types with `|`)
 - Comprehensive type hints throughout
+
+## Committing
+
+Before each commit it is mandatory to run:
+```bash
+make
+```
