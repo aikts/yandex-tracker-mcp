@@ -19,6 +19,7 @@ startCommand:
         description: "Yandex 360 Org Id"
     required: ["trackerToken"]
   exampleConfig:
+    trackerBaseUrl: "https://api.tracker.yandex.net"
     trackerToken: "some-tracker-token"
     cloudOrgId: "someCloudOrgId"
   commandFunction: |-
