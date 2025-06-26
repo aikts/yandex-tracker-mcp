@@ -19,6 +19,7 @@ startCommand:
       "command": "python",
       "args": ["-m", "mcp_tracker"],
       "env": {
+        "TRANSPORT": "streamable-http",
         "TRACKER_TOKEN": config.trackerToken,
         "TRACKER_CLOUD_ORG_ID": config.cloudOrgId || "",
         "TRACKER_ORG_ID": config.orgId || ""

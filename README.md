@@ -562,10 +562,10 @@ TRACKER_ORG_ID=your_org_id                # For Yandex 360 organizations
 # Security - Restrict access to specific queues (optional)
 TRACKER_LIMIT_QUEUES=PROJ1,PROJ2,DEV      # Comma-separated queue keys
 
-# SSE Server Configuration
+# Server Configuration
 HOST=0.0.0.0                              # Default: 0.0.0.0
 PORT=8001                                 # Default: 8001
-TRANSPORT=stdio                           # Options: stdio, sse
+TRANSPORT=stdio                           # Options: stdio, streamable-http, sse
 
 # Redis Caching (optional but recommended for production)
 CACHE_ENABLED=true                        # Default: false
@@ -624,15 +624,15 @@ services:
       - TRACKER_CLOUD_ORG_ID=${TRACKER_CLOUD_ORG_ID}
 ```
 
-## Running in SSE Mode
+## Running in streamable-http Mode
 
-The MCP server can also be run in Server-Sent Events (SSE) mode for web-based integrations or when stdio transport is not suitable.
+The MCP server can also be run in streamable-http mode for web-based integrations or when stdio transport is not suitable.
 
-### SSE Mode Environment Variables
+### streamable-http Mode Environment Variables
 
 ```env
-# Required - Set transport to SSE mode
-TRANSPORT=sse
+# Required - Set transport to streamable-http mode
+TRANSPORT=streamable-http
 
 # Server Configuration
 HOST=0.0.0.0                              # Default: 0.0.0.0 (all interfaces)
@@ -647,17 +647,17 @@ TRACKER_ORG_ID=your_org_id                # For Yandex 360 organizations (option
 TRACKER_LIMIT_QUEUES=PROJ1,PROJ2,DEV      # Comma-separated queue keys
 ```
 
-### Starting the SSE Server
+### Starting the streamable-http Server
 
 ```bash
-# Basic SSE server startup
-TRANSPORT=sse uvx yandex-tracker-mcp@latest
+# Basic streamable-http server startup
+TRANSPORT=streamable-http uvx yandex-tracker-mcp@latest
 
 # With custom host and port
-TRANSPORT=sse HOST=localhost PORT=9000 uvx yandex-tracker-mcp@latest
+TRANSPORT=streamable-http HOST=localhost PORT=9000 uvx yandex-tracker-mcp@latest
 
 # With all environment variables
-TRANSPORT=sse \
+TRANSPORT=streamable-http \
 HOST=0.0.0.0 \
 PORT=8001 \
 TRACKER_TOKEN=your_token \
