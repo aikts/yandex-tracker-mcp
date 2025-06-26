@@ -6,8 +6,8 @@ A comprehensive Model Context Protocol (MCP) server that enables AI assistants t
 
 ## Features
 
-- **Complete Queue Management**: List and access all available Yandex Tracker queues with pagination support
-- **Issue Operations**: Retrieve detailed issue information, comments, related links, and worklogs
+- **Complete Queue Management**: List and access all available Yandex Tracker queues with pagination support and tag retrieval
+- **Issue Operations**: Retrieve detailed issue information, comments, related links, worklogs, and attachments
 - **Field Management**: Access global fields, queue-specific local fields, statuses, and issue types
 - **Advanced Query Language**: Full Yandex Tracker Query Language support with complex filtering, sorting, and date functions
 - **Performance Caching**: Optional Redis caching layer for improved response times
@@ -470,6 +470,11 @@ The server exposes the following tools through the MCP protocol:
   - Returns queue-specific custom fields with id, name, and key
   - Respects `TRACKER_LIMIT_QUEUES` restrictions
 
+- **`queue_get_tags`**: Get all tags for a specific queue
+  - Parameters: `queue_id` (string, queue key like "SOMEPROJECT")
+  - Returns list of available tags in the specified queue
+  - Respects `TRACKER_LIMIT_QUEUES` restrictions
+
 ### Field Management
 - **`get_global_fields`**: Get all global fields available in Yandex Tracker
   - Returns complete list of global fields that can be used in issues
@@ -504,6 +509,10 @@ The server exposes the following tools through the MCP protocol:
 - **`issue_get_worklogs`**: Retrieve worklog entries
   - Parameters: `issue_ids` (array of strings)
   - Returns time tracking data for specified issues
+
+- **`issue_get_attachments`**: Get attachments for an issue
+  - Parameters: `issue_id` (string, format: "QUEUE-123")
+  - Returns list of attachments with metadata for the specified issue
 
 ### Search and Discovery
 - **`issues_find`**: Search issues using [Yandex Tracker Query Language](https://yandex.ru/support/tracker/ru/user/query-filter)
