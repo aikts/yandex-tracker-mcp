@@ -484,6 +484,11 @@ The server exposes the following tools through the MCP protocol:
   - Returns paginated list of users with login, email, license status, and organizational details
   - Includes user metadata such as external status, dismissal status, and notification preferences
 
+- **`user_get`**: Get information about a specific user by login or UID
+  - Parameters: `user_id` (string, user login like "john.doe" or UID like "12345")
+  - Returns detailed user information including login, email, license status, and organizational details
+  - Supports both user login names and numeric user IDs for flexible identification
+
 ### Field Management
 - **`get_global_fields`**: Get all global fields available in Yandex Tracker
   - Returns complete list of global fields that can be used in issues

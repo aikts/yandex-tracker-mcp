@@ -96,6 +96,10 @@ def make_cached_protocols(
         async def users_list(self, per_page: int = 50, page: int = 1) -> list[User]:
             return await self._original.users_list(per_page=per_page, page=page)
 
+        @cached(**cache_config)
+        async def user_get(self, user_id: str) -> User | None:
+            return await self._original.user_get(user_id)
+
     return (
         CachingQueuesProtocol,
         CachingIssuesProtocol,

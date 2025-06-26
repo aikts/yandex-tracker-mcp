@@ -162,6 +162,13 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
             "perPage": per_page,
             "page": page,
         }
-        async with self._session.get("v2/users", params=params) as response:
+        async with self._session.get("v3/users", params=params) as response:
             response.raise_for_status()
             return UserList.model_validate_json(await response.read()).root
+
+    async def user_get(self, user_id: str) -> User | None:
+        async with self._session.get(f"v3/users/{user_id}") as response:
+            if response.status == 404:
+                return None
+            response.raise_for_status()
+            return User.model_validate_json(await response.read())

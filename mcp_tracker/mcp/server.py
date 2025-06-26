@@ -9,7 +9,7 @@ from pydantic import Field
 from mcp_tracker.mcp.context import AppContext
 from mcp_tracker.mcp.errors import TrackerError
 from mcp_tracker.mcp.helpers import dump_list, prepare_text_content
-from mcp_tracker.mcp.params import IssueID, IssueIDs, QueueID
+from mcp_tracker.mcp.params import IssueID, IssueIDs, QueueID, UserID
 from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.caching.client import make_cached_protocols
 from mcp_tracker.tracker.custom.client import TrackerClient
@@ -330,3 +330,15 @@ async def users_get_all(
         per_page=per_page, page=page
     )
     return prepare_text_content(users)
+
+
+@mcp.tool(description="Get information about a specific user by login or UID")
+async def user_get(
+    ctx: Context[Any, AppContext],
+    user_id: UserID,
+) -> TextContent:
+    user = await ctx.request_context.lifespan_context.users.user_get(user_id)
+    if user is None:
+        raise TrackerError(f"User `{user_id}` not found.")
+
+    return prepare_text_content(user)
