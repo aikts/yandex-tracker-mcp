@@ -560,6 +560,9 @@ TRACKER_TOKEN=your_yandex_tracker_oauth_token
 TRACKER_CLOUD_ORG_ID=your_cloud_org_id    # For Yandex Cloud organizations
 TRACKER_ORG_ID=your_org_id                # For Yandex 360 organizations
 
+# API Configuration (optional)
+TRACKER_BASE_URL=https://api.tracker.yandex.net  # Default: https://api.tracker.yandex.net
+
 # Security - Restrict access to specific queues (optional)
 TRACKER_LIMIT_QUEUES=PROJ1,PROJ2,DEV      # Comma-separated queue keys
 

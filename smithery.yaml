@@ -4,6 +4,10 @@ startCommand:
   configSchema:
     type: "object"
     properties:
+      trackerBaseUrl:
+        type: "string"
+        default: "https://api.tracker.yandex.net"
+        description: "Yandex Tracker base URL"
       trackerToken:
         type: "string"
         description: "Yandex Tracker token"
@@ -23,6 +27,7 @@ startCommand:
       "args": ["-m", "mcp_tracker"],
       "env": {
         "TRANSPORT": "stdio",
+        "TRACKER_BASE_URL": config.trackerBaseUrl,
         "TRACKER_TOKEN": config.trackerToken,
         "TRACKER_CLOUD_ORG_ID": config.cloudOrgId || "",
         "TRACKER_ORG_ID": config.orgId || ""

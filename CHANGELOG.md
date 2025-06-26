@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.13] - 2025-06-26
+
+### Features
+- Add Smithery integration support with dedicated configuration file
+- Add configurable `TRACKER_BASE_URL` environment variable for custom API endpoints
+
+### Internal
+- Add Dockerfile for Smithery deployment
+- Update port configuration to default 8000 across all configs
+
 ## [0.2.12] - 2025-06-26
 
 ### Features

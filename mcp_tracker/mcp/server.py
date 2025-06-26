@@ -25,6 +25,7 @@ settings = Settings()
 @asynccontextmanager
 async def tracker_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     tracker = TrackerClient(
+        base_url=settings.tracker_base_url,
         token=settings.tracker_token,
         cloud_org_id=settings.tracker_cloud_org_id,
         org_id=settings.tracker_org_id,

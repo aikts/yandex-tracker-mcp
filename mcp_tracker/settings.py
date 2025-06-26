@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
     transport: Literal["stdio", "sse", "streamable-http"] = "stdio"
+    tracker_base_url: str = "https://api.tracker.yandex.net"
     tracker_token: str
     tracker_cloud_org_id: str | None = None
     tracker_org_id: str | None = None
