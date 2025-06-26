@@ -82,6 +82,10 @@ def make_cached_protocols(
         ) -> list[IssueAttachment] | None:
             return await self._original.issue_get_attachments(issue_id)
 
+        @cached(**cache_config)
+        async def issues_count(self, query: str) -> int:
+            return await self._original.issues_count(query)
+
     class CachingGlobalDataProtocol(GlobalDataProtocolWrap):
         @cached(**cache_config)
         async def get_global_fields(self) -> list[GlobalField]:

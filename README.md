@@ -540,6 +540,13 @@ The server exposes the following tools through the MCP protocol:
     - `page` (optional): Page number for pagination (default: 1)
   - Returns up to 500 issues per page
 
+- **`issues_count`**: Count issues matching a query using [Yandex Tracker Query Language](https://yandex.ru/support/tracker/ru/user/query-filter)
+  - Parameters:
+    - `query` (required): Query string using Yandex Tracker Query Language syntax
+  - Returns the total count of issues matching the specified criteria
+  - Supports all query language features: field filtering, date functions, logical operators, and complex expressions
+  - Useful for analytics, reporting, and understanding issue distribution without retrieving full issue data
+
 ## Configuration
 
 ### Environment Variables

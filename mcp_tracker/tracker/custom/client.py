@@ -178,3 +178,12 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
                 return None
             response.raise_for_status()
             return User.model_validate_json(await response.read())
+
+    async def issues_count(self, query: str) -> int:
+        body: dict[str, Any] = {
+            "query": query,
+        }
+
+        async with self._session.post("v3/issues/_count", json=body) as response:
+            response.raise_for_status()
+            return int(await response.text())

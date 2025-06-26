@@ -18,6 +18,7 @@ class IssueProtocol(Protocol):
     async def issue_get_attachments(
         self, issue_id: str
     ) -> list[IssueAttachment] | None: ...
+    async def issues_count(self, query: str) -> int: ...
 
 
 class IssueProtocolWrap(IssueProtocol):

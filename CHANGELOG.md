@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.12] - 2025-06-26
+
+### Features
+- Add MCP tool for counting Yandex Tracker issues (`issues_count`)
+
 ## [0.2.11] - 2025-06-26
 
 ### Internal
