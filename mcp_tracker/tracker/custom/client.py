@@ -15,7 +15,7 @@ from mcp_tracker.tracker.proto.types.issues import (
     IssueLink,
     Worklog,
 )
-from mcp_tracker.tracker.proto.types.queues import Queue
+from mcp_tracker.tracker.proto.types.queues import Queue, QueueVersion
 from mcp_tracker.tracker.proto.types.statuses import Status
 from mcp_tracker.tracker.proto.types.users import User
 from mcp_tracker.tracker.proto.users import UsersProtocol
@@ -23,6 +23,7 @@ from mcp_tracker.tracker.proto.users import UsersProtocol
 QueueList = RootModel[list[Queue]]
 LocalFieldList = RootModel[list[LocalField]]
 QueueTagList = RootModel[list[str]]
+VersionList = RootModel[list[QueueVersion]]
 IssueLinkList = RootModel[list[IssueLink]]
 IssueList = RootModel[list[Issue]]
 IssueCommentList = RootModel[list[IssueComment]]
@@ -82,6 +83,11 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         async with self._session.get(f"v3/queues/{queue_id}/tags") as response:
             response.raise_for_status()
             return QueueTagList.model_validate_json(await response.read()).root
+
+    async def queues_get_versions(self, queue_id: str) -> list[QueueVersion]:
+        async with self._session.get(f"v3/queues/{queue_id}/versions") as response:
+            response.raise_for_status()
+            return VersionList.model_validate_json(await response.read()).root
 
     async def get_global_fields(self) -> list[GlobalField]:
         async with self._session.get("v3/fields") as response:
@@ -151,7 +157,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
     async def issue_get_attachments(
         self, issue_id: str
     ) -> list[IssueAttachment] | None:
-        async with self._session.get(f"v2/issues/{issue_id}/attachments") as response:
+        async with self._session.get(f"v3/issues/{issue_id}/attachments") as response:
             if response.status == 404:
                 return None
             response.raise_for_status()

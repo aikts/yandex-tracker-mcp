@@ -126,6 +126,20 @@ async def queue_get_tags(
     return prepare_text_content(tags)
 
 
+@mcp.tool(description="Get all versions for a specific Yandex Tracker queue")
+async def queue_get_versions(
+    ctx: Context[Any, AppContext],
+    queue_id: QueueID,
+) -> TextContent:
+    if settings.tracker_limit_queues and queue_id not in settings.tracker_limit_queues:
+        raise TrackerError(f"Queue `{queue_id}` not found or not allowed.")
+
+    versions = await ctx.request_context.lifespan_context.queues.queues_get_versions(
+        queue_id
+    )
+    return prepare_text_content(versions)
+
+
 @mcp.tool(
     description="Get all global fields available in Yandex Tracker that can be used in issues"
 )

@@ -1,7 +1,7 @@
 from typing import Protocol
 
 from .types.fields import LocalField
-from .types.queues import Queue
+from .types.queues import Queue, QueueVersion
 
 
 class QueuesProtocol(Protocol):
@@ -10,6 +10,8 @@ class QueuesProtocol(Protocol):
     async def queues_get_local_fields(self, queue_id: str) -> list[LocalField]: ...
 
     async def queues_get_tags(self, queue_id: str) -> list[str]: ...
+
+    async def queues_get_versions(self, queue_id: str) -> list[QueueVersion]: ...
 
 
 class QueuesProtocolWrap(QueuesProtocol):

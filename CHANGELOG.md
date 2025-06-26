@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.9] - 2025-01-26
+
+### Features
+- Add MCP tool for retrieving queue versions (`queue_get_versions`)
+
 ## [0.2.8] - 2025-01-26
 
 ### Features

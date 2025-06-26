@@ -14,7 +14,7 @@ from mcp_tracker.tracker.proto.types.issues import (
     IssueLink,
     Worklog,
 )
-from mcp_tracker.tracker.proto.types.queues import Queue
+from mcp_tracker.tracker.proto.types.queues import Queue, QueueVersion
 from mcp_tracker.tracker.proto.types.statuses import Status
 from mcp_tracker.tracker.proto.types.users import User
 from mcp_tracker.tracker.proto.users import UsersProtocolWrap
@@ -40,6 +40,10 @@ def make_cached_protocols(
         @cached(**cache_config)
         async def queues_get_tags(self, queue_id: str) -> list[str]:
             return await self._original.queues_get_tags(queue_id)
+
+        @cached(**cache_config)
+        async def queues_get_versions(self, queue_id: str) -> list[QueueVersion]:
+            return await self._original.queues_get_versions(queue_id)
 
     class CachingIssuesProtocol(IssueProtocolWrap):
         @cached(**cache_config)
