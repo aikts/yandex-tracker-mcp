@@ -1,0 +1,26 @@
+runtime: "container"
+startCommand:
+  type: "http"
+  configSchema:
+    type: "object"
+    properties:
+      trackerToken:
+        type: "string"
+        description: "Yandex Tracker token"
+      cloudOrgId:
+        type: "string"
+        description: "Yandex Cloud Org Id"
+      orgId:
+        type: "string"
+        description: "Yandex 360 Org Id"
+    required: ["trackerToken"]
+  commandFunction: |
+    (config) => ({
+      "command": "python",
+      "args": ["-m", "mcp_tracker"],
+      "env": {
+        "TRACKER_TOKEN": config.trackerToken,
+        "TRACKER_CLOUD_ORG_ID": config.cloudOrgId || "",
+        "TRACKER_ORG_ID": config.orgId || ""
+      }
+    })
