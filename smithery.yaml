@@ -1,6 +1,6 @@
 runtime: "container"
 startCommand:
-  type: "http"
+  type: "stdio"
   configSchema:
     type: "object"
     properties:
@@ -13,20 +13,16 @@ startCommand:
       orgId:
         type: "string"
         description: "Yandex 360 Org Id"
-      port:
-        type: number
-        default: 8000
-        description: Port on which the server runs (if applicable)
     required: ["trackerToken"]
   exampleConfig:
     trackerToken: "some-tracker-token"
     cloudOrgId: "someCloudOrgId"
-  commandFunction: |
+  commandFunction: |-
     (config) => ({
       "command": "python",
       "args": ["-m", "mcp_tracker"],
       "env": {
-        "TRANSPORT": "streamable-http",
+        "TRANSPORT": "stdio",
         "TRACKER_TOKEN": config.trackerToken,
         "TRACKER_CLOUD_ORG_ID": config.cloudOrgId || "",
         "TRACKER_ORG_ID": config.orgId || "",
