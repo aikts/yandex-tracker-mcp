@@ -13,6 +13,10 @@ startCommand:
       orgId:
         type: "string"
         description: "Yandex 360 Org Id"
+      port:
+        type: number
+        default: 8000
+        description: Port on which the server runs (if applicable)
     required: ["trackerToken"]
   exampleConfig:
     trackerToken: "some-tracker-token"
@@ -25,7 +29,8 @@ startCommand:
         "TRANSPORT": "streamable-http",
         "TRACKER_TOKEN": config.trackerToken,
         "TRACKER_CLOUD_ORG_ID": config.cloudOrgId || "",
-        "TRACKER_ORG_ID": config.orgId || ""
+        "TRACKER_ORG_ID": config.orgId || "",
+        "PORT": config.port
       }
     })
 build:
