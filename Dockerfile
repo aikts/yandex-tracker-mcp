@@ -1,5 +1,5 @@
 #syntax=docker/dockerfile:1
-ARG IMAGE_PREFIX
+ARG IMAGE_PREFIX=docker.io/
 ARG PYTHON_IMAGE=python:3.12-slim
 
 ARG GHCR_REGISTRY_PREFIX=ghcr.io/
