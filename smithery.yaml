@@ -30,7 +30,7 @@ startCommand:
         "TRACKER_TOKEN": config.trackerToken,
         "TRACKER_CLOUD_ORG_ID": config.cloudOrgId || "",
         "TRACKER_ORG_ID": config.orgId || "",
-        "PORT": config.port
+        "PORT": String(config.port)
       }
     })
 build:
