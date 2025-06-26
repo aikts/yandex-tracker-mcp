@@ -18,6 +18,7 @@ startCommand:
     (config) => ({
       "command": "python",
       "args": ["-m", "mcp_tracker"],
+      "port": 8001,
       "env": {
         "TRANSPORT": "streamable-http",
         "TRACKER_TOKEN": config.trackerToken,
