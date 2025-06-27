@@ -34,6 +34,9 @@ jobs:
       run: |
         dxt validate manifest.json
         cp images/tracker-logo.png .
+        mkdir -p dxt-lib
+        uv export > requirements.txt
+        uv pip install -r requirements.txt --target=dxt-lib
         dxt pack . yandex-tracker-mcp-${{github.ref_name}}.dxt
         mkdir -p dxt
         mv *.dxt dxt/
