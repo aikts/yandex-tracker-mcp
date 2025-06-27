@@ -17,12 +17,6 @@ A comprehensive Model Context Protocol (MCP) server that enables AI assistants t
 - **Multiple Transport Options**: Support for stdio and SSE transports
 - **Organization Support**: Compatible with both standard and cloud organization IDs
 
-## Prerequisites
-
-- Python 3.12 or higher
-- Valid Yandex Tracker API token with appropriate permissions
-- Optional: Redis server for caching functionality
-
 ### Organization ID Configuration
 
 Choose one of the following based on your Yandex organization type:
@@ -35,11 +29,40 @@ You can find your organization ID in the Yandex Tracker URL or organization sett
 
 ## MCP Client Configuration
 
+### Installing extension in Claude Desktop
+
+Yandex Tracker MCP Server can be one-click installed in Claude Desktop as and [extension](https://www.anthropic.com/engineering/desktop-extensions).
+
+#### Prerequisites
+There is only one requirement - python 3.12 must be installed on your system.
+
+For macOS users, you can install it using the following command:
+
+```bash
+brew install python@3.12
+```
+
+For Windows please refer to the [documentation](https://www.python.org/downloads/release/python-31210/).
+
+
+#### Installation
+
+1. Download the `*.dxt` file from [GitHub Releases](https://github.com/aikts/yandex-tracker-mcp/releases/latest).
+2. Double-click the downloaded file to install it in Claude Desktop. ![img.png](images/claude-desktop-install.png)
+3. Provide your Yandex Tracker OAuth token when prompted. ![img.png](images/claude-desktop-config.png)
+4. Make sure extension is enabled - now you may use this MCP Server.
+
+### Manual installation
+
+#### Prerequisites
+
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) installed globally
+- Valid Yandex Tracker API token with appropriate permissions
+
 The following sections show how to configure the MCP server for different AI clients. You can use either `uvx yandex-tracker-mcp@latest` or the Docker image `ghcr.io/aikts/yandex-tracker-mcp:latest`. Both require these environment variables:
 
 - `TRACKER_TOKEN` - Your Yandex Tracker OAuth token (required)
-- `TRACKER_CLOUD_ORG_ID` - Your Yandex Cloud organization ID
-- `TRACKER_ORG_ID` - Your Yandex 360 organization ID
+- `TRACKER_CLOUD_ORG_ID` or `TRACKER_ORG_ID` - Your Yandex Cloud (or Yandex 360) organization ID
 
 <details>
 <summary><strong>Claude Desktop</strong></summary>

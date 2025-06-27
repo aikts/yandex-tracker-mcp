@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.14] - 2025-06-27
+
+### Internal
+- Add dxt packaging support with GitHub Actions workflow
+
+### Documentation
+- Update README.md with Claude Desktop installation instructions
+
 ## [0.2.13] - 2025-06-26
 
 ### Features
