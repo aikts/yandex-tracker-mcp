@@ -49,11 +49,11 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
             "Authorization": f"OAuth {token}",
         }
 
-        if org_id is not None:
+        if org_id:
             headers["X-Org-ID"] = org_id
-        elif cloud_org_id is not None:
+        if cloud_org_id is not None:
             headers["X-Cloud-Org-ID"] = cloud_org_id
-        else:
+        if not org_id and not cloud_org_id:
             raise ValueError("Either org_id or cloud_org_id must be provided.")
 
         self._session = ClientSession(

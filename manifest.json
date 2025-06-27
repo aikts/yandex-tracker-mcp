@@ -1,0 +1,137 @@
+{
+  "dxt_version": "0.1",
+  "name": "yandex-tracker-mcp",
+  "display_name": "Yandex Tracker MCP",
+  "version": "0.2.13",
+  "description": "Yandex Tracker MCP Server",
+  "author": {
+    "name": "KTS",
+    "email": "hello@kts.tech",
+    "url": "https://kts.tech"
+  },
+  "server": {
+    "type": "python",
+    "entry_point": "yandex-tracker-mcp",
+    "mcp_config": {
+      "command": "python3.12",
+      "args": [
+        "-m",
+        "mcp_tracker"
+      ],
+      "env": {
+        "PYTHONPATH": "${__dirname}:${__dirname}/dxt-lib",
+        "TRACKER_TOKEN": "${user_config.trackerToken}",
+        "TRACKER_CLOUD_ORG_ID": "${user_config.trackerCloudOrgId}",
+        "TRACKER_ORG_ID": "${user_config.trackerOrgId}"
+      }
+    }
+  },
+  "compatibility": {
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": {
+      "python": ">=3.9"
+    }
+  },
+  "tools": [
+    {
+      "name": "queues_get_all",
+      "description": "List all available Yandex Tracker queues"
+    },
+    {
+      "name": "queue_get_local_fields",
+      "description": "Get local fields for a specific queue"
+    },
+    {
+      "name": "queue_get_tags",
+      "description": "Get all tags for a specific queue"
+    },
+    {
+      "name": "queue_get_versions",
+      "description": "Get all versions for a specific queue"
+    },
+    {
+      "name": "users_get_all",
+      "description": "Get information about user accounts registered in the organization"
+    },
+    {
+      "name": "user_get",
+      "description": "Get information about a specific user by login or UID"
+    },
+    {
+      "name": "get_global_fields",
+      "description": "Get all global fields available in Yandex Tracker"
+    },
+    {
+      "name": "get_statuses",
+      "description": "Get all available issue statuses"
+    },
+    {
+      "name": "get_issue_types",
+      "description": "Get all available issue types"
+    },
+    {
+      "name": "issue_get",
+      "description": "Retrieve detailed issue information by ID"
+    },
+    {
+      "name": "issue_get_url",
+      "description": "Generate web URL for an issue"
+    },
+    {
+      "name": "issue_get_comments",
+      "description": "Fetch all comments for an issue"
+    },
+    {
+      "name": "issue_get_links",
+      "description": "Get related issue links"
+    },
+    {
+      "name": "issue_get_worklogs",
+      "description": "Retrieve worklog entries"
+    },
+    {
+      "name": "issue_get_attachments",
+      "description": "Get attachments for an issue"
+    },
+    {
+      "name": "issues_find",
+      "description": "Search issues using Yandex Tracker Query Language"
+    },
+    {
+      "name": "issues_count",
+      "description": "Count issues matching a query using Yandex Tracker Query Language"
+    }
+  ],
+  "user_config": {
+    "trackerToken": {
+      "type": "string",
+      "title": "Yandex Tracker Token",
+      "description": "Token for accessing Yandex Tracker API",
+      "required": true,
+      "sensitive": true
+    },
+    "trackerCloudOrgId": {
+      "type": "string",
+      "title": "Tracker Cloud Org Id",
+      "description": "ID of Yandex Cloud Organization",
+      "required": false,
+      "sensitive": false
+    },
+    "trackerOrgId": {
+      "type": "string",
+      "title": "Tracker Org Id",
+      "description": "ID of Yandex 360 Organization",
+      "required": false,
+      "sensitive": false
+    }
+  },
+  "keywords": [
+    "yandex",
+    "yandex-tracker"
+  ],
+  "license": "Apache 2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aikts/yandex-tracker-mcp"
+  }
+}
