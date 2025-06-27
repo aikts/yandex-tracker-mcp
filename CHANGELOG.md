@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.18] - 2025-06-27
+
+### Internal
+- Fix packaging dxt
+
 ## [0.2.17] - 2025-06-27
 
 ### Internal

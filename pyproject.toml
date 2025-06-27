@@ -1,6 +1,6 @@
 [project]
 name = "yandex-tracker-mcp"
-version = "0.2.17"
+version = "0.2.18"
 description = "Yandex Tracker MCP Server"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -34,7 +34,7 @@ plugins = [
     "pydantic.mypy"
 ]
 exclude = [
-    'app/store/pg/migrations',
+    'dxt-lib',
 ]
 
 [[tool.mypy.overrides]]
