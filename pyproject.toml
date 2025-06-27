@@ -14,6 +14,11 @@ dependencies = [
     "yarl>=1.20.0",
 ]
 
+[tool.setuptools]
+py-modules = [
+    "mcp_tracker",
+]
+
 [project.scripts]
 yandex-tracker-mcp = "mcp_tracker.__main__:main"
 
