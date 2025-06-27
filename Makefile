@@ -19,3 +19,7 @@ format-check:
 
 lock:
 	uv lock && uv sync --dev
+
+dxt:
+	cp images/tracker-logo.png .
+	dxt pack . yandex-tracker-mcp.dxt

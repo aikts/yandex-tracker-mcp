@@ -2,13 +2,14 @@
   "dxt_version": "0.1",
   "name": "yandex-tracker-mcp",
   "display_name": "Yandex Tracker MCP",
-  "version": "0.2.13",
+  "version": "0.2.16",
   "description": "Yandex Tracker MCP Server",
   "author": {
     "name": "KTS",
     "email": "hello@kts.tech",
     "url": "https://kts.tech"
   },
+  "icon": "tracker-logo.png",
   "server": {
     "type": "python",
     "entry_point": "yandex-tracker-mcp",

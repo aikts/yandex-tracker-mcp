@@ -2,7 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.2.14] - 2025-06-27
+## [0.2.16] - 2025-06-27
+
+### Internal
+- Add dxt logo
+
+## [0.2.15] - 2025-06-27
 
 ### Internal
 - Add dxt packaging support with GitHub Actions workflow

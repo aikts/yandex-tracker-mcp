@@ -32,10 +32,11 @@ jobs:
 
     - name: Create dxt package
       run: |
+        dxt validate manifest.json
+        cp images/tracker-logo.png .
         dxt pack . yandex-tracker-mcp-${{github.ref_name}}.dxt
         mkdir -p dxt
         mv *.dxt dxt/
-
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
