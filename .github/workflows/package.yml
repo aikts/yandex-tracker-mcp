@@ -23,10 +23,15 @@ jobs:
     - name: Build package
       run: uv build
 
-    - name: Pack dxt
+    - name: Prepare NodeJS
       uses: actions/setup-node@v4
+
+    - name: Install dxt CLI
       run: |
         npm install -g @anthropic-ai/dxt
+
+    - name: Create dxt package
+      run: |
         dxt pack . yandex-tracker-mcp-${{github.ref_name}}.dxt
         mkdir -p dxt
         mv *.dxt dxt/
