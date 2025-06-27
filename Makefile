@@ -21,5 +21,8 @@ lock:
 	uv lock && uv sync --dev
 
 dxt:
+	mkdir -p dxt-lib
+	uv export > requirements.txt
+	uv pip install -r requirements.txt --target=dxt-lib
 	cp images/tracker-logo.png .
 	dxt pack . yandex-tracker-mcp.dxt

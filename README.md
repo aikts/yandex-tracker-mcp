@@ -33,6 +33,8 @@ You can find your organization ID in the Yandex Tracker URL or organization sett
 
 Yandex Tracker MCP Server can be one-click installed in Claude Desktop as and [extension](https://www.anthropic.com/engineering/desktop-extensions).
 
+**Currently only macOS is supported.**
+
 #### Prerequisites
 There is only one requirement - python 3.12 must be installed on your system.
 
@@ -41,8 +43,6 @@ For macOS users, you can install it using the following command:
 ```bash
 brew install python@3.12
 ```
-
-For Windows please refer to the [documentation](https://www.python.org/downloads/release/python-31210/).
 
 
 #### Installation
