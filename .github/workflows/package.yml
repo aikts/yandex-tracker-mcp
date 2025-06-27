@@ -6,54 +6,73 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.12"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-    - name: Install uv
-      uses: astral-sh/setup-uv@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
 
-    - name: Install build dependencies
-      run: uv sync --dev
+      - name: Install build dependencies
+        run: uv sync --dev
 
-    - name: Build package
-      run: uv build
+      - name: Build package
+        run: uv build
 
-    - name: Prepare NodeJS
-      uses: actions/setup-node@v4
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7
 
-    - name: Install dxt CLI
-      run: |
-        npm install -g @anthropic-ai/dxt
+  build-dxt:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, windows-latest, macos-15 ]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Create dxt package
-      run: |
-        dxt validate manifest.json
-        cp images/tracker-logo.png .
-        mkdir -p dxt-lib
-        uv export > requirements.txt
-        uv pip install -r requirements.txt --target=dxt-lib
-        dxt pack . yandex-tracker-mcp-${{github.ref_name}}.dxt
-        mkdir -p dxt
-        mv *.dxt dxt/
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: dist
-        path: dist/
-        retention-days: 7
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
 
-    - name: Upload dxt artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: dxt
-        path: dxt/
-        retention-days: 7
+      - name: Prepare NodeJS
+        uses: actions/setup-node@v4
+
+      - name: Install dxt CLI
+        run: |
+          npm install -g @anthropic-ai/dxt
+
+      - name: Create dxt package
+        run: |
+          dxt validate manifest.json
+          cp images/tracker-logo.png .
+          mkdir -p dxt-lib
+          uv export > requirements.txt
+          uv pip install -r requirements.txt --target=dxt-lib
+
+          python dxt-utils/patch-platform.py ${{runner.os}} > manifest2.json
+          rm manifest.json
+          mv manifest2.json manifest.json
+          dxt pack . yandex-tracker-mcp-${{github.ref_name}}-${{runner.os}}-${{runner.arch}}.dxt
+
+      - name: Upload dxt artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dxt-${{matrix.os}}
+          path: "*.dxt"
+          retention-days: 7
 
   publish:
     needs: build
@@ -73,16 +92,16 @@ jobs:
         name: dist
         path: dist/
 
-    - name: Download dxt artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: dxt
-        path: dxt/
-
     - name: Publish to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         print-hash: true
+
+    - name: Download dxt artifacts
+      uses: actions/download-artifact@v4
+      with:
+        pattern: "dxt-*"
+        path: dxt/
 
     - name: Make Github release
       uses: marvinpinto/action-automatic-releases@latest

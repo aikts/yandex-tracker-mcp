@@ -33,8 +33,6 @@ You can find your organization ID in the Yandex Tracker URL or organization sett
 
 Yandex Tracker MCP Server can be one-click installed in Claude Desktop as and [extension](https://www.anthropic.com/engineering/desktop-extensions).
 
-**Currently only macOS is supported.**
-
 #### Prerequisites
 There is only one requirement - python 3.12 must be installed on your system.
 
@@ -44,10 +42,9 @@ For macOS users, you can install it using the following command:
 brew install python@3.12
 ```
 
-
 #### Installation
 
-1. Download the `*.dxt` file from [GitHub Releases](https://github.com/aikts/yandex-tracker-mcp/releases/latest).
+1. Download the `*.dxt` file from [GitHub Releases](https://github.com/aikts/yandex-tracker-mcp/releases/latest) for your OS and platform.
 2. Double-click the downloaded file to install it in Claude Desktop. ![img.png](images/claude-desktop-install.png)
 3. Provide your Yandex Tracker OAuth token when prompted. ![img.png](images/claude-desktop-config.png)
 4. Make sure extension is enabled - now you may use this MCP Server.
