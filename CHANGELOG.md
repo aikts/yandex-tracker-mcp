@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.19] - 2025-06-27
+
+### Internal
+- Enable packagin dxt for all platforms
+
 ## [0.2.18] - 2025-06-27
 
 ### Internal
