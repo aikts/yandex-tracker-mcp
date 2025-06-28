@@ -11,16 +11,11 @@
   },
   "icon": "tracker-logo.png",
   "server": {
-    "type": "python",
-    "entry_point": "yandex-tracker-mcp",
+    "type": "binary",
+    "entry_point": "mcp_tracker.bin",
     "mcp_config": {
-      "command": "python3.12",
-      "args": [
-        "-m",
-        "mcp_tracker"
-      ],
+      "command": "${__dirname}/mcp_tracker.bin",
       "env": {
-        "PYTHONPATH": "${__dirname}:${__dirname}/dxt-lib",
         "TRACKER_TOKEN": "${user_config.trackerToken}",
         "TRACKER_CLOUD_ORG_ID": "${user_config.trackerCloudOrgId}",
         "TRACKER_ORG_ID": "${user_config.trackerOrgId}"

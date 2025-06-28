@@ -36,3 +36,5 @@ smithery*
 uv.lock
 images
 dxt-utils
+mcp_tracker.build
+mcp_tracker.dist

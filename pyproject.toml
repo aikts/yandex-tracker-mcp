@@ -27,6 +27,7 @@ dev = [
     "mypy>=1.8.0",
     "ruff>=0.8.0",
     "pytest>=8.0.0",
+    "nuitka>=2.7.10",
 ]
 
 [tool.mypy]

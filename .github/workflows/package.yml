@@ -54,13 +54,21 @@ jobs:
         run: |
           npm install -g @anthropic-ai/dxt
 
+      - uses: Nuitka/Nuitka-Action@main
+        with:
+          nuitka-version: main
+          script-name: hello_world.py
+          mode: app
+
       - name: Create dxt package
         run: |
           dxt validate manifest.json
           cp images/tracker-logo.png .
           mkdir -p dxt-lib
-          uv export > requirements.txt
-          uv pip install -r requirements.txt --target=dxt-lib
+          # uv export > requirements.txt
+          # uv pip install -r requirements.txt --target=dxt-lib
+          uv sync --dev
+          uv run nuitka --onefile mcp_tracker
 
           python dxt-utils/patch-platform.py ${{runner.os}} > manifest2.json
           rm manifest.json

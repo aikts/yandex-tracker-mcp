@@ -167,3 +167,4 @@ mcp_tracker.dist
 dxt-lib
 requirements.txt
 /tracker-logo.png
+*.bin
