@@ -1,4 +1,4 @@
-from pydantic import ConfigDict
+from pydantic import ConfigDict, Field
 
 from mcp_tracker.tracker.proto.types.base import BaseTrackerEntity
 
@@ -8,8 +8,8 @@ class User(BaseTrackerEntity):
 
     uid: int
     login: str
-    first_name: str | None = None
-    last_name: str | None = None
+    first_name: str | None = Field(None, alias="firstName")
+    last_name: str | None = Field(None, alias="lastName")
     display: str | None = None
     email: str | None = None
     external: bool | None = None

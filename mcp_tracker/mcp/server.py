@@ -1,14 +1,18 @@
 from contextlib import asynccontextmanager
 from typing import Annotated, Any, AsyncIterator
 
+import yarl
 from mcp.server import FastMCP
+from mcp.server.auth.middleware.auth_context import get_access_token
+from mcp.server.auth.provider import AccessToken, TokenVerifier
+from mcp.server.auth.settings import AuthSettings, ClientRegistrationOptions
 from mcp.server.fastmcp import Context
-from mcp.types import TextContent
 from pydantic import Field
+from starlette.routing import Route
 
 from mcp_tracker.mcp.context import AppContext
 from mcp_tracker.mcp.errors import TrackerError
-from mcp_tracker.mcp.helpers import dump_list, prepare_text_content
+from mcp_tracker.mcp.oauth import YandexOAuthAuthorizationServerProvider
 from mcp_tracker.mcp.params import IssueID, IssueIDs, QueueID, UserID, YTQuery
 from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.caching.client import make_cached_protocols
@@ -16,7 +20,18 @@ from mcp_tracker.tracker.custom.client import TrackerClient
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
-from mcp_tracker.tracker.proto.types.queues import Queue
+from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
+from mcp_tracker.tracker.proto.types.issue_types import IssueType
+from mcp_tracker.tracker.proto.types.issues import (
+    Issue,
+    IssueAttachment,
+    IssueComment,
+    IssueLink,
+    Worklog,
+)
+from mcp_tracker.tracker.proto.types.queues import Queue, QueueVersion
+from mcp_tracker.tracker.proto.types.statuses import Status
+from mcp_tracker.tracker.proto.types.users import User
 from mcp_tracker.tracker.proto.users import UsersProtocol
 
 settings = Settings()
@@ -55,12 +70,69 @@ async def tracker_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
         await tracker.close()
 
 
-mcp = FastMCP(
-    name="Yandex Tracker MCP Server",
-    host=settings.host,
-    port=settings.port,
-    lifespan=tracker_lifespan,
-)
+class SimpleTokenVerifier(TokenVerifier):
+    async def verify_token(self, token: str) -> AccessToken | None:
+        return AccessToken(
+            token=token,
+            client_id="6c73ada074df4c9ca8e9a5c72771693f",
+            scopes=["tracker:read", "tracker:write"],
+        )
+
+
+def create_mcp_server() -> FastMCP:
+    auth_server_provider: YandexOAuthAuthorizationServerProvider | None = None
+    auth_settings: AuthSettings | None = None
+
+    if settings.oauth_enabled:
+        assert settings.oauth_client_id, "OAuth client ID must be set."
+        assert settings.oauth_client_secret, "OAuth client secret must be set."
+
+        auth_server_provider = YandexOAuthAuthorizationServerProvider(
+            client_id=settings.oauth_client_id,
+            client_secret=settings.oauth_client_secret,
+            server_url=yarl.URL(str(settings.server_url)),
+        )
+        auth_settings = AuthSettings(
+            issuer_url=settings.server_url,
+            required_scopes=["tracker:read", "tracker:write"],
+            resource_server_url=settings.server_url,
+            client_registration_options=ClientRegistrationOptions(
+                enabled=True,
+                valid_scopes=["tracker:read", "tracker:write"],
+                default_scopes=["tracker:read", "tracker:write"],
+            ),
+        )
+
+    server = FastMCP(
+        name="Yandex Tracker MCP Server",
+        host=settings.host,
+        port=settings.port,
+        lifespan=tracker_lifespan,
+        auth_server_provider=auth_server_provider,
+        stateless_http=True,
+        json_response=True,
+        auth=auth_settings,
+    )
+
+    if auth_server_provider is not None:
+        server._custom_starlette_routes.append(
+            Route(
+                path="/oauth/yandex/callback",
+                endpoint=auth_server_provider.handle_yandex_callback,
+                methods=["GET"],
+                name="oauth_yandex_callback",
+            )
+        )
+
+    return server
+
+
+mcp = create_mcp_server()
+
+
+def get_yandex_access_token() -> str | None:
+    access_token = get_access_token()
+    return access_token.token if access_token else None
 
 
 def check_issue_id(issue_id: str) -> None:
@@ -74,14 +146,16 @@ def check_issue_id(issue_id: str) -> None:
 )
 async def queues_get_all(
     ctx: Context[Any, AppContext],
-) -> TextContent:
+) -> list[Queue]:
     result: list[Queue] = []
     per_page = 100
     page = 1
 
     while True:
         queues = await ctx.request_context.lifespan_context.queues.queues_list(
-            per_page=per_page, page=page
+            per_page=per_page,
+            page=page,
+            token=get_yandex_access_token(),
         )
         if len(queues) == 0:
             break
@@ -96,7 +170,7 @@ async def queues_get_all(
         result.extend(queues)
         page += 1
 
-    return prepare_text_content(result)
+    return result
 
 
 @mcp.tool(
@@ -105,40 +179,45 @@ async def queues_get_all(
 async def queue_get_local_fields(
     ctx: Context[Any, AppContext],
     queue_id: QueueID,
-) -> TextContent:
+) -> list[LocalField]:
     if settings.tracker_limit_queues and queue_id not in settings.tracker_limit_queues:
         raise TrackerError(f"Queue `{queue_id}` not found or not allowed.")
 
     fields = await ctx.request_context.lifespan_context.queues.queues_get_local_fields(
-        queue_id
+        queue_id,
+        token=get_yandex_access_token(),
     )
-    return prepare_text_content(fields)
+    return fields
 
 
 @mcp.tool(description="Get all tags for a specific Yandex Tracker queue")
 async def queue_get_tags(
     ctx: Context[Any, AppContext],
     queue_id: QueueID,
-) -> TextContent:
+) -> list[str]:
     if settings.tracker_limit_queues and queue_id not in settings.tracker_limit_queues:
         raise TrackerError(f"Queue `{queue_id}` not found or not allowed.")
 
-    tags = await ctx.request_context.lifespan_context.queues.queues_get_tags(queue_id)
-    return prepare_text_content(tags)
+    tags = await ctx.request_context.lifespan_context.queues.queues_get_tags(
+        queue_id,
+        token=get_yandex_access_token(),
+    )
+    return tags
 
 
 @mcp.tool(description="Get all versions for a specific Yandex Tracker queue")
 async def queue_get_versions(
     ctx: Context[Any, AppContext],
     queue_id: QueueID,
-) -> TextContent:
+) -> list[QueueVersion]:
     if settings.tracker_limit_queues and queue_id not in settings.tracker_limit_queues:
         raise TrackerError(f"Queue `{queue_id}` not found or not allowed.")
 
     versions = await ctx.request_context.lifespan_context.queues.queues_get_versions(
-        queue_id
+        queue_id,
+        token=get_yandex_access_token(),
     )
-    return prepare_text_content(versions)
+    return versions
 
 
 @mcp.tool(
@@ -146,9 +225,11 @@ async def queue_get_versions(
 )
 async def get_global_fields(
     ctx: Context[Any, AppContext],
-) -> TextContent:
-    fields = await ctx.request_context.lifespan_context.fields.get_global_fields()
-    return prepare_text_content(fields)
+) -> list[GlobalField]:
+    fields = await ctx.request_context.lifespan_context.fields.get_global_fields(
+        token=get_yandex_access_token(),
+    )
+    return fields
 
 
 @mcp.tool(
@@ -156,9 +237,11 @@ async def get_global_fields(
 )
 async def get_statuses(
     ctx: Context[Any, AppContext],
-) -> TextContent:
-    statuses = await ctx.request_context.lifespan_context.fields.get_statuses()
-    return prepare_text_content(statuses)
+) -> list[Status]:
+    statuses = await ctx.request_context.lifespan_context.fields.get_statuses(
+        token=get_yandex_access_token(),
+    )
+    return statuses
 
 
 @mcp.tool(
@@ -166,46 +249,52 @@ async def get_statuses(
 )
 async def get_issue_types(
     ctx: Context[Any, AppContext],
-) -> TextContent:
-    issue_types = await ctx.request_context.lifespan_context.fields.get_issue_types()
-    return prepare_text_content(issue_types)
+) -> list[IssueType]:
+    issue_types = await ctx.request_context.lifespan_context.fields.get_issue_types(
+        token=get_yandex_access_token(),
+    )
+    return issue_types
 
 
 @mcp.tool(description="Get a Yandex Tracker issue url by its id")
 async def issue_get_url(
     issue_id: IssueID,
-) -> TextContent:
-    return prepare_text_content({"url": f"https://tracker.yandex.ru/{issue_id}"})
+) -> str:
+    return f"https://tracker.yandex.ru/{issue_id}"
 
 
 @mcp.tool(description="Get a Yandex Tracker issue by its id")
 async def issue_get(
     ctx: Context[Any, AppContext],
     issue_id: IssueID,
-) -> TextContent:
+) -> Issue:
     check_issue_id(issue_id)
 
-    issue = await ctx.request_context.lifespan_context.issues.issue_get(issue_id)
+    issue = await ctx.request_context.lifespan_context.issues.issue_get(
+        issue_id,
+        token=get_yandex_access_token(),
+    )
     if issue is None:
         raise TrackerError(f"Issue `{issue_id}` not found.")
 
-    return prepare_text_content(issue)
+    return issue
 
 
 @mcp.tool(description="Get comments of a Yandex Tracker issue by its id")
 async def issue_get_comments(
     ctx: Context[Any, AppContext],
     issue_id: IssueID,
-) -> TextContent:
+) -> list[IssueComment]:
     check_issue_id(issue_id)
 
     comments = await ctx.request_context.lifespan_context.issues.issue_get_comments(
-        issue_id
+        issue_id,
+        token=get_yandex_access_token(),
     )
     if comments is None:
         raise TrackerError(f"Issue `{issue_id}` not found.")
 
-    return prepare_text_content(comments)
+    return comments
 
 
 @mcp.tool(
@@ -214,14 +303,17 @@ async def issue_get_comments(
 async def issue_get_links(
     ctx: Context[Any, AppContext],
     issue_id: IssueID,
-) -> TextContent:
+) -> list[IssueLink]:
     check_issue_id(issue_id)
 
-    links = await ctx.request_context.lifespan_context.issues.issues_get_links(issue_id)
+    links = await ctx.request_context.lifespan_context.issues.issues_get_links(
+        issue_id,
+        token=get_yandex_access_token(),
+    )
     if links is None:
         raise TrackerError(f"Issue `{issue_id}` not found.")
 
-    return prepare_text_content(links)
+    return links
 
 
 @mcp.tool(description="Find Yandex Tracker issues by queue and/or created date")
@@ -234,64 +326,67 @@ async def issues_find(
             description="Page number to return, default is 1",
         ),
     ] = 1,
-) -> TextContent:
+) -> list[Issue]:
     per_page = 500
 
     issues = await ctx.request_context.lifespan_context.issues.issues_find(
         query=query,
         per_page=per_page,
         page=page,
+        token=get_yandex_access_token(),
     )
 
-    return prepare_text_content(issues)
+    return issues
 
 
 @mcp.tool(description="Get the count of Yandex Tracker issues matching a query")
 async def issues_count(
     ctx: Context[Any, AppContext],
     query: YTQuery,
-) -> TextContent:
-    count = await ctx.request_context.lifespan_context.issues.issues_count(query)
-    return prepare_text_content({"count": count})
+) -> int:
+    count = await ctx.request_context.lifespan_context.issues.issues_count(
+        query,
+        token=get_yandex_access_token(),
+    )
+    return count
 
 
 @mcp.tool(description="Get worklogs of a Yandex Tracker issue by its id")
 async def issue_get_worklogs(
     ctx: Context[Any, AppContext],
     issue_ids: IssueIDs,
-) -> TextContent:
+) -> dict[str, list[Worklog]]:
     for issue_id in issue_ids:
         check_issue_id(issue_id)
 
     result: dict[str, Any] = {}
     for issue_id in issue_ids:
         worklogs = await ctx.request_context.lifespan_context.issues.issue_get_worklogs(
-            issue_id
+            issue_id,
+            token=get_yandex_access_token(),
         )
-        if not worklogs:
-            result[issue_id] = []
-        else:
-            result[issue_id] = dump_list(worklogs)
+        result[issue_id] = worklogs or []
 
-    return prepare_text_content(result)
+    return result
 
 
 @mcp.tool(description="Get attachments of a Yandex Tracker issue by its id")
 async def issue_get_attachments(
     ctx: Context[Any, AppContext],
     issue_id: IssueID,
-) -> TextContent:
+) -> list[IssueAttachment]:
     check_issue_id(issue_id)
 
     attachments = (
         await ctx.request_context.lifespan_context.issues.issue_get_attachments(
-            issue_id
+            issue_id,
+            token=get_yandex_access_token(),
         )
     )
     if attachments is None:
         raise TrackerError(f"Issue `{issue_id}` not found.")
 
-    return prepare_text_content(attachments)
+    return attachments
 
 
 @mcp.tool(
@@ -313,20 +408,25 @@ async def users_get_all(
             ge=1,
         ),
     ] = 1,
-) -> TextContent:
+) -> list[User]:
     users = await ctx.request_context.lifespan_context.users.users_list(
-        per_page=per_page, page=page
+        per_page=per_page,
+        page=page,
+        token=get_yandex_access_token(),
     )
-    return prepare_text_content(users)
+    return users
 
 
 @mcp.tool(description="Get information about a specific user by login or UID")
 async def user_get(
     ctx: Context[Any, AppContext],
     user_id: UserID,
-) -> TextContent:
-    user = await ctx.request_context.lifespan_context.users.user_get(user_id)
+) -> User:
+    user = await ctx.request_context.lifespan_context.users.user_get(
+        user_id,
+        token=get_yandex_access_token(),
+    )
     if user is None:
         raise TrackerError(f"User `{user_id}` not found.")
 
-    return prepare_text_content(user)
+    return user

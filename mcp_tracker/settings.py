@@ -2,7 +2,7 @@ from typing import Annotated, Any, Literal
 
 from aiocache import Cache
 from aiocache.serializers import PickleSerializer
-from pydantic import field_validator
+from pydantic import AnyHttpUrl, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     port: int = 8000
     transport: Literal["stdio", "sse", "streamable-http"] = "stdio"
     tracker_base_url: str = "https://api.tracker.yandex.net"
-    tracker_token: str
+    tracker_token: str | None = None
     tracker_cloud_org_id: str | None = None
     tracker_org_id: str | None = None
     tracker_limit_queues: Annotated[list[str] | None, NoDecode] = None
@@ -21,6 +21,43 @@ class Settings(BaseSettings):
     cache_redis_port: int = 6379
     cache_redis_db: int = 0
     cache_redis_ttl: int | None = 3600
+
+    oauth_enabled: bool = False
+    auth_server_url: AnyHttpUrl = AnyHttpUrl("https://oauth.yandex.ru")
+    server_url: AnyHttpUrl = AnyHttpUrl(f"http://{host}:{port}")
+    oauth_client_id: str | None = None
+    oauth_client_secret: str | None = None
+
+    @model_validator(mode="after")
+    def validate_settings(self):
+        if not self.tracker_cloud_org_id and not self.tracker_org_id:
+            raise ValueError(
+                "Either tracker_cloud_org_id or tracker_org_id must be set"
+            )
+        if self.tracker_cloud_org_id and self.tracker_org_id:
+            raise ValueError(
+                "Only one of tracker_cloud_org_id or tracker_org_id can be set"
+            )
+
+        if self.oauth_enabled:
+            if not self.oauth_client_id or not self.oauth_client_secret:
+                raise ValueError(
+                    "client_id and client_secret must be set when oauth_enabled is True"
+                )
+            if not self.auth_server_url:
+                raise ValueError(
+                    "auth_server_url must be set when oauth_enabled is True"
+                )
+            if not self.server_url:
+                raise ValueError("server_url must be set when oauth_enabled is True")
+
+        else:
+            if not self.tracker_token:
+                raise ValueError(
+                    "tracker_token must be set when oauth_enabled is False"
+                )
+
+        return self
 
     @field_validator("tracker_limit_queues", mode="before")
     @classmethod
