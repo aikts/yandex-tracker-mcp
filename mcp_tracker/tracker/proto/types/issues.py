@@ -16,15 +16,6 @@ from mcp_tracker.tracker.proto.types.refs import (
 )
 
 
-class User(BaseTrackerEntity):
-    display: str
-    email: str
-    first_name: str = Field(alias="firstName")
-    last_name: str = Field(alias="lastName")
-    login: str
-    uid: int
-
-
 class Issue(CreatedUpdatedMixin, BaseTrackerEntity):
     unique: str | None = None
     key: str | None = None

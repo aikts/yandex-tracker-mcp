@@ -1,0 +1,10 @@
+services:
+  redis:
+    image: redis:8-alpine
+    volumes:
+      - redis:/data
+    ports:
+      - "6379:6379"
+
+volumes:
+  redis:

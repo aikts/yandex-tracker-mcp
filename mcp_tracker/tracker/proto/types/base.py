@@ -1,9 +1,7 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 
 class BaseTrackerEntity(BaseModel):
-    self_: str = Field(alias="self", exclude=True)
-
     model_config = ConfigDict(
         extra="allow",
     )

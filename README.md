@@ -14,7 +14,8 @@ A comprehensive Model Context Protocol (MCP) server that enables AI assistants t
 - **Advanced Query Language**: Full Yandex Tracker Query Language support with complex filtering, sorting, and date functions
 - **Performance Caching**: Optional Redis caching layer for improved response times
 - **Security Controls**: Configurable queue access restrictions and secure token handling
-- **Multiple Transport Options**: Support for stdio and SSE transports
+- **Multiple Transport Options**: Support for stdio, SSE (deprecated), and HTTP transports for flexible integration
+- **OAuth 2.0 Authentication**: Dynamic token-based authentication with automatic refresh support as an alternative to static API tokens
 - **Organization Support**: Compatible with both standard and cloud organization IDs
 
 ### Organization ID Configuration
@@ -515,6 +516,11 @@ The server exposes the following tools through the MCP protocol:
   - Returns detailed user information including login, email, license status, and organizational details
   - Supports both user login names and numeric user IDs for flexible identification
 
+- **`user_get_current`**: Get information about the current authenticated user
+  - No parameters required
+  - Returns detailed information about the user associated with the current authentication token
+  - Includes login, email, display name, and organizational details for the authenticated user
+
 ### Field Management
 - **`get_global_fields`**: Get all global fields available in Yandex Tracker
   - Returns complete list of global fields that can be used in issues
@@ -568,6 +574,195 @@ The server exposes the following tools through the MCP protocol:
   - Supports all query language features: field filtering, date functions, logical operators, and complex expressions
   - Useful for analytics, reporting, and understanding issue distribution without retrieving full issue data
 
+
+## http Transport
+
+The MCP server can also be run in streamable-http mode for web-based integrations or when stdio transport is not suitable.
+
+### streamable-http Mode Environment Variables
+
+```env
+# Required - Set transport to streamable-http mode
+TRANSPORT=streamable-http
+
+# Server Configuration
+HOST=0.0.0.0  # Default: 0.0.0.0 (all interfaces)
+PORT=8000     # Default: 8000
+```
+
+### Starting the streamable-http Server
+
+```bash
+# Basic streamable-http server startup
+TRANSPORT=streamable-http uvx yandex-tracker-mcp@latest
+
+# With custom host and port
+TRANSPORT=streamable-http \
+HOST=localhost \
+PORT=9000 \
+uvx yandex-tracker-mcp@latest
+
+# With all environment variables
+TRANSPORT=streamable-http \
+HOST=0.0.0.0 \
+PORT=8000 \
+TRACKER_TOKEN=your_token \
+TRACKER_CLOUD_ORG_ID=your_org_id \
+uvx yandex-tracker-mcp@latest
+```
+
+You may skip configuring `TRACKER_CLOUD_ORG_ID` or `TRACKER_ORG_ID` if you are using the following format when connecting to MCP Server (example for Claude Code):
+
+```bash
+claude mcp add --transport http yandex-tracker "http://localhost:8000/mcp/?cloudOrgId=your_cloud_org_id&"
+```
+
+or
+
+```bash
+claude mcp add --transport http yandex-tracker "http://localhost:8000/mcp/?orgId=org_id&"
+```
+
+You may also skip configuring global `TRACKER_TOKEN` environment variable if you choose to use OAuth 2.0 authentication (see below).
+
+### OAuth 2.0 Authentication
+
+The Yandex Tracker MCP Server supports OAuth 2.0 authentication as a secure alternative to static API tokens. When configured, the server acts as an OAuth provider, facilitating authentication between your MCP client and Yandex OAuth services.
+
+#### How OAuth Works
+
+The MCP server implements a standard OAuth 2.0 authorization code flow:
+
+1. **Client Registration**: Your MCP client registers with the server to obtain client credentials
+2. **Authorization**: Users are redirected to Yandex OAuth to authenticate
+3. **Token Exchange**: The server exchanges authorization codes for access tokens
+4. **API Access**: Clients use bearer tokens for all API requests
+5. **Token Refresh**: Expired tokens can be refreshed without re-authentication
+
+```
+MCP Client → MCP Server → Yandex OAuth → User Authentication
+    ↑                                           ↓
+    └────────── Access Token ←─────────────────┘
+```
+
+#### OAuth Configuration
+
+To enable OAuth authentication, set the following environment variables:
+
+```env
+# Enable OAuth mode
+OAUTH_ENABLED=true
+
+# Yandex OAuth Application Credentials (required for OAuth)
+OAUTH_CLIENT_ID=your_yandex_oauth_app_id
+OAUTH_CLIENT_SECRET=your_yandex_oauth_app_secret
+
+# Public URL of your MCP server (required for OAuth callbacks)
+MCP_SERVER_PUBLIC_URL=https://your-mcp-server.example.com
+
+# Optional OAuth settings
+OAUTH_SERVER_URL=https://oauth.yandex.ru  # Default Yandex OAuth server
+
+# When OAuth is enabled, TRACKER_TOKEN becomes optional
+```
+
+#### Setting Up Yandex OAuth Application
+
+1. Go to [Yandex OAuth](https://oauth.yandex.ru/) and create a new application
+2. Set the callback URL to: `{MCP_SERVER_PUBLIC_URL}/oauth/yandex/callback`
+3. Request the following permissions:
+   - `tracker:read` - Read permissions for Tracker
+   - `tracker:write` - Write permissions for Tracker
+4. Save your Client ID and Client Secret
+
+#### OAuth vs Static Token Authentication
+
+| Feature          | OAuth                          | Static Token               |
+|------------------|--------------------------------|----------------------------|
+| Security         | Dynamic tokens with expiration | Long-lived static tokens   |
+| User Experience  | Interactive login flow         | One-time configuration     |
+| Token Management | Automatic refresh              | Manual rotation            |
+| Access Control   | Per-user authentication        | Shared token               |
+| Setup Complexity | Requires OAuth app setup       | Simple token configuration |
+
+#### OAuth Mode Limitations
+
+- Currently, the OAuth mode requires the MCP server to be publicly accessible for callback URLs
+- OAuth mode is best suited for interactive clients that support web-based authentication flows
+
+#### Using OAuth with MCP Clients
+
+When OAuth is enabled, MCP clients will need to:
+1. Support OAuth 2.0 authorization code flow
+2. Handle token refresh when access tokens expire
+3. Store refresh tokens securely for persistent authentication
+
+**Note**: Not all MCP clients currently support OAuth authentication. Check your client's documentation for OAuth compatibility.
+
+Example configuration for Claude Code:
+
+```bash
+claude mcp add --transport http yandex-tracker https://your-mcp-server.example.com/mcp/ -s user
+```
+
+#### OAuth Data Storage
+
+The MCP server supports two different storage backends for OAuth data (client registrations, access tokens, refresh tokens, and authorization states):
+
+##### InMemory Store (Default)
+
+The in-memory store keeps all OAuth data in server memory. This is the default option and requires no additional configuration.
+
+**Characteristics:**
+- **Persistence**: Data is lost when the server restarts
+- **Performance**: Very fast access since data is stored in memory
+- **Scalability**: Limited to single server instance
+- **Setup**: No additional dependencies required
+- **Best for**: Development, testing, or single-instance deployments where losing OAuth sessions on restart is acceptable
+
+**Configuration:**
+```env
+OAUTH_STORE=memory  # Default value, can be omitted
+```
+
+##### Redis Store
+
+The Redis store provides persistent storage for OAuth data using a Redis database. This ensures OAuth sessions survive server restarts and enables multi-instance deployments.
+
+**Characteristics:**
+- **Persistence**: Data persists across server restarts
+- **Performance**: Fast access with network overhead
+- **Scalability**: Supports multiple server instances sharing the same Redis database
+- **Setup**: Requires Redis server installation and configuration
+- **Best for**: Production deployments, high availability setups, or when OAuth sessions must persist
+
+**Configuration:**
+```env
+# Enable Redis store for OAuth data
+OAUTH_STORE=redis
+
+# Redis connection settings (same as used for tools caching)
+REDIS_ENDPOINT=localhost                  # Default: localhost
+REDIS_PORT=6379                           # Default: 6379
+REDIS_DB=0                                # Default: 0
+REDIS_PASSWORD=your_redis_password        # Optional: Redis password
+REDIS_POOL_MAX_SIZE=10                    # Default: 10
+```
+
+**Storage Behavior:**
+- **Client Information**: Stored persistently
+- **OAuth States**: Stored with TTL (time-to-live) for security
+- **Authorization Codes**: Stored with TTL and automatically cleaned up after use
+- **Access Tokens**: Stored with automatic expiration based on token lifetime
+- **Refresh Tokens**: Stored persistently until revoked
+- **Key Namespacing**: Uses `oauth:*` prefixes to avoid conflicts with other Redis data
+
+**Important Notes:**
+- Both stores use the same Redis connection settings as the tools caching system
+- When using Redis store, ensure your Redis instance is properly secured and accessible
+- The `OAUTH_STORE` setting only affects OAuth data storage; tools caching uses `TOOLS_CACHE_ENABLED`
+- Redis store uses JSON serialization for better cross-language compatibility and debugging
+
 ## Configuration
 
 ### Environment Variables
@@ -591,11 +786,24 @@ HOST=0.0.0.0                              # Default: 0.0.0.0
 PORT=8000                                 # Default: 8000
 TRANSPORT=stdio                           # Options: stdio, streamable-http, sse
 
-# Redis Caching (optional but recommended for production)
-CACHE_ENABLED=true                        # Default: false
-CACHE_REDIS_ENDPOINT=localhost            # Default: localhost
-CACHE_REDIS_PORT=6379                     # Default: 6379
-CACHE_REDIS_DB=0                          # Default: 0
+# Redis connection settings (used for caching and OAuth store)
+REDIS_ENDPOINT=localhost                  # Default: localhost
+REDIS_PORT=6379                           # Default: 6379
+REDIS_DB=0                                # Default: 0
+REDIS_PASSWORD=your_redis_password        # Optional: Redis password
+REDIS_POOL_MAX_SIZE=10                    # Default: 10
+
+# Tools caching configuration (optional)
+TOOLS_CACHE_ENABLED=true                  # Default: false
+TOOLS_CACHE_REDIS_TTL=3600                # Default: 3600 seconds (1 hour)
+
+# OAuth 2.0 Authentication (optional)
+OAUTH_ENABLED=true                        # Default: false
+OAUTH_STORE=redis                         # Options: memory, redis (default: memory)
+OAUTH_SERVER_URL=https://oauth.yandex.ru  # Default: https://oauth.yandex.ru
+OAUTH_CLIENT_ID=your_oauth_client_id      # Required when OAuth enabled
+OAUTH_CLIENT_SECRET=your_oauth_secret     # Required when OAuth enabled
+MCP_SERVER_PUBLIC_URL=https://your.server.com  # Required when OAuth enabled
 ```
 
 ## Docker Deployment
@@ -609,7 +817,6 @@ docker run --env-file .env -p 8000:8000 ghcr.io/aikts/yandex-tracker-mcp:latest
 # With inline environment variables
 docker run -e TRACKER_TOKEN=your_token \
            -e TRACKER_CLOUD_ORG_ID=your_org_id \
-           -e CACHE_ENABLED=true \
            -p 8000:8000 \
            ghcr.io/aikts/yandex-tracker-mcp:latest
 ```
@@ -646,47 +853,6 @@ services:
     environment:
       - TRACKER_TOKEN=${TRACKER_TOKEN}
       - TRACKER_CLOUD_ORG_ID=${TRACKER_CLOUD_ORG_ID}
-```
-
-## Running in streamable-http Mode
-
-The MCP server can also be run in streamable-http mode for web-based integrations or when stdio transport is not suitable.
-
-### streamable-http Mode Environment Variables
-
-```env
-# Required - Set transport to streamable-http mode
-TRANSPORT=streamable-http
-
-# Server Configuration
-HOST=0.0.0.0                              # Default: 0.0.0.0 (all interfaces)
-PORT=8000                                 # Default: 8000
-
-# Required - Yandex Tracker API credentials
-TRACKER_TOKEN=your_yandex_tracker_oauth_token
-TRACKER_CLOUD_ORG_ID=your_cloud_org_id    # For Yandex Cloud organizations
-TRACKER_ORG_ID=your_org_id                # For Yandex 360 organizations (optional)
-
-# Optional - Other configurations
-TRACKER_LIMIT_QUEUES=PROJ1,PROJ2,DEV      # Comma-separated queue keys
-```
-
-### Starting the streamable-http Server
-
-```bash
-# Basic streamable-http server startup
-TRANSPORT=streamable-http uvx yandex-tracker-mcp@latest
-
-# With custom host and port
-TRANSPORT=streamable-http HOST=localhost PORT=9000 uvx yandex-tracker-mcp@latest
-
-# With all environment variables
-TRANSPORT=streamable-http \
-HOST=0.0.0.0 \
-PORT=8000 \
-TRACKER_TOKEN=your_token \
-TRACKER_CLOUD_ORG_ID=your_org_id \
-uvx yandex-tracker-mcp@latest
 ```
 
 ### Development Setup

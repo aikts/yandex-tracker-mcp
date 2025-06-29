@@ -1,12 +1,17 @@
 from typing import Protocol
 
+from .common import YandexAuth
 from .types.users import User
 
 
 class UsersProtocol(Protocol):
-    async def users_list(self, per_page: int = 50, page: int = 1) -> list[User]: ...
+    async def users_list(
+        self, per_page: int = 50, page: int = 1, *, auth: YandexAuth | None = None
+    ) -> list[User]: ...
 
-    async def user_get(self, user_id: str) -> User | None: ...
+    async def user_get(
+        self, user_id: str, *, auth: YandexAuth | None = None
+    ) -> User | None: ...
 
 
 class UsersProtocolWrap(UsersProtocol):

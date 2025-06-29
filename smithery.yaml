@@ -4,10 +4,6 @@ startCommand:
   configSchema:
     type: "object"
     properties:
-      trackerBaseUrl:
-        type: "string"
-        default: "https://api.tracker.yandex.net"
-        description: "Yandex Tracker base URL"
       trackerToken:
         type: "string"
         description: "Yandex Tracker token"
