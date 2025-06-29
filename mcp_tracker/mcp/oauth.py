@@ -48,6 +48,8 @@ class YandexOAuthAuthorizationServerProvider(
         self._states: dict[str, YandexOAuthState] = {}
         self._auth_codes: dict[str, YandexOauthAuthorizationCode] = {}
         self._tokens: dict[str, AccessToken] = {}
+        self._refresh_tokens: dict[str, RefreshToken] = {}
+        self._refresh2access_tokens: dict[str, str] = {}
 
     async def handle_yandex_callback(self, request: Request) -> Response:
         try:
@@ -202,6 +204,35 @@ class YandexOAuthAuthorizationServerProvider(
         """
         return self._auth_codes.get(authorization_code)
 
+    def _save_oauth_token(
+        self,
+        token: OAuthToken,
+        client: OAuthClientInformationFull,
+        scopes: list[str],
+        resource: str | None,
+    ) -> None:
+        """
+        Helper method to save an OAuth token and its associated metadata.
+        """
+        assert token.expires_in is not None, "expires_in must be provided"
+
+        self._tokens[token.access_token] = AccessToken(
+            token=token.access_token,
+            client_id=client.client_id,
+            scopes=scopes,
+            expires_at=int(time.time() + token.expires_in),
+            resource=resource,
+        )
+
+        if token.refresh_token is not None:
+            self._refresh_tokens[token.refresh_token] = RefreshToken(
+                token=token.refresh_token,
+                client_id=client.client_id,
+                scopes=scopes,
+            )
+
+            self._refresh2access_tokens[token.refresh_token] = token.access_token
+
     async def exchange_authorization_code(
         self,
         client: OAuthClientInformationFull,
@@ -242,11 +273,10 @@ class YandexOAuthAuthorizationServerProvider(
                 token = OAuthToken.model_validate_json(await response.read())
                 assert token.expires_in is not None, "expires_in must be provided"
 
-                self._tokens[token.access_token] = AccessToken(
-                    token=token.access_token,
-                    client_id=client.client_id,
+                self._save_oauth_token(
+                    token=token,
+                    client=client,
                     scopes=authorization_code.scopes,
-                    expires_at=int(time.time() + token.expires_in),
                     resource=authorization_code.resource,
                 )
 
@@ -265,7 +295,16 @@ class YandexOAuthAuthorizationServerProvider(
         Returns:
             The RefreshToken object if found, or None if not found.
         """
-        raise NotImplementedError()
+        ref_token = self._refresh_tokens.get(refresh_token)
+        if ref_token is None:
+            return None
+
+        if ref_token.expires_at and ref_token.expires_at < time.time():
+            # Token is expired, remove it
+            del self._refresh_tokens[refresh_token]
+            return None
+
+        return ref_token
 
     async def exchange_refresh_token(
         self,
@@ -289,7 +328,41 @@ class YandexOAuthAuthorizationServerProvider(
         Raises:
             TokenError: If the request is invalid
         """
-        raise NotImplementedError()
+        form = aiohttp.FormData()
+        form.add_field("grant_type", "refresh_token")
+        form.add_field("refresh_token", refresh_token.token)
+        form.add_field("client_id", self._client_id)
+        form.add_field("client_secret", self._client_secret)
+
+        async with aiohttp.ClientSession() as sess:
+            async with sess.post(
+                "https://oauth.yandex.ru/token", data=form
+            ) as response:
+                if response.status != 200:
+                    raise ValueError("Failed to refresh token")
+
+                token = OAuthToken.model_validate_json(await response.read())
+                assert token.expires_in is not None, "expires_in must be provided"
+
+                ref_token = self._refresh_tokens[refresh_token.token]
+                access_token_val = self._refresh2access_tokens.get(refresh_token.token)
+                access_token = (
+                    self._tokens.get(access_token_val) if access_token_val else None
+                )
+
+                del self._refresh_tokens[refresh_token.token]
+                del self._refresh2access_tokens[refresh_token.token]
+                if access_token_val:
+                    del self._tokens[access_token_val]
+
+                self._save_oauth_token(
+                    token=token,
+                    client=client,
+                    scopes=ref_token.scopes,
+                    resource=access_token.resource if access_token else None,
+                )
+
+                return token
 
     async def load_access_token(self, token: str) -> AccessToken | None:
         """
