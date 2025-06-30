@@ -59,6 +59,10 @@
       "description": "Get information about a specific user by login or UID"
     },
     {
+      "name": "user_get_current",
+      "description": "Get information about the current authenticated user"
+    },
+    {
       "name": "get_global_fields",
       "description": "Get all global fields available in Yandex Tracker"
     },

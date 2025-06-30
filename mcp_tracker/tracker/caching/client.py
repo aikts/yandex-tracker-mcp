@@ -108,6 +108,10 @@ def make_cached_protocols(
         async def user_get(self, user_id: str) -> User | None:
             return await self._original.user_get(user_id)
 
+        @cached(**cache_config)
+        async def user_get_current(self) -> User:
+            return await self._original.user_get_current()
+
     return (
         CachingQueuesProtocol,
         CachingIssuesProtocol,

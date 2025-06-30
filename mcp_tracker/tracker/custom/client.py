@@ -260,6 +260,13 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
             response.raise_for_status()
             return User.model_validate_json(await response.read())
 
+    async def user_get_current(self, *, auth: YandexAuth | None = None) -> User:
+        async with self._session.get(
+            "v3/myself", headers=self._build_headers(auth)
+        ) as response:
+            response.raise_for_status()
+            return User.model_validate_json(await response.read())
+
     async def issues_count(self, query: str, *, auth: YandexAuth | None = None) -> int:
         body: dict[str, Any] = {
             "query": query,

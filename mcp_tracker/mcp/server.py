@@ -444,3 +444,13 @@ async def user_get(
         raise TrackerError(f"User `{user_id}` not found.")
 
     return user
+
+
+@mcp.tool(description="Get information about the current authenticated user")
+async def user_get_current(
+    ctx: Context[Any, AppContext],
+) -> User:
+    user = await ctx.request_context.lifespan_context.users.user_get_current(
+        auth=get_yandex_auth(ctx),
+    )
+    return user

@@ -13,6 +13,8 @@ class UsersProtocol(Protocol):
         self, user_id: str, *, auth: YandexAuth | None = None
     ) -> User | None: ...
 
+    async def user_get_current(self, *, auth: YandexAuth | None = None) -> User: ...
+
 
 class UsersProtocolWrap(UsersProtocol):
     def __init__(self, original: UsersProtocol):

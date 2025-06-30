@@ -98,6 +98,57 @@ The project uses:
 - Python 3.10+ features (union types with `|`)
 - Comprehensive type hints throughout
 
+## Adding New MCP Tools
+
+When adding new MCP tools, follow this comprehensive checklist:
+
+### Implementation Steps
+1. **Protocol Interface**: Add method to the appropriate protocol in `mcp_tracker/tracker/proto/` (e.g., `users.py`, `issues.py`)
+2. **Client Implementation**: Implement the method in `mcp_tracker/tracker/custom/client.py`
+3. **Caching Support**: Add caching wrapper in `mcp_tracker/tracker/caching/client.py`
+4. **MCP Tool**: Add the tool function in `mcp_tracker/mcp/server.py` with proper typing and error handling
+5. **Parameters**: If needed, add parameter models to `mcp_tracker/mcp/params.py`
+
+### Documentation Requirements (MANDATORY)
+**Always update these files when adding new tools:**
+
+1. **README.md**: Add tool documentation in the appropriate section:
+   - Tool name and description
+   - Parameters with types and examples
+   - Return value description
+   - Usage notes or restrictions
+
+2. **manifest.json**: Add tool entry to the `tools` array:
+   - Include `name` and `description` fields
+   - Ensure description matches the MCP tool decorator
+
+### Example Pattern
+```python
+# 1. Protocol (e.g., users.py)
+async def user_get_current(self, *, auth: YandexAuth | None = None) -> User: ...
+
+# 2. Client implementation
+async def user_get_current(self, *, auth: YandexAuth | None = None) -> User:
+    async with self._session.get("v3/myself", headers=self._build_headers(auth)) as response:
+        response.raise_for_status()
+        return User.model_validate_json(await response.read())
+
+# 3. Caching wrapper
+@cached(**cache_config)
+async def user_get_current(self) -> User:
+    return await self._original.user_get_current()
+
+# 4. MCP tool
+@mcp.tool(description="Get information about the current authenticated user")
+async def user_get_current(ctx: Context[Any, AppContext]) -> User:
+    return await ctx.request_context.lifespan_context.users.user_get_current(auth=get_yandex_auth(ctx))
+```
+
+### Verification
+- Run `make` to ensure all checks pass
+- Test the tool functionality
+- Verify documentation is accurate and complete
+
 ## Committing
 
 Before each commit it is mandatory to run:
