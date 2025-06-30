@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.1] - 2025-06-30
+
+### Features
+- Refactor Yandex OAuth implementation to support dynamic scopes and improve callback handling
+- Add usage instructions for Yandex Tracker tools
+
 ## [0.3.0] - 2025-06-30
 
 ### Features
