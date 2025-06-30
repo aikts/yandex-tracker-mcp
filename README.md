@@ -5,6 +5,10 @@
 
 A comprehensive Model Context Protocol (MCP) server that enables AI assistants to interact with Yandex Tracker APIs. This server provides secure, authenticated access to Yandex Tracker issues, queues, comments, worklogs, and search functionality with optional Redis caching for improved performance.
 
+<a href="https://glama.ai/mcp/servers/@aikts/yandex-tracker-mcp">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/@aikts/yandex-tracker-mcp/badge" />
+</a>
+
 ## Features
 
 - **Complete Queue Management**: List and access all available Yandex Tracker queues with pagination support and tag retrieval
