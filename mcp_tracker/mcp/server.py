@@ -98,18 +98,19 @@ def create_mcp_server() -> FastMCP:
                 "Supported values are 'memory' and 'redis'."
             )
 
+        if settings.tracker_read_only:
+            scopes = ["tracker:read"]
+        else:
+            scopes = ["tracker:read", "tracker:write"]
+
         auth_server_provider = YandexOAuthAuthorizationServerProvider(
             client_id=settings.oauth_client_id,
             client_secret=settings.oauth_client_secret,
             server_url=yarl.URL(str(settings.mcp_server_public_url)),
             yandex_oauth_issuer=yarl.URL(str(settings.oauth_server_url)),
             store=oauth_store,
+            scopes=scopes,
         )
-
-        if settings.tracker_read_only:
-            scopes = ["tracker:read"]
-        else:
-            scopes = ["tracker:read", "tracker:write"]
 
         auth_settings = AuthSettings(
             issuer_url=settings.mcp_server_public_url,

@@ -36,12 +36,14 @@ class YandexOAuthAuthorizationServerProvider(
         server_url: yarl.URL,
         yandex_oauth_issuer: yarl.URL,
         store: OAuthStore,
+        scopes: list[str],
     ):
         self._client_id = client_id
         self._client_secret = client_secret
         self._server_url = server_url
         self._yandex_oauth_issuer = yandex_oauth_issuer
         self._store = store
+        self._scopes = scopes
 
     async def handle_yandex_callback(self, request: Request) -> Response:
         try:
@@ -72,7 +74,7 @@ class YandexOAuthAuthorizationServerProvider(
             redirect_uri=state.redirect_uri,
             redirect_uri_provided_explicitly=state.redirect_uri_provided_explicitly,
             expires_at=time.time() + 300,
-            scopes=state.scopes,
+            scopes=state.scopes or self._scopes,
             code_challenge=state.code_challenge,
             resource=state.resource,  # RFC 8707
         )
