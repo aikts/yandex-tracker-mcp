@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2025-06-30
+
+### Features
+- Add complete OAuth 2.0 implementation with Yandex integration and protocol refactoring
+  - OAuth provider mode for authorization code flow with PKCE support
+  - Token management with refresh token support
+  - YandexAuth dataclass for authentication encapsulation
+  - Optional auth parameter across all protocol methods
+- Add user_get_current MCP tool to retrieve current authenticated user information
+
+### Internal
+- Update Docker workflow to support manual triggers and branch/tag pushes
+- Update CI publish workflow dependencies
+
+## [0.2.20] - 2025-06-29
+
+### Internal
+- Version bump only (intermediate release)
+
 ## [0.2.19] - 2025-06-27
 
 ### Internal
