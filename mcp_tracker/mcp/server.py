@@ -290,6 +290,12 @@ async def issue_get_url(
 async def issue_get(
     ctx: Context[Any, AppContext],
     issue_id: IssueID,
+    include_description: Annotated[
+        bool,
+        Field(
+            description="Whether to include issue description in the issues result. It can be large, so use only when needed.",
+        ),
+    ] = True,
 ) -> Issue:
     check_issue_id(issue_id)
 
@@ -299,6 +305,9 @@ async def issue_get(
     )
     if issue is None:
         raise TrackerError(f"Issue `{issue_id}` not found.")
+
+    if not include_description:
+        issue.description = None
 
     return issue
 
@@ -343,6 +352,12 @@ async def issue_get_links(
 async def issues_find(
     ctx: Context[Any, AppContext],
     query: YTQuery,
+    include_description: Annotated[
+        bool,
+        Field(
+            description="Whether to include issue description in the issues result. It can be large, so use only when needed.",
+        ),
+    ] = False,
     page: Annotated[
         int,
         Field(
@@ -358,6 +373,10 @@ async def issues_find(
         page=page,
         auth=get_yandex_auth(ctx),
     )
+
+    if not include_description:
+        for issue in issues:
+            issue.description = None  # Clear description to save context
 
     return issues
 

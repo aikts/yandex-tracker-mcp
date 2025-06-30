@@ -1,6 +1,6 @@
 import datetime
 
-from pydantic import AliasChoices, Field
+from pydantic import AliasChoices, ConfigDict, Field
 
 from mcp_tracker.tracker.proto.types.base import BaseTrackerEntity
 from mcp_tracker.tracker.proto.types.mixins import CreatedMixin, CreatedUpdatedMixin
@@ -17,6 +17,10 @@ from mcp_tracker.tracker.proto.types.refs import (
 
 
 class Issue(CreatedUpdatedMixin, BaseTrackerEntity):
+    model_config = ConfigDict(
+        extra="allow",
+    )
+
     unique: str | None = None
     key: str | None = None
     version: int | None = None

@@ -541,7 +541,9 @@ The server exposes the following tools through the MCP protocol:
 
 ### Issue Operations
 - **`issue_get`**: Retrieve detailed issue information by ID
-  - Parameters: `issue_id` (string, format: "QUEUE-123")
+  - Parameters: 
+    - `issue_id` (string, format: "QUEUE-123")
+    - `include_description` (boolean, optional, default: true): Whether to include issue description in the result. Can be large, so use only when needed.
   - Returns complete issue data including status, assignee, description, etc.
 
 - **`issue_get_url`**: Generate web URL for an issue
@@ -568,6 +570,7 @@ The server exposes the following tools through the MCP protocol:
 - **`issues_find`**: Search issues using [Yandex Tracker Query Language](https://yandex.ru/support/tracker/ru/user/query-filter)
   - Parameters:
     - `query` (required): Query string using Yandex Tracker Query Language syntax
+    - `include_description` (boolean, optional, default: false): Whether to include issue description in the issues result. Can be large, so use only when needed.
     - `page` (optional): Page number for pagination (default: 1)
   - Returns up to 500 issues per page
 

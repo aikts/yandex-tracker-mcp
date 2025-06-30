@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.2] - 2025-06-30
+
+### Features
+- Add `include_description` parameter to issue tools for better context management
+  - `issue_get` tool now accepts optional `include_description` parameter (default: true)
+  - `issues_find` tool now accepts optional `include_description` parameter (default: false)
+  - Helps optimize token usage by excluding large description fields when not needed
+
+### Internal
+- Change BaseTrackerEntity to use `extra="ignore"` by default for better data validation
+- Override `extra="allow"` for Issue model specifically to preserve existing API compatibility
+
 ## [0.3.1] - 2025-06-30
 
 ### Features
