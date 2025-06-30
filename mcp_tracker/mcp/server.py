@@ -15,7 +15,14 @@ from mcp_tracker.mcp.oauth.provider import YandexOAuthAuthorizationServerProvide
 from mcp_tracker.mcp.oauth.store import OAuthStore
 from mcp_tracker.mcp.oauth.stores.memory import InMemoryOAuthStore
 from mcp_tracker.mcp.oauth.stores.redis import RedisOAuthStore
-from mcp_tracker.mcp.params import IssueID, IssueIDs, QueueID, UserID, YTQuery
+from mcp_tracker.mcp.params import (
+    IssueID,
+    IssueIDs,
+    QueueID,
+    UserID,
+    YTQuery,
+    instructions,
+)
 from mcp_tracker.mcp.utils import get_yandex_auth
 from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.caching.client import make_cached_protocols
@@ -125,6 +132,7 @@ def create_mcp_server() -> FastMCP:
 
     server = FastMCP(
         name="Yandex Tracker MCP Server",
+        instructions=instructions,
         host=settings.host,
         port=settings.port,
         lifespan=tracker_lifespan,

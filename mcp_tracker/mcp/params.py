@@ -66,3 +66,15 @@ YTQuery = Annotated[
         )
     ),
 ]
+
+instructions = """Tools for interacting with Yandex Tracker issue tracking system.
+Use these tools to:
+- Search and browse projects (queues) and issues
+- View issue details, comments, attachments, and worklogs
+- Get information about users, statuses, and issue types
+- Query issues using Yandex Query Language (YQL)
+
+In russian Yandex Tracker is called "Яндекс Трекер", "Трекер".
+Queues may be called "Очереди".
+Tasks may be called "Задачи", "Issues", "Таски", "ишью".
+"""
