@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.3] - 2025-07-01
+
+### Documentation
+- Add Russian README (README_ru.md) with complete translation of all features and setup instructions
+- Add Claude Code command files for improved development workflow
+- Update README with OAuth read-only configuration (`TRACKER_READ_ONLY` environment variable)
+- Minor formatting improvements in documentation
+
 ## [0.3.2] - 2025-06-30
 
 ### Features

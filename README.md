@@ -541,7 +541,7 @@ The server exposes the following tools through the MCP protocol:
 
 ### Issue Operations
 - **`issue_get`**: Retrieve detailed issue information by ID
-  - Parameters: 
+  - Parameters:
     - `issue_id` (string, format: "QUEUE-123")
     - `include_description` (boolean, optional, default: true): Whether to include issue description in the result. Can be large, so use only when needed.
   - Returns complete issue data including status, assignee, description, etc.
@@ -811,6 +811,7 @@ OAUTH_SERVER_URL=https://oauth.yandex.ru  # Default: https://oauth.yandex.ru
 OAUTH_CLIENT_ID=your_oauth_client_id      # Required when OAuth enabled
 OAUTH_CLIENT_SECRET=your_oauth_secret     # Required when OAuth enabled
 MCP_SERVER_PUBLIC_URL=https://your.server.com  # Required when OAuth enabled
+TRACKER_READ_ONLY=true                    # Default: false - Limit OAuth to read-only permissions
 ```
 
 ## Docker Deployment
