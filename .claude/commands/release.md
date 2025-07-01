@@ -1,6 +1,6 @@
 ---
 allowed-tools: Bash(mkdir:*), Bash(grep:*), Bash(make:*), Bash(find:*), Bash(sed:*), Bash(git add:*), Bash(git commit:*), Bash(git tag:*), Bash(git describe:*), Bash(git branch:*), Bash(git log:*), Bash(git status:*), Bash(git diff:*)
-description: add new MCP tools to the Yandex Tracker MCP server
+description: make a new release of the project
 ---
 
 ## Context
