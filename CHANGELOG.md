@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.5] - 2025-07-01
+
+### Features
+- Add `get_priorities` MCP tool to retrieve all available issue priorities from Yandex Tracker
+
+### Internal
+- Update MCP dependency to version 1.10.0
+
 ## [0.3.4] - 2025-07-01
 
 ### Features

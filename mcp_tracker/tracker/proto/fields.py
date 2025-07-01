@@ -3,6 +3,7 @@ from typing import Protocol
 from .common import YandexAuth
 from .types.fields import GlobalField
 from .types.issue_types import IssueType
+from .types.priorities import Priority
 from .types.statuses import Status
 
 
@@ -14,6 +15,9 @@ class GlobalDataProtocol(Protocol):
     async def get_issue_types(
         self, *, auth: YandexAuth | None = None
     ) -> list[IssueType]: ...
+    async def get_priorities(
+        self, *, auth: YandexAuth | None = None
+    ) -> list[Priority]: ...
 
 
 class GlobalDataProtocolWrap(GlobalDataProtocol):

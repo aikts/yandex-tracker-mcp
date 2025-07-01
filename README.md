@@ -544,6 +544,10 @@ The server exposes the following tools through the MCP protocol:
   - Returns complete list of issue types for creating/updating issues
   - Includes type IDs, names, and configuration details
 
+- **`get_priorities`**: Get all available issue priorities
+  - Returns complete list of priorities that can be assigned to issues
+  - Includes priority keys, names, and order information
+
 ### Issue Operations
 - **`issue_get`**: Retrieve detailed issue information by ID
   - Parameters:

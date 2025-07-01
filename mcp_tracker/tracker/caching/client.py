@@ -15,6 +15,7 @@ from mcp_tracker.tracker.proto.types.issues import (
     IssueLink,
     Worklog,
 )
+from mcp_tracker.tracker.proto.types.priorities import Priority
 from mcp_tracker.tracker.proto.types.queues import Queue, QueueVersion
 from mcp_tracker.tracker.proto.types.statuses import Status
 from mcp_tracker.tracker.proto.types.users import User
@@ -105,6 +106,10 @@ def make_cached_protocols(
         @cached(**cache_config)
         async def get_issue_types(self) -> list[IssueType]:
             return await self._original.get_issue_types()
+
+        @cached(**cache_config)
+        async def get_priorities(self) -> list[Priority]:
+            return await self._original.get_priorities()
 
     class CachingUsersProtocol(UsersProtocolWrap):
         @cached(**cache_config)

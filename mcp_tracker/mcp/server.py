@@ -40,6 +40,7 @@ from mcp_tracker.tracker.proto.types.issues import (
     IssueLink,
     Worklog,
 )
+from mcp_tracker.tracker.proto.types.priorities import Priority
 from mcp_tracker.tracker.proto.types.queues import Queue, QueueVersion
 from mcp_tracker.tracker.proto.types.statuses import Status
 from mcp_tracker.tracker.proto.types.users import User
@@ -278,6 +279,18 @@ async def get_issue_types(
         auth=get_yandex_auth(ctx),
     )
     return issue_types
+
+
+@mcp.tool(
+    description="Get all priorities available in Yandex Tracker that can be used in issues"
+)
+async def get_priorities(
+    ctx: Context[Any, AppContext],
+) -> list[Priority]:
+    priorities = await ctx.request_context.lifespan_context.fields.get_priorities(
+        auth=get_yandex_auth(ctx),
+    )
+    return priorities
 
 
 @mcp.tool(description="Get a Yandex Tracker issue url by its id")
