@@ -1,6 +1,9 @@
 # Yandex Tracker MCP Server
 
 ![PyPI - Version](https://img.shields.io/pypi/v/yandex-tracker-mcp)
+![Test Workflow](https://github.com/aikts/yandex-tracker-mcp/actions/workflows/test.yml/badge.svg?branch=main)
+![Docker Workflow](https://github.com/aikts/yandex-tracker-mcp/actions/workflows/docker.yml/badge.svg?branch=main)
+![Package Workflow](https://github.com/aikts/yandex-tracker-mcp/actions/workflows/package.yml/badge.svg?branch=main)
 [![smithery badge](https://smithery.ai/badge/@aikts/yandex-tracker-mcp)](https://smithery.ai/server/@aikts/yandex-tracker-mcp)
 
 Комплексный MCP (Model Context Protocol) сервер, который позволяет ИИ-ассистентам взаимодействовать с API Яндекс.Трекера. Этот сервер обеспечивает безопасный, аутентифицированный доступ к задачам, очередям, комментариям, трудозатратам и функциям поиска Яндекс.Трекера с опциональным Redis-кешированием для улучшения производительности.

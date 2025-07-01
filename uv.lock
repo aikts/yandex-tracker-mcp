@@ -1186,7 +1186,7 @@ wheels = [
 
 [[package]]
 name = "yandex-tracker-mcp"
-version = "0.3.2"
+version = "0.3.3"
 source = { virtual = "." }
 dependencies = [
     { name = "aiocache", extra = ["redis"] },

@@ -1,6 +1,9 @@
 # Yandex Tracker MCP Server
 
 ![PyPI - Version](https://img.shields.io/pypi/v/yandex-tracker-mcp)
+![Test Workflow](https://github.com/aikts/yandex-tracker-mcp/actions/workflows/test.yml/badge.svg?branch=main)
+![Docker Workflow](https://github.com/aikts/yandex-tracker-mcp/actions/workflows/docker.yml/badge.svg?branch=main)
+![Package Workflow](https://github.com/aikts/yandex-tracker-mcp/actions/workflows/package.yml/badge.svg?branch=main)
 [![smithery badge](https://smithery.ai/badge/@aikts/yandex-tracker-mcp)](https://smithery.ai/server/@aikts/yandex-tracker-mcp)
 
 A comprehensive Model Context Protocol (MCP) server that enables AI assistants to interact with Yandex Tracker APIs. This server provides secure, authenticated access to Yandex Tracker issues, queues, comments, worklogs, and search functionality with optional Redis caching for improved performance.
