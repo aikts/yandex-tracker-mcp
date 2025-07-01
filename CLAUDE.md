@@ -118,7 +118,10 @@ When adding new MCP tools, follow this comprehensive checklist:
    - Return value description
    - Usage notes or restrictions
 
-2. **manifest.json**: Add tool entry to the `tools` array:
+2. **README_ru.md**: Add Russian translation of the tool documentation
+   - Ensure it matches the English version
+
+3. **manifest.json**: Add tool entry to the `tools` array:
    - Include `name` and `description` fields
    - Ensure description matches the MCP tool decorator
 

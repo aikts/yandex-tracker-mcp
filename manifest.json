@@ -2,7 +2,7 @@
   "dxt_version": "0.1",
   "name": "yandex-tracker-mcp",
   "display_name": "Yandex Tracker MCP",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Yandex Tracker MCP Server",
   "author": {
     "name": "KTS",
@@ -97,6 +97,10 @@
     {
       "name": "issue_get_attachments",
       "description": "Get attachments for an issue"
+    },
+    {
+      "name": "issue_get_checklist",
+      "description": "Get checklist items of a Yandex Tracker issue by its id"
     },
     {
       "name": "issues_find",

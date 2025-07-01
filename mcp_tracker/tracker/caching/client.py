@@ -8,6 +8,7 @@ from mcp_tracker.tracker.proto.queues import QueuesProtocolWrap
 from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
 from mcp_tracker.tracker.proto.types.issue_types import IssueType
 from mcp_tracker.tracker.proto.types.issues import (
+    ChecklistItem,
     Issue,
     IssueAttachment,
     IssueComment,
@@ -85,6 +86,12 @@ def make_cached_protocols(
         @cached(**cache_config)
         async def issues_count(self, query: str) -> int:
             return await self._original.issues_count(query)
+
+        @cached(**cache_config)
+        async def issue_get_checklist(
+            self, issue_id: str
+        ) -> list[ChecklistItem] | None:
+            return await self._original.issue_get_checklist(issue_id)
 
     class CachingGlobalDataProtocol(GlobalDataProtocolWrap):
         @cached(**cache_config)

@@ -10,6 +10,7 @@ from mcp_tracker.tracker.proto.queues import QueuesProtocol
 from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
 from mcp_tracker.tracker.proto.types.issue_types import IssueType
 from mcp_tracker.tracker.proto.types.issues import (
+    ChecklistItem,
     Issue,
     IssueAttachment,
     IssueComment,
@@ -30,6 +31,7 @@ IssueList = RootModel[list[Issue]]
 IssueCommentList = RootModel[list[IssueComment]]
 WorklogList = RootModel[list[Worklog]]
 IssueAttachmentList = RootModel[list[IssueAttachment]]
+ChecklistItemList = RootModel[list[ChecklistItem]]
 GlobalFieldList = RootModel[list[GlobalField]]
 StatusList = RootModel[list[Status]]
 IssueTypeList = RootModel[list[IssueType]]
@@ -266,6 +268,17 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         ) as response:
             response.raise_for_status()
             return User.model_validate_json(await response.read())
+
+    async def issue_get_checklist(
+        self, issue_id: str, *, auth: YandexAuth | None = None
+    ) -> list[ChecklistItem] | None:
+        async with self._session.get(
+            f"v3/issues/{issue_id}/checklistItems", headers=self._build_headers(auth)
+        ) as response:
+            if response.status == 404:
+                return None
+            response.raise_for_status()
+            return ChecklistItemList.model_validate_json(await response.read()).root
 
     async def issues_count(self, query: str, *, auth: YandexAuth | None = None) -> int:
         body: dict[str, Any] = {

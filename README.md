@@ -571,6 +571,10 @@ The server exposes the following tools through the MCP protocol:
   - Parameters: `issue_id` (string, format: "QUEUE-123")
   - Returns list of attachments with metadata for the specified issue
 
+- **`issue_get_checklist`**: Get checklist items of an issue
+  - Parameters: `issue_id` (string, format: "QUEUE-123")
+  - Returns list of checklist items including text, status, assignee, and deadline information
+
 ### Search and Discovery
 - **`issues_find`**: Search issues using [Yandex Tracker Query Language](https://yandex.ru/support/tracker/ru/user/query-filter)
   - Parameters:

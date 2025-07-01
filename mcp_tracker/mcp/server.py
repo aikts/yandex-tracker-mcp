@@ -33,6 +33,7 @@ from mcp_tracker.tracker.proto.queues import QueuesProtocol
 from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
 from mcp_tracker.tracker.proto.types.issue_types import IssueType
 from mcp_tracker.tracker.proto.types.issues import (
+    ChecklistItem,
     Issue,
     IssueAttachment,
     IssueComment,
@@ -429,6 +430,25 @@ async def issue_get_attachments(
         raise TrackerError(f"Issue `{issue_id}` not found.")
 
     return attachments
+
+
+@mcp.tool(description="Get checklist items of a Yandex Tracker issue by its id")
+async def issue_get_checklist(
+    ctx: Context[Any, AppContext],
+    issue_id: IssueID,
+) -> list[ChecklistItem]:
+    check_issue_id(issue_id)
+
+    checklist_items = (
+        await ctx.request_context.lifespan_context.issues.issue_get_checklist(
+            issue_id,
+            auth=get_yandex_auth(ctx),
+        )
+    )
+    if checklist_items is None:
+        raise TrackerError(f"Issue `{issue_id}` not found.")
+
+    return checklist_items
 
 
 @mcp.tool(

@@ -1,7 +1,14 @@
 from typing import Protocol
 
 from .common import YandexAuth
-from .types.issues import Issue, IssueAttachment, IssueComment, IssueLink, Worklog
+from .types.issues import (
+    ChecklistItem,
+    Issue,
+    IssueAttachment,
+    IssueComment,
+    IssueLink,
+    Worklog,
+)
 
 
 class IssueProtocol(Protocol):
@@ -31,6 +38,9 @@ class IssueProtocol(Protocol):
     async def issues_count(
         self, query: str, *, auth: YandexAuth | None = None
     ) -> int: ...
+    async def issue_get_checklist(
+        self, issue_id: str, *, auth: YandexAuth | None = None
+    ) -> list[ChecklistItem] | None: ...
 
 
 class IssueProtocolWrap(IssueProtocol):

@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.4] - 2025-07-01
+
+### Features
+- Add `issue_get_checklist` MCP tool to retrieve checklist items from Yandex Tracker issues
+  - Returns list of checklist items including text, status, assignee, and deadline information
+  - Supports all checklist item properties including HTML text rendering and deadline status
+
+### Internal
+- Add ChecklistItem and ChecklistItemDeadline Pydantic models for type safety
+- Extend IssueProtocol with issue_get_checklist method
+- Add caching support for checklist operations
+
 ## [0.3.3] - 2025-07-01
 
 ### Documentation
