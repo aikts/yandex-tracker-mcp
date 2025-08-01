@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2025-08-01
+
+### Features
+- Add multiple authentication methods support:
+  - Static IAM token authentication via `TRACKER_IAM_TOKEN` environment variable
+  - Dynamic IAM token generation using service account credentials (`TRACKER_SA_KEY_ID`, `TRACKER_SA_SERVICE_ACCOUNT_ID`, `TRACKER_SA_PRIVATE_KEY`)
+  - Clear authentication priority order: Dynamic OAuth > Static OAuth > Static IAM > Dynamic IAM
+- Update manifest.json and smithery.yaml to support IAM token configuration
+
+### Improvements
+- Add custom `IssueNotFound` exception for better error handling
+- Change issue-related methods to throw exceptions instead of returning None for 404 responses
+
+### Internal
+- Add test infrastructure with pytest configuration and initial test files
+- Add test commands to Makefile (`test`, `test-unit`, `test-integration`, `test-cov`)
+- Refactor authentication system with multi-tier support in `TrackerClient`
+
+## [0.3.6] - 2025-08-01
+
+### Fixes
+- Fix Python library packaging
+
 ## [0.3.5] - 2025-07-01
 
 ### Features

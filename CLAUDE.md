@@ -47,7 +47,8 @@ uv run mcp-tracker stdio  # or streamable-http
 
 3. **Configuration**: Managed through Pydantic settings (`mcp_tracker/settings.py`):
    - Environment variables loaded from `.env` file
-   - Required: `TRACKER_TOKEN` (optional with OAuth), either `TRACKER_CLOUD_ORG_ID` or `TRACKER_ORG_ID`
+   - Authentication (one required): `TRACKER_TOKEN`, `TRACKER_IAM_TOKEN`, or service account settings (`TRACKER_SA_*`)
+   - Organization: either `TRACKER_CLOUD_ORG_ID` or `TRACKER_ORG_ID`
    - Optional: Redis settings, queue restrictions, transport mode, OAuth settings
 
 4. **OAuth Provider**: When enabled, the server acts as an OAuth provider (`mcp_tracker/mcp/oauth.py`):
@@ -56,7 +57,20 @@ uv run mcp-tracker stdio  # or streamable-http
    - Manages refresh tokens and token lifecycle
    - Uses `YandexAuth` dataclass to encapsulate authentication data
 
-5. **MCP Tools**: Defined in `mcp_tracker/mcp/server.py`:
+5. **Authentication System**: Multi-tier authentication with priority order (`mcp_tracker/tracker/custom/client.py`):
+   - **Dynamic OAuth Token** (highest priority): Token from OAuth flow passed via `auth` parameter
+   - **Static OAuth Token**: Token from `TRACKER_TOKEN` environment variable  
+   - **Static IAM Token**: Token from `TRACKER_IAM_TOKEN` environment variable
+   - **Dynamic IAM Token** (lowest priority): Generated from service account credentials (`TRACKER_SA_*`)
+   - Authentication headers built in `_build_headers()` method following this priority
+   - **Cache Consideration**: Cached results are shared across different auth contexts since cache keys don't include auth info
+
+6. **Service Account Integration**: Support for Yandex Cloud service accounts (`mcp_tracker/tracker/custom/client.py`):
+   - `ServiceAccountSettings` class handles service account configuration
+   - `ServiceAccountStore` class manages IAM token lifecycle with automatic refresh
+   - JWT-based authentication flow using private keys for token generation
+
+7. **MCP Tools**: Defined in `mcp_tracker/mcp/server.py`:
    - Tools use strong typing with Pydantic models from `mcp_tracker/mcp/params.py`
    - Error handling through `mcp_tracker/mcp/errors.py`
    - Each tool interacts with Yandex Tracker via injected protocols
@@ -65,7 +79,7 @@ uv run mcp-tracker stdio  # or streamable-http
 
 - **Type Safety**: All API responses modeled with Pydantic (`mcp_tracker/tracker/proto/types/`)
 - **Base Entity**: All base Yandex Tracker entities (users, issues, etc.) must inherit from `BaseTrackerEntity` in `mcp_tracker/tracker/proto/types/base.py`. This base class handles the common `self` field that appears in all Yandex Tracker API responses.
-- **Caching**: Optional Redis caching applied via decorators in caching client
+- **Caching**: Optional Redis caching applied via decorators in caching client (cache key doesn't include auth, so different users share cached results)
 - **Security**: Queue access restrictions enforced at the server level
 - **Error Handling**: Custom exceptions for better error messages
 
@@ -80,14 +94,21 @@ Currently, the project doesn't have explicit test files. When adding tests:
 ## Important Configuration
 
 When modifying the server, be aware of:
-- Queue restrictions via `TRACKER_RESTRICTED_QUEUES`
-- Caching behavior controlled by `TRACKER_ENABLE_CACHE`
-- Transport modes: stdio (default) or streamable-http
-- Organization ID handling: cloud vs on-premise deployments
-- OAuth configuration:
-  - `OAUTH_ENABLED`: Enable OAuth mode
+
+### Authentication Configuration
+- **OAuth Token**: `TRACKER_TOKEN` - Static OAuth token for all requests
+- **IAM Token**: `TRACKER_IAM_TOKEN` - Static IAM token for service-to-service auth
+- **Service Account**: `TRACKER_SA_KEY_ID`, `TRACKER_SA_SERVICE_ACCOUNT_ID`, `TRACKER_SA_PRIVATE_KEY` - Dynamic IAM token generation
+- **OAuth Provider Mode**: When `OAUTH_ENABLED=true`:
   - `OAUTH_CLIENT_ID` and `OAUTH_CLIENT_SECRET`: Yandex OAuth app credentials
   - `MCP_SERVER_PUBLIC_URL`: Public URL for OAuth callbacks
+  - `OAUTH_STORE`: Storage backend (`memory` or `redis`)
+
+### Other Configuration
+- Queue restrictions via `TRACKER_LIMIT_QUEUES`
+- Caching behavior controlled by `TOOLS_CACHE_ENABLED`
+- Transport modes: stdio (default) or streamable-http
+- Organization ID handling: cloud vs on-premise deployments (`TRACKER_CLOUD_ORG_ID` vs `TRACKER_ORG_ID`)
 - In HTTP transport mode, org IDs can be passed via query parameters
 
 ## Code Style
@@ -132,19 +153,23 @@ async def user_get_current(self, *, auth: YandexAuth | None = None) -> User: ...
 
 # 2. Client implementation
 async def user_get_current(self, *, auth: YandexAuth | None = None) -> User:
-    async with self._session.get("v3/myself", headers=self._build_headers(auth)) as response:
+    async with self._session.get(
+        "v3/myself", headers=await self._build_headers(auth)
+    ) as response:
         response.raise_for_status()
         return User.model_validate_json(await response.read())
 
-# 3. Caching wrapper
+# 3. Caching wrapper (passes auth to original but doesn't use it for cache key)
 @cached(**cache_config)
-async def user_get_current(self) -> User:
-    return await self._original.user_get_current()
+async def user_get_current(self, *, auth: YandexAuth | None = None) -> User:
+    return await self._original.user_get_current(auth=auth)
 
 # 4. MCP tool
 @mcp.tool(description="Get information about the current authenticated user")
 async def user_get_current(ctx: Context[Any, AppContext]) -> User:
-    return await ctx.request_context.lifespan_context.users.user_get_current(auth=get_yandex_auth(ctx))
+    return await ctx.request_context.lifespan_context.users.user_get_current(
+        auth=get_yandex_auth(ctx)
+    )
 ```
 
 ### Verification

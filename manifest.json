@@ -2,7 +2,7 @@
   "dxt_version": "0.1",
   "name": "yandex-tracker-mcp",
   "display_name": "Yandex Tracker MCP",
-  "version": "0.3.6",
+  "version": "0.4.0",
   "description": "Yandex Tracker MCP Server",
   "author": {
     "name": "KTS",
@@ -22,6 +22,7 @@
       "env": {
         "PYTHONPATH": "${__dirname}:${__dirname}/dxt-lib",
         "TRACKER_TOKEN": "${user_config.trackerToken}",
+        "TRACKER_IAM_TOKEN": "${user_config.trackerIamToken}",
         "TRACKER_CLOUD_ORG_ID": "${user_config.trackerCloudOrgId}",
         "TRACKER_ORG_ID": "${user_config.trackerOrgId}"
       }
@@ -119,8 +120,15 @@
     "trackerToken": {
       "type": "string",
       "title": "Yandex Tracker Token",
-      "description": "Token for accessing Yandex Tracker API",
-      "required": true,
+      "description": "OAuth token for accessing Yandex Tracker API",
+      "required": false,
+      "sensitive": true
+    },
+    "trackerIamToken": {
+      "type": "string",
+      "title": "Yandex IAM Token",
+      "description": "IAM token for service-to-service authentication",
+      "required": false,
       "sensitive": true
     },
     "trackerCloudOrgId": {

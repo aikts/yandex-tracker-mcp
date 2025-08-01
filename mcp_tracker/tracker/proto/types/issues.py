@@ -36,7 +36,6 @@ class Issue(CreatedUpdatedMixin, BaseTrackerEntity):
     deadline: datetime.date | None = None
     components: list[ComponentReference] | None = None
     start: datetime.date | None = None
-    end: datetime.date | None = None
     story_points: float | None = Field(
         None, validation_alias=AliasChoices("storyPoints", "story_points")
     )

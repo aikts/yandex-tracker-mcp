@@ -68,7 +68,10 @@ brew install python@3.12
 
 The following sections show how to configure the MCP server for different AI clients. You can use either `uvx yandex-tracker-mcp@latest` or the Docker image `ghcr.io/aikts/yandex-tracker-mcp:latest`. Both require these environment variables:
 
-- `TRACKER_TOKEN` - Your Yandex Tracker OAuth token (required)
+- Authentication (one of the following):
+  - `TRACKER_TOKEN` - Your Yandex Tracker OAuth token
+  - `TRACKER_IAM_TOKEN` - Your IAM token
+  - `TRACKER_SA_KEY_ID`, `TRACKER_SA_SERVICE_ACCOUNT_ID`, `TRACKER_SA_PRIVATE_KEY` - Service account credentials
 - `TRACKER_CLOUD_ORG_ID` or `TRACKER_ORG_ID` - Your Yandex Cloud (or Yandex 360) organization ID
 
 <details>
@@ -783,20 +786,106 @@ REDIS_POOL_MAX_SIZE=10                    # Default: 10
 - The `OAUTH_STORE` setting only affects OAuth data storage; tools caching uses `TOOLS_CACHE_ENABLED`
 - Redis store uses JSON serialization for better cross-language compatibility and debugging
 
+## Authentication
+
+Yandex Tracker MCP Server supports multiple authentication methods with a clear priority order. The server will use the first available authentication method based on this hierarchy:
+
+### Authentication Priority Order
+
+1. **Dynamic OAuth Token** (highest priority)
+   - When OAuth is enabled and a user authenticates via OAuth flow
+   - Tokens are dynamically obtained and refreshed per user session
+   - Required env vars: `OAUTH_ENABLED=true`, `OAUTH_CLIENT_ID`, `OAUTH_CLIENT_SECRET`, `MCP_SERVER_PUBLIC_URL`
+
+2. **Static OAuth Token**
+   - Traditional OAuth token provided via environment variable
+   - Single token used for all requests
+   - Required env var: `TRACKER_TOKEN` (your OAuth token)
+
+3. **Static IAM Token**
+   - IAM (Identity and Access Management) token for service-to-service authentication
+   - Suitable for automated systems and CI/CD pipelines
+   - Required env var: `TRACKER_IAM_TOKEN` (your IAM token)
+
+4. **Dynamic IAM Token** (lowest priority)
+   - Automatically retrieved using service account credentials
+   - Token is fetched and refreshed automatically
+   - Required env vars: `TRACKER_SA_KEY_ID`, `TRACKER_SA_SERVICE_ACCOUNT_ID`, `TRACKER_SA_PRIVATE_KEY`
+
+### Authentication Scenarios
+
+#### Scenario 1: OAuth with Dynamic Tokens (Recommended for Interactive Use)
+```env
+# Enable OAuth mode
+OAUTH_ENABLED=true
+OAUTH_CLIENT_ID=your_oauth_app_id
+OAUTH_CLIENT_SECRET=your_oauth_app_secret
+MCP_SERVER_PUBLIC_URL=https://your-server.com
+
+# Organization ID (choose one)
+TRACKER_CLOUD_ORG_ID=your_cloud_org_id  # or TRACKER_ORG_ID
+```
+
+#### Scenario 2: Static OAuth Token (Simple Setup)
+```env
+# OAuth token
+TRACKER_TOKEN=your_oauth_token
+
+# Organization ID (choose one)
+TRACKER_CLOUD_ORG_ID=your_cloud_org_id  # or TRACKER_ORG_ID
+```
+
+#### Scenario 3: Static IAM Token
+```env
+# IAM token
+TRACKER_IAM_TOKEN=your_iam_token
+
+# Organization ID (choose one)
+TRACKER_CLOUD_ORG_ID=your_cloud_org_id  # or TRACKER_ORG_ID
+```
+
+#### Scenario 4: Dynamic IAM Token with Service Account
+```env
+# Service account credentials
+TRACKER_SA_KEY_ID=your_key_id
+TRACKER_SA_SERVICE_ACCOUNT_ID=your_service_account_id
+TRACKER_SA_PRIVATE_KEY=your_private_key
+
+# Organization ID (choose one)
+TRACKER_CLOUD_ORG_ID=your_cloud_org_id  # or TRACKER_ORG_ID
+```
+
+### Important Notes
+
+- The server checks authentication methods in the order listed above
+- Only one authentication method will be used at a time
+- For production use, dynamic tokens (OAuth or IAM) are recommended for better security
+- IAM tokens have a shorter lifetime than OAuth tokens and may need more frequent renewal
+- When using service accounts, ensure the account has appropriate permissions for Yandex Tracker
+
 ## Configuration
 
 ### Environment Variables
 
 ```env
-# Required - Yandex Tracker API token
+# Authentication (use one of the following methods)
+# Method 1: OAuth Token
 TRACKER_TOKEN=your_yandex_tracker_oauth_token
+
+# Method 2: IAM Token
+TRACKER_IAM_TOKEN=your_iam_token
+
+# Method 3: Service Account (for dynamic IAM token)
+TRACKER_SA_KEY_ID=your_key_id                    # Service account key ID
+TRACKER_SA_SERVICE_ACCOUNT_ID=your_sa_id        # Service account ID
+TRACKER_SA_PRIVATE_KEY=your_private_key          # Service account private key
 
 # Organization Configuration (choose one)
 TRACKER_CLOUD_ORG_ID=your_cloud_org_id    # For Yandex Cloud organizations
 TRACKER_ORG_ID=your_org_id                # For Yandex 360 organizations
 
 # API Configuration (optional)
-TRACKER_BASE_URL=https://api.tracker.yandex.net  # Default: https://api.tracker.yandex.net
+TRACKER_API_BASE_URL=https://api.tracker.yandex.net  # Default: https://api.tracker.yandex.net
 
 # Security - Restrict access to specific queues (optional)
 TRACKER_LIMIT_QUEUES=PROJ1,PROJ2,DEV      # Comma-separated queue keys

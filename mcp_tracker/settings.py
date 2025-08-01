@@ -13,10 +13,15 @@ class Settings(BaseSettings):
     transport: Literal["stdio", "sse", "streamable-http"] = "stdio"
     tracker_api_base_url: str = "https://api.tracker.yandex.net"
     tracker_token: str | None = None
+    tracker_iam_token: str | None = None
     tracker_cloud_org_id: str | None = None
     tracker_org_id: str | None = None
     tracker_limit_queues: Annotated[list[str] | None, NoDecode] = None
     tracker_read_only: bool = False
+
+    tracker_sa_key_id: str | None = None
+    tracker_sa_service_account_id: str | None = None
+    tracker_sa_private_key: str | None = None
 
     redis_endpoint: str = "localhost"
     redis_port: int = 6379
@@ -49,10 +54,19 @@ class Settings(BaseSettings):
                 raise ValueError("server_url must be set when oauth_enabled is True")
 
         else:
-            if not self.tracker_token:
-                raise ValueError(
-                    "tracker_token must be set when oauth_enabled is False"
-                )
+            if not self.tracker_token and not self.tracker_iam_token:
+                if self.tracker_sa_key_id is None:
+                    raise ValueError(
+                        "tracker_token or tracker_iam_token or tracker_sa_* must be set when oauth_enabled is False"
+                    )
+                else:
+                    if (
+                        self.tracker_sa_service_account_id is None
+                        or self.tracker_sa_private_key is None
+                    ):
+                        raise ValueError(
+                            "tracker_sa_key_id, tracker_sa_service_account_id and tracker_sa_private_key must be set when configuring service account access"
+                        )
 
         return self
 
