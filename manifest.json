@@ -2,7 +2,7 @@
   "dxt_version": "0.1",
   "name": "yandex-tracker-mcp",
   "display_name": "Yandex Tracker MCP",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "description": "Yandex Tracker MCP Server",
   "author": {
     "name": "KTS",
