@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     tools_cache_redis_ttl: int | None = 3600
 
     oauth_enabled: bool = False
+    oauth_proxy: bool = True
     oauth_store: Literal["redis", "memory"] = "memory"
     oauth_server_url: AnyHttpUrl = AnyHttpUrl("https://oauth.yandex.ru")
     oauth_client_id: str | None = None

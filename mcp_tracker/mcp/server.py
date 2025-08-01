@@ -3,6 +3,7 @@ from typing import Annotated, Any, AsyncIterator
 
 import yarl
 from mcp.server import FastMCP
+from mcp.server.auth.provider import TokenVerifier, AccessToken
 from mcp.server.auth.settings import AuthSettings, ClientRegistrationOptions
 from mcp.server.fastmcp import Context
 from pydantic import Field
@@ -11,7 +12,7 @@ from starlette.routing import Route
 
 from mcp_tracker.mcp.context import AppContext
 from mcp_tracker.mcp.errors import TrackerError
-from mcp_tracker.mcp.oauth.provider import YandexOAuthAuthorizationServerProvider
+from mcp_tracker.mcp.oauth.provider import YandexOAuthProxyAuthorizationServerProvider
 from mcp_tracker.mcp.oauth.store import OAuthStore
 from mcp_tracker.mcp.oauth.stores.memory import InMemoryOAuthStore
 from mcp_tracker.mcp.oauth.stores.redis import RedisOAuthStore
@@ -83,50 +84,69 @@ async def tracker_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
 
 
 def create_mcp_server() -> FastMCP:
-    auth_server_provider: YandexOAuthAuthorizationServerProvider | None = None
+    auth_server_provider: YandexOAuthProxyAuthorizationServerProvider | None = None
+    token_verifier: TokenVerifier | None = None
     auth_settings: AuthSettings | None = None
 
     if settings.oauth_enabled:
         assert settings.oauth_client_id, "OAuth client ID must be set."
         assert settings.oauth_client_secret, "OAuth client secret must be set."
 
-        oauth_store: OAuthStore
-        if settings.oauth_store == "memory":
-            oauth_store = InMemoryOAuthStore()
-        elif settings.oauth_store == "redis":
-            oauth_store = RedisOAuthStore(
-                endpoint=settings.redis_endpoint,
-                port=settings.redis_port,
-                db=settings.redis_db,
-                password=settings.redis_password,
-                pool_max_size=settings.redis_pool_max_size,
-            )
-        else:
-            raise ValueError(
-                f"Unsupported OAuth store: {settings.oauth_store}. "
-                "Supported values are 'memory' and 'redis'."
-            )
+        oauth_store: OAuthStore | None = None
+
+        if settings.oauth_proxy:
+            if settings.oauth_store == "memory":
+                oauth_store = InMemoryOAuthStore()
+            elif settings.oauth_store == "redis":
+                oauth_store = RedisOAuthStore(
+                    endpoint=settings.redis_endpoint,
+                    port=settings.redis_port,
+                    db=settings.redis_db,
+                    password=settings.redis_password,
+                    pool_max_size=settings.redis_pool_max_size,
+                )
+            else:
+                raise ValueError(
+                    f"Unsupported OAuth store: {settings.oauth_store}. "
+                    "Supported values are 'memory' and 'redis'."
+                )
 
         if settings.tracker_read_only:
             scopes = ["tracker:read"]
         else:
             scopes = ["tracker:read", "tracker:write"]
 
-        auth_server_provider = YandexOAuthAuthorizationServerProvider(
-            client_id=settings.oauth_client_id,
-            client_secret=settings.oauth_client_secret,
-            server_url=yarl.URL(str(settings.mcp_server_public_url)),
-            yandex_oauth_issuer=yarl.URL(str(settings.oauth_server_url)),
-            store=oauth_store,
-            scopes=scopes,
-        )
+        if settings.oauth_proxy:
+            auth_server_provider = YandexOAuthProxyAuthorizationServerProvider(
+                client_id=settings.oauth_client_id,
+                client_secret=settings.oauth_client_secret,
+                server_url=yarl.URL(str(settings.mcp_server_public_url)),
+                yandex_oauth_issuer=yarl.URL(str(settings.oauth_server_url)),
+                store=oauth_store,
+                scopes=scopes,
+            )
+        else:
+
+            class DummyTokenVerifier(TokenVerifier):
+                async def verify_token(self, token: str) -> AccessToken | None:
+                    return AccessToken(
+                        token=token,
+                        client_id="?",
+                        scopes=scopes,
+                    )
+
+            token_verifier = DummyTokenVerifier()
 
         auth_settings = AuthSettings(
-            issuer_url=settings.mcp_server_public_url,
+            issuer_url=(
+                settings.mcp_server_public_url
+                if settings.oauth_proxy
+                else settings.oauth_server_url
+            ),
             required_scopes=scopes,
             resource_server_url=settings.mcp_server_public_url,
             client_registration_options=ClientRegistrationOptions(
-                enabled=True,
+                enabled=settings.oauth_proxy,
                 valid_scopes=scopes,
                 default_scopes=scopes,
             ),
@@ -139,12 +159,13 @@ def create_mcp_server() -> FastMCP:
         port=settings.port,
         lifespan=tracker_lifespan,
         auth_server_provider=auth_server_provider,
+        token_verifier=token_verifier,
         stateless_http=True,
         json_response=True,
         auth=auth_settings,
     )
 
-    if auth_server_provider is not None:
+    if settings.oauth_proxy and auth_server_provider is not None:
         server._custom_starlette_routes.append(
             Route(
                 path="/oauth/yandex/callback",

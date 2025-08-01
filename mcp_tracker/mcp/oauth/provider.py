@@ -23,7 +23,7 @@ from mcp_tracker.mcp.oauth.types import (
 )
 
 
-class YandexOAuthAuthorizationServerProvider(
+class YandexOAuthProxyAuthorizationServerProvider(
     OAuthAuthorizationServerProvider[
         YandexOauthAuthorizationCode, RefreshToken, AccessToken
     ]
