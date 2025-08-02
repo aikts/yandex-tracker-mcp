@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.1] - 2025-01-02
+
+### Features
+- Enhanced `issues_find` tool with new `fields` parameter for selective field inclusion to optimize context window usage
+- Improved pagination with proper `per_page` parameter and validation
+
+### Improvements
+- Code reorganization: moved MCP tools to separate `mcp_tracker/mcp/tools.py` file for better maintainability
+- Added MCP resources support with `mcp_tracker/mcp/resources.py` for configuration retrieval
+- Enhanced parameter validation with `PageParam` and `PerPageParam` type annotations
+- Added `IssueFieldsEnum` for field selection in issue queries
+- Updated user configuration keys to snake_case format for consistency
+
+### Internal
+- Improved code structure and separation of concerns
+- Enhanced type safety with better parameter annotations
+
 ## [0.4.0] - 2025-08-01
 
 ### Features

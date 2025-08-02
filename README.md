@@ -587,8 +587,10 @@ The server exposes the following tools through the MCP protocol:
   - Parameters:
     - `query` (required): Query string using Yandex Tracker Query Language syntax
     - `include_description` (boolean, optional, default: false): Whether to include issue description in the issues result. Can be large, so use only when needed.
+    - `fields` (list of strings, optional): Fields to include in the response. Helps optimize context window usage by selecting only needed fields. If not specified, returns all available fields.
     - `page` (optional): Page number for pagination (default: 1)
-  - Returns up to 500 issues per page
+    - `per_page` (optional): Number of items per page (default: 100). May be decreased if results exceed context window.
+  - Returns up to specified number of issues per page
 
 - **`issues_count`**: Count issues matching a query using [Yandex Tracker Query Language](https://yandex.ru/support/tracker/ru/user/query-filter)
   - Parameters:

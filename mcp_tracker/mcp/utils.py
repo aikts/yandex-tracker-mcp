@@ -14,7 +14,15 @@ def get_yandex_auth(ctx: Context[Any, Any, Request]) -> YandexAuth:
     auth = YandexAuth(token=token)
 
     if ctx.request_context.request is not None:
-        auth.cloud_org_id = ctx.request_context.request.query_params.get("cloudOrgId")
-        auth.org_id = ctx.request_context.request.query_params.get("orgId")
+        cloud_org_id = ctx.request_context.request.query_params.get("cloudOrgId")
+        org_id = ctx.request_context.request.query_params.get("orgId")
+
+        if cloud_org_id:
+            cloud_org_id = cloud_org_id.strip()
+            auth.cloud_org_id = cloud_org_id or None
+
+        if org_id:
+            org_id = org_id.strip()
+            auth.org_id = org_id or None
 
     return auth

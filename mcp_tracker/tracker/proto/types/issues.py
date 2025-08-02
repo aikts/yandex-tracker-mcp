@@ -1,4 +1,5 @@
 import datetime
+from enum import Enum
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
@@ -10,7 +11,7 @@ from mcp_tracker.tracker.proto.types.refs import (
     IssueReference,
     IssueTypeReference,
     PriorityReference,
-    QueueReference,
+    SprintReference,
     StatusReference,
     UserReference,
 )
@@ -18,15 +19,14 @@ from mcp_tracker.tracker.proto.types.refs import (
 
 class Issue(CreatedUpdatedMixin, BaseTrackerEntity):
     model_config = ConfigDict(
-        extra="allow",
+        extra="ignore",
     )
 
     unique: str | None = None
     key: str | None = None
-    version: int | None = None
-    summary: str
+    summary: str | None = None
     description: str | None = None
-    type: IssueTypeReference
+    type: IssueTypeReference | None = None
     priority: PriorityReference | None = None
     assignee: UserReference | None = None
     status: StatusReference | None = None
@@ -39,9 +39,17 @@ class Issue(CreatedUpdatedMixin, BaseTrackerEntity):
     story_points: float | None = Field(
         None, validation_alias=AliasChoices("storyPoints", "story_points")
     )
-    tags: list[str] = Field(default_factory=list)
+    tags: list[str] | None = None
     votes: int | None = None
-    queue: QueueReference | None = None
+    sprint: list[SprintReference] | None = None
+    epic: IssueReference | None = None
+    parent: IssueReference | None = None
+
+
+IssueFieldsEnum = Enum(  # type: ignore[misc]
+    "IssueFieldsEnum",
+    {key: key for key in Issue.model_fields.keys()},
+)
 
 
 class IssueComment(CreatedUpdatedMixin, BaseTrackerEntity):

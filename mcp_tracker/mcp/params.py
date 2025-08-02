@@ -2,6 +2,24 @@ from typing import Annotated
 
 from pydantic import Field
 
+PageParam = Annotated[
+    int,
+    Field(
+        description="Page number to return, default is 1",
+        ge=1,
+    ),
+]
+
+PerPageParam = Annotated[
+    int,
+    Field(
+        description="The number of items per page. May be decreased if results exceed context window. "
+        "If there is a change in per_page argument - retrieval must be started over with page = 1, "
+        "as the paging could have changed.",
+        ge=1,
+    ),
+]
+
 IssueID = Annotated[
     str,
     Field(description="Issue ID in the format '<project>-<id>', like 'SOMEPROJECT-1'"),
@@ -33,7 +51,7 @@ YTQuery = Annotated[
     str,
     Field(
         description=(
-            """Search query to filter issues using Yandex Tracker Query Language, Instructions:\n"""
+            """Search query to filter issues using Yandex Tracker Query.\n"""
             """# General instructions\n"""
             """1. To search by a specific field use the following syntax: `Description: "some issue description"`\n"""
             """2. Multiple fields should be separated by space: `Description: "some issue description" Created: today()`\n"""
@@ -60,9 +78,11 @@ YTQuery = Annotated[
             """# Examples\n"""
             """Find issues in a specific queue: `"Queue": "PROJ"`\n"""
             """Find issues by an assignee: `"Assignee": "Иван Иванов"`\n"""
+            """Find not resolved (open, in progress) issues: `"Resolution": unresolved()`\n"""
             """Find issues in specific status: `"Status": "Открыт", "В работе"`\n"""
             """Find issues created in a specific range: `"Created": "2017-01-01".."2017-01-30"`\n"""
             """Find issues created no earlier than 1 week and 1 day before today: `Created: > today() - "1w 1d"`\n"""
+            """Complete instructions page is available here: https://yandex.ru/support/tracker/ru/user/query-filter\n"""
         )
     ),
 ]
@@ -77,4 +97,6 @@ Use these tools to:
 In russian Yandex Tracker is called "Яндекс Трекер", "Трекер".
 Queues may be called "Очереди".
 Tasks may be called "Задачи", "Issues", "Таски", "ишью".
+
+When using tools that accept `page` and/or `per_page` parameters and when the task is to find something in the result set (or to receive all available data) - always call the tool as many times as needed increasing the `page` parameter until ther result set is exhausted. If you stumble with the context size limit — try to change the `per_page` parameter to a lower value and restart the search from the `page=1`.
 """

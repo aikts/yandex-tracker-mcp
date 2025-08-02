@@ -29,6 +29,10 @@ class StatusReference(BaseModel):
     display: str | None = None
 
 
+class SprintReference(BaseReference):
+    display: str | None = None
+
+
 class UserReference(BaseReference):
     display: str | None = None
     cloud_uid: str | None = Field(

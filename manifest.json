@@ -2,7 +2,7 @@
   "dxt_version": "0.1",
   "name": "yandex-tracker-mcp",
   "display_name": "Yandex Tracker MCP",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Yandex Tracker MCP Server",
   "author": {
     "name": "KTS",
@@ -21,10 +21,10 @@
       ],
       "env": {
         "PYTHONPATH": "${__dirname}:${__dirname}/dxt-lib",
-        "TRACKER_TOKEN": "${user_config.trackerToken}",
-        "TRACKER_IAM_TOKEN": "${user_config.trackerIamToken}",
-        "TRACKER_CLOUD_ORG_ID": "${user_config.trackerCloudOrgId}",
-        "TRACKER_ORG_ID": "${user_config.trackerOrgId}"
+        "TRACKER_TOKEN": "${user_config.tracker_token}",
+        "TRACKER_IAM_TOKEN": "${user_config.tracker_iam_token}",
+        "TRACKER_CLOUD_ORG_ID": "${user_config.tracker_cloud_org_id}",
+        "TRACKER_ORG_ID": "${user_config.tracker_org_id}"
       }
     }
   },
@@ -117,28 +117,28 @@
     }
   ],
   "user_config": {
-    "trackerToken": {
+    "tracker_token": {
       "type": "string",
       "title": "Yandex Tracker Token",
       "description": "OAuth token for accessing Yandex Tracker API",
       "required": false,
       "sensitive": true
     },
-    "trackerIamToken": {
+    "tracker_iam_token": {
       "type": "string",
       "title": "Yandex IAM Token",
       "description": "IAM token for service-to-service authentication",
       "required": false,
       "sensitive": true
     },
-    "trackerCloudOrgId": {
+    "tracker_cloud_org_id": {
       "type": "string",
       "title": "Tracker Cloud Org Id",
       "description": "ID of Yandex Cloud Organization",
       "required": false,
       "sensitive": false
     },
-    "trackerOrgId": {
+    "tracker_org_id": {
       "type": "string",
       "title": "Tracker Org Id",
       "description": "ID of Yandex 360 Organization",

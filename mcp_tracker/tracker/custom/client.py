@@ -146,9 +146,9 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         iam_token: str | None = None,
         service_account: ServiceAccountSettings | None = None,
         org_id: str | None = None,
+        cloud_org_id: str | None = None,
         base_url: str = "https://api.tracker.yandex.net",
         timeout: float = 10,
-        cloud_org_id: str | None = None,
     ):
         self._token = token
         self._static_iam_token = iam_token

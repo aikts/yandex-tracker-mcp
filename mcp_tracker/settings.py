@@ -7,7 +7,12 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        str_strip_whitespace=True,
+    )
+
     host: str = "0.0.0.0"
     port: int = 8000
     transport: Literal["stdio", "sse", "streamable-http"] = "stdio"
