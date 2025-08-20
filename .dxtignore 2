@@ -1,0 +1,38 @@
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# IDE
+.idea
+.vscode
+
+# Custom
+/local
+.DS_Store
+.ruff_cache
+
+
+.claude
+.dockerignore
+.editorconfig
+.git
+.gitignore
+.python-version
+CLAUDE.md
+Dockerfile
+Makefile
+smithery*
+uv.lock
+images
+dxt-utils

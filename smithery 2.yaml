@@ -1,0 +1,39 @@
+runtime: "container"
+startCommand:
+  type: "stdio"
+  configSchema:
+    type: "object"
+    properties:
+      trackerToken:
+        type: "string"
+        description: "Yandex Tracker OAuth token"
+      trackerIamToken:
+        type: "string"
+        description: "Yandex IAM token for service-to-service authentication"
+      cloudOrgId:
+        type: "string"
+        description: "Yandex Cloud Org Id"
+      orgId:
+        type: "string"
+        description: "Yandex 360 Org Id"
+    required: []
+  exampleConfig:
+    trackerBaseUrl: "https://api.tracker.yandex.net"
+    trackerToken: "some-tracker-token"
+    cloudOrgId: "someCloudOrgId"
+  commandFunction: |-
+    (config) => ({
+      "command": "python",
+      "args": ["-m", "mcp_tracker"],
+      "env": {
+        "TRANSPORT": "stdio",
+        "TRACKER_API_BASE_URL": config.trackerBaseUrl,
+        "TRACKER_TOKEN": config.trackerToken || "",
+        "TRACKER_IAM_TOKEN": config.trackerIamToken || "",
+        "TRACKER_CLOUD_ORG_ID": config.cloudOrgId || "",
+        "TRACKER_ORG_ID": config.orgId || ""
+      }
+    })
+build:
+  dockerfile: "smithery.Dockerfile"
+  dockerBuildPath: "."
