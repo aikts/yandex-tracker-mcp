@@ -59,7 +59,7 @@ uv run mcp-tracker stdio  # or streamable-http
 
 5. **Authentication System**: Multi-tier authentication with priority order (`mcp_tracker/tracker/custom/client.py`):
    - **Dynamic OAuth Token** (highest priority): Token from OAuth flow passed via `auth` parameter
-   - **Static OAuth Token**: Token from `TRACKER_TOKEN` environment variable  
+   - **Static OAuth Token**: Token from `TRACKER_TOKEN` environment variable
    - **Static IAM Token**: Token from `TRACKER_IAM_TOKEN` environment variable
    - **Dynamic IAM Token** (lowest priority): Generated from service account credentials (`TRACKER_SA_*`)
    - Authentication headers built in `_build_headers()` method following this priority
@@ -85,11 +85,74 @@ uv run mcp-tracker stdio  # or streamable-http
 
 ## Testing Approach
 
-Currently, the project doesn't have explicit test files. When adding tests:
-- Use pytest as the testing framework
-- Mock the protocol interfaces for unit testing
-- Test both with and without caching enabled
-- Verify queue restrictions are properly enforced
+### Testing Framework and Structure
+
+The project uses **pytest** as the testing framework with the following configuration:
+- Tests are located in the `tests/` directory
+- Test files follow the pattern `test_*.py`
+- Test classes follow the pattern `Test*`
+- Test functions follow the pattern `test_*`
+- Asyncio mode is enabled by default in `pyproject.toml` for async test support
+
+### Directory Structure
+
+Tests should mirror the source code directory structure:
+```
+tests/
+├── tracker/
+│   ├── custom/
+│   │   ├── test_client.py
+│   │   ├── test_errors.py
+│   │   └── __init__.py
+│   ├── caching/
+│   │   └── test_client.py
+│   └── proto/
+│       ├── test_types.py
+│       └── ...
+└── mcp/
+    ├── test_server.py
+    └── ...
+```
+
+### Testing Principles
+
+#### 1. **HTTP Request/Response Testing**
+- Use **aioresponses** library for mocking HTTP requests
+- Test that requests are properly formatted with correct headers, URLs, and payloads
+- Verify responses are correctly parsed into Pydantic models
+- Test error handling for different HTTP status codes
+
+#### 2. **Dependency Injection Over Mocking**
+- **Prefer dependency injection**: Pass test dependencies directly rather than using mocking libraries
+- **Avoid pytest-mock/unittest.mock**: Use direct dependency passing when possible
+- **Use mocking sparingly**: Only when it's the cleanest and most appropriate solution
+- **Protocol-based testing**: Test against protocol interfaces rather than concrete implementations
+
+#### 3. **Unit Testing Best Practices**
+- **Focused tests**: Each test should verify one specific behavior
+- **Concise**: Keep tests short and readable
+- **Independent**: Tests should not depend on each other
+- **Fast**: Unit tests should run quickly without external dependencies
+
+#### 4. **Test Coverage Requirements**
+- Verify queue access restrictions are properly enforced
+- Test error conditions and exception handling
+- Test edge cases like network timeouts, invalid responses
+- Verify authentication header construction for all methods
+
+
+### Running Tests
+
+```bash
+# Run all tests
+uv run pytest
+
+# Run tests with coverage
+uv run pytest --cov=mcp_tracker
+
+# Run tests for specific module
+uv run pytest tests/tracker/custom/
+```
 
 ## Important Configuration
 

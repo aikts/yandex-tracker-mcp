@@ -2,6 +2,7 @@ import asyncio
 import logging
 import random
 import time
+from asyncio import CancelledError
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Literal
 
@@ -92,6 +93,8 @@ class ServiceAccountStore:
                 self._refresh_task.cancel()
                 await self._refresh_task
                 self._refresh_task = None
+        except CancelledError:
+            return
         except Exception as e:
             logger.error("error while closing ServiceAccountStore: %s", e)
 
