@@ -1,4 +1,4 @@
-from typing import Any, Protocol
+from typing import Any, Protocol, runtime_checkable
 
 from .common import YandexAuth
 from .types.inputs import (
@@ -20,6 +20,7 @@ from .types.issues import (
 )
 
 
+@runtime_checkable
 class IssueProtocol(Protocol):
     async def issue_get(
         self, issue_id: str, *, auth: YandexAuth | None = None

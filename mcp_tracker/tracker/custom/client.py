@@ -2,6 +2,7 @@ import asyncio
 import logging
 import random
 import time
+from asyncio import CancelledError
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Literal
 
@@ -87,8 +88,19 @@ class IAMTokenInfo(BaseModel):
 
 
 class ServiceAccountStore:
-    def __init__(self, settings: ServiceAccountSettings):
+    DEFAULT_REFRESH_INTERVAL: float = 3500.0
+    DEFAULT_RETRY_INTERVAL: float = 10.0
+
+    def __init__(
+        self,
+        settings: ServiceAccountSettings,
+        *,
+        refresh_interval: float | None = None,
+        retry_interval: float | None = None,
+    ):
         self._settings = settings
+        self._refresh_interval = refresh_interval or self.DEFAULT_REFRESH_INTERVAL
+        self._retry_interval = retry_interval or self.DEFAULT_RETRY_INTERVAL
 
         self._yc_sdk = yandexcloud.SDK(
             service_account_key=self._settings.to_yandexcloud_dict()
@@ -108,7 +120,9 @@ class ServiceAccountStore:
                 self._refresh_task.cancel()
                 await self._refresh_task
                 self._refresh_task = None
-        except Exception as e:
+        except CancelledError:
+            return
+        except Exception as e:  # pragma: no cover
             logger.error("error while closing ServiceAccountStore: %s", e)
 
     async def get_iam_token(self, *, force_refresh: bool = False) -> str:
@@ -130,9 +144,15 @@ class ServiceAccountStore:
         while True:
             try:
                 await self.get_iam_token(force_refresh=True)
-                await asyncio.sleep(3500 + random.random() * 100)
-            except asyncio.CancelledError:
+                interval = self._refresh_interval
+            except asyncio.CancelledError:  # pragma: no cover
                 return
+            except Exception as e:
+                logger.error("Error refreshing IAM token: %s", e)
+                interval = self._retry_interval
+
+            jitter = random.random() * min(interval * 0.1, 100)
+            await asyncio.sleep(interval + jitter)
 
     def _fetch_iam_token(self, service_account: ServiceAccountSettings) -> IAMTokenInfo:
         now = int(time.time())

@@ -59,7 +59,7 @@ uv run mcp-tracker stdio  # or streamable-http
 
 5. **Authentication System**: Multi-tier authentication with priority order (`mcp_tracker/tracker/custom/client.py`):
    - **Dynamic OAuth Token** (highest priority): Token from OAuth flow passed via `auth` parameter
-   - **Static OAuth Token**: Token from `TRACKER_TOKEN` environment variable  
+   - **Static OAuth Token**: Token from `TRACKER_TOKEN` environment variable
    - **Static IAM Token**: Token from `TRACKER_IAM_TOKEN` environment variable
    - **Dynamic IAM Token** (lowest priority): Generated from service account credentials (`TRACKER_SA_*`)
    - Authentication headers built in `_build_headers()` method following this priority
@@ -85,11 +85,181 @@ uv run mcp-tracker stdio  # or streamable-http
 
 ## Testing Approach
 
-Currently, the project doesn't have explicit test files. When adding tests:
-- Use pytest as the testing framework
-- Mock the protocol interfaces for unit testing
-- Test both with and without caching enabled
-- Verify queue restrictions are properly enforced
+### Testing Framework and Structure
+
+The project uses **pytest** as the testing framework with the following configuration:
+- Tests are located in the `tests/` directory
+- Test files follow the pattern `test_*.py`
+- Test classes follow the pattern `Test*`
+- Test functions follow the pattern `test_*`
+- Asyncio mode is set to `auto` in `pyproject.toml` for seamless async test support
+- Verbose output with strict markers and short tracebacks enabled by default
+
+### Directory Structure
+
+Tests mirror the source code directory structure:
+```
+tests/
+├── conftest.py                      # Root fixtures (TrackerClient instances)
+├── protocol_utils.py                # Shared utilities for protocol testing
+├── tracker/
+│   ├── custom/
+│   │   ├── conftest.py              # (none currently)
+│   │   ├── test_client.py           # Client initialization tests
+│   │   ├── test_auth.py             # Authentication header tests
+│   │   ├── test_service_account.py  # Service account tests
+│   │   ├── test_errors.py           # Error handling tests
+│   │   ├── test_users_api.py        # Users API tests
+│   │   ├── test_queues_api.py       # Queues API tests
+│   │   ├── test_global_fields.py    # Global fields tests
+│   │   ├── test_statuses.py         # Statuses tests
+│   │   ├── test_issue_types.py      # Issue types tests
+│   │   ├── test_priorities.py       # Priorities tests
+│   │   └── issues/
+│   │       ├── conftest.py          # Issue-specific fixtures (sample data)
+│   │       ├── test_issue_get.py
+│   │       ├── test_issues_find.py
+│   │       ├── test_issues_count.py
+│   │       ├── test_issue_comments.py
+│   │       ├── test_issue_links.py
+│   │       ├── test_issue_worklogs.py
+│   │       ├── test_issue_attachments.py
+│   │       └── test_issue_checklist.py
+│   └── caching/
+│       ├── test_users_protocol.py
+│       ├── test_queues_protocol.py
+│       ├── test_issues_protocol.py
+│       └── test_global_data_protocol.py
+└── mcp/
+    ├── conftest.py                  # MCP-specific fixtures (mock protocols, settings)
+    └── oauth/
+        ├── test_provider.py
+        └── stores/
+            ├── test_memory.py
+            └── test_redis.py
+```
+
+### Testing Principles
+
+#### 1. **HTTP Request/Response Testing**
+- Use **aioresponses** library for mocking HTTP requests
+- Test that requests are properly formatted with correct headers, URLs, and payloads
+- Verify responses are correctly parsed into Pydantic models
+- Test error handling for different HTTP status codes
+
+#### 2. **Dependency Injection Over Mocking**
+- **Prefer dependency injection**: Pass test dependencies directly rather than using mocking libraries
+- **Use mocking sparingly**: Only when it's the cleanest and most appropriate solution
+- **Protocol-based testing**: Test against protocol interfaces rather than concrete implementations
+
+#### 3. **Unit Testing Best Practices**
+- **Focused tests**: Each test should verify one specific behavior
+- **Concise**: Keep tests short and readable
+- **Independent**: Tests should not depend on each other
+- **Fast**: Unit tests should run quickly without external dependencies
+
+#### 4. **Test Coverage Requirements**
+- Verify queue access restrictions are properly enforced
+- Test error conditions and exception handling
+- Test edge cases like network timeouts, invalid responses
+- Verify authentication header construction for all methods
+
+#### 5. **Fixture Organization**
+- **Root `conftest.py`**: Contains shared fixtures like `client` (TrackerClient instance)
+- **Module-level `conftest.py`**: Contains fixtures specific to a test module (e.g., `tests/tracker/custom/issues/conftest.py` has sample issue data)
+- **`tests/mcp/conftest.py`**: Contains mock protocol implementations and test settings for MCP server testing
+- **`tests/protocol_utils.py`**: Shared utilities for protocol compliance testing
+
+#### 6. **Code Style**
+- Always use **pytest-mock** (`MockerFixture`) for mocking dependencies
+- `unittest.mock.AsyncMock` may be used directly when creating simple mock objects in fixtures
+- Always use type-hinting for all parameters in tests (including fixtures)
+- **Never use imports inside functions**: All imports must be at the top of the file, never inside test functions or fixtures
+- **Never use loops for test cases**: Always use `pytest.mark.parametrize` for running multiple test cases with different inputs:
+  ```python
+  @pytest.mark.parametrize("input_value,expected", [
+      ("value1", "result1"),
+      ("value2", "result2"),
+  ])
+  def test_function(input_value: str, expected: str) -> None:
+      assert process(input_value) == expected
+  ```
+
+### Common Test Patterns
+
+#### Testing HTTP API Methods (with aioresponses)
+```python
+from aioresponses import aioresponses
+from mcp_tracker.tracker.custom.client import TrackerClient
+
+class TestApiMethod:
+    async def test_success(self, client: TrackerClient, sample_data: dict[str, Any]) -> None:
+        with aioresponses() as m:
+            m.get("https://api.tracker.yandex.net/v3/endpoint", payload=sample_data)
+            result = await client.api_method()
+            assert result.field == sample_data["field"]
+
+    async def test_with_auth(self, client: TrackerClient, sample_data: dict[str, Any]) -> None:
+        auth = YandexAuth(token="auth-token", org_id="auth-org")
+        with aioresponses() as m:
+            m.get("https://api.tracker.yandex.net/v3/endpoint", payload=sample_data)
+            result = await client.api_method(auth=auth)
+            # Verify headers
+            request = m.requests[list(m.requests.keys())[0]][0]
+            assert request.kwargs["headers"]["Authorization"] == "OAuth auth-token"
+```
+
+#### Testing Caching Protocol Wrappers
+```python
+from unittest.mock import AsyncMock
+
+class TestCachingProtocol:
+    @pytest.fixture
+    def mock_original(self) -> AsyncMock:
+        original = AsyncMock()
+        original.method.return_value = SomeModel(...)
+        return original
+
+    async def test_calls_original(self, caching_protocol: Any, mock_original: AsyncMock) -> None:
+        result = await caching_protocol.method(arg="value")
+        mock_original.method.assert_called_once_with(arg="value", auth=None)
+```
+
+#### Testing with pytest-mock (MockerFixture)
+```python
+from pytest_mock import MockerFixture
+
+class TestWithMocking:
+    async def test_external_dependency(self, mocker: MockerFixture) -> None:
+        mock_sdk = mocker.patch("module.path.ExternalSDK")
+        mock_sdk.return_value.method.return_value = "result"
+        # Test code that uses ExternalSDK
+```
+
+### Running Tests
+
+```bash
+# Run all tests
+uv run pytest
+
+# Run tests with coverage
+uv run pytest --cov=mcp_tracker
+
+# Run tests for specific module
+uv run pytest tests/tracker/custom/
+
+# Run a specific test file
+uv run pytest tests/tracker/custom/test_auth.py
+
+# Run a specific test class
+uv run pytest tests/tracker/custom/test_auth.py::TestOAuthAuthentication
+
+# Run a specific test
+uv run pytest tests/tracker/custom/test_auth.py::TestOAuthAuthentication::test_build_headers_oauth_from_auth_param
+
+# Run tests matching a keyword
+uv run pytest -k "auth"
+```
 
 ## Important Configuration
 

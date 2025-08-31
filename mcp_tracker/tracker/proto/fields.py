@@ -1,4 +1,4 @@
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from .common import YandexAuth
 from .types.fields import GlobalField
@@ -8,6 +8,7 @@ from .types.resolutions import Resolution
 from .types.statuses import Status
 
 
+@runtime_checkable
 class GlobalDataProtocol(Protocol):
     async def get_global_fields(
         self, *, auth: YandexAuth | None = None

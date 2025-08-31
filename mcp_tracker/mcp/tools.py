@@ -54,10 +54,17 @@ from mcp_tracker.tracker.proto.types.statuses import Status
 from mcp_tracker.tracker.proto.types.users import User
 
 
-def check_issue_id(settings: Settings, issue_id: str) -> None:
-    queue, _ = issue_id.split("-")
+def check_issue_access(settings: Settings, issue_id: str) -> None:
+    """Check if access to the issue is allowed based on queue restrictions."""
+    queue = issue_id.split("-")[0]
     if settings.tracker_limit_queues and queue not in settings.tracker_limit_queues:
         raise IssueNotFound(issue_id)
+
+
+def check_queue_access(settings: Settings, queue_id: str) -> None:
+    """Check if access to the queue is allowed based on queue restrictions."""
+    if settings.tracker_limit_queues and queue_id not in settings.tracker_limit_queues:
+        raise TrackerError(f"Queue `{queue_id}` not found or not allowed.")
 
 
 def register_tools(settings: Settings, mcp: FastMCP[Any]):
@@ -87,12 +94,14 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
     ) -> list[Queue]:
         result: list[Queue] = []
 
-        find_all = False
-        if page is None:
+        fetch_all_pages = page is None
+        if fetch_all_pages:
             page = 1
-            find_all = True
 
-        while find_all:
+        # At this point page is always an int
+        assert page is not None
+
+        while True:
             queues = await ctx.request_context.lifespan_context.queues.queues_list(
                 per_page=per_page,
                 page=page,
@@ -109,8 +118,10 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
                 ]
 
             result.extend(queues)
-            if find_all:
-                page += 1
+
+            if not fetch_all_pages:
+                break  # Only fetch the requested page
+            page += 1
 
         if fields is not None:
             set_non_needed_fields_null(result, {f.name for f in fields})
@@ -126,17 +137,11 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
         ctx: Context[Any, AppContext],
         queue_id: QueueID,
     ) -> list[str]:
-        if (
-            settings.tracker_limit_queues
-            and queue_id not in settings.tracker_limit_queues
-        ):
-            raise TrackerError(f"Queue `{queue_id}` not found or not allowed.")
-
-        tags = await ctx.request_context.lifespan_context.queues.queues_get_tags(
+        check_queue_access(settings, queue_id)
+        return await ctx.request_context.lifespan_context.queues.queues_get_tags(
             queue_id,
             auth=get_yandex_auth(ctx),
         )
-        return tags
 
     @mcp.tool(
         title="Get Queue Versions",
@@ -147,19 +152,11 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
         ctx: Context[Any, AppContext],
         queue_id: QueueID,
     ) -> list[QueueVersion]:
-        if (
-            settings.tracker_limit_queues
-            and queue_id not in settings.tracker_limit_queues
-        ):
-            raise TrackerError(f"Queue `{queue_id}` not found or not allowed.")
-
-        versions = (
-            await ctx.request_context.lifespan_context.queues.queues_get_versions(
-                queue_id,
-                auth=get_yandex_auth(ctx),
-            )
+        check_queue_access(settings, queue_id)
+        return await ctx.request_context.lifespan_context.queues.queues_get_versions(
+            queue_id,
+            auth=get_yandex_auth(ctx),
         )
-        return versions
 
     @mcp.tool(
         title="Get Queue Fields",
@@ -180,26 +177,22 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
             ),
         ] = True,
     ) -> list[GlobalField]:
-        if (
-            settings.tracker_limit_queues
-            and queue_id not in settings.tracker_limit_queues
-        ):
-            raise TrackerError(f"Queue `{queue_id}` not found or not allowed.")
+        check_queue_access(settings, queue_id)
 
         auth = get_yandex_auth(ctx)
         queues = ctx.request_context.lifespan_context.queues
 
-        if include_local_fields:
-            async with asyncio.TaskGroup() as tg:
-                global_fields_task = tg.create_task(
-                    queues.queues_get_fields(queue_id, auth=auth)
-                )
-                local_fields_task = tg.create_task(
-                    queues.queues_get_local_fields(queue_id, auth=auth)
-                )
-            return global_fields_task.result() + local_fields_task.result()
-        else:
+        if not include_local_fields:
             return await queues.queues_get_fields(queue_id, auth=auth)
+
+        async with asyncio.TaskGroup() as tg:
+            global_fields_task = tg.create_task(
+                queues.queues_get_fields(queue_id, auth=auth)
+            )
+            local_fields_task = tg.create_task(
+                queues.queues_get_local_fields(queue_id, auth=auth)
+            )
+        return global_fields_task.result() + local_fields_task.result()
 
     @mcp.tool(
         title="Get Queue Metadata",
@@ -222,12 +215,7 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
             ),
         ] = None,
     ) -> Queue:
-        if (
-            settings.tracker_limit_queues
-            and queue_id not in settings.tracker_limit_queues
-        ):
-            raise TrackerError(f"Queue `{queue_id}` not found or not allowed.")
-
+        check_queue_access(settings, queue_id)
         return await ctx.request_context.lifespan_context.queues.queue_get(
             queue_id,
             expand=expand,
@@ -242,10 +230,9 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
     async def get_global_fields(
         ctx: Context[Any, AppContext],
     ) -> list[GlobalField]:
-        fields = await ctx.request_context.lifespan_context.fields.get_global_fields(
+        return await ctx.request_context.lifespan_context.fields.get_global_fields(
             auth=get_yandex_auth(ctx),
         )
-        return fields
 
     @mcp.tool(
         title="Get Statuses",
@@ -255,10 +242,9 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
     async def get_statuses(
         ctx: Context[Any, AppContext],
     ) -> list[Status]:
-        statuses = await ctx.request_context.lifespan_context.fields.get_statuses(
+        return await ctx.request_context.lifespan_context.fields.get_statuses(
             auth=get_yandex_auth(ctx),
         )
-        return statuses
 
     @mcp.tool(
         title="Get Issue Types",
@@ -268,10 +254,9 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
     async def get_issue_types(
         ctx: Context[Any, AppContext],
     ) -> list[IssueType]:
-        issue_types = await ctx.request_context.lifespan_context.fields.get_issue_types(
+        return await ctx.request_context.lifespan_context.fields.get_issue_types(
             auth=get_yandex_auth(ctx),
         )
-        return issue_types
 
     @mcp.tool(
         title="Get Priorities",
@@ -281,10 +266,9 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
     async def get_priorities(
         ctx: Context[Any, AppContext],
     ) -> list[Priority]:
-        priorities = await ctx.request_context.lifespan_context.fields.get_priorities(
+        return await ctx.request_context.lifespan_context.fields.get_priorities(
             auth=get_yandex_auth(ctx),
         )
-        return priorities
 
     @mcp.tool(
         title="Get Resolutions",
@@ -294,10 +278,9 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
     async def get_resolutions(
         ctx: Context[Any, AppContext],
     ) -> list[Resolution]:
-        resolutions = await ctx.request_context.lifespan_context.fields.get_resolutions(
+        return await ctx.request_context.lifespan_context.fields.get_resolutions(
             auth=get_yandex_auth(ctx),
         )
-        return resolutions
 
     @mcp.tool(
         title="Get Issue URL",
@@ -325,7 +308,7 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
             ),
         ] = True,
     ) -> Issue:
-        check_issue_id(settings, issue_id)
+        check_issue_access(settings, issue_id)
 
         issue = await ctx.request_context.lifespan_context.issues.issue_get(
             issue_id,
@@ -346,7 +329,7 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
         ctx: Context[Any, AppContext],
         issue_id: IssueID,
     ) -> list[IssueComment]:
-        check_issue_id(settings, issue_id)
+        check_issue_access(settings, issue_id)
 
         return await ctx.request_context.lifespan_context.issues.issue_get_comments(
             issue_id,
@@ -362,7 +345,7 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
         ctx: Context[Any, AppContext],
         issue_id: IssueID,
     ) -> list[IssueLink]:
-        check_issue_id(settings, issue_id)
+        check_issue_access(settings, issue_id)
 
         return await ctx.request_context.lifespan_context.issues.issues_get_links(
             issue_id,
@@ -433,7 +416,7 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
         issue_ids: IssueIDs,
     ) -> dict[str, list[Worklog]]:
         for issue_id in issue_ids:
-            check_issue_id(settings, issue_id)
+            check_issue_access(settings, issue_id)
 
         result: dict[str, Any] = {}
         for issue_id in issue_ids:
@@ -456,7 +439,7 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
         ctx: Context[Any, AppContext],
         issue_id: IssueID,
     ) -> list[IssueAttachment]:
-        check_issue_id(settings, issue_id)
+        check_issue_access(settings, issue_id)
 
         return await ctx.request_context.lifespan_context.issues.issue_get_attachments(
             issue_id,
@@ -472,7 +455,7 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
         ctx: Context[Any, AppContext],
         issue_id: IssueID,
     ) -> list[ChecklistItem]:
-        check_issue_id(settings, issue_id)
+        check_issue_access(settings, issue_id)
 
         return await ctx.request_context.lifespan_context.issues.issue_get_checklist(
             issue_id,
@@ -489,7 +472,7 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
         ctx: Context[Any, AppContext],
         issue_id: IssueID,
     ) -> list[IssueTransition]:
-        check_issue_id(settings, issue_id)
+        check_issue_access(settings, issue_id)
 
         return await ctx.request_context.lifespan_context.issues.issue_get_transitions(
             issue_id,
@@ -527,7 +510,7 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
             ),
         ] = None,
     ) -> list[IssueTransition]:
-        check_issue_id(settings, issue_id)
+        check_issue_access(settings, issue_id)
 
         return (
             await ctx.request_context.lifespan_context.issues.issue_execute_transition(
@@ -575,7 +558,7 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
             Field(description="Optional comment to add when closing the issue."),
         ] = None,
     ) -> list[IssueTransition]:
-        check_issue_id(settings, issue_id)
+        check_issue_access(settings, issue_id)
 
         return await ctx.request_context.lifespan_context.issues.issue_close(
             issue_id,
@@ -622,10 +605,7 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
             ),
         ] = None,
     ) -> Issue:
-        # Check queue restrictions if enabled
-        if settings.tracker_limit_queues and queue not in settings.tracker_limit_queues:
-            raise TrackerError(f"Access to queue '{queue}' is not allowed")
-
+        check_queue_access(settings, queue)
         return await ctx.request_context.lifespan_context.issues.issue_create(
             queue=queue,
             summary=summary,
@@ -723,7 +703,7 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
             ),
         ] = None,
     ) -> Issue:
-        check_issue_id(settings, issue_id)
+        check_issue_access(settings, issue_id)
 
         return await ctx.request_context.lifespan_context.issues.issue_update(
             issue_id,
@@ -752,12 +732,11 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
         page: PageParam = 1,
         per_page: PerPageParam = 50,
     ) -> list[User]:
-        users = await ctx.request_context.lifespan_context.users.users_list(
+        return await ctx.request_context.lifespan_context.users.users_list(
             per_page=per_page,
             page=page,
             auth=get_yandex_auth(ctx),
         )
-        return users
 
     @mcp.tool(
         title="Search Users",
@@ -834,7 +813,6 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
     async def user_get_current(
         ctx: Context[Any, AppContext],
     ) -> User:
-        user = await ctx.request_context.lifespan_context.users.user_get_current(
+        return await ctx.request_context.lifespan_context.users.user_get_current(
             auth=get_yandex_auth(ctx),
         )
-        return user

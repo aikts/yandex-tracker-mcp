@@ -1,45 +1,41 @@
 from typing import AsyncGenerator
-from unittest.mock import AsyncMock, patch
 
 import pytest
-from aiohttp import ClientSession
 
-from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.custom.client import TrackerClient
+from mcp_tracker.tracker.proto.common import YandexAuth
 
 
 @pytest.fixture
-def mock_settings() -> Settings:
-    """Provide mock settings for testing."""
-    return Settings(
-        tracker_token="test-token",
-        tracker_cloud_org_id="test-org-123",
-        tracker_api_base_url="https://api.tracker.yandex.net",
-        tools_cache_enabled=False,
-        oauth_enabled=False,
+async def tracker_client() -> AsyncGenerator[TrackerClient, None]:
+    """Create a TrackerClient with org_id for testing."""
+    client = TrackerClient(
+        token="test-token",
+        org_id="test-org",
+        base_url="https://api.tracker.yandex.net",
     )
+    yield client
+    await client.close()
 
 
 @pytest.fixture
-async def mock_session() -> AsyncGenerator[AsyncMock, None]:
-    """Provide a mock aiohttp ClientSession."""
-    session = AsyncMock(spec=ClientSession)
-    session.__aenter__.return_value = session
-    session.__aexit__.return_value = None
-    yield session
+async def tracker_client_no_org() -> AsyncGenerator[TrackerClient, None]:
+    """Create a TrackerClient without org_id for testing auth parameter."""
+    client = TrackerClient(
+        token="test-token",
+        base_url="https://api.tracker.yandex.net",
+    )
+    yield client
+    await client.close()
 
 
 @pytest.fixture
-async def mock_tracker_client(
-    mock_settings: Settings, mock_session: AsyncMock
-) -> AsyncGenerator[TrackerClient, None]:
-    """Provide a mock tracker client."""
-    with patch("aiohttp.ClientSession", return_value=mock_session):
-        client = TrackerClient(
-            base_url=mock_settings.tracker_api_base_url,
-            token=mock_settings.tracker_token,
-            cloud_org_id=mock_settings.tracker_cloud_org_id,
-            org_id=mock_settings.tracker_org_id,
-        )
-        yield client
-        await client.close()
+def yandex_auth() -> YandexAuth:
+    """YandexAuth with org_id for testing."""
+    return YandexAuth(token="auth-token", org_id="auth-org")
+
+
+@pytest.fixture
+def yandex_auth_cloud() -> YandexAuth:
+    """YandexAuth with cloud_org_id for testing."""
+    return YandexAuth(token="auth-token", cloud_org_id="cloud-org")
