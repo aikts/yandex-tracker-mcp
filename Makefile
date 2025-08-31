@@ -1,6 +1,6 @@
 .PHONY: all check format format-check mypy test test-unit test-integration test-cov
 
-all: lock format check
+all: lock format check test
 
 check: ruff-check format-check mypy
 
