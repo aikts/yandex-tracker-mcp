@@ -1,10 +1,11 @@
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from .common import YandexAuth
 from .types.fields import GlobalField, LocalField
 from .types.queues import Queue, QueueExpandOption, QueueVersion
 
 
+@runtime_checkable
 class QueuesProtocol(Protocol):
     async def queues_list(
         self, per_page: int = 100, page: int = 1, *, auth: YandexAuth | None = None

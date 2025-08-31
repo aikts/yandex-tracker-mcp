@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Any
 
 from aiocache import cached
@@ -37,14 +38,17 @@ from mcp_tracker.tracker.proto.types.users import User
 from mcp_tracker.tracker.proto.users import UsersProtocolWrap
 
 
+@dataclass
+class CacheCollection:
+    queues: type[QueuesProtocolWrap]
+    issues: type[IssueProtocolWrap]
+    global_data: type[GlobalDataProtocolWrap]
+    users: type[UsersProtocolWrap]
+
+
 def make_cached_protocols(
     cache_config: dict[str, Any],
-) -> tuple[
-    type[QueuesProtocolWrap],
-    type[IssueProtocolWrap],
-    type[GlobalDataProtocolWrap],
-    type[UsersProtocolWrap],
-]:
+) -> CacheCollection:
     class CachingQueuesProtocol(QueuesProtocolWrap):
         @cached(**cache_config)
         async def queues_list(
@@ -301,9 +305,9 @@ def make_cached_protocols(
         async def user_get_current(self, *, auth: YandexAuth | None = None) -> User:
             return await self._original.user_get_current(auth=auth)
 
-    return (
-        CachingQueuesProtocol,
-        CachingIssuesProtocol,
-        CachingGlobalDataProtocol,
-        CachingUsersProtocol,
+    return CacheCollection(
+        queues=CachingQueuesProtocol,
+        issues=CachingIssuesProtocol,
+        global_data=CachingGlobalDataProtocol,
+        users=CachingUsersProtocol,
     )

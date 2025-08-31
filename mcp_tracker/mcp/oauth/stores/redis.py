@@ -5,9 +5,10 @@ from aiocache import BaseCache, Cache
 from mcp.server.auth.provider import AccessToken, RefreshToken
 from mcp.shared.auth import OAuthClientInformationFull, OAuthToken
 
-from mcp_tracker.mcp.oauth.serializers import PydanticJsonSerializer
 from mcp_tracker.mcp.oauth.store import OAuthStore
 from mcp_tracker.mcp.oauth.types import YandexOauthAuthorizationCode, YandexOAuthState
+
+from .serializers import PydanticJsonSerializer
 
 
 class RedisOAuthStore(OAuthStore):

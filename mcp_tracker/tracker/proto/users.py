@@ -1,9 +1,10 @@
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from .common import YandexAuth
 from .types.users import User
 
 
+@runtime_checkable
 class UsersProtocol(Protocol):
     async def users_list(
         self, per_page: int = 50, page: int = 1, *, auth: YandexAuth | None = None
