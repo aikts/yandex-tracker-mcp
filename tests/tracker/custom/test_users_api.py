@@ -1,3 +1,5 @@
+from typing import Any, AsyncGenerator, Dict
+
 import pytest
 from aioresponses import aioresponses
 
@@ -8,7 +10,7 @@ from mcp_tracker.tracker.proto.types.users import User
 
 class TestUsersAPI:
     @pytest.fixture
-    async def client(self):
+    async def client(self) -> AsyncGenerator[TrackerClient, None]:
         client = TrackerClient(
             token="test-token",
             org_id="test-org",
@@ -18,7 +20,7 @@ class TestUsersAPI:
         await client.close()
 
     @pytest.fixture
-    async def client_no_org(self):
+    async def client_no_org(self) -> AsyncGenerator[TrackerClient, None]:
         client = TrackerClient(
             token="test-token",
             base_url="https://api.tracker.yandex.net",
@@ -27,7 +29,7 @@ class TestUsersAPI:
         await client.close()
 
     @pytest.fixture
-    def sample_user_data(self):
+    def sample_user_data(self) -> Dict[str, Any]:
         return {
             "self": "https://api.tracker.yandex.net/v3/users/1234567890",
             "id": "user123",
@@ -72,7 +74,9 @@ class TestUsersAPI:
             "lastLoginDate": "2024-01-15T15:30:00.000+0000",
         }
 
-    async def test_users_list_success(self, client, sample_user_data):
+    async def test_users_list_success(
+        self, client: TrackerClient, sample_user_data: Dict[str, Any]
+    ):
         users_response = [sample_user_data]
 
         with aioresponses() as m:
@@ -92,7 +96,9 @@ class TestUsersAPI:
             # assert result[0].hasLicense is True  # Field not in model
             assert result[0].external is False
 
-    async def test_users_list_with_pagination(self, client, sample_user_data):
+    async def test_users_list_with_pagination(
+        self, client: TrackerClient, sample_user_data: Dict[str, Any]
+    ):
         users_response = [sample_user_data]
 
         with aioresponses() as m:
@@ -112,7 +118,9 @@ class TestUsersAPI:
             assert request.kwargs["params"]["perPage"] == 25
             assert request.kwargs["params"]["page"] == 3
 
-    async def test_users_list_with_auth(self, client_no_org, sample_user_data):
+    async def test_users_list_with_auth(
+        self, client_no_org: TrackerClient, sample_user_data: Dict[str, Any]
+    ):
         auth = YandexAuth(token="auth-token", cloud_org_id="cloud-org")
         users_response = [sample_user_data]
 
@@ -133,7 +141,7 @@ class TestUsersAPI:
             assert request.kwargs["headers"]["Authorization"] == "OAuth auth-token"
             assert request.kwargs["headers"]["X-Cloud-Org-ID"] == "cloud-org"
 
-    async def test_users_list_multiple_users(self, client):
+    async def test_users_list_multiple_users(self, client: TrackerClient):
         user1_data = {
             "self": "https://api.tracker.yandex.net/v3/users/1111111111",
             "id": "user1",
