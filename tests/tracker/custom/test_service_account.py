@@ -1,5 +1,6 @@
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from typing import Any
 
 import pytest
 from pytest_mock import MockerFixture
@@ -49,7 +50,7 @@ class TestIAMTokenInfo:
 
 class TestServiceAccountStore:
     @pytest.fixture
-    def mock_settings(self):
+    def mock_settings(self) -> ServiceAccountSettings:
         return ServiceAccountSettings(
             key_id="test-key-id",
             service_account_id="test-sa-id",
@@ -57,14 +58,14 @@ class TestServiceAccountStore:
         )
 
     @pytest.fixture
-    def mock_iam_service(self, mocker: MockerFixture):
+    def mock_iam_service(self, mocker: MockerFixture) -> Any:
         mock_service = mocker.Mock()
         mock_response = mocker.Mock()
         mock_response.iam_token = "test-iam-token"
         mock_service.Create.return_value = mock_response
         return mock_service
 
-    def test_init(self, mock_settings, mocker: MockerFixture):
+    def test_init(self, mock_settings: ServiceAccountSettings, mocker: MockerFixture):
         # Mock the yandexcloud SDK at import level
         mock_sdk_class = mocker.patch(
             "mcp_tracker.tracker.custom.client.yandexcloud.SDK"
@@ -86,7 +87,7 @@ class TestServiceAccountStore:
         assert store._refresh_task is None
 
     async def test_prepare_starts_refresh_task(
-        self, mock_settings, mocker: MockerFixture
+        self, mock_settings: ServiceAccountSettings, mocker: MockerFixture
     ):
         mock_sdk_class = mocker.patch(
             "mcp_tracker.tracker.custom.client.yandexcloud.SDK"
@@ -111,7 +112,7 @@ class TestServiceAccountStore:
             pass
 
     async def test_close_cancels_refresh_task(
-        self, mock_settings, mocker: MockerFixture
+        self, mock_settings: ServiceAccountSettings, mocker: MockerFixture
     ):
         mock_sdk_class = mocker.patch(
             "mcp_tracker.tracker.custom.client.yandexcloud.SDK"
@@ -135,7 +136,10 @@ class TestServiceAccountStore:
         assert store._refresh_task.cancelled()
 
     async def test_get_iam_token_first_call(
-        self, mock_settings, mock_iam_service, mocker: MockerFixture
+        self,
+        mock_settings: ServiceAccountSettings,
+        mock_iam_service: Any,
+        mocker: MockerFixture,
     ):
         mock_sdk_class = mocker.patch(
             "mcp_tracker.tracker.custom.client.yandexcloud.SDK"
@@ -159,7 +163,10 @@ class TestServiceAccountStore:
         mock_fetch.assert_called_once_with(mock_settings)
 
     async def test_get_iam_token_cached(
-        self, mock_settings, mock_iam_service, mocker: MockerFixture
+        self,
+        mock_settings: ServiceAccountSettings,
+        mock_iam_service: Any,
+        mocker: MockerFixture,
     ):
         mock_sdk_class = mocker.patch(
             "mcp_tracker.tracker.custom.client.yandexcloud.SDK"
@@ -176,7 +183,10 @@ class TestServiceAccountStore:
         assert token == "cached-token"
 
     async def test_get_iam_token_force_refresh(
-        self, mock_settings, mock_iam_service, mocker: MockerFixture
+        self,
+        mock_settings: ServiceAccountSettings,
+        mock_iam_service: Any,
+        mocker: MockerFixture,
     ):
         mock_sdk_class = mocker.patch(
             "mcp_tracker.tracker.custom.client.yandexcloud.SDK"
@@ -198,7 +208,10 @@ class TestServiceAccountStore:
         mock_fetch.assert_called_once_with(mock_settings)
 
     def test_fetch_iam_token(
-        self, mock_settings, mock_iam_service, mocker: MockerFixture
+        self,
+        mock_settings: ServiceAccountSettings,
+        mock_iam_service: Any,
+        mocker: MockerFixture,
     ):
         mock_sdk_class = mocker.patch(
             "mcp_tracker.tracker.custom.client.yandexcloud.SDK"
@@ -237,7 +250,10 @@ class TestServiceAccountStore:
         assert call_args.jwt == "test-jwt-token"
 
     async def test_concurrent_token_requests(
-        self, mock_settings, mock_iam_service, mocker: MockerFixture
+        self,
+        mock_settings: ServiceAccountSettings,
+        mock_iam_service: Any,
+        mocker: MockerFixture,
     ):
         mock_sdk_class = mocker.patch(
             "mcp_tracker.tracker.custom.client.yandexcloud.SDK"
@@ -250,7 +266,7 @@ class TestServiceAccountStore:
 
         fetch_call_count = 0
 
-        def mock_fetch(*_args):
+        def mock_fetch(*_args: Any) -> IAMTokenInfo:
             nonlocal fetch_call_count
             fetch_call_count += 1
             # Simulate synchronous work (since _fetch_iam_token is sync)

@@ -1,3 +1,5 @@
+from typing import Any, AsyncGenerator, Dict
+
 import pytest
 from aioresponses import aioresponses
 
@@ -9,7 +11,7 @@ from mcp_tracker.tracker.proto.types.queues import Queue, QueueVersion
 
 class TestQueuesAPI:
     @pytest.fixture
-    async def client(self):
+    async def client(self) -> AsyncGenerator[TrackerClient, None]:
         client = TrackerClient(
             token="test-token",
             org_id="test-org",
@@ -19,7 +21,7 @@ class TestQueuesAPI:
         await client.close()
 
     @pytest.fixture
-    async def client_no_org(self):
+    async def client_no_org(self) -> AsyncGenerator[TrackerClient, None]:
         client = TrackerClient(
             token="test-token",
             base_url="https://api.tracker.yandex.net",
@@ -28,7 +30,7 @@ class TestQueuesAPI:
         await client.close()
 
     @pytest.fixture
-    def sample_queue_data(self):
+    def sample_queue_data(self) -> Dict[str, Any]:
         return {
             "self": "https://api.tracker.yandex.net/v3/queues/TEST",
             "id": 123,
@@ -79,7 +81,7 @@ class TestQueuesAPI:
         }
 
     @pytest.fixture
-    def sample_version_data(self):
+    def sample_version_data(self) -> Dict[str, Any]:
         return {
             "self": "https://api.tracker.yandex.net/v3/queues/TEST/versions/1",
             "id": 123,
@@ -92,7 +94,9 @@ class TestQueuesAPI:
             "archived": False,
         }
 
-    async def test_queues_list_success(self, client, sample_queue_data):
+    async def test_queues_list_success(
+        self, client: TrackerClient, sample_queue_data: Dict[str, Any]
+    ):
         queues_response = [sample_queue_data]
 
         with aioresponses() as m:
@@ -110,7 +114,9 @@ class TestQueuesAPI:
             assert result[0].name == "Test Queue"
             assert result[0].description == "A test queue for testing purposes"
 
-    async def test_queues_list_with_pagination(self, client, sample_queue_data):
+    async def test_queues_list_with_pagination(
+        self, client: TrackerClient, sample_queue_data: Dict[str, Any]
+    ):
         queues_response = [sample_queue_data]
 
         with aioresponses() as m:
@@ -130,7 +136,9 @@ class TestQueuesAPI:
             assert request.kwargs["params"]["perPage"] == 50
             assert request.kwargs["params"]["page"] == 2
 
-    async def test_queues_list_with_auth(self, client_no_org, sample_queue_data):
+    async def test_queues_list_with_auth(
+        self, client_no_org: TrackerClient, sample_queue_data: Dict[str, Any]
+    ):
         auth = YandexAuth(token="auth-token", cloud_org_id="cloud-org")
         queues_response = [sample_queue_data]
 
@@ -152,7 +160,7 @@ class TestQueuesAPI:
             assert request.kwargs["headers"]["X-Cloud-Org-ID"] == "cloud-org"
 
     async def test_queues_get_local_fields_success(
-        self, client, sample_local_field_data
+        self, client: TrackerClient, sample_local_field_data: Dict[str, Any]
     ):
         fields_response = [sample_local_field_data]
 
@@ -170,7 +178,7 @@ class TestQueuesAPI:
             assert result[0].key == "customField1"
 
     async def test_queues_get_local_fields_with_auth(
-        self, client, sample_local_field_data
+        self, client: TrackerClient, sample_local_field_data: Dict[str, Any]
     ):
         auth = YandexAuth(token="auth-token", org_id="auth-org")
         fields_response = [sample_local_field_data]

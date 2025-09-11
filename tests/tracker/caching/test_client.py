@@ -1,3 +1,4 @@
+from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
@@ -50,7 +51,7 @@ class TestMakeCachedProtocols:
 
 class TestCachingQueuesProtocol:
     @pytest.fixture
-    def mock_original(self):
+    def mock_original(self) -> AsyncMock:
         original = AsyncMock()
         original.queues_list.return_value = [Queue(id=1, key="TEST", name="Test Queue")]
         original.queues_get_local_fields.return_value = [
@@ -63,13 +64,13 @@ class TestCachingQueuesProtocol:
         return original
 
     @pytest.fixture
-    def caching_queues_protocol(self, mock_original):
+    def caching_queues_protocol(self, mock_original: AsyncMock) -> Any:
         cache_config = {"ttl": 300}
         queues_class, _, _, _ = make_cached_protocols(cache_config)
         return queues_class(mock_original)
 
     async def test_queues_list_calls_original_with_auth(
-        self, caching_queues_protocol, mock_original
+        self, caching_queues_protocol: Any, mock_original: AsyncMock
     ):
         auth = YandexAuth(token="test-token", org_id="test-org")
 
@@ -83,7 +84,7 @@ class TestCachingQueuesProtocol:
         assert result == mock_original.queues_list.return_value
 
     async def test_queues_list_calls_original_without_auth(
-        self, caching_queues_protocol, mock_original
+        self, caching_queues_protocol: Any, mock_original: AsyncMock
     ):
         result = await caching_queues_protocol.queues_list(per_page=100, page=1)
 
@@ -93,7 +94,7 @@ class TestCachingQueuesProtocol:
         assert result == mock_original.queues_list.return_value
 
     async def test_queues_get_local_fields_calls_original(
-        self, caching_queues_protocol, mock_original
+        self, caching_queues_protocol: Any, mock_original: AsyncMock
     ):
         auth = YandexAuth(token="test-token", org_id="test-org")
 
@@ -105,7 +106,7 @@ class TestCachingQueuesProtocol:
         assert result == mock_original.queues_get_local_fields.return_value
 
     async def test_queues_get_tags_calls_original(
-        self, caching_queues_protocol, mock_original
+        self, caching_queues_protocol: Any, mock_original: AsyncMock
     ):
         result = await caching_queues_protocol.queues_get_tags("TEST")
 
@@ -113,7 +114,7 @@ class TestCachingQueuesProtocol:
         assert result == mock_original.queues_get_tags.return_value
 
     async def test_queues_get_versions_calls_original(
-        self, caching_queues_protocol, mock_original
+        self, caching_queues_protocol: Any, mock_original: AsyncMock
     ):
         result = await caching_queues_protocol.queues_get_versions("TEST")
 
@@ -123,7 +124,7 @@ class TestCachingQueuesProtocol:
 
 class TestCachingIssuesProtocol:
     @pytest.fixture
-    def mock_original(self):
+    def mock_original(self) -> AsyncMock:
         original = AsyncMock()
         original.issue_get.return_value = Issue(key="TEST-1", summary="Test Issue")
         original.issues_get_links.return_value = [
@@ -147,7 +148,7 @@ class TestCachingIssuesProtocol:
         return original
 
     @pytest.fixture
-    def caching_issues_protocol(self, mock_original):
+    def caching_issues_protocol(self, mock_original: AsyncMock) -> Any:
         cache_config = {"ttl": 300}
         _, issues_class, _, _ = make_cached_protocols(cache_config)
         return issues_class(mock_original)
@@ -229,7 +230,7 @@ class TestCachingIssuesProtocol:
 
 class TestCachingGlobalDataProtocol:
     @pytest.fixture
-    def mock_original(self):
+    def mock_original(self) -> AsyncMock:
         original = AsyncMock()
         original.get_global_fields.return_value = [
             GlobalField(id="status-field", key="status", name="Status")
@@ -246,7 +247,7 @@ class TestCachingGlobalDataProtocol:
         return original
 
     @pytest.fixture
-    def caching_global_data_protocol(self, mock_original):
+    def caching_global_data_protocol(self, mock_original: AsyncMock) -> Any:
         cache_config = {"ttl": 300}
         _, _, global_data_class, _ = make_cached_protocols(cache_config)
         return global_data_class(mock_original)
@@ -290,7 +291,7 @@ class TestCachingGlobalDataProtocol:
 
 class TestCachingUsersProtocol:
     @pytest.fixture
-    def mock_original(self):
+    def mock_original(self) -> AsyncMock:
         original = AsyncMock()
         original.users_list.return_value = [
             User(uid=123, login="test_user", display="Test User")
@@ -304,7 +305,7 @@ class TestCachingUsersProtocol:
         return original
 
     @pytest.fixture
-    def caching_users_protocol(self, mock_original):
+    def caching_users_protocol(self, mock_original: AsyncMock) -> Any:
         cache_config = {"ttl": 300}
         _, _, _, users_class = make_cached_protocols(cache_config)
         return users_class(mock_original)

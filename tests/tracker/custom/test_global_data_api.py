@@ -1,3 +1,5 @@
+from typing import AsyncGenerator
+
 import pytest
 from aioresponses import aioresponses
 
@@ -11,7 +13,7 @@ from mcp_tracker.tracker.proto.types.statuses import Status
 
 class TestGlobalDataAPI:
     @pytest.fixture
-    async def client(self):
+    async def client(self) -> AsyncGenerator[TrackerClient, None]:
         client = TrackerClient(
             token="test-token",
             org_id="test-org",
@@ -21,7 +23,7 @@ class TestGlobalDataAPI:
         await client.close()
 
     @pytest.fixture
-    async def client_no_org(self):
+    async def client_no_org(self) -> AsyncGenerator[TrackerClient, None]:
         client = TrackerClient(
             token="test-token",
             base_url="https://api.tracker.yandex.net",

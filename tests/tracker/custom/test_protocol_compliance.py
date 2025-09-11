@@ -1,5 +1,5 @@
 import inspect
-from typing import get_type_hints
+from typing import AsyncGenerator, get_type_hints
 
 import pytest
 
@@ -14,7 +14,7 @@ class TestTrackerClientProtocolCompliance:
     """Test that TrackerClient implements all required protocol interfaces."""
 
     @pytest.fixture
-    async def tracker_client(self):
+    async def tracker_client(self) -> AsyncGenerator[TrackerClient, None]:
         """Create a TrackerClient instance for testing."""
         client = TrackerClient(
             token="test-token",

@@ -1,4 +1,5 @@
 import json
+from typing import AsyncGenerator
 
 import pytest
 from aioresponses import aioresponses
@@ -18,7 +19,7 @@ from mcp_tracker.tracker.proto.types.issues import (
 
 class TestIssuesAPI:
     @pytest.fixture
-    async def client(self):
+    async def client(self) -> AsyncGenerator[TrackerClient, None]:
         client = TrackerClient(
             token="test-token",
             org_id="test-org",

@@ -1,4 +1,5 @@
 import inspect
+from typing import Any, Dict, Tuple
 from unittest.mock import AsyncMock
 
 import pytest
@@ -15,17 +16,19 @@ class TestCachingProtocolCompliance:
     """Test that cached protocol implementations properly implement protocol interfaces."""
 
     @pytest.fixture
-    def cache_config(self):
+    def cache_config(self) -> Dict[str, int]:
         """Cache configuration for testing."""
         return {"ttl": 300}
 
     @pytest.fixture
-    def cached_protocols(self, cache_config):
+    def cached_protocols(
+        self, cache_config: Dict[str, int]
+    ) -> Tuple[Any, Any, Any, Any]:
         """Create cached protocol classes."""
         return make_cached_protocols(cache_config)
 
     @pytest.fixture
-    def mock_original(self):
+    def mock_original(self) -> AsyncMock:
         """Create a mock original implementation."""
         return AsyncMock()
 

@@ -141,6 +141,10 @@ tests/
 - Verify authentication header construction for all methods
 
 
+#### 5. **Code-style**
+- Always use pytest-mock and don't use unittest.mock
+- Always use type-hinting for all parameters in the test (including fixtures)
+
 ### Running Tests
 
 ```bash
