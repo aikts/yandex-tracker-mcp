@@ -422,3 +422,40 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         ) as response:
             response.raise_for_status()
             return int(await response.text())
+
+    async def issue_create(
+        self,
+        queue: str,
+        summary: str,
+        *,
+        type: int | None = None,
+        description: str | None = None,
+        assignee: str | int | None = None,
+        priority: str | int | None = None,
+        parent: str | None = None,
+        sprint: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> Issue:
+        body: dict[str, Any] = {
+            "queue": queue,
+            "summary": summary,
+        }
+
+        if type is not None:
+            body["type"] = type
+        if description is not None:
+            body["description"] = description
+        if assignee is not None:
+            body["assignee"] = assignee
+        if priority is not None:
+            body["priority"] = priority
+        if parent is not None:
+            body["parent"] = parent
+        if sprint is not None:
+            body["sprint"] = sprint
+
+        async with self._session.post(
+            "v3/issues", headers=await self._build_headers(auth), json=body
+        ) as response:
+            response.raise_for_status()
+            return Issue.model_validate_json(await response.read())
