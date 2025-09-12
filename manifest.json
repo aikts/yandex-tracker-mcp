@@ -112,6 +112,10 @@
       "description": "Get checklist items of a Yandex Tracker issue by its id"
     },
     {
+      "name": "issue_create",
+      "description": "Create a new issue in a Yandex Tracker queue"
+    },
+    {
       "name": "issues_find",
       "description": "Search issues using Yandex Tracker Query Language"
     },
