@@ -3,7 +3,7 @@ import logging
 import random
 import time
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any
+from typing import Any, Literal
 
 import jwt
 import yandexcloud
@@ -144,6 +144,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         *,
         token: str | None,
         iam_token: str | None = None,
+        token_type: Literal["Bearer", "OAuth"] | None = None,
         service_account: ServiceAccountSettings | None = None,
         org_id: str | None = None,
         cloud_org_id: str | None = None,
@@ -151,6 +152,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         timeout: float = 10,
     ):
         self._token = token
+        self._token_type = token_type
         self._static_iam_token = iam_token
         self._service_account_store: ServiceAccountStore | None = (
             ServiceAccountStore(service_account) if service_account else None
@@ -177,9 +179,11 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         auth_header = None
 
         if auth and auth.token:
-            auth_header = f"OAuth {auth.token}"
+            token_type = self._token_type or "OAuth"
+            auth_header = f"{token_type} {auth.token}"
         elif self._token:
-            auth_header = f"OAuth {self._token}"
+            token_type = self._token_type or "OAuth"
+            auth_header = f"{token_type} {self._token}"
         elif self._static_iam_token:
             auth_header = f"Bearer {self._static_iam_token}"
         elif self._service_account_store is not None:

@@ -40,8 +40,10 @@ class Settings(BaseSettings):
     oauth_enabled: bool = False
     oauth_store: Literal["redis", "memory"] = "memory"
     oauth_server_url: AnyHttpUrl = AnyHttpUrl("https://oauth.yandex.ru")
+    oauth_use_scopes: bool = True
     oauth_client_id: str | None = None
     oauth_client_secret: str | None = None
+    oauth_token_type: Literal["Bearer", "OAuth"] | None = None
     mcp_server_public_url: AnyHttpUrl | None = None
 
     @model_validator(mode="after")

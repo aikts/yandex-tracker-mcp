@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.2] - 2025-09-13
+
+### Features
+- Add support for Yandex Cloud federative OAuth authentication via OIDC applications
+- Enhanced OAuth configuration with new environment variables:
+  - `OAUTH_TOKEN_TYPE`: Configure token type (Bearer/OAuth) for federative authentication
+  - `OAUTH_USE_SCOPES`: Control whether to use OAuth scopes (required `false` for federation)
+- Support for federated accounts authentication through organization identity providers
+
 ## [0.4.1] - 2025-01-02
 
 ### Features

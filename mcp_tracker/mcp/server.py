@@ -50,6 +50,7 @@ async def tracker_lifespan(server: FastMCP[Any]) -> AsyncIterator[AppContext]:
     tracker = TrackerClient(
         base_url=settings.tracker_api_base_url,
         token=settings.tracker_token,
+        token_type=settings.oauth_token_type,
         iam_token=settings.tracker_iam_token,
         service_account=service_account_settings,
         cloud_org_id=settings.tracker_cloud_org_id,
@@ -107,10 +108,13 @@ def create_mcp_server() -> FastMCP[Any]:
                 "Supported values are 'memory' and 'redis'."
             )
 
-        if settings.tracker_read_only:
-            scopes = ["tracker:read"]
+        if settings.oauth_use_scopes:
+            if settings.tracker_read_only:
+                scopes = ["tracker:read"]
+            else:
+                scopes = ["tracker:read", "tracker:write"]
         else:
-            scopes = ["tracker:read", "tracker:write"]
+            scopes = []
 
         auth_server_provider = YandexOAuthAuthorizationServerProvider(
             client_id=settings.oauth_client_id,

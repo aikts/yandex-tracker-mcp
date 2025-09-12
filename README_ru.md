@@ -793,7 +793,9 @@ Yandex Tracker MCP Server поддерживает несколько метод
 1. **Динамический OAuth токен** (наивысший приоритет)
    - Когда OAuth включен и пользователь аутентифицируется через OAuth поток
    - Токены динамически получаются и обновляются для каждой сессии пользователя
+   - Поддерживает как стандартный Яндекс OAuth, так и федеративный OAuth Yandex Cloud
    - Необходимые переменные окружения: `OAUTH_ENABLED=true`, `OAUTH_CLIENT_ID`, `OAUTH_CLIENT_SECRET`, `MCP_SERVER_PUBLIC_URL`
+   - Дополнительные переменные для федеративного OAuth: `OAUTH_SERVER_URL=https://auth.yandex.cloud/oauth`, `OAUTH_TOKEN_TYPE=Bearer`, `OAUTH_USE_SCOPES=false`
 
 2. **Статический OAuth токен**
    - Традиционный OAuth токен, предоставленный через переменную окружения
@@ -853,6 +855,23 @@ TRACKER_SA_PRIVATE_KEY=ваш_private_key
 TRACKER_CLOUD_ORG_ID=ваш_cloud_org_id  # или TRACKER_ORG_ID
 ```
 
+#### Сценарий 5: Федеративный OAuth для OIDC-приложений (расширенный)
+```env
+# Включить OAuth с федерацией Yandex Cloud
+OAUTH_ENABLED=true
+OAUTH_SERVER_URL=https://auth.yandex.cloud/oauth
+OAUTH_TOKEN_TYPE=Bearer
+OAUTH_USE_SCOPES=false
+OAUTH_CLIENT_ID=ваш_oidc_client_id
+OAUTH_CLIENT_SECRET=ваш_oidc_client_secret
+MCP_SERVER_PUBLIC_URL=https://ваш-сервер.com
+
+# ID организации (выберите один)
+TRACKER_CLOUD_ORG_ID=ваш_cloud_org_id  # или TRACKER_ORG_ID
+```
+
+Эта конфигурация включает аутентификацию через [OIDC-приложения Yandex Cloud](https://yandex.cloud/ru/docs/organization/operations/applications/oidc-create), что требуется для [федеративных аккаунтов](https://yandex.cloud/ru/docs/organization/operations/manage-federations) в Yandex Cloud. Федеративные пользователи аутентифицируются через поставщика удостоверений (IdP) своей организации и используют этот OAuth поток для доступа к API Яндекс.Трекера.
+
 ### Важные замечания
 
 - Сервер проверяет методы аутентификации в порядке, указанном выше
@@ -907,7 +926,9 @@ TOOLS_CACHE_REDIS_TTL=3600                # По умолчанию: 3600 сек
 # OAuth 2.0 аутентификация (опционально)
 OAUTH_ENABLED=true                        # По умолчанию: false
 OAUTH_STORE=redis                         # Опции: memory, redis (по умолчанию: memory)
-OAUTH_SERVER_URL=https://oauth.yandex.ru  # По умолчанию: https://oauth.yandex.ru
+OAUTH_SERVER_URL=https://oauth.yandex.ru  # По умолчанию: https://oauth.yandex.ru (используйте https://auth.yandex.cloud/oauth для федерации)
+OAUTH_TOKEN_TYPE=<Bearer|OAuth|<empty>>   # По умолчанию: Bearer (обязательно должен быть указан Bearer для федерации Yandex Cloud)
+OAUTH_USE_SCOPES=true                    # По умолчанию: true (установите false для федерации Yandex Cloud)
 OAUTH_CLIENT_ID=ваш_oauth_client_id      # Обязательно когда OAuth включен
 OAUTH_CLIENT_SECRET=ваш_oauth_secret     # Обязательно когда OAuth включен
 MCP_SERVER_PUBLIC_URL=https://ваш.сервер.com  # Обязательно когда OAuth включен
