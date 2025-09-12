@@ -117,6 +117,31 @@ def make_cached_protocols(
         ) -> list[ChecklistItem]:
             return await self._original.issue_get_checklist(issue_id, auth=auth)
 
+        async def issue_create(
+            self,
+            queue: str,
+            summary: str,
+            *,
+            type: int | None = None,
+            description: str | None = None,
+            assignee: str | int | None = None,
+            priority: str | None = None,
+            parent: str | None = None,
+            sprint: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> Issue:
+            return await self._original.issue_create(
+                queue,
+                summary,
+                type=type,
+                description=description,
+                assignee=assignee,
+                priority=priority,
+                parent=parent,
+                sprint=sprint,
+                auth=auth,
+            )
+
     class CachingGlobalDataProtocol(GlobalDataProtocolWrap):
         @cached(**cache_config)
         async def get_global_fields(

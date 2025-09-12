@@ -344,6 +344,43 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
             auth=get_yandex_auth(ctx),
         )
 
+    @mcp.tool(description="Create a new issue in a Yandex Tracker queue")
+    async def issue_create(
+        ctx: Context[Any, AppContext],
+        queue: Annotated[
+            str,
+            Field(description="Queue key where to create the issue (e.g., 'MYQUEUE')"),
+        ],
+        summary: Annotated[str, Field(description="Issue title/summary")],
+        type: Annotated[
+            int | None,
+            Field(description="Issue type id (from get_issue_types tool)"),
+        ] = None,
+        description: Annotated[
+            str | None, Field(description="Issue description")
+        ] = None,
+        assignee: Annotated[
+            str | int | None, Field(description="Assignee login or UID")
+        ] = None,
+        priority: Annotated[
+            str | None,
+            Field(description="Priority key (from get_priorities tool,)"),
+        ] = None,
+    ) -> Issue:
+        # Check queue restrictions if enabled
+        if settings.tracker_limit_queues and queue not in settings.tracker_limit_queues:
+            raise TrackerError(f"Access to queue '{queue}' is not allowed")
+
+        return await ctx.request_context.lifespan_context.issues.issue_create(
+            queue=queue,
+            summary=summary,
+            type=type,
+            description=description,
+            assignee=assignee,
+            priority=priority,
+            auth=get_yandex_auth(ctx),
+        )
+
     @mcp.tool(
         description="Get information about user accounts registered in the organization"
     )

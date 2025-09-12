@@ -593,6 +593,17 @@ The server exposes the following tools through the MCP protocol:
 - **`issue_get_checklist`**: Get checklist items of an issue
   - Parameters: `issue_id` (string, format: "QUEUE-123")
   - Returns list of checklist items including text, status, assignee, and deadline information
+- **`issue_create`**: Create a new issue in a queue
+  - Parameters:
+    - `queue` (string, required): Queue key where to create the issue (e.g., 'MYQUEUE')
+    - `summary` (string, required): Issue title/summary
+    - `type` (string, optional): Issue type key (e.g., 'bug', 'task', 'story')
+    - `description` (string, optional): Issue description
+    - `assignee` (string, optional): Assignee login or UID
+    - `priority` (string, optional): Priority key (e.g., 'critical', 'high', 'normal', 'low')
+    - `parent` (string, optional): Parent issue key (for subtasks)
+    - `sprint` (array of strings, optional): List of sprint names or IDs
+  - Returns the newly created issue object with all standard issue fields
 
 ### Search and Discovery
 - **`issues_find`**: Search issues using [Yandex Tracker Query Language](https://yandex.ru/support/tracker/ru/user/query-filter)

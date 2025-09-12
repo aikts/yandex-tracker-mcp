@@ -41,6 +41,19 @@ class IssueProtocol(Protocol):
     async def issue_get_checklist(
         self, issue_id: str, *, auth: YandexAuth | None = None
     ) -> list[ChecklistItem]: ...
+    async def issue_create(
+        self,
+        queue: str,
+        summary: str,
+        *,
+        type: int | None = None,
+        description: str | None = None,
+        assignee: str | int | None = None,
+        priority: str | None = None,
+        parent: str | None = None,
+        sprint: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> Issue: ...
 
 
 class IssueProtocolWrap(IssueProtocol):
