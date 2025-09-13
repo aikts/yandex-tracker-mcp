@@ -22,3 +22,4 @@ Prepare a new release of the project. You may spin parallel tasks if you need as
 5. Make sure @CHANGELOG.md is up to date with the latest changes. Changes may be collected through git history since last git tag or current unstaged changes. Always add a new version to the @CHANGELOG.md, even if it is a patch release. Never edit previous versions.
 6. Call `uv sync --all-extras --all-packages` to update uv.lock file.
 7. Make a git commit reflecting changes currently made.
+8. Other requirements: $ARGUMENTS

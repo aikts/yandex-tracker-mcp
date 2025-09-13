@@ -4,6 +4,7 @@ from mcp.server import FastMCP
 from mcp.server.fastmcp import Context
 from pydantic import Field
 from starlette.requests import Request
+from thefuzz import process
 
 from mcp_tracker.mcp.context import AppContext
 from mcp_tracker.mcp.errors import TrackerError
@@ -338,6 +339,51 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
             auth=get_yandex_auth(ctx),
         )
         return users
+
+    @mcp.tool(
+        description="Search user based on login, email or real name (first or last name, or both). Returns either single user or multiple users if several match the query or an empty list if no users matched."
+    )
+    async def users_search(
+        ctx: Context[Any, AppContext],
+        login_or_email_or_name: Annotated[
+            str, Field(description="User login, email or real name to search for")
+        ],
+    ) -> list[User]:
+        per_page = 100
+        page = 1
+
+        login_or_email_or_name = login_or_email_or_name.strip().lower()
+
+        all_users: list[User] = []
+
+        while True:
+            batch = await ctx.request_context.lifespan_context.users.users_list(
+                per_page=per_page,
+                page=page,
+                auth=get_yandex_auth(ctx),
+            )
+
+            if not batch:
+                break
+
+            for user in batch:
+                if user.login and login_or_email_or_name == user.login.strip().lower():
+                    return [user]
+
+                if user.email and login_or_email_or_name == user.email.strip().lower():
+                    return [user]
+
+            all_users.extend(batch)
+            page += 1
+
+        names = {
+            idx: f"{u.first_name} {u.last_name}" for idx, u in enumerate(all_users)
+        }
+        results = process.extractBests(
+            login_or_email_or_name, names, score_cutoff=80, limit=3
+        )
+        matched_users = [all_users[idx] for name, score, idx in results]
+        return matched_users
 
     @mcp.tool(description="Get information about a specific user by login or UID")
     async def user_get(

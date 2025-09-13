@@ -2,7 +2,7 @@
   "dxt_version": "0.1",
   "name": "yandex-tracker-mcp",
   "display_name": "Yandex Tracker MCP",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "Yandex Tracker MCP Server",
   "author": {
     "name": "KTS",
@@ -62,6 +62,10 @@
     {
       "name": "user_get_current",
       "description": "Get information about the current authenticated user"
+    },
+    {
+      "name": "users_search",
+      "description": "Search user based on login, email or real name (first or last name, or both)"
     },
     {
       "name": "get_global_fields",

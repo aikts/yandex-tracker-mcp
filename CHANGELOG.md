@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.3] - 2025-09-14
+
+### Features
+- Add `users_search` MCP tool for searching users by login, email or real name
+  - Uses fuzzy matching with 80% similarity threshold for name searches
+  - Prioritizes exact matches for login and email over fuzzy name matches
+  - Returns single user, multiple users, or empty list based on search results
+
+### Improvements
+- Enhanced Yandex Tracker Query Language documentation with better user field guidance
+  - Added instruction to use usernames instead of display names for user fields (Assignee, Author, etc.)
+  - Added `me()` function documentation for current user queries
+  - Added more examples for user-related queries
+
+### Internal
+- Update MCP dependency from version 1.12.3 to 1.14.0 for improved compatibility
+- Add thefuzz dependency for fuzzy string matching capabilities
+
 ## [0.4.2] - 2025-09-13
 
 ### Features

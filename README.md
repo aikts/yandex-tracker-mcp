@@ -533,6 +533,12 @@ The server exposes the following tools through the MCP protocol:
   - Returns detailed information about the user associated with the current authentication token
   - Includes login, email, display name, and organizational details for the authenticated user
 
+- **`users_search`**: Search user based on login, email or real name (first or last name, or both)
+  - Parameters: `login_or_email_or_name` (string, user login, email or real name to search for)
+  - Returns either single user or multiple users if several match the query or an empty list if no users matched
+  - Uses fuzzy matching for real names with a similarity threshold of 80%
+  - Prioritizes exact matches for login and email over fuzzy name matches
+
 ### Field Management
 - **`get_global_fields`**: Get all global fields available in Yandex Tracker
   - Returns complete list of global fields that can be used in issues
