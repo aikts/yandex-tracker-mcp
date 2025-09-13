@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.4] - 2025-01-14
+
+### Bug Fixes
+- Fix Claude Desktop OAuth integration for federative authentication scenarios
+  - Make OAuth scopes optional in YandexOAuthAuthorizationServerProvider
+  - Add `use_scopes` parameter to control whether OAuth scopes are validated
+  - Fix scopes handling to properly support cases where `OAUTH_USE_SCOPES=false`
+  - Improve compatibility with Yandex Cloud federative OAuth flows
+
 ## [0.4.3] - 2025-09-14
 
 ### Features

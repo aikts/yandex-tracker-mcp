@@ -36,7 +36,8 @@ class YandexOAuthAuthorizationServerProvider(
         server_url: yarl.URL,
         yandex_oauth_issuer: yarl.URL,
         store: OAuthStore,
-        scopes: list[str],
+        scopes: list[str] | None = None,
+        use_scopes: bool = True,
     ):
         self._client_id = client_id
         self._client_secret = client_secret
@@ -44,6 +45,7 @@ class YandexOAuthAuthorizationServerProvider(
         self._yandex_oauth_issuer = yandex_oauth_issuer
         self._store = store
         self._scopes = scopes
+        self._use_scopes = use_scopes
 
     async def handle_yandex_callback(self, request: Request) -> Response:
         try:
@@ -74,7 +76,7 @@ class YandexOAuthAuthorizationServerProvider(
             redirect_uri=state.redirect_uri,
             redirect_uri_provided_explicitly=state.redirect_uri_provided_explicitly,
             expires_at=time.time() + 300,
-            scopes=state.scopes or self._scopes,
+            scopes=state.scopes or self._scopes or [],
             code_challenge=state.code_challenge,
             resource=state.resource,  # RFC 8707
         )
@@ -166,9 +168,12 @@ class YandexOAuthAuthorizationServerProvider(
         state_id = params.state or secrets.token_hex(16)
 
         redirect_uri = client.validate_redirect_uri(params.redirect_uri)
-        scopes = client.validate_scope(
-            " ".join(params.scopes) if params.scopes else None
-        )
+        if self._use_scopes:
+            scopes = client.validate_scope(
+                " ".join(params.scopes) if params.scopes else None
+            )
+        else:
+            scopes = None
 
         await self._store.save_state(
             YandexOAuthState(
