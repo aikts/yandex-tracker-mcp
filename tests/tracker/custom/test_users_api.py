@@ -1,4 +1,4 @@
-from typing import Any, AsyncGenerator, Dict
+from typing import Any, AsyncGenerator
 
 import pytest
 from aioresponses import aioresponses
@@ -29,7 +29,7 @@ class TestUsersAPI:
         await client.close()
 
     @pytest.fixture
-    def sample_user_data(self) -> Dict[str, Any]:
+    def sample_user_data(self) -> dict[str, Any]:
         return {
             "self": "https://api.tracker.yandex.net/v3/users/1234567890",
             "id": "user123",
@@ -52,7 +52,7 @@ class TestUsersAPI:
         }
 
     @pytest.fixture
-    def sample_current_user_data(self):
+    def sample_current_user_data(self) -> dict[str, Any]:
         return {
             "self": "https://api.tracker.yandex.net/v3/users/9876543210",
             "id": "current-user-456",
@@ -75,8 +75,8 @@ class TestUsersAPI:
         }
 
     async def test_users_list_success(
-        self, client: TrackerClient, sample_user_data: Dict[str, Any]
-    ):
+        self, client: TrackerClient, sample_user_data: dict[str, Any]
+    ) -> None:
         users_response = [sample_user_data]
 
         with aioresponses() as m:
@@ -97,8 +97,8 @@ class TestUsersAPI:
             assert result[0].external is False
 
     async def test_users_list_with_pagination(
-        self, client: TrackerClient, sample_user_data: Dict[str, Any]
-    ):
+        self, client: TrackerClient, sample_user_data: dict[str, Any]
+    ) -> None:
         users_response = [sample_user_data]
 
         with aioresponses() as m:
@@ -119,8 +119,8 @@ class TestUsersAPI:
             assert request.kwargs["params"]["page"] == 3
 
     async def test_users_list_with_auth(
-        self, client_no_org: TrackerClient, sample_user_data: Dict[str, Any]
-    ):
+        self, client_no_org: TrackerClient, sample_user_data: dict[str, Any]
+    ) -> None:
         auth = YandexAuth(token="auth-token", cloud_org_id="cloud-org")
         users_response = [sample_user_data]
 
@@ -141,7 +141,7 @@ class TestUsersAPI:
             assert request.kwargs["headers"]["Authorization"] == "OAuth auth-token"
             assert request.kwargs["headers"]["X-Cloud-Org-ID"] == "cloud-org"
 
-    async def test_users_list_multiple_users(self, client: TrackerClient):
+    async def test_users_list_multiple_users(self, client: TrackerClient) -> None:
         user1_data = {
             "self": "https://api.tracker.yandex.net/v3/users/1111111111",
             "id": "user1",
@@ -200,7 +200,9 @@ class TestUsersAPI:
             # assert result[1].hasLicense is False  # Field not in model
             assert result[1].external is True
 
-    async def test_user_get_success_by_login(self, client, sample_user_data):
+    async def test_user_get_success_by_login(
+        self, client: TrackerClient, sample_user_data: dict[str, Any]
+    ) -> None:
         with aioresponses() as m:
             m.get(
                 "https://api.tracker.yandex.net/v3/users/test.user",
@@ -214,7 +216,9 @@ class TestUsersAPI:
             assert result.display == "Test User"
             assert result.email == "test.user@example.com"
 
-    async def test_user_get_success_by_uid(self, client, sample_user_data):
+    async def test_user_get_success_by_uid(
+        self, client: TrackerClient, sample_user_data: dict[str, Any]
+    ) -> None:
         with aioresponses() as m:
             m.get(
                 "https://api.tracker.yandex.net/v3/users/1234567890",
@@ -227,7 +231,7 @@ class TestUsersAPI:
             assert result.uid == 1234567890
             assert result.login == "test.user"
 
-    async def test_user_get_not_found(self, client):
+    async def test_user_get_not_found(self, client: TrackerClient) -> None:
         with aioresponses() as m:
             m.get(
                 "https://api.tracker.yandex.net/v3/users/nonexistent.user", status=404
@@ -237,7 +241,9 @@ class TestUsersAPI:
 
             assert result is None
 
-    async def test_user_get_with_auth(self, client, sample_user_data):
+    async def test_user_get_with_auth(
+        self, client: TrackerClient, sample_user_data: dict[str, Any]
+    ) -> None:
         auth = YandexAuth(token="auth-token", org_id="auth-org")
 
         with aioresponses() as m:
@@ -257,7 +263,9 @@ class TestUsersAPI:
             assert request.kwargs["headers"]["Authorization"] == "OAuth auth-token"
             assert request.kwargs["headers"]["X-Org-ID"] == "auth-org"
 
-    async def test_user_get_current_success(self, client, sample_current_user_data):
+    async def test_user_get_current_success(
+        self, client: TrackerClient, sample_current_user_data: dict[str, Any]
+    ) -> None:
         with aioresponses() as m:
             m.get(
                 "https://api.tracker.yandex.net/v3/myself",
@@ -273,8 +281,8 @@ class TestUsersAPI:
             assert result.uid == 9876543210
 
     async def test_user_get_current_with_auth(
-        self, client_no_org, sample_current_user_data
-    ):
+        self, client_no_org: TrackerClient, sample_current_user_data: dict[str, Any]
+    ) -> None:
         auth = YandexAuth(token="auth-token", cloud_org_id="cloud-org")
 
         with aioresponses() as m:
@@ -294,7 +302,7 @@ class TestUsersAPI:
             assert request.kwargs["headers"]["Authorization"] == "OAuth auth-token"
             assert request.kwargs["headers"]["X-Cloud-Org-ID"] == "cloud-org"
 
-    async def test_users_list_empty_result(self, client):
+    async def test_users_list_empty_result(self, client: TrackerClient) -> None:
         users_response: list[dict] = []
 
         with aioresponses() as m:
@@ -308,14 +316,18 @@ class TestUsersAPI:
             assert isinstance(result, list)
             assert len(result) == 0
 
-    async def test_user_get_server_error_propagated(self, client):
+    async def test_user_get_server_error_propagated(
+        self, client: TrackerClient
+    ) -> None:
         with aioresponses() as m:
             m.get("https://api.tracker.yandex.net/v3/users/error.user", status=500)
 
             with pytest.raises(Exception):  # noqa: B017
                 await client.user_get("error.user")
 
-    async def test_user_get_current_server_error_propagated(self, client):
+    async def test_user_get_current_server_error_propagated(
+        self, client: TrackerClient
+    ) -> None:
         with aioresponses() as m:
             m.get("https://api.tracker.yandex.net/v3/myself", status=500)
 

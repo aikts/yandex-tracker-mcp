@@ -144,6 +144,16 @@ tests/
 #### 5. **Code-style**
 - Always use pytest-mock and don't use unittest.mock
 - Always use type-hinting for all parameters in the test (including fixtures)
+- **Never use loops for test cases**: Always use `pytest.mark.parametrize` for running multiple test cases with different inputs
+  - Example:
+    ```python
+    @pytest.mark.parametrize("input,expected", [
+        ("value1", "result1"),
+        ("value2", "result2"),
+    ])
+    def test_function(input: str, expected: str) -> None:
+        assert process(input) == expected
+    ```
 
 ### Running Tests
 

@@ -66,7 +66,7 @@ class TestInMemoryOAuthStoreClient:
         self,
         memory_store: InMemoryOAuthStore,
         sample_client: OAuthClientInformationFull,
-    ):
+    ) -> None:
         await memory_store.save_client(sample_client)
         retrieved_client = await memory_store.get_client("test-client-id")
 
@@ -74,7 +74,9 @@ class TestInMemoryOAuthStoreClient:
         assert retrieved_client.client_id == "test-client-id"
         assert retrieved_client.client_secret == "test-client-secret"
 
-    async def test_get_nonexistent_client(self, memory_store: InMemoryOAuthStore):
+    async def test_get_nonexistent_client(
+        self, memory_store: InMemoryOAuthStore
+    ) -> None:
         client = await memory_store.get_client("nonexistent-client")
         assert client is None
 
@@ -82,7 +84,7 @@ class TestInMemoryOAuthStoreClient:
 class TestInMemoryOAuthStoreState:
     async def test_save_and_get_state(
         self, memory_store: InMemoryOAuthStore, sample_oauth_state: YandexOAuthState
-    ):
+    ) -> None:
         state_id = "test-state-id"
 
         await memory_store.save_state(sample_oauth_state, state_id=state_id)
@@ -93,7 +95,7 @@ class TestInMemoryOAuthStoreState:
 
     async def test_get_state_single_use(
         self, memory_store: InMemoryOAuthStore, sample_oauth_state: YandexOAuthState
-    ):
+    ) -> None:
         state_id = "test-state-id"
 
         await memory_store.save_state(sample_oauth_state, state_id=state_id)
@@ -109,7 +111,7 @@ class TestInMemoryOAuthStoreState:
         memory_store: InMemoryOAuthStore,
         sample_oauth_state: YandexOAuthState,
         mocker: MockerFixture,
-    ):
+    ) -> None:
         state_id = "test-state-id"
         ttl = 1
 
@@ -126,7 +128,7 @@ class TestInMemoryOAuthStoreState:
         memory_store: InMemoryOAuthStore,
         sample_oauth_state: YandexOAuthState,
         mocker: MockerFixture,
-    ):
+    ) -> None:
         state_id = "test-state-id"
         ttl = 1
 
@@ -141,7 +143,9 @@ class TestInMemoryOAuthStoreState:
 
         assert retrieved_state is None
 
-    async def test_get_nonexistent_state(self, memory_store: InMemoryOAuthStore):
+    async def test_get_nonexistent_state(
+        self, memory_store: InMemoryOAuthStore
+    ) -> None:
         state = await memory_store.get_state("nonexistent-state")
         assert state is None
 
@@ -151,7 +155,7 @@ class TestInMemoryOAuthStoreAuthCode:
         self,
         memory_store: InMemoryOAuthStore,
         sample_auth_code: YandexOauthAuthorizationCode,
-    ):
+    ) -> None:
         await memory_store.save_auth_code(sample_auth_code)
         retrieved_code = await memory_store.get_auth_code("test-auth-code")
 
@@ -162,7 +166,7 @@ class TestInMemoryOAuthStoreAuthCode:
         self,
         memory_store: InMemoryOAuthStore,
         sample_auth_code: YandexOauthAuthorizationCode,
-    ):
+    ) -> None:
         await memory_store.save_auth_code(sample_auth_code)
 
         first_retrieval = await memory_store.get_auth_code("test-auth-code")
@@ -176,7 +180,7 @@ class TestInMemoryOAuthStoreAuthCode:
         memory_store: InMemoryOAuthStore,
         sample_auth_code: YandexOauthAuthorizationCode,
         mocker: MockerFixture,
-    ):
+    ) -> None:
         ttl = 1
 
         mock_time = mocker.patch("time.time")
@@ -191,7 +195,7 @@ class TestInMemoryOAuthStoreAuthCode:
         memory_store: InMemoryOAuthStore,
         sample_auth_code: YandexOauthAuthorizationCode,
         mocker: MockerFixture,
-    ):
+    ) -> None:
         ttl = 1
 
         mock_time = mocker.patch("time.time")
@@ -203,7 +207,9 @@ class TestInMemoryOAuthStoreAuthCode:
 
         assert retrieved_code is None
 
-    async def test_get_nonexistent_auth_code(self, memory_store: InMemoryOAuthStore):
+    async def test_get_nonexistent_auth_code(
+        self, memory_store: InMemoryOAuthStore
+    ) -> None:
         code = await memory_store.get_auth_code("nonexistent-code")
         assert code is None
 
@@ -214,7 +220,7 @@ class TestInMemoryOAuthStoreTokens:
         memory_store: InMemoryOAuthStore,
         sample_oauth_token: OAuthToken,
         mocker: MockerFixture,
-    ):
+    ) -> None:
         client_id = "test-client-id"
         scopes = ["read", "write"]
         resource = "test-resource"
@@ -241,7 +247,7 @@ class TestInMemoryOAuthStoreTokens:
 
     async def test_save_oauth_token_without_refresh(
         self, memory_store: InMemoryOAuthStore, mocker: MockerFixture
-    ):
+    ) -> None:
         oauth_token = OAuthToken(
             access_token="test-access-token",
             token_type="Bearer",
@@ -258,7 +264,9 @@ class TestInMemoryOAuthStoreTokens:
         assert access_token is not None
         assert refresh_token is None
 
-    async def test_oauth_token_assertion_error(self, memory_store: InMemoryOAuthStore):
+    async def test_oauth_token_assertion_error(
+        self, memory_store: InMemoryOAuthStore
+    ) -> None:
         oauth_token = OAuthToken(
             access_token="test-access-token",
             token_type="Bearer",
@@ -275,7 +283,7 @@ class TestInMemoryOAuthStoreTokens:
         memory_store: InMemoryOAuthStore,
         sample_oauth_token: OAuthToken,
         mocker: MockerFixture,
-    ):
+    ) -> None:
         mock_time = mocker.patch("time.time")
         mock_time.return_value = 1000.0
         await memory_store.save_oauth_token(
@@ -294,7 +302,7 @@ class TestInMemoryOAuthStoreTokens:
 
     async def test_refresh_token_expiry(
         self, memory_store: InMemoryOAuthStore, mocker: MockerFixture
-    ):
+    ) -> None:
         refresh_token = RefreshToken(
             token="test-refresh-token",
             client_id="client-id",
@@ -320,7 +328,7 @@ class TestInMemoryOAuthStoreTokens:
         memory_store: InMemoryOAuthStore,
         sample_oauth_token: OAuthToken,
         mocker: MockerFixture,
-    ):
+    ) -> None:
         mocker.patch("time.time", return_value=1000.0)
         await memory_store.save_oauth_token(
             sample_oauth_token, "client-id", ["read"], None
@@ -343,10 +351,12 @@ class TestInMemoryOAuthStoreTokens:
 
     async def test_revoke_nonexistent_refresh_token(
         self, memory_store: InMemoryOAuthStore
-    ):
+    ) -> None:
         await memory_store.revoke_refresh_token("nonexistent-token")
 
-    async def test_get_nonexistent_tokens(self, memory_store: InMemoryOAuthStore):
+    async def test_get_nonexistent_tokens(
+        self, memory_store: InMemoryOAuthStore
+    ) -> None:
         access_token = await memory_store.get_access_token("nonexistent-access")
         refresh_token = await memory_store.get_refresh_token("nonexistent-refresh")
 
@@ -360,7 +370,7 @@ class TestInMemoryOAuthStoreEdgeCases:
         memory_store: InMemoryOAuthStore,
         sample_oauth_state: YandexOAuthState,
         mocker: MockerFixture,
-    ):
+    ) -> None:
         state_id = "test-state-id"
 
         mock_time = mocker.patch("time.time")
@@ -384,7 +394,7 @@ class TestInMemoryOAuthStoreEdgeCases:
         memory_store: InMemoryOAuthStore,
         sample_auth_code: YandexOauthAuthorizationCode,
         mocker: MockerFixture,
-    ):
+    ) -> None:
         code_id = "test-auth-code"
 
         mock_time = mocker.patch("time.time")
@@ -405,7 +415,7 @@ class TestInMemoryOAuthStoreEdgeCases:
 
     async def test_state_without_ttl(
         self, memory_store: InMemoryOAuthStore, sample_oauth_state: YandexOAuthState
-    ):
+    ) -> None:
         state_id = "test-state-id"
 
         await memory_store.save_state(sample_oauth_state, state_id=state_id)
@@ -421,7 +431,7 @@ class TestInMemoryOAuthStoreEdgeCases:
         self,
         memory_store: InMemoryOAuthStore,
         sample_auth_code: YandexOauthAuthorizationCode,
-    ):
+    ) -> None:
         await memory_store.save_auth_code(sample_auth_code)
 
         # Should not have expiry tracking

@@ -1,5 +1,4 @@
-import inspect
-from typing import Any, Dict, Tuple
+from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
@@ -10,20 +9,21 @@ from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
 from mcp_tracker.tracker.proto.users import UsersProtocol
+from tests.protocol_utils import get_protocol_methods, verify_method_signatures
 
 
 class TestCachingProtocolCompliance:
     """Test that cached protocol implementations properly implement protocol interfaces."""
 
     @pytest.fixture
-    def cache_config(self) -> Dict[str, int]:
+    def cache_config(self) -> dict[str, int]:
         """Cache configuration for testing."""
         return {"ttl": 300}
 
     @pytest.fixture
     def cached_protocols(
-        self, cache_config: Dict[str, int]
-    ) -> Tuple[Any, Any, Any, Any]:
+        self, cache_config: dict[str, int]
+    ) -> tuple[Any, Any, Any, Any]:
         """Create cached protocol classes."""
         return make_cached_protocols(cache_config)
 
@@ -32,160 +32,76 @@ class TestCachingProtocolCompliance:
         """Create a mock original implementation."""
         return AsyncMock()
 
-    def test_caching_queues_protocol_implements_interface(
-        self, cached_protocols, mock_original
-    ):
-        """Test that CachingQueuesProtocol implements QueuesProtocol."""
-        queues_class, _, _, _ = cached_protocols
-        caching_queues = queues_class(mock_original)
+    @pytest.mark.parametrize(
+        "protocol_class,protocol_index",
+        [
+            (QueuesProtocol, 0),
+            (IssueProtocol, 1),
+            (GlobalDataProtocol, 2),
+            (UsersProtocol, 3),
+        ],
+    )
+    def test_caching_protocol_implements_interface(
+        self,
+        cached_protocols: tuple[Any, Any, Any, Any],
+        mock_original: AsyncMock,
+        protocol_class: type,
+        protocol_index: int,
+    ) -> None:
+        """Test that caching protocol implementations implement protocol interfaces."""
+        caching_class = cached_protocols[protocol_index]
+        caching_instance = caching_class(mock_original)
 
-        # Check all protocol methods exist
-        protocol_methods = self._get_protocol_methods(QueuesProtocol)
+        protocol_methods = get_protocol_methods(protocol_class)
         for method_name in protocol_methods:
-            assert hasattr(caching_queues, method_name), (
+            assert hasattr(caching_instance, method_name), (
                 f"Missing method: {method_name}"
             )
-            # Verify method is callable
-            method = getattr(caching_queues, method_name)
+            method = getattr(caching_instance, method_name)
             assert callable(method), f"Method {method_name} is not callable"
 
-    def test_caching_issues_protocol_implements_interface(
-        self, cached_protocols, mock_original
-    ):
-        """Test that CachingIssuesProtocol implements IssueProtocol."""
-        _, issues_class, _, _ = cached_protocols
-        caching_issues = issues_class(mock_original)
-
-        # Check all protocol methods exist
-        protocol_methods = self._get_protocol_methods(IssueProtocol)
-        for method_name in protocol_methods:
-            assert hasattr(caching_issues, method_name), (
-                f"Missing method: {method_name}"
-            )
-            # Verify method is callable
-            method = getattr(caching_issues, method_name)
-            assert callable(method), f"Method {method_name} is not callable"
-
-    def test_caching_global_data_protocol_implements_interface(
-        self, cached_protocols, mock_original
-    ):
-        """Test that CachingGlobalDataProtocol implements GlobalDataProtocol."""
-        _, _, global_data_class, _ = cached_protocols
-        caching_global_data = global_data_class(mock_original)
-
-        # Check all protocol methods exist
-        protocol_methods = self._get_protocol_methods(GlobalDataProtocol)
-        for method_name in protocol_methods:
-            assert hasattr(caching_global_data, method_name), (
-                f"Missing method: {method_name}"
-            )
-            # Verify method is callable
-            method = getattr(caching_global_data, method_name)
-            assert callable(method), f"Method {method_name} is not callable"
-
-    def test_caching_users_protocol_implements_interface(
-        self, cached_protocols, mock_original
-    ):
-        """Test that CachingUsersProtocol implements UsersProtocol."""
-        _, _, _, users_class = cached_protocols
-        caching_users = users_class(mock_original)
-
-        # Check all protocol methods exist
-        protocol_methods = self._get_protocol_methods(UsersProtocol)
-        for method_name in protocol_methods:
-            assert hasattr(caching_users, method_name), f"Missing method: {method_name}"
-            # Verify method is callable
-            method = getattr(caching_users, method_name)
-            assert callable(method), f"Method {method_name} is not callable"
-
-    def test_caching_queues_method_signatures(self, cached_protocols, mock_original):
-        """Test that CachingQueuesProtocol method signatures match protocol."""
-        queues_class, _, _, _ = cached_protocols
-        caching_queues = queues_class(mock_original)
-        self._verify_method_signatures(caching_queues, QueuesProtocol)
-
-    def test_caching_issues_method_signatures(self, cached_protocols, mock_original):
-        """Test that CachingIssuesProtocol method signatures match protocol."""
-        _, issues_class, _, _ = cached_protocols
-        caching_issues = issues_class(mock_original)
-        self._verify_method_signatures(caching_issues, IssueProtocol)
-
-    def test_caching_global_data_method_signatures(
-        self, cached_protocols, mock_original
-    ):
-        """Test that CachingGlobalDataProtocol method signatures match protocol."""
-        _, _, global_data_class, _ = cached_protocols
-        caching_global_data = global_data_class(mock_original)
-        self._verify_method_signatures(caching_global_data, GlobalDataProtocol)
-
-    def test_caching_users_method_signatures(self, cached_protocols, mock_original):
-        """Test that CachingUsersProtocol method signatures match protocol."""
-        _, _, _, users_class = cached_protocols
-        caching_users = users_class(mock_original)
-        self._verify_method_signatures(caching_users, UsersProtocol)
-
-    def _get_protocol_methods(self, protocol_class) -> list[str]:
-        """Get all method names defined in a protocol."""
-        methods = []
-        for name, value in inspect.getmembers(protocol_class):
-            if (
-                inspect.isfunction(value)
-                or inspect.ismethod(value)
-                or (hasattr(value, "__annotations__") and callable(value))
-            ):
-                if not name.startswith("_"):  # Skip private methods
-                    methods.append(name)
-        return methods
-
-    def _verify_method_signatures(self, implementation, protocol_class):
-        """Verify that implementation method signatures match protocol."""
-        protocol_methods = self._get_protocol_methods(protocol_class)
-
-        for method_name in protocol_methods:
-            if not hasattr(implementation, method_name):
-                continue  # Skip if method doesn't exist (will be caught by other tests)
-
-            impl_method = getattr(implementation, method_name)
-            protocol_method = getattr(protocol_class, method_name)
-
-            # Get signatures
-            impl_sig = inspect.signature(impl_method)
-            protocol_sig = inspect.signature(protocol_method)
-
-            # Compare parameter names and types
-            impl_params = list(impl_sig.parameters.keys())
-            protocol_params = list(protocol_sig.parameters.keys())
-
-            # Skip 'self' parameter for comparison
-            if "self" in impl_params:
-                impl_params.remove("self")
-            if "self" in protocol_params:
-                protocol_params.remove("self")
-
-            assert impl_params == protocol_params, (
-                f"Method {method_name}: parameter mismatch. "
-                f"Implementation: {impl_params}, Protocol: {protocol_params}"
-            )
+    @pytest.mark.parametrize(
+        "protocol_class,protocol_index",
+        [
+            (QueuesProtocol, 0),
+            (IssueProtocol, 1),
+            (GlobalDataProtocol, 2),
+            (UsersProtocol, 3),
+        ],
+    )
+    def test_caching_method_signatures(
+        self,
+        cached_protocols: tuple[Any, Any, Any, Any],
+        mock_original: AsyncMock,
+        protocol_class: type,
+        protocol_index: int,
+    ) -> None:
+        """Test that caching protocol method signatures match protocol."""
+        caching_class = cached_protocols[protocol_index]
+        caching_instance = caching_class(mock_original)
+        verify_method_signatures(caching_instance, protocol_class)
 
 
 class TestCachingProtocolAuthParameterDelegation:
     """Test that cached protocols properly delegate auth parameters to original implementations."""
 
     @pytest.fixture
-    def cache_config(self):
+    def cache_config(self) -> dict[str, int]:
         return {"ttl": 300}
 
     @pytest.fixture
-    def cached_protocols(self, cache_config):
+    def cached_protocols(
+        self, cache_config: dict[str, int]
+    ) -> tuple[Any, Any, Any, Any]:
         return make_cached_protocols(cache_config)
 
     @pytest.fixture
-    def mock_original(self):
+    def mock_original(self) -> AsyncMock:
         return AsyncMock()
 
     async def test_queues_methods_delegate_auth_parameter(
-        self, cached_protocols, mock_original
-    ):
+        self, cached_protocols: tuple[Any, Any, Any, Any], mock_original: AsyncMock
+    ) -> None:
         """Test that QueuesProtocol caching methods delegate auth parameter correctly."""
         queues_class, _, _, _ = cached_protocols
         caching_queues = queues_class(mock_original)
@@ -212,8 +128,8 @@ class TestCachingProtocolAuthParameterDelegation:
         mock_original.queues_get_versions.assert_called_with("TEST", auth=auth)
 
     async def test_issues_methods_delegate_auth_parameter(
-        self, cached_protocols, mock_original
-    ):
+        self, cached_protocols: tuple[Any, Any, Any, Any], mock_original: AsyncMock
+    ) -> None:
         """Test that IssueProtocol caching methods delegate auth parameter correctly."""
         _, issues_class, _, _ = cached_protocols
         caching_issues = issues_class(mock_original)
@@ -262,8 +178,8 @@ class TestCachingProtocolAuthParameterDelegation:
         mock_original.issue_get_checklist.assert_called_with("TEST-1", auth=auth)
 
     async def test_global_data_methods_delegate_auth_parameter(
-        self, cached_protocols, mock_original
-    ):
+        self, cached_protocols: tuple[Any, Any, Any, Any], mock_original: AsyncMock
+    ) -> None:
         """Test that GlobalDataProtocol caching methods delegate auth parameter correctly."""
         _, _, global_data_class, _ = cached_protocols
         caching_global_data = global_data_class(mock_original)
@@ -290,8 +206,8 @@ class TestCachingProtocolAuthParameterDelegation:
         mock_original.get_priorities.assert_called_with(auth=auth)
 
     async def test_users_methods_delegate_auth_parameter(
-        self, cached_protocols, mock_original
-    ):
+        self, cached_protocols: tuple[Any, Any, Any, Any], mock_original: AsyncMock
+    ) -> None:
         """Test that UsersProtocol caching methods delegate auth parameter correctly."""
         _, _, _, users_class = cached_protocols
         caching_users = users_class(mock_original)
@@ -313,8 +229,8 @@ class TestCachingProtocolAuthParameterDelegation:
         mock_original.user_get_current.assert_called_with(auth=auth)
 
     async def test_methods_handle_none_auth_parameter(
-        self, cached_protocols, mock_original
-    ):
+        self, cached_protocols: tuple[Any, Any, Any, Any], mock_original: AsyncMock
+    ) -> None:
         """Test that caching methods properly handle None auth parameter."""
         queues_class, _, _, _ = cached_protocols
         caching_queues = queues_class(mock_original)
@@ -333,78 +249,42 @@ class TestCachingProtocolMethodDecoration:
     """Test that all cached protocol methods are properly decorated with caching."""
 
     @pytest.fixture
-    def cache_config(self):
+    def cache_config(self) -> dict[str, int]:
         return {"ttl": 300}
 
     @pytest.fixture
-    def cached_protocols(self, cache_config):
+    def cached_protocols(
+        self, cache_config: dict[str, int]
+    ) -> tuple[Any, Any, Any, Any]:
         return make_cached_protocols(cache_config)
 
     @pytest.fixture
-    def mock_original(self):
+    def mock_original(self) -> AsyncMock:
         return AsyncMock()
 
-    def test_all_queues_methods_are_cached(self, cached_protocols, mock_original):
-        """Test that all QueuesProtocol methods are decorated with caching."""
-        queues_class, _, _, _ = cached_protocols
-        caching_queues = queues_class(mock_original)
+    @pytest.mark.parametrize(
+        "protocol_class,protocol_index",
+        [
+            (QueuesProtocol, 0),
+            (IssueProtocol, 1),
+            (GlobalDataProtocol, 2),
+            (UsersProtocol, 3),
+        ],
+    )
+    def test_all_methods_are_cached(
+        self,
+        cached_protocols: tuple[Any, Any, Any, Any],
+        mock_original: AsyncMock,
+        protocol_class: type,
+        protocol_index: int,
+    ) -> None:
+        """Test that all protocol methods are decorated with caching."""
+        caching_class = cached_protocols[protocol_index]
+        caching_instance = caching_class(mock_original)
 
-        protocol_methods = self._get_protocol_methods(QueuesProtocol)
+        protocol_methods = get_protocol_methods(protocol_class)
         for method_name in protocol_methods:
-            method = getattr(caching_queues, method_name)
-            # Check if method has caching attributes (this is a basic check)
+            method = getattr(caching_instance, method_name)
             assert hasattr(method, "__wrapped__") or hasattr(method, "_cache"), (
                 f"Method {method_name} should be cached"
             )
-
-    def test_all_issues_methods_are_cached(self, cached_protocols, mock_original):
-        """Test that all IssueProtocol methods are decorated with caching."""
-        _, issues_class, _, _ = cached_protocols
-        caching_issues = issues_class(mock_original)
-
-        protocol_methods = self._get_protocol_methods(IssueProtocol)
-        for method_name in protocol_methods:
-            method = getattr(caching_issues, method_name)
-            # Check if method has caching attributes (this is a basic check)
-            assert hasattr(method, "__wrapped__") or hasattr(method, "_cache"), (
-                f"Method {method_name} should be cached"
-            )
-
-    def test_all_global_data_methods_are_cached(self, cached_protocols, mock_original):
-        """Test that all GlobalDataProtocol methods are decorated with caching."""
-        _, _, global_data_class, _ = cached_protocols
-        caching_global_data = global_data_class(mock_original)
-
-        protocol_methods = self._get_protocol_methods(GlobalDataProtocol)
-        for method_name in protocol_methods:
-            method = getattr(caching_global_data, method_name)
-            # Check if method has caching attributes (this is a basic check)
-            assert hasattr(method, "__wrapped__") or hasattr(method, "_cache"), (
-                f"Method {method_name} should be cached"
-            )
-
-    def test_all_users_methods_are_cached(self, cached_protocols, mock_original):
-        """Test that all UsersProtocol methods are decorated with caching."""
-        _, _, _, users_class = cached_protocols
-        caching_users = users_class(mock_original)
-
-        protocol_methods = self._get_protocol_methods(UsersProtocol)
-        for method_name in protocol_methods:
-            method = getattr(caching_users, method_name)
-            # Check if method has caching attributes (this is a basic check)
-            assert hasattr(method, "__wrapped__") or hasattr(method, "_cache"), (
-                f"Method {method_name} should be cached"
-            )
-
-    def _get_protocol_methods(self, protocol_class) -> list[str]:
-        """Get all method names defined in a protocol."""
-        methods = []
-        for name, value in inspect.getmembers(protocol_class):
-            if (
-                inspect.isfunction(value)
-                or inspect.ismethod(value)
-                or (hasattr(value, "__annotations__") and callable(value))
-            ):
-                if not name.startswith("_"):  # Skip private methods
-                    methods.append(name)
-        return methods

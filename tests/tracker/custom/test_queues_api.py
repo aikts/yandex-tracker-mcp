@@ -1,4 +1,4 @@
-from typing import Any, AsyncGenerator, Dict
+from typing import Any, AsyncGenerator
 
 import pytest
 from aioresponses import aioresponses
@@ -30,7 +30,7 @@ class TestQueuesAPI:
         await client.close()
 
     @pytest.fixture
-    def sample_queue_data(self) -> Dict[str, Any]:
+    def sample_queue_data(self) -> dict[str, Any]:
         return {
             "self": "https://api.tracker.yandex.net/v3/queues/TEST",
             "id": 123,
@@ -59,7 +59,7 @@ class TestQueuesAPI:
         }
 
     @pytest.fixture
-    def sample_local_field_data(self):
+    def sample_local_field_data(self) -> dict[str, Any]:
         return {
             "self": "https://api.tracker.yandex.net/v3/queues/TEST/localFields/customField1",
             "id": "local-field-123",
@@ -81,7 +81,7 @@ class TestQueuesAPI:
         }
 
     @pytest.fixture
-    def sample_version_data(self) -> Dict[str, Any]:
+    def sample_version_data(self) -> dict[str, Any]:
         return {
             "self": "https://api.tracker.yandex.net/v3/queues/TEST/versions/1",
             "id": 123,
@@ -95,8 +95,8 @@ class TestQueuesAPI:
         }
 
     async def test_queues_list_success(
-        self, client: TrackerClient, sample_queue_data: Dict[str, Any]
-    ):
+        self, client: TrackerClient, sample_queue_data: dict[str, Any]
+    ) -> None:
         queues_response = [sample_queue_data]
 
         with aioresponses() as m:
@@ -115,8 +115,8 @@ class TestQueuesAPI:
             assert result[0].description == "A test queue for testing purposes"
 
     async def test_queues_list_with_pagination(
-        self, client: TrackerClient, sample_queue_data: Dict[str, Any]
-    ):
+        self, client: TrackerClient, sample_queue_data: dict[str, Any]
+    ) -> None:
         queues_response = [sample_queue_data]
 
         with aioresponses() as m:
@@ -137,8 +137,8 @@ class TestQueuesAPI:
             assert request.kwargs["params"]["page"] == 2
 
     async def test_queues_list_with_auth(
-        self, client_no_org: TrackerClient, sample_queue_data: Dict[str, Any]
-    ):
+        self, client_no_org: TrackerClient, sample_queue_data: dict[str, Any]
+    ) -> None:
         auth = YandexAuth(token="auth-token", cloud_org_id="cloud-org")
         queues_response = [sample_queue_data]
 
@@ -160,8 +160,8 @@ class TestQueuesAPI:
             assert request.kwargs["headers"]["X-Cloud-Org-ID"] == "cloud-org"
 
     async def test_queues_get_local_fields_success(
-        self, client: TrackerClient, sample_local_field_data: Dict[str, Any]
-    ):
+        self, client: TrackerClient, sample_local_field_data: dict[str, Any]
+    ) -> None:
         fields_response = [sample_local_field_data]
 
         with aioresponses() as m:
@@ -178,8 +178,8 @@ class TestQueuesAPI:
             assert result[0].key == "customField1"
 
     async def test_queues_get_local_fields_with_auth(
-        self, client: TrackerClient, sample_local_field_data: Dict[str, Any]
-    ):
+        self, client: TrackerClient, sample_local_field_data: dict[str, Any]
+    ) -> None:
         auth = YandexAuth(token="auth-token", org_id="auth-org")
         fields_response = [sample_local_field_data]
 
@@ -200,7 +200,7 @@ class TestQueuesAPI:
             assert request.kwargs["headers"]["Authorization"] == "OAuth auth-token"
             assert request.kwargs["headers"]["X-Org-ID"] == "auth-org"
 
-    async def test_queues_get_tags_success(self, client):
+    async def test_queues_get_tags_success(self, client: TrackerClient) -> None:
         tags_response: list[str] = ["bug", "feature", "improvement", "task"]
 
         with aioresponses() as m:
@@ -219,7 +219,7 @@ class TestQueuesAPI:
             assert "improvement" in result
             assert "task" in result
 
-    async def test_queues_get_tags_empty(self, client):
+    async def test_queues_get_tags_empty(self, client: TrackerClient) -> None:
         tags_response: list[str] = []
 
         with aioresponses() as m:
@@ -233,7 +233,7 @@ class TestQueuesAPI:
             assert isinstance(result, list)
             assert len(result) == 0
 
-    async def test_queues_get_tags_with_auth(self, client):
+    async def test_queues_get_tags_with_auth(self, client: TrackerClient) -> None:
         auth = YandexAuth(token="auth-token", org_id="auth-org")
         tags_response = ["urgent", "documentation"]
 
@@ -256,7 +256,9 @@ class TestQueuesAPI:
             assert request.kwargs["headers"]["Authorization"] == "OAuth auth-token"
             assert request.kwargs["headers"]["X-Org-ID"] == "auth-org"
 
-    async def test_queues_get_versions_success(self, client, sample_version_data):
+    async def test_queues_get_versions_success(
+        self, client: TrackerClient, sample_version_data: dict[str, Any]
+    ) -> None:
         versions_response = [sample_version_data]
 
         with aioresponses() as m:
@@ -275,7 +277,7 @@ class TestQueuesAPI:
             assert result[0].released is False
             assert result[0].archived is False
 
-    async def test_queues_get_versions_multiple(self, client):
+    async def test_queues_get_versions_multiple(self, client: TrackerClient) -> None:
         version1_data = {
             "self": "https://api.tracker.yandex.net/v3/queues/TEST/versions/1",
             "id": 123,
@@ -323,8 +325,8 @@ class TestQueuesAPI:
             assert result[1].released is False
 
     async def test_queues_get_versions_with_auth(
-        self, client_no_org, sample_version_data
-    ):
+        self, client_no_org: TrackerClient, sample_version_data: dict[str, Any]
+    ) -> None:
         auth = YandexAuth(token="auth-token", cloud_org_id="cloud-org")
         versions_response = [sample_version_data]
 
@@ -345,7 +347,7 @@ class TestQueuesAPI:
             assert request.kwargs["headers"]["Authorization"] == "OAuth auth-token"
             assert request.kwargs["headers"]["X-Cloud-Org-ID"] == "cloud-org"
 
-    async def test_queues_get_versions_empty(self, client):
+    async def test_queues_get_versions_empty(self, client: TrackerClient) -> None:
         versions_response: list[dict] = []
 
         with aioresponses() as m:

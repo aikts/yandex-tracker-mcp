@@ -1,5 +1,6 @@
 import json
 import time
+from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -19,7 +20,7 @@ from mcp_tracker.mcp.oauth.types import (
 
 class TestYandexOAuthAuthorizationServerProvider:
     @pytest.fixture
-    def mock_store(self) -> Mock:
+    def mock_store(self) -> Any:
         store = Mock(spec=OAuthStore)
         store.get_state = AsyncMock()
         store.save_state = AsyncMock()
@@ -34,7 +35,7 @@ class TestYandexOAuthAuthorizationServerProvider:
         return store
 
     @pytest.fixture
-    def provider(self, mock_store: Mock) -> YandexOAuthAuthorizationServerProvider:
+    def provider(self, mock_store: Any) -> YandexOAuthAuthorizationServerProvider:
         return YandexOAuthAuthorizationServerProvider(
             client_id="test_client_id",
             client_secret="test_client_secret",
@@ -45,7 +46,7 @@ class TestYandexOAuthAuthorizationServerProvider:
         )
 
     @pytest.fixture
-    def mock_client(self) -> Mock:
+    def mock_client(self) -> Any:
         client = Mock(spec=OAuthClientInformationFull)
         client.client_id = "test_client_id"
         client.client_secret = "test_client_secret"
@@ -59,7 +60,7 @@ class TestYandexOAuthAuthorizationServerProvider:
     async def test_handle_yandex_callback_success(
         self,
         provider: YandexOAuthAuthorizationServerProvider,
-        mock_store: Mock,
+        mock_store: Any,
     ) -> None:
         # Setup
         state_id = "test_state_id"
@@ -119,7 +120,7 @@ class TestYandexOAuthAuthorizationServerProvider:
     async def test_handle_yandex_callback_invalid_state(
         self,
         provider: YandexOAuthAuthorizationServerProvider,
-        mock_store: Mock,
+        mock_store: Any,
     ) -> None:
         # Setup
         mock_store.get_state.return_value = None
@@ -138,8 +139,8 @@ class TestYandexOAuthAuthorizationServerProvider:
     async def test_get_client(
         self,
         provider: YandexOAuthAuthorizationServerProvider,
-        mock_store: Mock,
-        mock_client: Mock,
+        mock_store: Any,
+        mock_client: Any,
     ) -> None:
         # Setup
         mock_store.get_client.return_value = mock_client
@@ -154,8 +155,8 @@ class TestYandexOAuthAuthorizationServerProvider:
     async def test_register_client(
         self,
         provider: YandexOAuthAuthorizationServerProvider,
-        mock_store: Mock,
-        mock_client: Mock,
+        mock_store: Any,
+        mock_client: Any,
     ) -> None:
         # Execute
         await provider.register_client(mock_client)
@@ -166,8 +167,8 @@ class TestYandexOAuthAuthorizationServerProvider:
     async def test_authorize(
         self,
         provider: YandexOAuthAuthorizationServerProvider,
-        mock_store: Mock,
-        mock_client: Mock,
+        mock_store: Any,
+        mock_client: Any,
     ) -> None:
         from mcp.server.auth.provider import AuthorizationParams
 
@@ -206,8 +207,8 @@ class TestYandexOAuthAuthorizationServerProvider:
     async def test_load_authorization_code(
         self,
         provider: YandexOAuthAuthorizationServerProvider,
-        mock_store: Mock,
-        mock_client: Mock,
+        mock_store: Any,
+        mock_client: Any,
     ) -> None:
         # Setup
         mock_auth_code = YandexOauthAuthorizationCode(
@@ -233,8 +234,8 @@ class TestYandexOAuthAuthorizationServerProvider:
     async def test_exchange_authorization_code_success(
         self,
         provider: YandexOAuthAuthorizationServerProvider,
-        mock_store: Mock,
-        mock_client: Mock,
+        mock_store: Any,
+        mock_client: Any,
     ) -> None:
         # Setup
         mock_auth_code = YandexOauthAuthorizationCode(
@@ -303,7 +304,7 @@ class TestYandexOAuthAuthorizationServerProvider:
     async def test_exchange_authorization_code_failure(
         self,
         provider: YandexOAuthAuthorizationServerProvider,
-        mock_client: Mock,
+        mock_client: Any,
     ) -> None:
         # Setup
         mock_auth_code = YandexOauthAuthorizationCode(
@@ -345,8 +346,8 @@ class TestYandexOAuthAuthorizationServerProvider:
     async def test_load_refresh_token(
         self,
         provider: YandexOAuthAuthorizationServerProvider,
-        mock_store: Mock,
-        mock_client: Mock,
+        mock_store: Any,
+        mock_client: Any,
     ) -> None:
         # Setup
         mock_refresh_token = RefreshToken(
@@ -366,8 +367,8 @@ class TestYandexOAuthAuthorizationServerProvider:
     async def test_exchange_refresh_token_success(
         self,
         provider: YandexOAuthAuthorizationServerProvider,
-        mock_store: Mock,
-        mock_client: Mock,
+        mock_store: Any,
+        mock_client: Any,
     ) -> None:
         # Setup
         mock_refresh_token = RefreshToken(
@@ -424,7 +425,7 @@ class TestYandexOAuthAuthorizationServerProvider:
     async def test_exchange_refresh_token_failure(
         self,
         provider: YandexOAuthAuthorizationServerProvider,
-        mock_client: Mock,
+        mock_client: Any,
     ) -> None:
         # Setup
         mock_refresh_token = RefreshToken(
@@ -460,7 +461,7 @@ class TestYandexOAuthAuthorizationServerProvider:
     async def test_load_access_token(
         self,
         provider: YandexOAuthAuthorizationServerProvider,
-        mock_store: OAuthStore,
+        mock_store: Any,
     ) -> None:
         # Setup
         mock_access_token = AccessToken(
@@ -495,8 +496,8 @@ class TestYandexOAuthAuthorizationServerProvider:
     async def test_authorize_generates_state_when_none_provided(
         self,
         provider: YandexOAuthAuthorizationServerProvider,
-        mock_store: Mock,
-        mock_client: Mock,
+        mock_store: Any,
+        mock_client: Any,
     ) -> None:
         from mcp.server.auth.provider import AuthorizationParams
 
@@ -523,7 +524,7 @@ class TestYandexOAuthAuthorizationServerProvider:
     async def test_handle_yandex_callback_uses_default_scopes_when_state_scopes_none(
         self,
         provider: YandexOAuthAuthorizationServerProvider,
-        mock_store: Mock,
+        mock_store: Any,
     ) -> None:
         # Setup - state with None scopes should use provider's default scopes
         mock_state = YandexOAuthState(

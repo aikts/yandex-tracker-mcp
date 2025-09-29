@@ -56,36 +56,36 @@ class MockUsersProtocol:
 
 
 @pytest.fixture
-def mock_queues_protocol():
+def mock_queues_protocol() -> MockQueuesProtocol:
     """Provides a mock QueuesProtocol instance."""
     return MockQueuesProtocol()
 
 
 @pytest.fixture
-def mock_issues_protocol():
+def mock_issues_protocol() -> MockIssueProtocol:
     """Provides a mock IssueProtocol instance."""
     return MockIssueProtocol()
 
 
 @pytest.fixture
-def mock_global_data_protocol():
+def mock_global_data_protocol() -> MockGlobalDataProtocol:
     """Provides a mock GlobalDataProtocol instance."""
     return MockGlobalDataProtocol()
 
 
 @pytest.fixture
-def mock_users_protocol():
+def mock_users_protocol() -> MockUsersProtocol:
     """Provides a mock UsersProtocol instance."""
     return MockUsersProtocol()
 
 
 @pytest.fixture
 def test_app_context(
-    mock_queues_protocol,
-    mock_issues_protocol,
-    mock_global_data_protocol,
-    mock_users_protocol,
-):
+    mock_queues_protocol: MockQueuesProtocol,
+    mock_issues_protocol: MockIssueProtocol,
+    mock_global_data_protocol: MockGlobalDataProtocol,
+    mock_users_protocol: MockUsersProtocol,
+) -> AppContext:
     """Provides a test AppContext with mocked protocol dependencies."""
     return AppContext(
         queues=mock_queues_protocol,
@@ -96,7 +96,7 @@ def test_app_context(
 
 
 @pytest.fixture
-def test_settings():
+def test_settings() -> Settings:
     """Provides test Settings configuration."""
     return Settings(
         tracker_token="test-token",
@@ -107,7 +107,7 @@ def test_settings():
 
 
 @pytest.fixture
-def test_settings_with_queue_limits():
+def test_settings_with_queue_limits() -> Settings:
     """Provides test Settings with queue access restrictions."""
     return Settings(
         tracker_token="test-token",
@@ -118,14 +118,14 @@ def test_settings_with_queue_limits():
 
 
 @pytest.fixture
-def test_yandex_auth():
+def test_yandex_auth() -> YandexAuth:
     """Provides a test YandexAuth instance."""
     return YandexAuth(token="test-token", org_id="test-org")
 
 
 # Sample data fixtures
 @pytest.fixture
-def sample_queue():
+def sample_queue() -> Queue:
     """Provides a sample Queue object."""
     return Queue(
         self="https://api.tracker.yandex.net/v3/queues/TEST",
@@ -140,7 +140,7 @@ def sample_queue():
 
 
 @pytest.fixture
-def sample_issue():
+def sample_issue() -> Issue:
     """Provides a sample Issue object."""
     return Issue(
         self="https://api.tracker.yandex.net/v3/issues/TEST-1",
@@ -153,7 +153,7 @@ def sample_issue():
 
 
 @pytest.fixture
-def sample_user():
+def sample_user() -> User:
     """Provides a sample User object."""
     return User(
         uid=123,

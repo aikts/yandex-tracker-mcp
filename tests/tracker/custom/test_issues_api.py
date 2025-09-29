@@ -1,5 +1,5 @@
 import json
-from typing import AsyncGenerator
+from typing import Any, AsyncGenerator
 
 import pytest
 from aioresponses import aioresponses
@@ -29,7 +29,7 @@ class TestIssuesAPI:
         await client.close()
 
     @pytest.fixture
-    async def client_no_org(self):
+    async def client_no_org(self) -> AsyncGenerator[TrackerClient, None]:
         client = TrackerClient(
             token="test-token",
             base_url="https://api.tracker.yandex.net",
@@ -38,7 +38,7 @@ class TestIssuesAPI:
         await client.close()
 
     @pytest.fixture
-    def sample_issue_data(self):
+    def sample_issue_data(self) -> dict[str, Any]:
         return {
             "self": "https://api.tracker.yandex.net/v3/issues/TEST-123",
             "id": "593cd211ef7e8a33********",
@@ -60,7 +60,7 @@ class TestIssuesAPI:
         }
 
     @pytest.fixture
-    def sample_comment_data(self):
+    def sample_comment_data(self) -> dict[str, Any]:
         return {
             "self": "https://api.tracker.yandex.net/v3/issues/TEST-123/comments/1",
             "id": 123,
@@ -73,7 +73,9 @@ class TestIssuesAPI:
             "createdAt": "2023-01-01T12:00:00.000+0000",
         }
 
-    async def test_issue_get_success(self, client, sample_issue_data):
+    async def test_issue_get_success(
+        self, client: TrackerClient, sample_issue_data: dict[str, Any]
+    ) -> None:
         with aioresponses() as m:
             m.get(
                 "https://api.tracker.yandex.net/v3/issues/TEST-123",
@@ -87,7 +89,9 @@ class TestIssuesAPI:
             assert result.summary == "Test issue summary"
             assert result.description == "Test issue description"
 
-    async def test_issue_get_with_auth(self, client, sample_issue_data):
+    async def test_issue_get_with_auth(
+        self, client: TrackerClient, sample_issue_data: dict[str, Any]
+    ) -> None:
         auth = YandexAuth(token="auth-token", org_id="auth-org")
 
         with aioresponses() as m:
@@ -107,7 +111,7 @@ class TestIssuesAPI:
             assert request.kwargs["headers"]["Authorization"] == "OAuth auth-token"
             assert request.kwargs["headers"]["X-Org-ID"] == "auth-org"
 
-    async def test_issue_get_not_found(self, client):
+    async def test_issue_get_not_found(self, client: TrackerClient) -> None:
         with aioresponses() as m:
             m.get("https://api.tracker.yandex.net/v3/issues/NOTFOUND-123", status=404)
 
@@ -116,7 +120,9 @@ class TestIssuesAPI:
 
             assert exc_info.value.issue_id == "NOTFOUND-123"
 
-    async def test_issues_find_success(self, client, sample_issue_data):
+    async def test_issues_find_success(
+        self, client: TrackerClient, sample_issue_data: dict[str, Any]
+    ) -> None:
         search_response = [sample_issue_data]
 
         with aioresponses() as m:
@@ -132,7 +138,9 @@ class TestIssuesAPI:
             assert isinstance(result[0], Issue)
             assert result[0].key == "TEST-123"
 
-    async def test_issues_find_with_pagination(self, client, sample_issue_data):
+    async def test_issues_find_with_pagination(
+        self, client: TrackerClient, sample_issue_data: dict[str, Any]
+    ) -> None:
         search_response = [sample_issue_data]
 
         with aioresponses() as m:
@@ -157,7 +165,9 @@ class TestIssuesAPI:
                 body = json.loads(request.kwargs["data"])
                 assert body["query"] == "Queue: TEST"
 
-    async def test_issue_get_comments_success(self, client, sample_comment_data):
+    async def test_issue_get_comments_success(
+        self, client: TrackerClient, sample_comment_data: dict[str, Any]
+    ) -> None:
         comments_response = [sample_comment_data]
 
         with aioresponses() as m:
@@ -173,7 +183,7 @@ class TestIssuesAPI:
             assert isinstance(result[0], IssueComment)
             assert result[0].text == "This is a test comment"
 
-    async def test_issue_get_comments_not_found(self, client):
+    async def test_issue_get_comments_not_found(self, client: TrackerClient) -> None:
         with aioresponses() as m:
             m.get(
                 "https://api.tracker.yandex.net/v3/issues/NOTFOUND-123/comments",
@@ -185,7 +195,7 @@ class TestIssuesAPI:
 
             assert exc_info.value.issue_id == "NOTFOUND-123"
 
-    async def test_issues_get_links_success(self, client):
+    async def test_issues_get_links_success(self, client: TrackerClient) -> None:
         link_data = {
             "self": "https://api.tracker.yandex.net/v3/issues/TEST-123/links/1",
             "id": 123,
@@ -217,7 +227,7 @@ class TestIssuesAPI:
             assert len(result) == 1
             assert isinstance(result[0], IssueLink)
 
-    async def test_issues_get_links_not_found(self, client):
+    async def test_issues_get_links_not_found(self, client: TrackerClient) -> None:
         with aioresponses() as m:
             m.get(
                 "https://api.tracker.yandex.net/v3/issues/NOTFOUND-123/links",
@@ -229,7 +239,7 @@ class TestIssuesAPI:
 
             assert exc_info.value.issue_id == "NOTFOUND-123"
 
-    async def test_issue_get_worklogs_success(self, client):
+    async def test_issue_get_worklogs_success(self, client: TrackerClient) -> None:
         worklog_data = {
             "self": "https://api.tracker.yandex.net/v3/issues/TEST-123/worklog/1",
             "id": 123,
@@ -264,7 +274,7 @@ class TestIssuesAPI:
             assert isinstance(result[0], Worklog)
             assert result[0].comment == "Work done on the issue"
 
-    async def test_issue_get_worklogs_not_found(self, client):
+    async def test_issue_get_worklogs_not_found(self, client: TrackerClient) -> None:
         with aioresponses() as m:
             m.get(
                 "https://api.tracker.yandex.net/v3/issues/NOTFOUND-123/worklog",
@@ -276,7 +286,7 @@ class TestIssuesAPI:
 
             assert exc_info.value.issue_id == "NOTFOUND-123"
 
-    async def test_issue_get_attachments_success(self, client):
+    async def test_issue_get_attachments_success(self, client: TrackerClient) -> None:
         attachment_data = {
             "self": "https://api.tracker.yandex.net/v3/issues/TEST-123/attachments/1",
             "id": "attachment-123",
@@ -306,7 +316,7 @@ class TestIssuesAPI:
             assert isinstance(result[0], IssueAttachment)
             assert result[0].name == "test_file.txt"
 
-    async def test_issue_get_attachments_not_found(self, client):
+    async def test_issue_get_attachments_not_found(self, client: TrackerClient) -> None:
         with aioresponses() as m:
             m.get(
                 "https://api.tracker.yandex.net/v3/issues/NOTFOUND-123/attachments",
@@ -318,7 +328,7 @@ class TestIssuesAPI:
 
             assert exc_info.value.issue_id == "NOTFOUND-123"
 
-    async def test_issue_get_checklist_success(self, client):
+    async def test_issue_get_checklist_success(self, client: TrackerClient) -> None:
         checklist_data = {
             "self": "https://api.tracker.yandex.net/v3/issues/TEST-123/checklistItems/1",
             "id": "checklist-123",
@@ -341,7 +351,7 @@ class TestIssuesAPI:
             assert isinstance(result[0], ChecklistItem)
             assert result[0].text == "Complete task A"
 
-    async def test_issue_get_checklist_not_found(self, client):
+    async def test_issue_get_checklist_not_found(self, client: TrackerClient) -> None:
         with aioresponses() as m:
             m.get(
                 "https://api.tracker.yandex.net/v3/issues/NOTFOUND-123/checklistItems",
@@ -353,7 +363,7 @@ class TestIssuesAPI:
 
             assert exc_info.value.issue_id == "NOTFOUND-123"
 
-    async def test_issues_count_success(self, client):
+    async def test_issues_count_success(self, client: TrackerClient) -> None:
         with aioresponses() as m:
             m.post("https://api.tracker.yandex.net/v3/issues/_count", body="42")
 
@@ -368,7 +378,7 @@ class TestIssuesAPI:
                 body = json.loads(request.kwargs["data"])
                 assert body["query"] == "Queue: TEST"
 
-    async def test_issues_count_with_auth(self, client_no_org):
+    async def test_issues_count_with_auth(self, client_no_org: TrackerClient) -> None:
         auth = YandexAuth(token="auth-token", cloud_org_id="cloud-org")
 
         with aioresponses() as m:

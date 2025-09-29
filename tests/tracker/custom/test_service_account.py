@@ -14,7 +14,7 @@ from mcp_tracker.tracker.custom.client import (
 
 
 class TestServiceAccountSettings:
-    def test_init(self):
+    def test_init(self) -> None:
         settings = ServiceAccountSettings(
             key_id="test-key-id",
             service_account_id="test-sa-id",
@@ -25,7 +25,7 @@ class TestServiceAccountSettings:
         assert settings.service_account_id == "test-sa-id"
         assert settings.private_key == "test-private-key"
 
-    def test_to_yandexcloud_dict(self):
+    def test_to_yandexcloud_dict(self) -> None:
         settings = ServiceAccountSettings(
             key_id="test-key-id",
             service_account_id="test-sa-id",
@@ -43,7 +43,7 @@ class TestServiceAccountSettings:
 
 
 class TestIAMTokenInfo:
-    def test_init(self):
+    def test_init(self) -> None:
         token_info = IAMTokenInfo(token="test-token")
         assert token_info.token == "test-token"
 
@@ -65,7 +65,9 @@ class TestServiceAccountStore:
         mock_service.Create.return_value = mock_response
         return mock_service
 
-    def test_init(self, mock_settings: ServiceAccountSettings, mocker: MockerFixture):
+    def test_init(
+        self, mock_settings: ServiceAccountSettings, mocker: MockerFixture
+    ) -> None:
         # Mock the yandexcloud SDK at import level
         mock_sdk_class = mocker.patch(
             "mcp_tracker.tracker.custom.client.yandexcloud.SDK"
@@ -88,7 +90,7 @@ class TestServiceAccountStore:
 
     async def test_prepare_starts_refresh_task(
         self, mock_settings: ServiceAccountSettings, mocker: MockerFixture
-    ):
+    ) -> None:
         mock_sdk_class = mocker.patch(
             "mcp_tracker.tracker.custom.client.yandexcloud.SDK"
         )
@@ -113,7 +115,7 @@ class TestServiceAccountStore:
 
     async def test_close_cancels_refresh_task(
         self, mock_settings: ServiceAccountSettings, mocker: MockerFixture
-    ):
+    ) -> None:
         mock_sdk_class = mocker.patch(
             "mcp_tracker.tracker.custom.client.yandexcloud.SDK"
         )
@@ -140,7 +142,7 @@ class TestServiceAccountStore:
         mock_settings: ServiceAccountSettings,
         mock_iam_service: Any,
         mocker: MockerFixture,
-    ):
+    ) -> None:
         mock_sdk_class = mocker.patch(
             "mcp_tracker.tracker.custom.client.yandexcloud.SDK"
         )
@@ -167,7 +169,7 @@ class TestServiceAccountStore:
         mock_settings: ServiceAccountSettings,
         mock_iam_service: Any,
         mocker: MockerFixture,
-    ):
+    ) -> None:
         mock_sdk_class = mocker.patch(
             "mcp_tracker.tracker.custom.client.yandexcloud.SDK"
         )
@@ -187,7 +189,7 @@ class TestServiceAccountStore:
         mock_settings: ServiceAccountSettings,
         mock_iam_service: Any,
         mocker: MockerFixture,
-    ):
+    ) -> None:
         mock_sdk_class = mocker.patch(
             "mcp_tracker.tracker.custom.client.yandexcloud.SDK"
         )
@@ -212,7 +214,7 @@ class TestServiceAccountStore:
         mock_settings: ServiceAccountSettings,
         mock_iam_service: Any,
         mocker: MockerFixture,
-    ):
+    ) -> None:
         mock_sdk_class = mocker.patch(
             "mcp_tracker.tracker.custom.client.yandexcloud.SDK"
         )
@@ -254,7 +256,7 @@ class TestServiceAccountStore:
         mock_settings: ServiceAccountSettings,
         mock_iam_service: Any,
         mocker: MockerFixture,
-    ):
+    ) -> None:
         mock_sdk_class = mocker.patch(
             "mcp_tracker.tracker.custom.client.yandexcloud.SDK"
         )

@@ -1,4 +1,4 @@
-from typing import Any, Tuple
+from typing import Any
 
 import pytest
 from mcp.server.auth.provider import AccessToken, RefreshToken
@@ -19,7 +19,7 @@ def mock_cache(mocker: MockerFixture) -> Any:
 
 
 @pytest.fixture
-def redis_store(mock_cache: Any, mocker: MockerFixture) -> Tuple[RedisOAuthStore, Any]:
+def redis_store(mock_cache: Any, mocker: MockerFixture) -> tuple[RedisOAuthStore, Any]:
     mock_cache_class = mocker.patch("mcp_tracker.mcp.oauth.stores.redis.Cache")
     mock_cache_class.return_value = mock_cache
     store = RedisOAuthStore(
@@ -82,7 +82,7 @@ def sample_oauth_token() -> OAuthToken:
 
 
 class TestRedisOAuthStoreInit:
-    def test_init_with_default_parameters(self, mocker: MockerFixture):
+    def test_init_with_default_parameters(self, mocker: MockerFixture) -> None:
         mock_cache_class = mocker.patch("mcp_tracker.mcp.oauth.stores.redis.Cache")
         mock_cache = mocker.Mock()
         mock_cache_class.return_value = mock_cache
@@ -104,7 +104,7 @@ class TestRedisOAuthStoreInit:
         assert kwargs["pool_max_size"] == 10
         assert "serializer" in kwargs
 
-    def test_init_with_custom_parameters(self, mocker: MockerFixture):
+    def test_init_with_custom_parameters(self, mocker: MockerFixture) -> None:
         mock_cache_class = mocker.patch("mcp_tracker.mcp.oauth.stores.redis.Cache")
         mock_cache = mocker.Mock()
         mock_cache_class.return_value = mock_cache
@@ -127,7 +127,7 @@ class TestRedisOAuthStoreInit:
         assert kwargs["pool_max_size"] == 20
         assert kwargs["custom_param"] == "custom_value"
 
-    def test_key_methods(self, mocker: MockerFixture):
+    def test_key_methods(self, mocker: MockerFixture) -> None:
         mocker.patch("mcp_tracker.mcp.oauth.stores.redis.Cache")
         store = RedisOAuthStore()
 
@@ -142,9 +142,9 @@ class TestRedisOAuthStoreInit:
 class TestRedisOAuthStoreClient:
     async def test_save_client(
         self,
-        redis_store: Tuple[RedisOAuthStore, Any],
+        redis_store: tuple[RedisOAuthStore, Any],
         sample_client: OAuthClientInformationFull,
-    ):
+    ) -> None:
         store, mock_cache = redis_store
 
         await store.save_client(sample_client)
@@ -153,7 +153,11 @@ class TestRedisOAuthStoreClient:
             "oauth:client:test-client-id", sample_client
         )
 
-    async def test_get_client_success(self, redis_store, sample_client):
+    async def test_get_client_success(
+        self,
+        redis_store: tuple[RedisOAuthStore, Any],
+        sample_client: OAuthClientInformationFull,
+    ) -> None:
         store, mock_cache = redis_store
         mock_cache.get.return_value = sample_client.model_dump()
 
@@ -162,7 +166,9 @@ class TestRedisOAuthStoreClient:
         mock_cache.get.assert_called_once_with("oauth:client:test-client-id")
         assert result == sample_client
 
-    async def test_get_client_not_found(self, redis_store):
+    async def test_get_client_not_found(
+        self, redis_store: tuple[RedisOAuthStore, Any]
+    ) -> None:
         store, mock_cache = redis_store
         mock_cache.get.return_value = None
 
@@ -172,7 +178,11 @@ class TestRedisOAuthStoreClient:
 
 
 class TestRedisOAuthStoreState:
-    async def test_save_state_with_ttl(self, redis_store, sample_oauth_state):
+    async def test_save_state_with_ttl(
+        self,
+        redis_store: tuple[RedisOAuthStore, Any],
+        sample_oauth_state: YandexOAuthState,
+    ) -> None:
         store, mock_cache = redis_store
 
         await store.save_state(sample_oauth_state, state_id="state123", ttl=300)
@@ -181,7 +191,11 @@ class TestRedisOAuthStoreState:
             "oauth:state:state123", sample_oauth_state, ttl=300
         )
 
-    async def test_save_state_without_ttl(self, redis_store, sample_oauth_state):
+    async def test_save_state_without_ttl(
+        self,
+        redis_store: tuple[RedisOAuthStore, Any],
+        sample_oauth_state: YandexOAuthState,
+    ) -> None:
         store, mock_cache = redis_store
 
         await store.save_state(sample_oauth_state, state_id="state123")
@@ -190,7 +204,11 @@ class TestRedisOAuthStoreState:
             "oauth:state:state123", sample_oauth_state, ttl=None
         )
 
-    async def test_get_state_success(self, redis_store, sample_oauth_state):
+    async def test_get_state_success(
+        self,
+        redis_store: tuple[RedisOAuthStore, Any],
+        sample_oauth_state: YandexOAuthState,
+    ) -> None:
         store, mock_cache = redis_store
         mock_cache.get.return_value = sample_oauth_state.model_dump()
 
@@ -201,7 +219,9 @@ class TestRedisOAuthStoreState:
         mock_cache.delete.assert_called_once_with("oauth:state:state123")
         assert result == sample_oauth_state
 
-    async def test_get_state_not_found(self, redis_store):
+    async def test_get_state_not_found(
+        self, redis_store: tuple[RedisOAuthStore, Any]
+    ) -> None:
         store, mock_cache = redis_store
         mock_cache.get.return_value = None
 
@@ -213,7 +233,11 @@ class TestRedisOAuthStoreState:
 
 
 class TestRedisOAuthStoreAuthCode:
-    async def test_save_auth_code_with_ttl(self, redis_store, sample_auth_code):
+    async def test_save_auth_code_with_ttl(
+        self,
+        redis_store: tuple[RedisOAuthStore, Any],
+        sample_auth_code: YandexOauthAuthorizationCode,
+    ) -> None:
         store, mock_cache = redis_store
 
         await store.save_auth_code(sample_auth_code, ttl=600)
@@ -222,7 +246,11 @@ class TestRedisOAuthStoreAuthCode:
             "oauth:authcode:test-auth-code", sample_auth_code, ttl=600
         )
 
-    async def test_save_auth_code_without_ttl(self, redis_store, sample_auth_code):
+    async def test_save_auth_code_without_ttl(
+        self,
+        redis_store: tuple[RedisOAuthStore, Any],
+        sample_auth_code: YandexOauthAuthorizationCode,
+    ) -> None:
         store, mock_cache = redis_store
 
         await store.save_auth_code(sample_auth_code)
@@ -231,7 +259,11 @@ class TestRedisOAuthStoreAuthCode:
             "oauth:authcode:test-auth-code", sample_auth_code, ttl=None
         )
 
-    async def test_get_auth_code_success(self, redis_store, sample_auth_code):
+    async def test_get_auth_code_success(
+        self,
+        redis_store: tuple[RedisOAuthStore, Any],
+        sample_auth_code: YandexOauthAuthorizationCode,
+    ) -> None:
         store, mock_cache = redis_store
         mock_cache.get.return_value = sample_auth_code.model_dump()
 
@@ -242,7 +274,9 @@ class TestRedisOAuthStoreAuthCode:
         mock_cache.delete.assert_called_once_with("oauth:authcode:test-auth-code")
         assert result == sample_auth_code
 
-    async def test_get_auth_code_not_found(self, redis_store):
+    async def test_get_auth_code_not_found(
+        self, redis_store: tuple[RedisOAuthStore, Any]
+    ) -> None:
         store, mock_cache = redis_store
         mock_cache.get.return_value = None
 
@@ -255,8 +289,11 @@ class TestRedisOAuthStoreAuthCode:
 
 class TestRedisOAuthStoreTokens:
     async def test_save_oauth_token_with_refresh(
-        self, redis_store, sample_oauth_token, mocker: MockerFixture
-    ):
+        self,
+        redis_store: tuple[RedisOAuthStore, Any],
+        sample_oauth_token: OAuthToken,
+        mocker: MockerFixture,
+    ) -> None:
         store, mock_cache = redis_store
         client_id = "test-client-id"
         scopes = ["read", "write"]
@@ -293,8 +330,8 @@ class TestRedisOAuthStoreTokens:
         assert mapping_call[0][1] == "test-access-token"
 
     async def test_save_oauth_token_without_refresh(
-        self, redis_store, mocker: MockerFixture
-    ):
+        self, redis_store: tuple[RedisOAuthStore, Any], mocker: MockerFixture
+    ) -> None:
         store, mock_cache = redis_store
         oauth_token = OAuthToken(
             access_token="test-access-token",
@@ -311,7 +348,9 @@ class TestRedisOAuthStoreTokens:
         access_token_call = mock_cache.set.call_args_list[0]
         assert access_token_call[0][0] == "oauth:access:test-access-token"
 
-    async def test_save_oauth_token_assertion_error(self, redis_store):
+    async def test_save_oauth_token_assertion_error(
+        self, redis_store: tuple[RedisOAuthStore, Any]
+    ) -> None:
         store, mock_cache = redis_store
         oauth_token = OAuthToken(
             access_token="test-access-token",
@@ -322,7 +361,9 @@ class TestRedisOAuthStoreTokens:
         with pytest.raises(AssertionError, match="expires_in must be provided"):
             await store.save_oauth_token(oauth_token, "client-id", ["read"], None)
 
-    async def test_get_access_token_success(self, redis_store):
+    async def test_get_access_token_success(
+        self, redis_store: tuple[RedisOAuthStore, Any]
+    ) -> None:
         store, mock_cache = redis_store
         access_token_data = AccessToken(
             token="test-access-token",
@@ -337,7 +378,9 @@ class TestRedisOAuthStoreTokens:
         mock_cache.get.assert_called_once_with("oauth:access:test-access-token")
         assert result == access_token_data
 
-    async def test_get_access_token_not_found(self, redis_store):
+    async def test_get_access_token_not_found(
+        self, redis_store: tuple[RedisOAuthStore, Any]
+    ) -> None:
         store, mock_cache = redis_store
         mock_cache.get.return_value = None
 
@@ -345,7 +388,9 @@ class TestRedisOAuthStoreTokens:
 
         assert result is None
 
-    async def test_get_refresh_token_success(self, redis_store):
+    async def test_get_refresh_token_success(
+        self, redis_store: tuple[RedisOAuthStore, Any]
+    ) -> None:
         store, mock_cache = redis_store
         refresh_token_data = RefreshToken(
             token="test-refresh-token",
@@ -359,7 +404,9 @@ class TestRedisOAuthStoreTokens:
         mock_cache.get.assert_called_once_with("oauth:refresh:test-refresh-token")
         assert result == refresh_token_data
 
-    async def test_get_refresh_token_not_found(self, redis_store):
+    async def test_get_refresh_token_not_found(
+        self, redis_store: tuple[RedisOAuthStore, Any]
+    ) -> None:
         store, mock_cache = redis_store
         mock_cache.get.return_value = None
 
@@ -367,7 +414,9 @@ class TestRedisOAuthStoreTokens:
 
         assert result is None
 
-    async def test_revoke_refresh_token_with_access_token(self, redis_store):
+    async def test_revoke_refresh_token_with_access_token(
+        self, redis_store: tuple[RedisOAuthStore, Any]
+    ) -> None:
         store, mock_cache = redis_store
         mock_cache.get.return_value = "test-access-token"
 
@@ -383,7 +432,9 @@ class TestRedisOAuthStoreTokens:
         assert "oauth:mapping:test-refresh-token" in delete_calls
         assert "oauth:access:test-access-token" in delete_calls
 
-    async def test_revoke_refresh_token_without_access_token(self, redis_store):
+    async def test_revoke_refresh_token_without_access_token(
+        self, redis_store: tuple[RedisOAuthStore, Any]
+    ) -> None:
         store, mock_cache = redis_store
         mock_cache.get.return_value = None
 
@@ -397,7 +448,7 @@ class TestRedisOAuthStoreTokens:
 
 
 class TestRedisOAuthStoreEdgeCases:
-    async def test_refresh_token_ttl_constant(self, mocker: MockerFixture):
+    async def test_refresh_token_ttl_constant(self, mocker: MockerFixture) -> None:
         mocker.patch("mcp_tracker.mcp.oauth.stores.redis.Cache")
         store = RedisOAuthStore()
 
@@ -405,7 +456,7 @@ class TestRedisOAuthStoreEdgeCases:
         expected_ttl = 31 * 24 * 60 * 60
         assert store._refresh_token_ttl == expected_ttl
 
-    async def test_key_prefixes(self, mocker: MockerFixture):
+    async def test_key_prefixes(self, mocker: MockerFixture) -> None:
         mocker.patch("mcp_tracker.mcp.oauth.stores.redis.Cache")
         store = RedisOAuthStore()
 
@@ -416,7 +467,7 @@ class TestRedisOAuthStoreEdgeCases:
         assert store._REFRESH_TOKEN_KEY_PREFIX == "oauth:refresh:"
         assert store._MAPPING_KEY_PREFIX == "oauth:mapping:"
 
-    async def test_serializer_configuration(self, mocker: MockerFixture):
+    async def test_serializer_configuration(self, mocker: MockerFixture) -> None:
         mock_cache_class = mocker.patch("mcp_tracker.mcp.oauth.stores.redis.Cache")
         mock_serializer_class = mocker.patch(
             "mcp_tracker.mcp.oauth.stores.redis.PydanticJsonSerializer"

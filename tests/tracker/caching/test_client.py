@@ -154,8 +154,8 @@ class TestCachingIssuesProtocol:
         return issues_class(mock_original)
 
     async def test_issue_get_calls_original(
-        self, caching_issues_protocol, mock_original
-    ):
+        self, caching_issues_protocol: Any, mock_original: AsyncMock
+    ) -> None:
         auth = YandexAuth(token="test-token", org_id="test-org")
 
         result = await caching_issues_protocol.issue_get("TEST-1", auth=auth)

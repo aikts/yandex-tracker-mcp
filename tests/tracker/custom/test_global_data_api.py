@@ -11,7 +11,7 @@ from mcp_tracker.tracker.proto.types.priorities import Priority
 from mcp_tracker.tracker.proto.types.statuses import Status
 
 
-class TestGlobalDataAPI:
+class TestGlobalFields:
     @pytest.fixture
     async def client(self) -> AsyncGenerator[TrackerClient, None]:
         client = TrackerClient(
@@ -51,46 +51,6 @@ class TestGlobalDataAPI:
                 "display": "System",
             },
             "type": "ru.yandex.startrek.core.fields.StringFieldType",
-        }
-
-    @pytest.fixture
-    def sample_status_data(self):
-        return {
-            "self": "https://api.tracker.yandex.net/v3/statuses/1",
-            "id": "1",
-            "version": 1,
-            "key": "open",
-            "name": "Open",
-            "order": 1,
-            "type": "new",
-            "statusType": {
-                "self": "https://api.tracker.yandex.net/v3/statusTypes/1",
-                "id": "1",
-                "key": "new",
-                "display": "New",
-            },
-        }
-
-    @pytest.fixture
-    def sample_issue_type_data(self):
-        return {
-            "self": "https://api.tracker.yandex.net/v3/issuetypes/1",
-            "id": "1",
-            "version": 1,
-            "key": "task",
-            "name": "Task",
-            "description": "General task",
-        }
-
-    @pytest.fixture
-    def sample_priority_data(self):
-        return {
-            "self": "https://api.tracker.yandex.net/v3/priorities/2",
-            "id": "2",
-            "version": 1,
-            "key": "normal",
-            "name": "Normal",
-            "order": 2,
         }
 
     async def test_get_global_fields_success(self, client, sample_global_field_data):
@@ -183,6 +143,56 @@ class TestGlobalDataAPI:
             assert result[0].key == "summary"
             assert result[1].key == "description"
 
+    async def test_get_global_fields_empty(self, client):
+        fields_response: list[dict] = []
+
+        with aioresponses() as m:
+            m.get("https://api.tracker.yandex.net/v3/fields", payload=fields_response)
+
+            result = await client.get_global_fields()
+
+            assert isinstance(result, list)
+            assert len(result) == 0
+
+
+class TestStatuses:
+    @pytest.fixture
+    async def client(self) -> AsyncGenerator[TrackerClient, None]:
+        client = TrackerClient(
+            token="test-token",
+            org_id="test-org",
+            base_url="https://api.tracker.yandex.net",
+        )
+        yield client
+        await client.close()
+
+    @pytest.fixture
+    async def client_no_org(self) -> AsyncGenerator[TrackerClient, None]:
+        client = TrackerClient(
+            token="test-token",
+            base_url="https://api.tracker.yandex.net",
+        )
+        yield client
+        await client.close()
+
+    @pytest.fixture
+    def sample_status_data(self):
+        return {
+            "self": "https://api.tracker.yandex.net/v3/statuses/1",
+            "id": "1",
+            "version": 1,
+            "key": "open",
+            "name": "Open",
+            "order": 1,
+            "type": "new",
+            "statusType": {
+                "self": "https://api.tracker.yandex.net/v3/statusTypes/1",
+                "id": "1",
+                "key": "new",
+                "display": "New",
+            },
+        }
+
     async def test_get_statuses_success(self, client, sample_status_data):
         statuses_response = [sample_status_data]
 
@@ -218,6 +228,51 @@ class TestGlobalDataAPI:
             request = m.requests[request_key][0]
             assert request.kwargs["headers"]["Authorization"] == "OAuth auth-token"
             assert request.kwargs["headers"]["X-Org-ID"] == "auth-org"
+
+    async def test_get_statuses_empty(self, client):
+        statuses_response: list[dict] = []
+
+        with aioresponses() as m:
+            m.get(
+                "https://api.tracker.yandex.net/v3/statuses", payload=statuses_response
+            )
+
+            result = await client.get_statuses()
+
+            assert isinstance(result, list)
+            assert len(result) == 0
+
+
+class TestIssueTypes:
+    @pytest.fixture
+    async def client(self) -> AsyncGenerator[TrackerClient, None]:
+        client = TrackerClient(
+            token="test-token",
+            org_id="test-org",
+            base_url="https://api.tracker.yandex.net",
+        )
+        yield client
+        await client.close()
+
+    @pytest.fixture
+    async def client_no_org(self) -> AsyncGenerator[TrackerClient, None]:
+        client = TrackerClient(
+            token="test-token",
+            base_url="https://api.tracker.yandex.net",
+        )
+        yield client
+        await client.close()
+
+    @pytest.fixture
+    def sample_issue_type_data(self):
+        return {
+            "self": "https://api.tracker.yandex.net/v3/issuetypes/1",
+            "id": "1",
+            "version": 1,
+            "key": "task",
+            "name": "Task",
+            "description": "General task",
+        }
 
     async def test_get_issue_types_success(self, client, sample_issue_type_data):
         types_response = [sample_issue_type_data]
@@ -256,6 +311,51 @@ class TestGlobalDataAPI:
             request = m.requests[request_key][0]
             assert request.kwargs["headers"]["Authorization"] == "OAuth auth-token"
             assert request.kwargs["headers"]["X-Cloud-Org-ID"] == "cloud-org"
+
+    async def test_get_issue_types_empty(self, client):
+        types_response: list[dict] = []
+
+        with aioresponses() as m:
+            m.get(
+                "https://api.tracker.yandex.net/v3/issuetypes", payload=types_response
+            )
+
+            result = await client.get_issue_types()
+
+            assert isinstance(result, list)
+            assert len(result) == 0
+
+
+class TestPriorities:
+    @pytest.fixture
+    async def client(self) -> AsyncGenerator[TrackerClient, None]:
+        client = TrackerClient(
+            token="test-token",
+            org_id="test-org",
+            base_url="https://api.tracker.yandex.net",
+        )
+        yield client
+        await client.close()
+
+    @pytest.fixture
+    async def client_no_org(self) -> AsyncGenerator[TrackerClient, None]:
+        client = TrackerClient(
+            token="test-token",
+            base_url="https://api.tracker.yandex.net",
+        )
+        yield client
+        await client.close()
+
+    @pytest.fixture
+    def sample_priority_data(self):
+        return {
+            "self": "https://api.tracker.yandex.net/v3/priorities/2",
+            "id": "2",
+            "version": 1,
+            "key": "normal",
+            "name": "Normal",
+            "order": 2,
+        }
 
     async def test_get_priorities_success(self, client, sample_priority_data):
         priorities_response = [sample_priority_data]
@@ -345,43 +445,6 @@ class TestGlobalDataAPI:
             assert result[1].order == 2
             assert result[2].key == "critical"
             assert result[2].order == 3
-
-    async def test_get_global_fields_empty(self, client):
-        fields_response: list[dict] = []
-
-        with aioresponses() as m:
-            m.get("https://api.tracker.yandex.net/v3/fields", payload=fields_response)
-
-            result = await client.get_global_fields()
-
-            assert isinstance(result, list)
-            assert len(result) == 0
-
-    async def test_get_statuses_empty(self, client):
-        statuses_response: list[dict] = []
-
-        with aioresponses() as m:
-            m.get(
-                "https://api.tracker.yandex.net/v3/statuses", payload=statuses_response
-            )
-
-            result = await client.get_statuses()
-
-            assert isinstance(result, list)
-            assert len(result) == 0
-
-    async def test_get_issue_types_empty(self, client):
-        types_response: list[dict] = []
-
-        with aioresponses() as m:
-            m.get(
-                "https://api.tracker.yandex.net/v3/issuetypes", payload=types_response
-            )
-
-            result = await client.get_issue_types()
-
-            assert isinstance(result, list)
-            assert len(result) == 0
 
     async def test_get_priorities_empty(self, client):
         priorities_response: list[dict] = []
