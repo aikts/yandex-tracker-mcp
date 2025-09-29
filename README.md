@@ -6,6 +6,8 @@
 ![Package Workflow](https://github.com/aikts/yandex-tracker-mcp/actions/workflows/package.yml/badge.svg?branch=main)
 [![smithery badge](https://smithery.ai/badge/@aikts/yandex-tracker-mcp)](https://smithery.ai/server/@aikts/yandex-tracker-mcp)
 
+mcp-name: io.github.aikts/yandex-tracker-mcp
+
 A comprehensive Model Context Protocol (MCP) server that enables AI assistants to interact with Yandex Tracker APIs. This server provides secure, authenticated access to Yandex Tracker issues, queues, comments, worklogs, and search functionality with optional Redis caching for improved performance.
 
 <a href="https://glama.ai/mcp/servers/@aikts/yandex-tracker-mcp">

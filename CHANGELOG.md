@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.5] - 2025-09-29
+
+### Features
+- Add MCP Registry publishing support in GitHub Actions workflow
+  - Automatic publishing to MCP Registry on release
+  - GitHub OIDC authentication for registry access
+- Add `server.json` for official MCP Registry integration
+- Add `mcp-name` identifier to documentation (README.md and README_ru.md)
+
+### Internal
+- Update release command documentation to include server.json version checks
+- Add MCP Registry token files to .gitignore
+
 ## [0.4.4] - 2025-01-14
 
 ### Bug Fixes
