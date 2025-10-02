@@ -44,6 +44,8 @@ class Issue(CreatedUpdatedMixin, BaseTrackerEntity):
     sprint: list[SprintReference] | None = None
     epic: IssueReference | None = None
     parent: IssueReference | None = None
+    estimation: str | None = None
+    spent: str | None = None
 
 
 IssueFieldsEnum = Enum(  # type: ignore[misc]

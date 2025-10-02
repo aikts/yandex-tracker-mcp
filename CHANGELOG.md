@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.6] - 2025-10-02
+
+### Improvements
+- Add `estimation` and `spent` fields to Issue model for time tracking support
+  - `estimation`: Estimated time for the issue (string format)
+  - `spent`: Time already spent on the issue (string format)
+
 ## [0.4.5] - 2025-09-29
 
 ### Features
