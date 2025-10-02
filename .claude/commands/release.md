@@ -21,5 +21,5 @@ Prepare a new release of the project. You may spin parallel tasks if you need as
 4. Always make sure that the version in @manifest.json and @server.json are the same as in @pyproject.toml.
 5. Make sure @CHANGELOG.md is up to date with the latest changes. Changes may be collected through git history since last git tag or current unstaged changes. Always add a new version to the @CHANGELOG.md, even if it is a patch release. Never edit previous versions.
 6. Call `uv sync --all-extras --all-packages` to update uv.lock file.
-7. Make a git commit reflecting changes currently made. On the first line present a sommit changes summary in short sentence. Then using bullet points highlight main changes made.
+7. Make a git commit reflecting changes currently made. The first line must be a commit changes summary in short sentence (don't use version bump as a commit headline). Then using bullet points highlight main changes made.
 8. Other requirements: $ARGUMENTS
