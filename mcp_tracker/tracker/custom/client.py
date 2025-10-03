@@ -1228,6 +1228,28 @@ class TrackerClient(
                 await response.read()
             ).checklistItems
 
+    async def worklogs_search(
+        self,
+        *,
+        created_by: str | None = None,
+        created_at_from: str | None = None,
+        created_at_to: str | None = None,
+        auth: YandexAuth | None = None,
+    ) -> list[Worklog]:
+        body: dict[str, Any] = {}
+        if created_by is not None:
+            body["createdBy"] = created_by
+        if created_at_from is not None or created_at_to is not None:
+            body["createdAt"] = {}
+            if created_at_from is not None:
+                body["createdAt"]["from"] = created_at_from
+            if created_at_to is not None:
+                body["createdAt"]["to"] = created_at_to
+
+        return WorklogList.model_validate_json(
+            await self._read("POST", "v3/worklog/_search", auth=auth, json=body)
+        ).root
+
     async def issues_count(self, query: str, *, auth: YandexAuth | None = None) -> int:
         body: dict[str, Any] = {
             "query": query,

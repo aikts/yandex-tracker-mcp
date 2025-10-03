@@ -28,13 +28,14 @@ READ_ONLY_TOOL_NAMES = [
     "board_get",
     "board_get_columns",
     "board_get_sprints",
-    # Issue read tools (10)
+    # Issue read tools (11)
     "issue_get",
     "issue_get_comments",
     "issue_get_links",
     "issues_find",
     "issues_count",
     "issue_get_worklogs",
+    "worklogs_search",
     "issue_get_attachments",
     "issue_get_checklist",
     "issue_get_transitions",

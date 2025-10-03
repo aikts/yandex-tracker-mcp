@@ -232,6 +232,43 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         return result
 
     @mcp.tool(
+        title="Search Worklogs",
+        description="Search worklogs (logged time; in russian - 'затраченное время') "
+        "across every issue of the organization, filtered by who created them and "
+        "when. `TRACKER_LIMIT_QUEUES` does not filter this search, so the issues it "
+        "names can be ones `issue_get` refuses; `issue_get_worklogs` is the "
+        "issue-scoped read.",
+        annotations=ToolAnnotations(readOnlyHint=True),
+    )
+    async def worklogs_search(
+        ctx: Context[Any, AppContext],
+        created_by: Annotated[
+            str | None,
+            Field(
+                description="User login or ID who created the worklog. Example: 'john.doe' or '1234567890'"
+            ),
+        ] = None,
+        created_at_from: Annotated[
+            str | None,
+            Field(
+                description="Start of time range in ISO 8601 format. Example: '2024-01-01T00:00:00.000+0000'"
+            ),
+        ] = None,
+        created_at_to: Annotated[
+            str | None,
+            Field(
+                description="End of time range in ISO 8601 format. Example: '2024-12-31T23:59:59.999+0000'"
+            ),
+        ] = None,
+    ) -> list[Worklog]:
+        return await ctx.request_context.lifespan_context.issues.worklogs_search(
+            created_by=created_by,
+            created_at_from=created_at_from,
+            created_at_to=created_at_to,
+            auth=get_yandex_auth(ctx),
+        )
+
+    @mcp.tool(
         title="Get Issue Attachments",
         description="Get attachments of a Yandex Tracker issue by its id",
         annotations=ToolAnnotations(readOnlyHint=True),

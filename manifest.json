@@ -357,6 +357,10 @@
       "description": "Delete a worklog entry (spent time record) from an issue"
     },
     {
+      "name": "worklogs_search",
+      "description": "Search worklogs across every issue of the organization, filtered by author and creation date"
+    },
+    {
       "name": "issue_get_attachments",
       "description": "Get attachments for an issue"
     },

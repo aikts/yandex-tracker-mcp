@@ -14,7 +14,7 @@
 ## Entities
 
 `board`, `boards`, `comment`, `component`, `goal`, `issue`, `issues`, `portfolio`,
-`project`, `queue`, `queues`, `user`, `users`.
+`project`, `queue`, `queues`, `user`, `users`, `worklogs`.
 
 A tool for a new entity means adding its prefix to `TOOL_NAME_ENTITIES` in that test,
 in the same PR - a deliberate line, not a regex that lets anything through.
