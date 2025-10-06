@@ -59,16 +59,16 @@ async def tracker_lifespan(server: FastMCP[Any]) -> AsyncIterator[AppContext]:
 
     queues: QueuesProtocol = tracker
     issues: IssueProtocol = tracker
-    fields: GlobalDataProtocol = tracker
+    global_data: GlobalDataProtocol = tracker
     users: UsersProtocol = tracker
     if settings.tools_cache_enabled:
-        queues_wrap, issues_wrap, fields_wrap, users_wrap = make_cached_protocols(
+        cache_collection = make_cached_protocols(
             settings.cache_kwargs()
         )
-        queues = queues_wrap(queues)
-        issues = issues_wrap(issues)
-        fields = fields_wrap(fields)
-        users = users_wrap(users)
+        queues = cache_collection.queues(queues)
+        issues = cache_collection.issues(issues)
+        global_data = cache_collection.global_data(global_data)
+        users = cache_collection.users(users)
 
     try:
         await tracker.prepare()
@@ -76,7 +76,7 @@ async def tracker_lifespan(server: FastMCP[Any]) -> AsyncIterator[AppContext]:
         yield AppContext(
             queues=queues,
             issues=issues,
-            fields=fields,
+            fields=global_data,
             users=users,
         )
     finally:

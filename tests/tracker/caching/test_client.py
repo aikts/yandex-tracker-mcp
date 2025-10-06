@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from mcp_tracker.tracker.caching.client import make_cached_protocols
+from mcp_tracker.tracker.caching.client import CacheCollection, make_cached_protocols
 from mcp_tracker.tracker.proto.common import YandexAuth
 from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
 from mcp_tracker.tracker.proto.types.issue_types import IssueType
@@ -22,31 +22,11 @@ from mcp_tracker.tracker.proto.types.users import User
 
 
 class TestMakeCachedProtocols:
-    def test_make_cached_protocols_returns_four_classes(self):
+    @pytest.fixture
+    def def_cached_protocol(self) -> CacheCollection:
         cache_config = {"ttl": 300}
 
-        result = make_cached_protocols(cache_config)
-
-        assert len(result) == 4
-        queues_class, issues_class, global_data_class, users_class = result
-
-        # Verify all returned items are classes
-        assert isinstance(queues_class, type)
-        assert isinstance(issues_class, type)
-        assert isinstance(global_data_class, type)
-        assert isinstance(users_class, type)
-
-    def test_cached_classes_have_expected_names(self):
-        cache_config = {"ttl": 300}
-
-        queues_class, issues_class, global_data_class, users_class = (
-            make_cached_protocols(cache_config)
-        )
-
-        assert queues_class.__name__ == "CachingQueuesProtocol"
-        assert issues_class.__name__ == "CachingIssuesProtocol"
-        assert global_data_class.__name__ == "CachingGlobalDataProtocol"
-        assert users_class.__name__ == "CachingUsersProtocol"
+        return make_cached_protocols(cache_config)
 
 
 class TestCachingQueuesProtocol:
