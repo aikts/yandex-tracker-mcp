@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.9] - 2025-02-11
+
+### Internal
+- Temporarily disable MCP Registry publishing in GitHub Actions workflow
+  - Comment out publish step to prevent automatic registry updates
+  - Maintain registry login and installation steps for future use
+
 ## [0.4.8] - 2025-02-11
 
 ### Internal
