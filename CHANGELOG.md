@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.8] - 2025-02-11
+
+### Internal
+- Update MCP server schema to version 2025-10-17 in server.json
+
 ## [0.4.7] - 2025-02-11
 
 ### Features
