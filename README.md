@@ -499,7 +499,11 @@ The server exposes the following tools through the MCP protocol:
 
 ### Queue Management
 - **`queues_get_all`**: List all available Yandex Tracker queues
-  - Returns paginated queue information
+  - Parameters:
+    - `fields` (optional): Fields to include in the response (e.g., ["key", "name"]). Helps optimize context window usage by selecting only needed fields. If not specified, returns all available fields.
+    - `page` (optional): Page number to return. If not specified, retrieves all pages automatically.
+    - `per_page` (optional): Number of items per page (default: 100)
+  - Returns paginated queue information with selective field inclusion
   - Respects `TRACKER_LIMIT_QUEUES` restrictions
 
 - **`queue_get_local_fields`**: Get local fields for a specific queue

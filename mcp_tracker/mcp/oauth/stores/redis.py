@@ -70,6 +70,7 @@ class RedisOAuthStore(OAuthStore):
 
     async def save_client(self, client: OAuthClientInformationFull) -> None:
         """Save a client to Redis."""
+        assert client.client_id is not None, "client_id must be provided"
         await self._cache.set(self._client_key(client.client_id), client)
 
     async def get_client(self, client_id: str) -> OAuthClientInformationFull | None:

@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.7] - 2025-02-11
+
+### Features
+- Add `fields` parameter to `queues_get_all` tool for selective field inclusion
+  - Allows optimizing context window usage by selecting only needed fields (e.g., ["key", "name"])
+  - Returns all fields if not specified
+- Add pagination support to `queues_get_all` tool
+  - New `page` parameter to retrieve specific pages
+  - New `per_page` parameter (default: 100)
+  - Automatically retrieves all pages if page parameter not specified
+
+### Internal
+- Update MCP dependency to version 1.21
+- Update Pydantic to version 2.12.4
+
 ## [0.4.6] - 2025-10-02
 
 ### Improvements

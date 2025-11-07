@@ -17,7 +17,7 @@ from mcp_tracker.mcp.params import (
     UserID,
     YTQuery,
 )
-from mcp_tracker.mcp.utils import get_yandex_auth
+from mcp_tracker.mcp.utils import get_yandex_auth, set_non_needed_fields_null
 from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.custom.errors import IssueNotFound
 from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
@@ -32,7 +32,7 @@ from mcp_tracker.tracker.proto.types.issues import (
     Worklog,
 )
 from mcp_tracker.tracker.proto.types.priorities import Priority
-from mcp_tracker.tracker.proto.types.queues import Queue, QueueVersion
+from mcp_tracker.tracker.proto.types.queues import Queue, QueueFieldsEnum, QueueVersion
 from mcp_tracker.tracker.proto.types.statuses import Status
 from mcp_tracker.tracker.proto.types.users import User
 
@@ -49,12 +49,31 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
     )
     async def queues_get_all(
         ctx: Context[Any, AppContext, Request],
+        fields: Annotated[
+            list[QueueFieldsEnum] | None,
+            Field(
+                description="Fields to include in the response. In order to not pollute context window - "
+                "select appropriate fields beforehand. Not specifying fields will return all available. "
+                "Most of the time one needs key and name only.",
+            ),
+        ] = None,
+        page: Annotated[
+            int | None,
+            Field(
+                description="Page number to return, default is None which means to retrieve all pages. "
+                "Specify page number to retrieve a specific page when context limit is reached.",
+            ),
+        ] = None,
+        per_page: PerPageParam = 100,
     ) -> list[Queue]:
         result: list[Queue] = []
-        per_page = 100
-        page = 1
 
-        while True:
+        find_all = False
+        if page is None:
+            page = 1
+            find_all = True
+
+        while find_all:
             queues = await ctx.request_context.lifespan_context.queues.queues_list(
                 per_page=per_page,
                 page=page,
@@ -71,7 +90,11 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
                 ]
 
             result.extend(queues)
-            page += 1
+            if find_all:
+                page += 1
+
+        if fields is not None:
+            set_non_needed_fields_null(result, {f.name for f in fields})
 
         return result
 
@@ -244,7 +267,8 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
         fields: Annotated[
             list[IssueFieldsEnum] | None,
             Field(
-                description="Fields to include in the response. In order to not pollute context window - select appropriate fields beforehand. Not specifying fields will return all available."
+                description="Fields to include in the response. In order to not pollute context window - select "
+                "appropriate fields beforehand. Not specifying fields will return all available."
             ),
         ] = None,
         page: PageParam = 1,
@@ -262,12 +286,7 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
                 issue.description = None  # Clear description to save context
 
         if fields is not None:
-            fields_set = {f.name for f in fields}
-
-            for issue in issues:
-                for field in issue.model_fields_set:
-                    if field not in fields_set:
-                        setattr(issue, field, None)
+            set_non_needed_fields_null(issues, {f.name for f in fields})
 
         return issues
 

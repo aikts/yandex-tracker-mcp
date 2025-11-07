@@ -24,6 +24,7 @@ class InMemoryOAuthStore(OAuthStore):
 
     async def save_client(self, client: OAuthClientInformationFull) -> None:
         """Save a client to the in-memory store."""
+        assert client.client_id is not None, "client_id must be provided"
         self._dynamic_clients[client.client_id] = client
 
     async def get_client(self, client_id: str) -> OAuthClientInformationFull | None:

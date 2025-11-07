@@ -3,7 +3,11 @@ from enum import Enum
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
-from mcp_tracker.tracker.proto.types.base import BaseTrackerEntity
+from mcp_tracker.tracker.proto.types.base import (
+    BaseTrackerEntity,
+    NoneExcludedField,
+    none_excluder,
+)
 from mcp_tracker.tracker.proto.types.mixins import CreatedMixin, CreatedUpdatedMixin
 from mcp_tracker.tracker.proto.types.refs import (
     BaseReference,
@@ -22,30 +26,34 @@ class Issue(CreatedUpdatedMixin, BaseTrackerEntity):
         extra="ignore",
     )
 
-    unique: str | None = None
-    key: str | None = None
-    summary: str | None = None
-    description: str | None = None
-    type: IssueTypeReference | None = None
-    priority: PriorityReference | None = None
-    assignee: UserReference | None = None
-    status: StatusReference | None = None
+    unique: str | None = NoneExcludedField
+    key: str | None = NoneExcludedField
+    summary: str | None = NoneExcludedField
+    description: str | None = NoneExcludedField
+    type: IssueTypeReference | None = NoneExcludedField
+    priority: PriorityReference | None = NoneExcludedField
+    assignee: UserReference | None = NoneExcludedField
+    status: StatusReference | None = NoneExcludedField
     previous_status: StatusReference | None = Field(
-        None, validation_alias=AliasChoices("previousStatus", "previous_status")
+        None,
+        validation_alias=AliasChoices("previousStatus", "previous_status"),
+        exclude_if=none_excluder,
     )
-    deadline: datetime.date | None = None
-    components: list[ComponentReference] | None = None
-    start: datetime.date | None = None
+    deadline: datetime.date | None = NoneExcludedField
+    components: list[ComponentReference] | None = NoneExcludedField
+    start: datetime.date | None = NoneExcludedField
     story_points: float | None = Field(
-        None, validation_alias=AliasChoices("storyPoints", "story_points")
+        None,
+        validation_alias=AliasChoices("storyPoints", "story_points"),
+        exclude_if=none_excluder,
     )
-    tags: list[str] | None = None
-    votes: int | None = None
-    sprint: list[SprintReference] | None = None
-    epic: IssueReference | None = None
-    parent: IssueReference | None = None
-    estimation: str | None = None
-    spent: str | None = None
+    tags: list[str] | None = NoneExcludedField
+    votes: int | None = NoneExcludedField
+    sprint: list[SprintReference] | None = NoneExcludedField
+    epic: IssueReference | None = NoneExcludedField
+    parent: IssueReference | None = NoneExcludedField
+    estimation: str | None = NoneExcludedField
+    spent: str | None = NoneExcludedField
 
 
 IssueFieldsEnum = Enum(  # type: ignore[misc]

@@ -1,20 +1,23 @@
 [project]
 name = "yandex-tracker-mcp"
-version = "0.4.6"
+version = "0.4.7"
 description = "Yandex Tracker MCP Server"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "aiocache[redis]>=0.12.3",
     "aiohttp>=3.11.18",
-    "mcp[cli]>=1.14",
-    "pydantic>=2.11.3",
+    "mcp[cli]>=1.21",
+    "pydantic>=2.12.4",
     "pydantic-settings>=2.8.1",
     "python-dateutil>=2.9.0.post0",
     "thefuzz>=0.22.1",
     "yandexcloud>=0.353.0",
     "yarl>=1.20.0",
 ]
+
+[tool.uv]
+package = true
 
 [tool.setuptools.packages.find]
 where = ["."]

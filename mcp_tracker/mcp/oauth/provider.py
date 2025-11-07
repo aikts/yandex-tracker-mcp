@@ -248,6 +248,7 @@ class YandexOAuthAuthorizationServerProvider(
 
                 token = OAuthToken.model_validate_json(await response.read())
 
+                assert client.client_id is not None, "client_id must be provided"
                 await self._store.save_oauth_token(
                     token=token,
                     client_id=client.client_id,
@@ -315,6 +316,7 @@ class YandexOAuthAuthorizationServerProvider(
         await self._store.revoke_refresh_token(refresh_token.token)
 
         # Save the new tokens
+        assert client.client_id is not None, "client_id must be provided"
         await self._store.save_oauth_token(
             token=token,
             client_id=client.client_id,
