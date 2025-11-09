@@ -8,8 +8,6 @@
 [![Trust Score](https://archestra.ai/mcp-catalog/api/badge/quality/aikts/yandex-tracker-mcp)](https://archestra.ai/mcp-catalog/aikts__yandex-tracker-mcp)
 [![smithery badge](https://smithery.ai/badge/@aikts/yandex-tracker-mcp)](https://smithery.ai/server/@aikts/yandex-tracker-mcp)
 
-mcp-name: io.github.aikts/yandex-tracker-mcp
-
 A comprehensive Model Context Protocol (MCP) server that enables AI assistants to interact with Yandex Tracker APIs. This server provides secure, authenticated access to Yandex Tracker issues, queues, comments, worklogs, and search functionality with optional Redis caching for improved performance.
 
 <a href="https://glama.ai/mcp/servers/@aikts/yandex-tracker-mcp">
@@ -501,11 +499,7 @@ The server exposes the following tools through the MCP protocol:
 
 ### Queue Management
 - **`queues_get_all`**: List all available Yandex Tracker queues
-  - Parameters:
-    - `fields` (optional): Fields to include in the response (e.g., ["key", "name"]). Helps optimize context window usage by selecting only needed fields. If not specified, returns all available fields.
-    - `page` (optional): Page number to return. If not specified, retrieves all pages automatically.
-    - `per_page` (optional): Number of items per page (default: 100)
-  - Returns paginated queue information with selective field inclusion
+  - Returns paginated queue information
   - Respects `TRACKER_LIMIT_QUEUES` restrictions
 
 - **`queue_get_local_fields`**: Get local fields for a specific queue
@@ -540,12 +534,6 @@ The server exposes the following tools through the MCP protocol:
   - No parameters required
   - Returns detailed information about the user associated with the current authentication token
   - Includes login, email, display name, and organizational details for the authenticated user
-
-- **`users_search`**: Search user based on login, email or real name (first or last name, or both)
-  - Parameters: `login_or_email_or_name` (string, user login, email or real name to search for)
-  - Returns either single user or multiple users if several match the query or an empty list if no users matched
-  - Uses fuzzy matching for real names with a similarity threshold of 80%
-  - Prioritizes exact matches for login and email over fuzzy name matches
 
 ### Field Management
 - **`get_global_fields`**: Get all global fields available in Yandex Tracker
@@ -811,9 +799,7 @@ Yandex Tracker MCP Server supports multiple authentication methods with a clear 
 1. **Dynamic OAuth Token** (highest priority)
    - When OAuth is enabled and a user authenticates via OAuth flow
    - Tokens are dynamically obtained and refreshed per user session
-   - Supports both standard Yandex OAuth and Yandex Cloud federative OAuth
    - Required env vars: `OAUTH_ENABLED=true`, `OAUTH_CLIENT_ID`, `OAUTH_CLIENT_SECRET`, `MCP_SERVER_PUBLIC_URL`
-   - Additional vars for federative OAuth: `OAUTH_SERVER_URL=https://auth.yandex.cloud/oauth`, `OAUTH_TOKEN_TYPE=Bearer`, `OAUTH_USE_SCOPES=false`
 
 2. **Static OAuth Token**
    - Traditional OAuth token provided via environment variable
@@ -873,23 +859,6 @@ TRACKER_SA_PRIVATE_KEY=your_private_key
 TRACKER_CLOUD_ORG_ID=your_cloud_org_id  # or TRACKER_ORG_ID
 ```
 
-#### Scenario 5: Federative OAuth for OIDC Applications (Advanced)
-```env
-# Enable OAuth with Yandex Cloud federation
-OAUTH_ENABLED=true
-OAUTH_SERVER_URL=https://auth.yandex.cloud/oauth
-OAUTH_TOKEN_TYPE=Bearer
-OAUTH_USE_SCOPES=false
-OAUTH_CLIENT_ID=your_oidc_client_id
-OAUTH_CLIENT_SECRET=your_oidc_client_secret
-MCP_SERVER_PUBLIC_URL=https://your-server.com
-
-# Organization ID (choose one)
-TRACKER_CLOUD_ORG_ID=your_cloud_org_id  # or TRACKER_ORG_ID
-```
-
-This configuration enables authentication through [Yandex Cloud OIDC applications](https://yandex.cloud/ru/docs/organization/operations/applications/oidc-create), which is required for [federated accounts](https://yandex.cloud/ru/docs/organization/operations/manage-federations) in Yandex Cloud. Federated users authenticate through their organization's identity provider (IdP) and use this OAuth flow to access Yandex Tracker APIs.
-
 ### Important Notes
 
 - The server checks authentication methods in the order listed above
@@ -944,9 +913,7 @@ TOOLS_CACHE_REDIS_TTL=3600                # Default: 3600 seconds (1 hour)
 # OAuth 2.0 Authentication (optional)
 OAUTH_ENABLED=true                        # Default: false
 OAUTH_STORE=redis                         # Options: memory, redis (default: memory)
-OAUTH_SERVER_URL=https://oauth.yandex.ru  # Default: https://oauth.yandex.ru (use https://auth.yandex.cloud/oauth for federation)
-OAUTH_TOKEN_TYPE=<Bearer|OAuth|<empty>>   # Default: <empty> (required to be Bearer for Yandex Cloud federation)
-OAUTH_USE_SCOPES=true                     # Default: true (set to false for Yandex Cloud federation)
+OAUTH_SERVER_URL=https://oauth.yandex.ru  # Default: https://oauth.yandex.ru
 OAUTH_CLIENT_ID=your_oauth_client_id      # Required when OAuth enabled
 OAUTH_CLIENT_SECRET=your_oauth_secret     # Required when OAuth enabled
 MCP_SERVER_PUBLIC_URL=https://your.server.com  # Required when OAuth enabled
