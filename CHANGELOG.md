@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.10] - 2025-12-06
+
+### Bug Fixes
+- Make `Status.type` field optional to support custom statuses in Yandex Tracker (fixed by [#10](https://github.com/aikts/yandex-tracker-mcp/pull/10))
+  - Custom statuses created by organizations don't have the `type` field assigned
+  - The `type` field is only present for standard statuses (new, inProgress, paused, done, cancelled)
+  - Fixes validation errors when calling `get_statuses` on organizations with custom statuses
+
 ## [0.4.9] - 2025-02-11
 
 ### Internal
