@@ -11,6 +11,6 @@ class Status(BaseTrackerEntity):
     name: str = Field(description="Displayed status name")
     description: str | None = Field(default=None, description="Status description")
     order: int = Field(description="Status order")
-    type: Literal["new", "inProgress", "paused", "done", "cancelled"] = Field(
-        description="Status type"
+    type: Literal["new", "inProgress", "paused", "done", "cancelled"] | None = Field(
+        default=None, description="Status type"
     )
