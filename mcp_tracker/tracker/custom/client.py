@@ -23,6 +23,7 @@ from mcp_tracker.tracker.proto.types.issues import (
     ChecklistItem,
     Issue,
     IssueAttachment,
+    IssueChangelog,
     IssueComment,
     IssueLink,
     Worklog,
@@ -43,6 +44,7 @@ IssueCommentList = RootModel[list[IssueComment]]
 WorklogList = RootModel[list[Worklog]]
 IssueAttachmentList = RootModel[list[IssueAttachment]]
 ChecklistItemList = RootModel[list[ChecklistItem]]
+IssueChangelogList = RootModel[list[IssueChangelog]]
 GlobalFieldList = RootModel[list[GlobalField]]
 StatusList = RootModel[list[Status]]
 IssueTypeList = RootModel[list[IssueType]]
@@ -411,6 +413,31 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
                 raise IssueNotFound(issue_id)
             response.raise_for_status()
             return ChecklistItemList.model_validate_json(await response.read()).root
+
+    async def issue_get_changelog(
+        self,
+        issue_id: str,
+        *,
+        per_page: int = 50,
+        field: str | None = None,
+        change_type: str | None = None,
+        auth: YandexAuth | None = None,
+    ) -> list[IssueChangelog]:
+        params: dict[str, str | int] = {"perPage": per_page}
+        if field:
+            params["field"] = field
+        if change_type:
+            params["type"] = change_type
+
+        async with self._session.get(
+            f"v3/issues/{issue_id}/changelog",
+            headers=await self._build_headers(auth),
+            params=params,
+        ) as response:
+            if response.status == 404:
+                raise IssueNotFound(issue_id)
+            response.raise_for_status()
+            return IssueChangelogList.model_validate_json(await response.read()).root
 
     async def issues_count(self, query: str, *, auth: YandexAuth | None = None) -> int:
         body: dict[str, Any] = {

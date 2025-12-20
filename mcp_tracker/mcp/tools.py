@@ -26,6 +26,7 @@ from mcp_tracker.tracker.proto.types.issues import (
     ChecklistItem,
     Issue,
     IssueAttachment,
+    IssueChangelog,
     IssueComment,
     IssueFieldsEnum,
     IssueLink,
@@ -341,6 +342,42 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
 
         return await ctx.request_context.lifespan_context.issues.issue_get_checklist(
             issue_id,
+            auth=get_yandex_auth(ctx),
+        )
+
+    @mcp.tool(
+        description="Get changelog (history of changes) of a Yandex Tracker issue. "
+        "Returns list of changes including who made the change, when, and what fields were modified."
+    )
+    async def issue_get_changelog(
+        ctx: Context[Any, AppContext],
+        issue_id: IssueID,
+        per_page: Annotated[
+            int,
+            Field(
+                description="Number of changelog entries to return (default 50, max 100)",
+            ),
+        ] = 50,
+        field: Annotated[
+            str | None,
+            Field(
+                description="Filter by specific field name (e.g., 'status', 'assignee', 'priority')",
+            ),
+        ] = None,
+        change_type: Annotated[
+            str | None,
+            Field(
+                description="Filter by change type (e.g., 'IssueCreated', 'IssueUpdated', 'IssueCommentAdded')",
+            ),
+        ] = None,
+    ) -> list[IssueChangelog]:
+        check_issue_id(settings, issue_id)
+
+        return await ctx.request_context.lifespan_context.issues.issue_get_changelog(
+            issue_id,
+            per_page=per_page,
+            field=field,
+            change_type=change_type,
             auth=get_yandex_auth(ctx),
         )
 
