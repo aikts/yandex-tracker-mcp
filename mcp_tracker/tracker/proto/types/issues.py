@@ -132,9 +132,19 @@ class ChecklistItem(BaseTrackerEntity):
     )
 
 
+class ChangelogFieldRef(BaseModel):
+    """Reference to a field in changelog"""
+    model_config = ConfigDict(extra="ignore")
+
+    id: str | None = None
+    display: str | None = None
+
+
 class ChangelogFieldChange(BaseModel):
     """Represents a single field change in changelog"""
-    field: str | None = Field(None, validation_alias=AliasChoices("field", "id"))
+    model_config = ConfigDict(extra="ignore")
+
+    field: ChangelogFieldRef | str | None = None
     from_value: str | dict | list | None = Field(
         None, validation_alias=AliasChoices("from", "from_value")
     )
