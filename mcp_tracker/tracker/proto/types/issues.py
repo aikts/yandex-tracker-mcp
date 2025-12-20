@@ -130,3 +130,29 @@ class ChecklistItem(BaseTrackerEntity):
     checklist_item_type: str | None = Field(
         None, validation_alias=AliasChoices("checklistItemType", "checklist_item_type")
     )
+
+
+class ChangelogFieldChange(BaseModel):
+    """Represents a single field change in changelog"""
+    field: str | None = Field(None, validation_alias=AliasChoices("field", "id"))
+    from_value: str | dict | list | None = Field(
+        None, validation_alias=AliasChoices("from", "from_value")
+    )
+    to_value: str | dict | list | None = Field(
+        None, validation_alias=AliasChoices("to", "to_value")
+    )
+
+
+class IssueChangelog(BaseTrackerEntity):
+    """Represents a changelog entry for an issue"""
+    model_config = ConfigDict(extra="ignore")
+
+    id: str
+    updated_at: datetime.datetime | None = Field(
+        None, validation_alias=AliasChoices("updatedAt", "updated_at")
+    )
+    updated_by: UserReference | None = Field(
+        None, validation_alias=AliasChoices("updatedBy", "updated_by")
+    )
+    type: str | None = None
+    fields: list[ChangelogFieldChange] | None = None
