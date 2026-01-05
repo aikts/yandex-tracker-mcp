@@ -58,6 +58,14 @@ class IssueProtocol(Protocol):
     async def issue_get_transitions(
         self, issue_id: str, *, auth: YandexAuth | None = None
     ) -> list[IssueTransition]: ...
+    async def issue_execute_transition(
+        self,
+        issue_id: str,
+        transition_id: str,
+        *,
+        comment: str | None = None,
+        auth: YandexAuth | None = None,
+    ) -> list[IssueTransition]: ...
 
 
 class IssueProtocolWrap(IssueProtocol):

@@ -149,6 +149,21 @@ def make_cached_protocols(
         ) -> list[IssueTransition]:
             return await self._original.issue_get_transitions(issue_id, auth=auth)
 
+        async def issue_execute_transition(
+            self,
+            issue_id: str,
+            transition_id: str,
+            *,
+            comment: str | None = None,
+            auth: YandexAuth | None = None,
+        ) -> list[IssueTransition]:
+            return await self._original.issue_execute_transition(
+                issue_id,
+                transition_id,
+                comment=comment,
+                auth=auth,
+            )
+
     class CachingGlobalDataProtocol(GlobalDataProtocolWrap):
         @cached(**cache_config)
         async def get_global_fields(

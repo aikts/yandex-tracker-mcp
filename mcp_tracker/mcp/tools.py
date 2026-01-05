@@ -359,6 +359,38 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
             auth=get_yandex_auth(ctx),
         )
 
+    @mcp.tool(
+        description="Execute a status transition for a Yandex Tracker issue. "
+        "IMPORTANT: You MUST first call issue_get_transitions to retrieve available transitions for the issue. "
+        "Only pass a transition_id that was returned by issue_get_transitions. "
+        "Do NOT use arbitrary transition IDs - the API will reject invalid transition IDs. "
+        "Returns a list of new transitions available for the issue in its new status."
+    )
+    async def issue_execute_transition(
+        ctx: Context[Any, AppContext],
+        issue_id: IssueID,
+        transition_id: Annotated[
+            str,
+            Field(
+                description="The transition ID to execute. Must be one of the IDs returned by issue_get_transitions tool."
+            ),
+        ],
+        comment: Annotated[
+            str | None,
+            Field(description="Optional comment to add when executing the transition."),
+        ] = None,
+    ) -> list[IssueTransition]:
+        check_issue_id(settings, issue_id)
+
+        return (
+            await ctx.request_context.lifespan_context.issues.issue_execute_transition(
+                issue_id,
+                transition_id,
+                comment=comment,
+                auth=get_yandex_auth(ctx),
+            )
+        )
+
     @mcp.tool(description="Create a new issue in a Yandex Tracker queue")
     async def issue_create(
         ctx: Context[Any, AppContext],

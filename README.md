@@ -599,6 +599,14 @@ The server exposes the following tools through the MCP protocol:
   - Returns list of available transitions that can be performed on the issue
   - Each transition includes an ID, display name, and target status information
 
+- **`issue_execute_transition`**: Execute a status transition for an issue
+  - Parameters:
+    - `issue_id` (string, required, format: "QUEUE-123"): The issue key
+    - `transition_id` (string, required): The transition ID to execute. **IMPORTANT**: Must be one of the IDs returned by `issue_get_transitions` tool
+    - `comment` (string, optional): Optional comment to add when executing the transition
+  - Returns list of available transitions for the new status after the transition is executed
+  - **Usage note**: You MUST first call `issue_get_transitions` to retrieve available transitions, then pass one of the returned transition IDs. Do NOT use arbitrary transition IDs.
+
 - **`issue_create`**: Create a new issue in a queue
   - Parameters:
     - `queue` (string, required): Queue key where to create the issue (e.g., 'MYQUEUE')
