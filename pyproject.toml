@@ -35,6 +35,7 @@ dev = [
     "pytest-cov>=5.0.0",
     "pytest-mock>=3.14.0",
     "aioresponses>=0.7.7",
+    "ty>=0.0.8",
 ]
 
 [tool.mypy]

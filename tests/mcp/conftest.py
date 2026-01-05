@@ -113,7 +113,7 @@ def test_settings_with_queue_limits():
         tracker_token="test-token",
         tracker_org_id="test-org",
         tools_cache_enabled=False,
-        tracker_limit_queues="ALLOWED,TEST",  # Comma-separated string
+        tracker_limit_queues=["ALLOWED", "TEST"],
     )
 
 
@@ -128,14 +128,9 @@ def test_yandex_auth():
 def sample_queue():
     """Provides a sample Queue object."""
     return Queue(
-        self="https://api.tracker.yandex.net/v3/queues/TEST",
-        id="1",
-        version=1,
+        id=1,
         key="TEST",
         name="Test Queue",
-        lead=User(uid=123, login="test_user", display="Test User"),
-        assignAuto=False,
-        allowExternals=False,
     )
 
 
@@ -143,8 +138,6 @@ def sample_queue():
 def sample_issue():
     """Provides a sample Issue object."""
     return Issue(
-        self="https://api.tracker.yandex.net/v3/issues/TEST-1",
-        id="TEST-1",
         version=1,
         key="TEST-1",
         summary="Test Issue",

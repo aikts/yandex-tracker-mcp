@@ -90,6 +90,7 @@ def create_mcp_server() -> FastMCP[Any]:
     if settings.oauth_enabled:
         assert settings.oauth_client_id, "OAuth client ID must be set."
         assert settings.oauth_client_secret, "OAuth client secret must be set."
+        assert settings.mcp_server_public_url, "MCP server public url must be set."
 
         oauth_store: OAuthStore
         if settings.oauth_store == "memory":
