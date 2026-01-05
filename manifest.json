@@ -116,6 +116,10 @@
       "description": "Get possible status transitions for a Yandex Tracker issue"
     },
     {
+      "name": "issue_execute_transition",
+      "description": "Execute a status transition for a Yandex Tracker issue. Must call issue_get_transitions first to get available transition IDs."
+    },
+    {
       "name": "issue_create",
       "description": "Create a new issue in a Yandex Tracker queue"
     },

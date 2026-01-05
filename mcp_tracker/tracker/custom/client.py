@@ -472,3 +472,25 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
                 raise IssueNotFound(issue_id)
             response.raise_for_status()
             return IssueTransitionList.model_validate_json(await response.read()).root
+
+    async def issue_execute_transition(
+        self,
+        issue_id: str,
+        transition_id: str,
+        *,
+        comment: str | None = None,
+        auth: YandexAuth | None = None,
+    ) -> list[IssueTransition]:
+        body: dict[str, Any] = {}
+        if comment is not None:
+            body["comment"] = comment
+
+        async with self._session.post(
+            f"v3/issues/{issue_id}/transitions/{transition_id}/_execute",
+            headers=await self._build_headers(auth),
+            json=body,
+        ) as response:
+            if response.status == 404:
+                raise IssueNotFound(issue_id)
+            response.raise_for_status()
+            return IssueTransitionList.model_validate_json(await response.read()).root
