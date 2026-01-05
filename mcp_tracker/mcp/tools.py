@@ -35,6 +35,7 @@ from mcp_tracker.tracker.proto.types.issues import (
 )
 from mcp_tracker.tracker.proto.types.priorities import Priority
 from mcp_tracker.tracker.proto.types.queues import Queue, QueueFieldsEnum, QueueVersion
+from mcp_tracker.tracker.proto.types.resolutions import Resolution
 from mcp_tracker.tracker.proto.types.statuses import Status
 from mcp_tracker.tracker.proto.types.users import User
 
@@ -222,6 +223,19 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
         return priorities
 
     @mcp.tool(
+        title="Get Resolutions",
+        description="Get all resolutions available in Yandex Tracker that can be used when closing issues",
+        annotations=ToolAnnotations(readOnlyHint=True),
+    )
+    async def get_resolutions(
+        ctx: Context[Any, AppContext],
+    ) -> list[Resolution]:
+        resolutions = await ctx.request_context.lifespan_context.fields.get_resolutions(
+            auth=get_yandex_auth(ctx),
+        )
+        return resolutions
+
+    @mcp.tool(
         title="Get Issue URL",
         description="Get a Yandex Tracker issue url by its id",
         annotations=ToolAnnotations(readOnlyHint=True),
@@ -243,7 +257,7 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
             bool,
             Field(
                 description="Whether to include issue description in the issues result. "
-                            "It can be large, so use only when needed.",
+                "It can be large, so use only when needed.",
             ),
         ] = True,
     ) -> Issue:
@@ -404,7 +418,7 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
     @mcp.tool(
         title="Get Issue Transitions",
         description="Get possible status transitions for a Yandex Tracker issue. "
-                    "Returns list of available transitions that can be performed on the issue.",
+        "Returns list of available transitions that can be performed on the issue.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def issue_get_transitions(
@@ -513,8 +527,8 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
     @mcp.tool(
         title="Search Users",
         description="Search user based on login, email or real name (first or last name, or both). "
-                    "Returns either single user or multiple users if several match the query or an empty list "
-                    "if no users matched.",
+        "Returns either single user or multiple users if several match the query or an empty list "
+        "if no users matched.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def users_search(
