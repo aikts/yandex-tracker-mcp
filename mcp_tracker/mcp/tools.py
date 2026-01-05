@@ -2,6 +2,7 @@ from typing import Annotated, Any
 
 from mcp.server import FastMCP
 from mcp.server.fastmcp import Context
+from mcp.types import ToolAnnotations
 from pydantic import Field
 from starlette.requests import Request
 from thefuzz import process
@@ -46,7 +47,9 @@ def check_issue_id(settings: Settings, issue_id: str) -> None:
 
 def register_tools(settings: Settings, mcp: FastMCP[Any]):
     @mcp.tool(
-        description="Find all Yandex Tracker queues available to the user (queue is a project in some sense)"
+        title="Get All Queues",
+        description="Find all Yandex Tracker queues available to the user (queue is a project in some sense)",
+        annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def queues_get_all(
         ctx: Context[Any, AppContext, Request],
@@ -100,7 +103,9 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
         return result
 
     @mcp.tool(
-        description="Get local fields for a specific Yandex Tracker queue (queue-specific custom fields)"
+        title="Get Queue Local Fields",
+        description="Get local fields for a specific Yandex Tracker queue (queue-specific custom fields)",
+        annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def queue_get_local_fields(
         ctx: Context[Any, AppContext],
@@ -120,7 +125,11 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
         )
         return fields
 
-    @mcp.tool(description="Get all tags for a specific Yandex Tracker queue")
+    @mcp.tool(
+        title="Get Queue Tags",
+        description="Get all tags for a specific Yandex Tracker queue",
+        annotations=ToolAnnotations(readOnlyHint=True),
+    )
     async def queue_get_tags(
         ctx: Context[Any, AppContext],
         queue_id: QueueID,
@@ -137,7 +146,11 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
         )
         return tags
 
-    @mcp.tool(description="Get all versions for a specific Yandex Tracker queue")
+    @mcp.tool(
+        title="Get Queue Versions",
+        description="Get all versions for a specific Yandex Tracker queue",
+        annotations=ToolAnnotations(readOnlyHint=True),
+    )
     async def queue_get_versions(
         ctx: Context[Any, AppContext],
         queue_id: QueueID,
@@ -157,7 +170,9 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
         return versions
 
     @mcp.tool(
-        description="Get all global fields available in Yandex Tracker that can be used in issues"
+        title="Get Global Fields",
+        description="Get all global fields available in Yandex Tracker that can be used in issues",
+        annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def get_global_fields(
         ctx: Context[Any, AppContext],
@@ -168,7 +183,9 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
         return fields
 
     @mcp.tool(
-        description="Get all statuses available in Yandex Tracker that can be used in issues"
+        title="Get Statuses",
+        description="Get all statuses available in Yandex Tracker that can be used in issues",
+        annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def get_statuses(
         ctx: Context[Any, AppContext],
@@ -179,7 +196,9 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
         return statuses
 
     @mcp.tool(
-        description="Get all issue types available in Yandex Tracker that can be used when creating or updating issues"
+        title="Get Issue Types",
+        description="Get all issue types available in Yandex Tracker that can be used when creating or updating issues",
+        annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def get_issue_types(
         ctx: Context[Any, AppContext],
@@ -190,7 +209,9 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
         return issue_types
 
     @mcp.tool(
-        description="Get all priorities available in Yandex Tracker that can be used in issues"
+        title="Get Priorities",
+        description="Get all priorities available in Yandex Tracker that can be used in issues",
+        annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def get_priorities(
         ctx: Context[Any, AppContext],
@@ -200,20 +221,29 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
         )
         return priorities
 
-    @mcp.tool(description="Get a Yandex Tracker issue url by its id")
+    @mcp.tool(
+        title="Get Issue URL",
+        description="Get a Yandex Tracker issue url by its id",
+        annotations=ToolAnnotations(readOnlyHint=True),
+    )
     async def issue_get_url(
         issue_id: IssueID,
     ) -> str:
         return f"https://tracker.yandex.ru/{issue_id}"
 
-    @mcp.tool(description="Get a Yandex Tracker issue by its id")
+    @mcp.tool(
+        title="Get Issue",
+        description="Get a Yandex Tracker issue by its id",
+        annotations=ToolAnnotations(readOnlyHint=True),
+    )
     async def issue_get(
         ctx: Context[Any, AppContext],
         issue_id: IssueID,
         include_description: Annotated[
             bool,
             Field(
-                description="Whether to include issue description in the issues result. It can be large, so use only when needed.",
+                description="Whether to include issue description in the issues result. "
+                            "It can be large, so use only when needed.",
             ),
         ] = True,
     ) -> Issue:
@@ -229,7 +259,11 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
 
         return issue
 
-    @mcp.tool(description="Get comments of a Yandex Tracker issue by its id")
+    @mcp.tool(
+        title="Get Issue Comments",
+        description="Get comments of a Yandex Tracker issue by its id",
+        annotations=ToolAnnotations(readOnlyHint=True),
+    )
     async def issue_get_comments(
         ctx: Context[Any, AppContext],
         issue_id: IssueID,
@@ -242,7 +276,9 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
         )
 
     @mcp.tool(
-        description="Get a Yandex Tracker issue related links to other issues by its id"
+        title="Get Issue Links",
+        description="Get a Yandex Tracker issue related links to other issues by its id",
+        annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def issue_get_links(
         ctx: Context[Any, AppContext],
@@ -255,7 +291,11 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
             auth=get_yandex_auth(ctx),
         )
 
-    @mcp.tool(description="Find Yandex Tracker issues by queue and/or created date")
+    @mcp.tool(
+        title="Find Issues",
+        description="Find Yandex Tracker issues by queue and/or created date",
+        annotations=ToolAnnotations(readOnlyHint=True),
+    )
     async def issues_find(
         ctx: Context[Any, AppContext],
         query: YTQuery,
@@ -291,7 +331,11 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
 
         return issues
 
-    @mcp.tool(description="Get the count of Yandex Tracker issues matching a query")
+    @mcp.tool(
+        title="Count Issues",
+        description="Get the count of Yandex Tracker issues matching a query",
+        annotations=ToolAnnotations(readOnlyHint=True),
+    )
     async def issues_count(
         ctx: Context[Any, AppContext],
         query: YTQuery,
@@ -301,7 +345,11 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
             auth=get_yandex_auth(ctx),
         )
 
-    @mcp.tool(description="Get worklogs of a Yandex Tracker issue by its id")
+    @mcp.tool(
+        title="Get Issue Worklogs",
+        description="Get worklogs of a Yandex Tracker issue by its id",
+        annotations=ToolAnnotations(readOnlyHint=True),
+    )
     async def issue_get_worklogs(
         ctx: Context[Any, AppContext],
         issue_ids: IssueIDs,
@@ -321,7 +369,11 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
 
         return result
 
-    @mcp.tool(description="Get attachments of a Yandex Tracker issue by its id")
+    @mcp.tool(
+        title="Get Issue Attachments",
+        description="Get attachments of a Yandex Tracker issue by its id",
+        annotations=ToolAnnotations(readOnlyHint=True),
+    )
     async def issue_get_attachments(
         ctx: Context[Any, AppContext],
         issue_id: IssueID,
@@ -333,7 +385,11 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
             auth=get_yandex_auth(ctx),
         )
 
-    @mcp.tool(description="Get checklist items of a Yandex Tracker issue by its id")
+    @mcp.tool(
+        title="Get Issue Checklist",
+        description="Get checklist items of a Yandex Tracker issue by its id",
+        annotations=ToolAnnotations(readOnlyHint=True),
+    )
     async def issue_get_checklist(
         ctx: Context[Any, AppContext],
         issue_id: IssueID,
@@ -346,7 +402,10 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
         )
 
     @mcp.tool(
-        description="Get possible status transitions for a Yandex Tracker issue. Returns list of available transitions that can be performed on the issue."
+        title="Get Issue Transitions",
+        description="Get possible status transitions for a Yandex Tracker issue. "
+                    "Returns list of available transitions that can be performed on the issue.",
+        annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def issue_get_transitions(
         ctx: Context[Any, AppContext],
@@ -360,11 +419,13 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
         )
 
     @mcp.tool(
+        title="Execute Issue Transition",
         description="Execute a status transition for a Yandex Tracker issue. "
         "IMPORTANT: You MUST first call issue_get_transitions to retrieve available transitions for the issue. "
         "Only pass a transition_id that was returned by issue_get_transitions. "
         "Do NOT use arbitrary transition IDs - the API will reject invalid transition IDs. "
-        "Returns a list of new transitions available for the issue in its new status."
+        "Returns a list of new transitions available for the issue in its new status.",
+        annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def issue_execute_transition(
         ctx: Context[Any, AppContext],
@@ -391,7 +452,11 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
             )
         )
 
-    @mcp.tool(description="Create a new issue in a Yandex Tracker queue")
+    @mcp.tool(
+        title="Create Issue",
+        description="Create a new issue in a Yandex Tracker queue",
+        annotations=ToolAnnotations(readOnlyHint=False),
+    )
     async def issue_create(
         ctx: Context[Any, AppContext],
         queue: Annotated[
@@ -429,7 +494,9 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
         )
 
     @mcp.tool(
-        description="Get information about user accounts registered in the organization"
+        title="Get All Users",
+        description="Get information about user accounts registered in the organization",
+        annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def users_get_all(
         ctx: Context[Any, AppContext],
@@ -444,7 +511,11 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
         return users
 
     @mcp.tool(
-        description="Search user based on login, email or real name (first or last name, or both). Returns either single user or multiple users if several match the query or an empty list if no users matched."
+        title="Search Users",
+        description="Search user based on login, email or real name (first or last name, or both). "
+                    "Returns either single user or multiple users if several match the query or an empty list "
+                    "if no users matched.",
+        annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def users_search(
         ctx: Context[Any, AppContext],
@@ -488,7 +559,11 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
         matched_users = [all_users[idx] for name, score, idx in results]
         return matched_users
 
-    @mcp.tool(description="Get information about a specific user by login or UID")
+    @mcp.tool(
+        title="Get User",
+        description="Get information about a specific user by login or UID",
+        annotations=ToolAnnotations(readOnlyHint=True),
+    )
     async def user_get(
         ctx: Context[Any, AppContext],
         user_id: UserID,
@@ -502,7 +577,11 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
 
         return user
 
-    @mcp.tool(description="Get information about the current authenticated user")
+    @mcp.tool(
+        title="Get Current User",
+        description="Get information about the current authenticated user",
+        annotations=ToolAnnotations(readOnlyHint=True),
+    )
     async def user_get_current(
         ctx: Context[Any, AppContext],
     ) -> User:
