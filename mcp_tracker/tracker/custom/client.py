@@ -490,11 +490,14 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         transition_id: str,
         *,
         comment: str | None = None,
+        fields: dict[str, str | int | list[str]] | None = None,
         auth: YandexAuth | None = None,
     ) -> list[IssueTransition]:
         body: dict[str, Any] = {}
         if comment is not None:
             body["comment"] = comment
+        if fields is not None:
+            body.update(fields)
 
         async with self._session.post(
             f"v3/issues/{issue_id}/transitions/{transition_id}/_execute",
@@ -505,3 +508,55 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
                 raise IssueNotFound(issue_id)
             response.raise_for_status()
             return IssueTransitionList.model_validate_json(await response.read()).root
+
+    async def issue_close(
+        self,
+        issue_id: str,
+        resolution_id: str,
+        *,
+        comment: str | None = None,
+        fields: dict[str, str | int | list[str]] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> list[IssueTransition]:
+        # Fetch transitions and statuses in parallel
+        async with asyncio.TaskGroup() as tg:
+            transitions_task = tg.create_task(
+                self.issue_get_transitions(issue_id, auth=auth)
+            )
+            statuses_task = tg.create_task(self.get_statuses(auth=auth))
+
+        transitions = transitions_task.result()
+        statuses = statuses_task.result()
+
+        # Build a map of status key -> status type
+        status_type_map: dict[str, str | None] = {
+            status.key: status.type for status in statuses
+        }
+
+        # Find a transition to a status with type="done"
+        done_transition: IssueTransition | None = None
+        for transition in transitions:
+            if transition.to and transition.to.key:
+                status_type = status_type_map.get(transition.to.key)
+                if status_type == "done":
+                    done_transition = transition
+                    break
+
+        if done_transition is None:
+            raise ValueError(
+                f"No transition to a 'done' status found for issue {issue_id}. "
+                f"Available transitions: {[t.id for t in transitions]}."
+            )
+
+        if fields is None:
+            fields = {}
+
+        fields["resolution"] = resolution_id
+
+        return await self.issue_execute_transition(
+            issue_id,
+            done_transition.id,
+            comment=comment,
+            fields=fields,
+            auth=auth,
+        )

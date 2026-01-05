@@ -608,8 +608,18 @@ The server exposes the following tools through the MCP protocol:
     - `issue_id` (string, required, format: "QUEUE-123"): The issue key
     - `transition_id` (string, required): The transition ID to execute. **IMPORTANT**: Must be one of the IDs returned by `issue_get_transitions` tool
     - `comment` (string, optional): Optional comment to add when executing the transition
+    - `fields` (object, optional): Dictionary of additional fields to set during the transition. Common fields include `resolution` (e.g., 'fixed', 'wontFix') for closing issues, `assignee` for reassigning, etc.
   - Returns list of available transitions for the new status after the transition is executed
   - **Usage note**: You MUST first call `issue_get_transitions` to retrieve available transitions, then pass one of the returned transition IDs. Do NOT use arbitrary transition IDs.
+
+- **`issue_close`**: Close an issue with a resolution (convenience tool)
+  - Parameters:
+    - `issue_id` (string, required, format: "QUEUE-123"): The issue key
+    - `resolution_id` (string, required): The resolution ID to set when closing. **IMPORTANT**: Must be one of the IDs returned by `get_resolutions` tool (e.g., 'fixed', 'wontFix', 'duplicate')
+    - `comment` (string, optional): Optional comment to add when closing the issue
+  - Automatically finds a transition to a 'done' status and executes it with the specified resolution
+  - Returns list of available transitions for the new (closed) status
+  - **Usage note**: You MUST first call `get_resolutions` to retrieve available resolutions, then pass one of the returned resolution IDs. This tool simplifies the closing workflow by automatically finding and executing the appropriate transition.
 
 - **`issue_create`**: Create a new issue in a queue
   - Parameters:

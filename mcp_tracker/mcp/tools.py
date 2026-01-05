@@ -454,6 +454,14 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
             str | None,
             Field(description="Optional comment to add when executing the transition."),
         ] = None,
+        fields: Annotated[
+            dict[str, str | int | list[str]] | None,
+            Field(
+                description="Optional dictionary of additional fields to set during the transition. "
+                "Common fields include 'resolution' (e.g., 'fixed', 'wontFix') for closing issues, "
+                "'assignee' for reassigning, etc."
+            ),
+        ] = None,
     ) -> list[IssueTransition]:
         check_issue_id(settings, issue_id)
 
@@ -462,8 +470,51 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
                 issue_id,
                 transition_id,
                 comment=comment,
+                fields=fields,
                 auth=get_yandex_auth(ctx),
             )
+        )
+
+    @mcp.tool(
+        title="Close Issue",
+        description="Close a Yandex Tracker issue with a resolution. "
+        "This is a convenience tool that automatically finds a transition to a 'done' status "
+        "and executes it with the specified resolution. "
+        "IMPORTANT: You MUST first call get_resolutions to retrieve available resolutions and pass a valid resolution_id. "
+        "Returns a list of transitions available for the issue in its new (closed) status.",
+        annotations=ToolAnnotations(readOnlyHint=False),
+    )
+    async def issue_close(
+        ctx: Context[Any, AppContext],
+        issue_id: IssueID,
+        resolution_id: Annotated[
+            str,
+            Field(
+                description="The resolution ID to set when closing the issue. "
+                "Must be one of the IDs returned by get_resolutions tool (e.g., 'fixed', 'wontFix', 'duplicate')."
+            ),
+        ],
+        fields: Annotated[
+            dict[str, str | int | list[str]] | None,
+            Field(
+                description="Optional dictionary of additional fields to set during the transition. "
+                            "Common fields include 'resolution' (e.g., 'fixed', 'wontFix') for closing issues, "
+                            "'assignee' for reassigning, etc."
+            ),
+        ] = None,
+        comment: Annotated[
+            str | None,
+            Field(description="Optional comment to add when closing the issue."),
+        ] = None,
+    ) -> list[IssueTransition]:
+        check_issue_id(settings, issue_id)
+
+        return await ctx.request_context.lifespan_context.issues.issue_close(
+            issue_id,
+            resolution_id,
+            comment=comment,
+            fields=fields,
+            auth=get_yandex_auth(ctx),
         )
 
     @mcp.tool(

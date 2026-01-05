@@ -124,6 +124,10 @@
       "description": "Execute a status transition for a Yandex Tracker issue. Must call issue_get_transitions first to get available transition IDs."
     },
     {
+      "name": "issue_close",
+      "description": "Close a Yandex Tracker issue with a resolution. Automatically finds a transition to done status. Must call get_resolutions first."
+    },
+    {
       "name": "issue_create",
       "description": "Create a new issue in a Yandex Tracker queue"
     },

@@ -64,6 +64,17 @@ class IssueProtocol(Protocol):
         transition_id: str,
         *,
         comment: str | None = None,
+        fields: dict[str, str | int | list[str]] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> list[IssueTransition]: ...
+
+    async def issue_close(
+        self,
+        issue_id: str,
+        resolution_id: str,
+        *,
+        comment: str | None = None,
+        fields: dict[str, str | int | list[str]] | None = None,
         auth: YandexAuth | None = None,
     ) -> list[IssueTransition]: ...
 
