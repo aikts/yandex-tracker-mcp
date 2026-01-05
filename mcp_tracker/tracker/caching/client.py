@@ -156,12 +156,31 @@ def make_cached_protocols(
             transition_id: str,
             *,
             comment: str | None = None,
+            fields: dict[str, str | int | list[str]] | None = None,
             auth: YandexAuth | None = None,
         ) -> list[IssueTransition]:
             return await self._original.issue_execute_transition(
                 issue_id,
                 transition_id,
                 comment=comment,
+                fields=fields,
+                auth=auth,
+            )
+
+        async def issue_close(
+            self,
+            issue_id: str,
+            resolution_id: str,
+            *,
+            comment: str | None = None,
+            fields: dict[str, str | int | list[str]] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> list[IssueTransition]:
+            return await self._original.issue_close(
+                issue_id,
+                resolution_id,
+                comment=comment,
+                fields=fields,
                 auth=auth,
             )
 
