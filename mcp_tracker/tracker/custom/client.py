@@ -29,7 +29,11 @@ from mcp_tracker.tracker.proto.types.issues import (
     Worklog,
 )
 from mcp_tracker.tracker.proto.types.priorities import Priority
-from mcp_tracker.tracker.proto.types.queues import Queue, QueueVersion
+from mcp_tracker.tracker.proto.types.queues import (
+    Queue,
+    QueueExpandOption,
+    QueueVersion,
+)
 from mcp_tracker.tracker.proto.types.resolutions import Resolution
 from mcp_tracker.tracker.proto.types.statuses import Status
 from mcp_tracker.tracker.proto.types.users import User
@@ -259,6 +263,25 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         ) as response:
             response.raise_for_status()
             return VersionList.model_validate_json(await response.read()).root
+
+    async def queue_get(
+        self,
+        queue_id: str,
+        *,
+        expand: list[QueueExpandOption] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> Queue:
+        params: dict[str, str] = {}
+        if expand:
+            params["expand"] = ",".join(expand)
+
+        async with self._session.get(
+            f"v3/queues/{queue_id}",
+            headers=await self._build_headers(auth),
+            params=params if params else None,
+        ) as response:
+            response.raise_for_status()
+            return Queue.model_validate_json(await response.read())
 
     async def get_global_fields(
         self, *, auth: YandexAuth | None = None
