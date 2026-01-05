@@ -563,6 +563,10 @@ The server exposes the following tools through the MCP protocol:
   - Returns complete list of priorities that can be assigned to issues
   - Includes priority keys, names, and order information
 
+- **`get_resolutions`**: Get all available issue resolutions
+  - Returns complete list of resolutions that can be used when closing issues
+  - Includes resolution keys, names, descriptions, and order information
+
 ### Issue Operations
 - **`issue_get`**: Retrieve detailed issue information by ID
   - Parameters:

@@ -19,6 +19,7 @@ from mcp_tracker.tracker.proto.types.issues import (
 )
 from mcp_tracker.tracker.proto.types.priorities import Priority
 from mcp_tracker.tracker.proto.types.queues import Queue, QueueVersion
+from mcp_tracker.tracker.proto.types.resolutions import Resolution
 from mcp_tracker.tracker.proto.types.statuses import Status
 from mcp_tracker.tracker.proto.types.users import User
 from mcp_tracker.tracker.proto.users import UsersProtocolWrap
@@ -186,6 +187,12 @@ def make_cached_protocols(
             self, *, auth: YandexAuth | None = None
         ) -> list[Priority]:
             return await self._original.get_priorities(auth=auth)
+
+        @cached(**cache_config)
+        async def get_resolutions(
+            self, *, auth: YandexAuth | None = None
+        ) -> list[Resolution]:
+            return await self._original.get_resolutions(auth=auth)
 
     class CachingUsersProtocol(UsersProtocolWrap):
         @cached(**cache_config)

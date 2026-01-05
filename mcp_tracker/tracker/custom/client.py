@@ -30,6 +30,7 @@ from mcp_tracker.tracker.proto.types.issues import (
 )
 from mcp_tracker.tracker.proto.types.priorities import Priority
 from mcp_tracker.tracker.proto.types.queues import Queue, QueueVersion
+from mcp_tracker.tracker.proto.types.resolutions import Resolution
 from mcp_tracker.tracker.proto.types.statuses import Status
 from mcp_tracker.tracker.proto.types.users import User
 from mcp_tracker.tracker.proto.users import UsersProtocol
@@ -48,6 +49,7 @@ GlobalFieldList = RootModel[list[GlobalField]]
 StatusList = RootModel[list[Status]]
 IssueTypeList = RootModel[list[IssueType]]
 PriorityList = RootModel[list[Priority]]
+ResolutionList = RootModel[list[Resolution]]
 UserList = RootModel[list[User]]
 IssueTransitionList = RootModel[list[IssueTransition]]
 
@@ -289,6 +291,15 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         ) as response:
             response.raise_for_status()
             return PriorityList.model_validate_json(await response.read()).root
+
+    async def get_resolutions(
+        self, *, auth: YandexAuth | None = None
+    ) -> list[Resolution]:
+        async with self._session.get(
+            "v3/resolutions", headers=await self._build_headers(auth)
+        ) as response:
+            response.raise_for_status()
+            return ResolutionList.model_validate_json(await response.read()).root
 
     async def issue_get(
         self, issue_id: str, *, auth: YandexAuth | None = None
