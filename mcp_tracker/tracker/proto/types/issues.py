@@ -130,3 +130,11 @@ class ChecklistItem(BaseTrackerEntity):
     checklist_item_type: str | None = Field(
         None, validation_alias=AliasChoices("checklistItemType", "checklist_item_type")
     )
+
+
+class IssueTransition(BaseTrackerEntity):
+    """Represents a possible status transition for an issue."""
+
+    id: str
+    display: str | None = None
+    to: StatusReference | None = None

@@ -593,6 +593,12 @@ The server exposes the following tools through the MCP protocol:
 - **`issue_get_checklist`**: Get checklist items of an issue
   - Parameters: `issue_id` (string, format: "QUEUE-123")
   - Returns list of checklist items including text, status, assignee, and deadline information
+
+- **`issue_get_transitions`**: Get possible status transitions for an issue
+  - Parameters: `issue_id` (string, format: "QUEUE-123")
+  - Returns list of available transitions that can be performed on the issue
+  - Each transition includes an ID, display name, and target status information
+
 - **`issue_create`**: Create a new issue in a queue
   - Parameters:
     - `queue` (string, required): Queue key where to create the issue (e.g., 'MYQUEUE')
