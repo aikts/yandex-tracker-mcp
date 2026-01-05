@@ -52,6 +52,10 @@
       "description": "Get all versions for a specific queue"
     },
     {
+      "name": "get_queue_resolutions",
+      "description": "Get resolutions available in a specific queue"
+    },
+    {
       "name": "users_get_all",
       "description": "Get information about user accounts registered in the organization"
     },

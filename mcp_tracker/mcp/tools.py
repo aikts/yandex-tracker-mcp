@@ -34,7 +34,11 @@ from mcp_tracker.tracker.proto.types.issues import (
     Worklog,
 )
 from mcp_tracker.tracker.proto.types.priorities import Priority
-from mcp_tracker.tracker.proto.types.queues import Queue, QueueFieldsEnum, QueueVersion
+from mcp_tracker.tracker.proto.types.queues import (
+    Queue,
+    QueueFieldsEnum,
+    QueueVersion,
+)
 from mcp_tracker.tracker.proto.types.resolutions import Resolution
 from mcp_tracker.tracker.proto.types.statuses import Status
 from mcp_tracker.tracker.proto.types.users import User
@@ -169,6 +173,36 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
             )
         )
         return versions
+
+    @mcp.tool(
+        title="Get Queue Resolutions",
+        description="Get resolutions available in a specific Yandex Tracker queue. "
+        "Returns list of resolutions that can be used when closing issues in this queue. "
+        "Use this to find valid resolution IDs for the issue_close tool.",
+        annotations=ToolAnnotations(readOnlyHint=True),
+    )
+    async def get_queue_resolutions(
+        ctx: Context[Any, AppContext],
+        queue_id: QueueID,
+    ) -> list[Resolution]:
+        if (
+            settings.tracker_limit_queues
+            and queue_id not in settings.tracker_limit_queues
+        ):
+            raise TrackerError(f"Queue `{queue_id}` not found or not allowed.")
+
+        queue = await ctx.request_context.lifespan_context.queues.queue_get(
+            queue_id,
+            expand=["issueTypesConfig"],
+            auth=get_yandex_auth(ctx),
+        )
+
+        if queue.issueTypesConfig:
+            for conf in queue.issueTypesConfig:
+                if conf.resolutions is not None:
+                    return conf.resolutions
+
+        return []
 
     @mcp.tool(
         title="Get Global Fields",
@@ -480,7 +514,8 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
         description="Close a Yandex Tracker issue with a resolution. "
         "This is a convenience tool that automatically finds a transition to a 'done' status "
         "and executes it with the specified resolution. "
-        "IMPORTANT: You MUST first call get_resolutions to retrieve available resolutions and pass a valid resolution_id. "
+        "IMPORTANT: You MUST first call get_queue_resolutions to retrieve available resolutions in the queue of this issue "
+        "and pass a valid resolution_id. "
         "Returns a list of transitions available for the issue in its new (closed) status.",
         annotations=ToolAnnotations(readOnlyHint=False),
     )
@@ -498,8 +533,8 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
             dict[str, str | int | list[str]] | None,
             Field(
                 description="Optional dictionary of additional fields to set during the transition. "
-                            "Common fields include 'resolution' (e.g., 'fixed', 'wontFix') for closing issues, "
-                            "'assignee' for reassigning, etc."
+                "Common fields include 'resolution' (e.g., 'fixed', 'wontFix') for closing issues, "
+                "'assignee' for reassigning, etc."
             ),
         ] = None,
         comment: Annotated[

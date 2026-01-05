@@ -521,6 +521,12 @@ The server exposes the following tools through the MCP protocol:
   - Returns list of available versions in the specified queue with details like name, description, dates, and status
   - Respects `TRACKER_LIMIT_QUEUES` restrictions
 
+- **`get_queue_resolutions`**: Get resolutions available in a specific queue
+  - Parameters: `queue_id` (string, queue key like "SOMEPROJECT")
+  - Returns list of resolutions that can be used when closing issues in this queue
+  - Use this to find valid resolution IDs for the `issue_close` tool
+  - Respects `TRACKER_LIMIT_QUEUES` restrictions
+
 ### User Management
 - **`users_get_all`**: Get information about user accounts registered in the organization
   - Parameters:
