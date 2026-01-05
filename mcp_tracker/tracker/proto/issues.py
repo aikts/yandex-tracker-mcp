@@ -7,6 +7,7 @@ from .types.issues import (
     IssueAttachment,
     IssueComment,
     IssueLink,
+    IssueTransition,
     Worklog,
 )
 
@@ -54,6 +55,9 @@ class IssueProtocol(Protocol):
         sprint: list[str] | None = None,
         auth: YandexAuth | None = None,
     ) -> Issue: ...
+    async def issue_get_transitions(
+        self, issue_id: str, *, auth: YandexAuth | None = None
+    ) -> list[IssueTransition]: ...
 
 
 class IssueProtocolWrap(IssueProtocol):

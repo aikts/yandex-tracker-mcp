@@ -25,6 +25,7 @@ from mcp_tracker.tracker.proto.types.issues import (
     IssueAttachment,
     IssueComment,
     IssueLink,
+    IssueTransition,
     Worklog,
 )
 from mcp_tracker.tracker.proto.types.priorities import Priority
@@ -48,6 +49,7 @@ StatusList = RootModel[list[Status]]
 IssueTypeList = RootModel[list[IssueType]]
 PriorityList = RootModel[list[Priority]]
 UserList = RootModel[list[User]]
+IssueTransitionList = RootModel[list[IssueTransition]]
 
 
 logger = logging.getLogger(__name__)
@@ -459,3 +461,14 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         ) as response:
             response.raise_for_status()
             return Issue.model_validate_json(await response.read())
+
+    async def issue_get_transitions(
+        self, issue_id: str, *, auth: YandexAuth | None = None
+    ) -> list[IssueTransition]:
+        async with self._session.get(
+            f"v2/issues/{issue_id}/transitions", headers=await self._build_headers(auth)
+        ) as response:
+            if response.status == 404:
+                raise IssueNotFound(issue_id)
+            response.raise_for_status()
+            return IssueTransitionList.model_validate_json(await response.read()).root

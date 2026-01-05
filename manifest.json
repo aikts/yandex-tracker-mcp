@@ -112,6 +112,10 @@
       "description": "Get checklist items of a Yandex Tracker issue by its id"
     },
     {
+      "name": "issue_get_transitions",
+      "description": "Get possible status transitions for a Yandex Tracker issue"
+    },
+    {
       "name": "issue_create",
       "description": "Create a new issue in a Yandex Tracker queue"
     },

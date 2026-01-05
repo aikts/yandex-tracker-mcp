@@ -14,6 +14,7 @@ from mcp_tracker.tracker.proto.types.issues import (
     IssueAttachment,
     IssueComment,
     IssueLink,
+    IssueTransition,
     Worklog,
 )
 from mcp_tracker.tracker.proto.types.priorities import Priority
@@ -141,6 +142,12 @@ def make_cached_protocols(
                 sprint=sprint,
                 auth=auth,
             )
+
+        @cached(**cache_config)
+        async def issue_get_transitions(
+            self, issue_id: str, *, auth: YandexAuth | None = None
+        ) -> list[IssueTransition]:
+            return await self._original.issue_get_transitions(issue_id, auth=auth)
 
     class CachingGlobalDataProtocol(GlobalDataProtocolWrap):
         @cached(**cache_config)

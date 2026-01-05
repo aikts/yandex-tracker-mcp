@@ -29,6 +29,7 @@ from mcp_tracker.tracker.proto.types.issues import (
     IssueComment,
     IssueFieldsEnum,
     IssueLink,
+    IssueTransition,
     Worklog,
 )
 from mcp_tracker.tracker.proto.types.priorities import Priority
@@ -340,6 +341,20 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
         check_issue_id(settings, issue_id)
 
         return await ctx.request_context.lifespan_context.issues.issue_get_checklist(
+            issue_id,
+            auth=get_yandex_auth(ctx),
+        )
+
+    @mcp.tool(
+        description="Get possible status transitions for a Yandex Tracker issue. Returns list of available transitions that can be performed on the issue."
+    )
+    async def issue_get_transitions(
+        ctx: Context[Any, AppContext],
+        issue_id: IssueID,
+    ) -> list[IssueTransition]:
+        check_issue_id(settings, issue_id)
+
+        return await ctx.request_context.lifespan_context.issues.issue_get_transitions(
             issue_id,
             auth=get_yandex_auth(ctx),
         )
