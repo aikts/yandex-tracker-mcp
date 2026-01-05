@@ -7,11 +7,15 @@ tasks:
 
   check:
     desc: Run all quality checks (ruff, format-check, mypy)
-    deps: [ruff-check, format-check, mypy]
+    deps: [ruff-check, format-check, ty, mypy]
 
   mypy:
     desc: Run type checking with mypy
     cmd: uv run mypy .
+
+  ty:
+    desc: Run type checking with ty
+    cmd: ty check .
 
   ruff-check:
     desc: Run ruff linter

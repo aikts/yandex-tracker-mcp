@@ -175,6 +175,7 @@ class YandexOAuthAuthorizationServerProvider(
         else:
             scopes = None
 
+        assert client.client_id is not None, "Client ID not provided."
         await self._store.save_state(
             YandexOAuthState(
                 redirect_uri=redirect_uri,

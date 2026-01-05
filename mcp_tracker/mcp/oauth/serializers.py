@@ -10,14 +10,14 @@ class PydanticJsonSerializer(BaseSerializer):
 
     DEFAULT_ENCODING = "utf-8"
 
-    def dumps(self, value: Any) -> bytes:
+    def dumps(self, value: Any) -> bytes:  # ty: ignore[invalid-method-override]
         """Serialize a value to JSON bytes."""
         if isinstance(value, BaseModel):
             # Use Pydantic's model_dump_json for proper serialization
             return value.model_dump_json().encode(self.encoding)
         else:
             # For non-Pydantic objects, use standard JSON serialization
-            return json.dumps(value, default=str).encode(self.encoding)
+            return json.dumps(value, default=str).encode(self.encoding)  # ty: ignore[invalid-argument-type]
 
     def loads(self, value: str) -> Any:
         if value is None:

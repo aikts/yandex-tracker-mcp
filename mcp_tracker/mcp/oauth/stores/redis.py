@@ -1,7 +1,7 @@
 import time
 from typing import Any
 
-from aiocache import Cache
+from aiocache import BaseCache, Cache
 from mcp.server.auth.provider import AccessToken, RefreshToken
 from mcp.shared.auth import OAuthClientInformationFull, OAuthToken
 
@@ -30,7 +30,7 @@ class RedisOAuthStore(OAuthStore):
         pool_max_size: int = 10,
         **kwargs: Any,
     ):
-        self._cache = Cache(
+        self._cache: BaseCache = Cache(
             Cache.REDIS,
             endpoint=endpoint,
             port=port,

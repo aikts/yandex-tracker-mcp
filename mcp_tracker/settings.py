@@ -82,8 +82,11 @@ class Settings(BaseSettings):
     def decode_numbers(cls, v: str | None) -> list[str] | None:
         if v is None:
             return None
+        if isinstance(v, list):
+            return v
+
         if not isinstance(v, str):
-            raise TypeError(f"Expected str or None, got {type(v)}")
+            raise TypeError(f"Expected str, list or None, got {type(v)}")
 
         return [x.strip() for x in v.split(",") if x.strip()]
 
