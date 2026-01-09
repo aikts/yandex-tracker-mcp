@@ -522,8 +522,11 @@ The server exposes the following tools through the MCP protocol:
   - Respects `TRACKER_LIMIT_QUEUES` restrictions
 
 - **`queue_get_fields`**: Get fields for a specific queue
-  - Parameters: `queue_id` (string, queue key like "SOMEPROJECT")
-  - Returns list of fields that can be used when creating issues in this queue
+  - Parameters:
+    - `queue_id` (string, required): Queue key like "SOMEPROJECT"
+    - `include_local_fields` (boolean, optional, default: true): Whether to include queue-specific local fields
+  - Returns list of global fields and optionally local (queue-specific) fields
+  - Makes parallel requests to fetch both field types when `include_local_fields` is true
   - The `schema.required` property indicates whether a field is mandatory
   - Use this to find available and required fields before creating an issue with `issue_create` tool
   - Respects `TRACKER_LIMIT_QUEUES` restrictions
@@ -642,7 +645,7 @@ The server exposes the following tools through the MCP protocol:
     - `description` (string, optional): Issue description
     - `assignee` (string or int, optional): Assignee login or UID
     - `priority` (string, optional): Priority key (from `get_priorities` tool)
-    - `fields` (object, optional): Additional fields to set during issue creation. **IMPORTANT**: Before creating an issue, you MUST call `queue_get_fields` to get available queue fields and `queue_get_local_fields` to get queue-specific custom fields. Fields with `schema.required=true` are mandatory. Use the field's `id` property as the key in this map (e.g., `{"fieldId": "value"}`)
+    - `fields` (object, optional): Additional fields to set during issue creation. **IMPORTANT**: Before creating an issue, you MUST call `queue_get_fields` to get available fields (it returns both global and local fields by default). Fields with `schema.required=true` are mandatory. Use the field's `id` property as the key in this map (e.g., `{"fieldId": "value"}`)
   - Returns the newly created issue object with all standard issue fields
   - Respects `TRACKER_LIMIT_QUEUES` restrictions
 

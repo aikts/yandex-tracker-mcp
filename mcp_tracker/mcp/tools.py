@@ -1,3 +1,4 @@
+import asyncio
 from typing import Annotated, Any
 
 from mcp.server import FastMCP
@@ -177,7 +178,7 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
     @mcp.tool(
         title="Get Queue Fields",
         description="Get fields for a specific Yandex Tracker queue. "
-        "Returns list of fields that can be used when creating issues in this queue. "
+        "Returns list of global fields and optionally local (queue-specific) fields. "
         "The schema.required property indicates whether a field is mandatory. "
         "Use this to find available and required fields before creating an issue with issue_create tool.",
         annotations=ToolAnnotations(readOnlyHint=True),
@@ -185,6 +186,13 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
     async def queue_get_fields(
         ctx: Context[Any, AppContext],
         queue_id: QueueID,
+        include_local_fields: Annotated[
+            bool,
+            Field(
+                description="Whether to include queue-specific local fields in the response. "
+                "When True, makes parallel requests to get both global and local fields."
+            ),
+        ] = True,
     ) -> list[GlobalField]:
         if (
             settings.tracker_limit_queues
@@ -192,11 +200,20 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
         ):
             raise TrackerError(f"Queue `{queue_id}` not found or not allowed.")
 
-        fields = await ctx.request_context.lifespan_context.queues.queues_get_fields(
-            queue_id,
-            auth=get_yandex_auth(ctx),
-        )
-        return fields
+        auth = get_yandex_auth(ctx)
+        queues = ctx.request_context.lifespan_context.queues
+
+        if include_local_fields:
+            async with asyncio.TaskGroup() as tg:
+                global_fields_task = tg.create_task(
+                    queues.queues_get_fields(queue_id, auth=auth)
+                )
+                local_fields_task = tg.create_task(
+                    queues.queues_get_local_fields(queue_id, auth=auth)
+                )
+            return list(global_fields_task.result()) + list(local_fields_task.result())
+        else:
+            return await queues.queues_get_fields(queue_id, auth=auth)
 
     @mcp.tool(
         title="Get Queue Resolutions",
@@ -606,8 +623,8 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
             dict[str, Any] | None,
             Field(
                 description="Additional fields to set during issue creation. "
-                "IMPORTANT: Before creating an issue, you MUST call `queue_get_fields` to get available queue fields "
-                "and `queue_get_local_fields` to get queue-specific custom fields. "
+                "IMPORTANT: Before creating an issue, you MUST call `queue_get_fields` to get available fields "
+                "(it returns both global and local fields by default). "
                 "Fields with schema.required=true are mandatory and must be provided. "
                 "Use the field's `id` property as the key in this map (e.g., {'fieldId': 'value'})."
             ),
