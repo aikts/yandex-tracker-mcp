@@ -40,10 +40,6 @@
       "description": "List all available Yandex Tracker queues"
     },
     {
-      "name": "queue_get_local_fields",
-      "description": "Get local fields for a specific queue"
-    },
-    {
       "name": "queue_get_tags",
       "description": "Get all tags for a specific queue"
     },
@@ -56,8 +52,8 @@
       "description": "Get fields for a specific queue"
     },
     {
-      "name": "get_queue_resolutions",
-      "description": "Get resolutions available in a specific queue"
+      "name": "get_queue_metadata",
+      "description": "Get detailed metadata about a specific queue"
     },
     {
       "name": "users_get_all",

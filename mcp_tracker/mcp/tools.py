@@ -22,7 +22,7 @@ from mcp_tracker.mcp.params import (
 from mcp_tracker.mcp.utils import get_yandex_auth, set_non_needed_fields_null
 from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.custom.errors import IssueNotFound
-from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
+from mcp_tracker.tracker.proto.types.fields import GlobalField
 from mcp_tracker.tracker.proto.types.issue_types import IssueType
 from mcp_tracker.tracker.proto.types.issues import (
     ChecklistItem,
@@ -37,6 +37,7 @@ from mcp_tracker.tracker.proto.types.issues import (
 from mcp_tracker.tracker.proto.types.priorities import Priority
 from mcp_tracker.tracker.proto.types.queues import (
     Queue,
+    QueueExpandOption,
     QueueFieldsEnum,
     QueueVersion,
 )
@@ -107,29 +108,6 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
             set_non_needed_fields_null(result, {f.name for f in fields})
 
         return result
-
-    @mcp.tool(
-        title="Get Queue Local Fields",
-        description="Get local fields for a specific Yandex Tracker queue (queue-specific custom fields)",
-        annotations=ToolAnnotations(readOnlyHint=True),
-    )
-    async def queue_get_local_fields(
-        ctx: Context[Any, AppContext],
-        queue_id: QueueID,
-    ) -> list[LocalField]:
-        if (
-            settings.tracker_limit_queues
-            and queue_id not in settings.tracker_limit_queues
-        ):
-            raise TrackerError(f"Queue `{queue_id}` not found or not allowed.")
-
-        fields = (
-            await ctx.request_context.lifespan_context.queues.queues_get_local_fields(
-                queue_id,
-                auth=get_yandex_auth(ctx),
-            )
-        )
-        return fields
 
     @mcp.tool(
         title="Get Queue Tags",
@@ -211,39 +189,42 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
                 local_fields_task = tg.create_task(
                     queues.queues_get_local_fields(queue_id, auth=auth)
                 )
-            return list(global_fields_task.result()) + list(local_fields_task.result())
+            return global_fields_task.result() + local_fields_task.result()
         else:
             return await queues.queues_get_fields(queue_id, auth=auth)
 
     @mcp.tool(
-        title="Get Queue Resolutions",
-        description="Get resolutions available in a specific Yandex Tracker queue. "
-        "Returns list of resolutions that can be used when closing issues in this queue. "
-        "Use this to find valid resolution IDs for the issue_close tool.",
+        title="Get Queue Metadata",
+        description="Get detailed metadata about a specific Yandex Tracker queue. "
+        "Returns queue information including name, description, default type/priority, "
+        "and optionally expanded data like issue types with their resolutions, workflows, team members, etc. "
+        "Use expand=['issueTypesConfig'] to get available resolutions for issue_close tool.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
-    async def get_queue_resolutions(
+    async def get_queue_metadata(
         ctx: Context[Any, AppContext],
         queue_id: QueueID,
-    ) -> list[Resolution]:
+        expand: Annotated[
+            list[QueueExpandOption] | None,
+            Field(
+                description="Optional list of fields to expand in the response. "
+                "Available options: 'all', 'projects', 'components', 'versions', 'types', "
+                "'team', 'workflows', 'fields', 'issueTypesConfig'. "
+                "Use 'issueTypesConfig' to get available resolutions for each issue type."
+            ),
+        ] = None,
+    ) -> Queue:
         if (
             settings.tracker_limit_queues
             and queue_id not in settings.tracker_limit_queues
         ):
             raise TrackerError(f"Queue `{queue_id}` not found or not allowed.")
 
-        queue = await ctx.request_context.lifespan_context.queues.queue_get(
+        return await ctx.request_context.lifespan_context.queues.queue_get(
             queue_id,
-            expand=["issueTypesConfig"],
+            expand=expand,
             auth=get_yandex_auth(ctx),
         )
-
-        if queue.issueTypesConfig:
-            for conf in queue.issueTypesConfig:
-                if conf.resolutions is not None:
-                    return conf.resolutions
-
-        return []
 
     @mcp.tool(
         title="Get Global Fields",
@@ -555,8 +536,11 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
         description="Close a Yandex Tracker issue with a resolution. "
         "This is a convenience tool that automatically finds a transition to a 'done' status "
         "and executes it with the specified resolution. "
-        "IMPORTANT: You MUST first call get_queue_resolutions to retrieve available resolutions in the queue of this issue "
-        "and pass a valid resolution_id. "
+        "IMPORTANT: Before closing, you MUST: "
+        "1) Call issue_get to retrieve the issue's type field. "
+        "2) Call get_queue_metadata with expand=['issueTypesConfig'] to get available resolutions. "
+        "3) Choose a resolution from the issueTypesConfig entry matching the issue's type - "
+        "each issue type has its own set of valid resolutions. "
         "Returns a list of transitions available for the issue in its new (closed) status.",
         annotations=ToolAnnotations(readOnlyHint=False),
     )

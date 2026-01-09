@@ -23,7 +23,7 @@ from mcp_tracker.tracker.proto.types.refs import (
 
 class Issue(CreatedUpdatedMixin, BaseTrackerEntity):
     model_config = ConfigDict(
-        extra="ignore",
+        extra="allow",
     )
 
     unique: str | None = NoneExcludedField

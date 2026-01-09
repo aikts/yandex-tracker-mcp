@@ -506,11 +506,6 @@ The server exposes the following tools through the MCP protocol:
   - Returns paginated queue information with selective field inclusion
   - Respects `TRACKER_LIMIT_QUEUES` restrictions
 
-- **`queue_get_local_fields`**: Get local fields for a specific queue
-  - Parameters: `queue_id` (string, queue key like "SOMEPROJECT")
-  - Returns queue-specific custom fields with id, name, and key
-  - Respects `TRACKER_LIMIT_QUEUES` restrictions
-
 - **`queue_get_tags`**: Get all tags for a specific queue
   - Parameters: `queue_id` (string, queue key like "SOMEPROJECT")
   - Returns list of available tags in the specified queue
@@ -531,10 +526,12 @@ The server exposes the following tools through the MCP protocol:
   - Use this to find available and required fields before creating an issue with `issue_create` tool
   - Respects `TRACKER_LIMIT_QUEUES` restrictions
 
-- **`get_queue_resolutions`**: Get resolutions available in a specific queue
-  - Parameters: `queue_id` (string, queue key like "SOMEPROJECT")
-  - Returns list of resolutions that can be used when closing issues in this queue
-  - Use this to find valid resolution IDs for the `issue_close` tool
+- **`get_queue_metadata`**: Get detailed metadata about a specific queue
+  - Parameters:
+    - `queue_id` (string, required): Queue key like "SOMEPROJECT"
+    - `expand` (array of strings, optional): Fields to expand in the response. Available options: `all`, `projects`, `components`, `versions`, `types`, `team`, `workflows`, `fields`, `issueTypesConfig`
+  - Returns queue information including name, description, default type/priority, and optionally expanded data
+  - Use `expand: ["issueTypesConfig"]` to get available resolutions for each issue type (needed for `issue_close` tool)
   - Respects `TRACKER_LIMIT_QUEUES` restrictions
 
 ### User Management
@@ -631,11 +628,14 @@ The server exposes the following tools through the MCP protocol:
 - **`issue_close`**: Close an issue with a resolution (convenience tool)
   - Parameters:
     - `issue_id` (string, required, format: "QUEUE-123"): The issue key
-    - `resolution_id` (string, required): The resolution ID to set when closing. **IMPORTANT**: Must be one of the IDs returned by `get_resolutions` tool (e.g., 'fixed', 'wontFix', 'duplicate')
+    - `resolution_id` (string, required): The resolution ID to set when closing (e.g., 'fixed', 'wontFix', 'duplicate')
     - `comment` (string, optional): Optional comment to add when closing the issue
   - Automatically finds a transition to a 'done' status and executes it with the specified resolution
   - Returns list of available transitions for the new (closed) status
-  - **Usage note**: You MUST first call `get_resolutions` to retrieve available resolutions, then pass one of the returned resolution IDs. This tool simplifies the closing workflow by automatically finding and executing the appropriate transition.
+  - **Usage note**: Before closing, you MUST:
+    1. Call `issue_get` to retrieve the issue's `type` field
+    2. Call `get_queue_metadata` with `expand: ["issueTypesConfig"]` to get available resolutions
+    3. Choose a resolution from the `issueTypesConfig` entry matching the issue's type - each issue type has its own set of valid resolutions
 
 - **`issue_create`**: Create a new issue in a queue
   - Parameters:
