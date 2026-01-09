@@ -605,13 +605,11 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
         fields: Annotated[
             dict[str, Any] | None,
             Field(
-                description="Any extra fields to set during issue creation. "
-                "Make sure to pass here all the extra required queue fields requested by the user "
-                "(you can find out all the queue fields by calling `queue_get_fields` tool, "
-                "required ones are marked with schema.required=true in the field entity). "
-                "Also you may specify extra queue local fields "
-                "(list of local fields can be retrieved using the "
-                "`queue_get_local_fields` tool"
+                description="Additional fields to set during issue creation. "
+                "IMPORTANT: Before creating an issue, you MUST call `queue_get_fields` to get available queue fields "
+                "and `queue_get_local_fields` to get queue-specific custom fields. "
+                "Fields with schema.required=true are mandatory and must be provided. "
+                "Use the field's `id` property as the key in this map (e.g., {'fieldId': 'value'})."
             ),
         ] = None,
     ) -> Issue:
