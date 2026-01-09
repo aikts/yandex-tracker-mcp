@@ -175,6 +175,30 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
         return versions
 
     @mcp.tool(
+        title="Get Queue Fields",
+        description="Get fields for a specific Yandex Tracker queue. "
+        "Returns list of fields that can be used when creating issues in this queue. "
+        "The schema.required property indicates whether a field is mandatory. "
+        "Use this to find available and required fields before creating an issue with issue_create tool.",
+        annotations=ToolAnnotations(readOnlyHint=True),
+    )
+    async def queue_get_fields(
+        ctx: Context[Any, AppContext],
+        queue_id: QueueID,
+    ) -> list[GlobalField]:
+        if (
+            settings.tracker_limit_queues
+            and queue_id not in settings.tracker_limit_queues
+        ):
+            raise TrackerError(f"Queue `{queue_id}` not found or not allowed.")
+
+        fields = await ctx.request_context.lifespan_context.queues.queues_get_fields(
+            queue_id,
+            auth=get_yandex_auth(ctx),
+        )
+        return fields
+
+    @mcp.tool(
         title="Get Queue Resolutions",
         description="Get resolutions available in a specific Yandex Tracker queue. "
         "Returns list of resolutions that can be used when closing issues in this queue. "
@@ -578,6 +602,18 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
             str | None,
             Field(description="Priority key (from get_priorities tool,)"),
         ] = None,
+        fields: Annotated[
+            dict[str, Any] | None,
+            Field(
+                description="Any extra fields to set during issue creation. "
+                "Make sure to pass here all the extra required queue fields requested by the user "
+                "(you can find out all the queue fields by calling `queue_get_fields` tool, "
+                "required ones are marked with schema.required=true in the field entity). "
+                "Also you may specify extra queue local fields "
+                "(list of local fields can be retrieved using the "
+                "`queue_get_local_fields` tool"
+            ),
+        ] = None,
     ) -> Issue:
         # Check queue restrictions if enabled
         if settings.tracker_limit_queues and queue not in settings.tracker_limit_queues:
@@ -591,6 +627,7 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
             assignee=assignee,
             priority=priority,
             auth=get_yandex_auth(ctx),
+            **(fields or {}),
         )
 
     @mcp.tool(

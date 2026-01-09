@@ -65,6 +65,12 @@ def make_cached_protocols(
             return await self._original.queues_get_versions(queue_id, auth=auth)
 
         @cached(**cache_config)
+        async def queues_get_fields(
+            self, queue_id: str, *, auth: YandexAuth | None = None
+        ) -> list[GlobalField]:
+            return await self._original.queues_get_fields(queue_id, auth=auth)
+
+        @cached(**cache_config)
         async def queue_get(
             self,
             queue_id: str,
@@ -145,6 +151,7 @@ def make_cached_protocols(
             parent: str | None = None,
             sprint: list[str] | None = None,
             auth: YandexAuth | None = None,
+            **kwargs: dict[str, Any],
         ) -> Issue:
             return await self._original.issue_create(
                 queue,
@@ -156,6 +163,7 @@ def make_cached_protocols(
                 parent=parent,
                 sprint=sprint,
                 auth=auth,
+                **kwargs,
             )
 
         @cached(**cache_config)

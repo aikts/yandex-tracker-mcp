@@ -52,6 +52,10 @@
       "description": "Get all versions for a specific queue"
     },
     {
+      "name": "queue_get_fields",
+      "description": "Get fields for a specific queue"
+    },
+    {
       "name": "get_queue_resolutions",
       "description": "Get resolutions available in a specific queue"
     },

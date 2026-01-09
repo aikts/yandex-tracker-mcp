@@ -1,4 +1,4 @@
-from typing import Protocol
+from typing import Any, Protocol
 
 from .common import YandexAuth
 from .types.issues import (
@@ -54,6 +54,7 @@ class IssueProtocol(Protocol):
         parent: str | None = None,
         sprint: list[str] | None = None,
         auth: YandexAuth | None = None,
+        **kwargs: dict[str, Any],
     ) -> Issue: ...
     async def issue_get_transitions(
         self, issue_id: str, *, auth: YandexAuth | None = None
