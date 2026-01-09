@@ -5,17 +5,17 @@ all: lock format check
 check: ruff-check format-check mypy
 
 mypy:
-	mypy .
+	uv run mypy .
 
 ruff-check:
-	ruff check .
+	uv run ruff check .
 
 format:
-	ruff format .
-	ruff check --select I,F401 --fix .
+	uv run ruff format .
+	uv run ruff check --select I,F401 --fix .
 
 format-check:
-	ruff format --check .
+	uv run ruff format --check .
 
 lock:
 	uv lock && uv sync --dev
