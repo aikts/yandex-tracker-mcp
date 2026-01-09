@@ -3,7 +3,7 @@ name = "yandex-tracker-mcp"
 version = "0.4.10"
 description = "Yandex Tracker MCP Server"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "aiocache[redis]>=0.12.3",
     "aiohttp>=3.11.18",
