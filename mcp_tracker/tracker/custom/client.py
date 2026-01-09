@@ -264,6 +264,15 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
             response.raise_for_status()
             return VersionList.model_validate_json(await response.read()).root
 
+    async def queues_get_fields(
+        self, queue_id: str, *, auth: YandexAuth | None = None
+    ) -> list[GlobalField]:
+        async with self._session.get(
+            f"v3/queues/{queue_id}/fields", headers=await self._build_headers(auth)
+        ) as response:
+            response.raise_for_status()
+            return GlobalFieldList.model_validate_json(await response.read()).root
+
     async def queue_get(
         self,
         queue_id: str,
@@ -471,6 +480,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         parent: str | None = None,
         sprint: list[str] | None = None,
         auth: YandexAuth | None = None,
+        **kwargs: dict[str, Any],
     ) -> Issue:
         body: dict[str, Any] = {
             "queue": queue,
@@ -489,6 +499,10 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
             body["parent"] = parent
         if sprint is not None:
             body["sprint"] = sprint
+
+        for k, v in kwargs.items():
+            if k not in body:
+                body[k] = v
 
         async with self._session.post(
             "v3/issues", headers=await self._build_headers(auth), json=body

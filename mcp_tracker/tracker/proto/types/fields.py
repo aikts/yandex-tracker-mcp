@@ -1,6 +1,6 @@
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from mcp_tracker.tracker.proto.types.base import BaseTrackerEntity
 from mcp_tracker.tracker.proto.types.refs import BaseReference
@@ -15,14 +15,23 @@ class FieldSchema(BaseModel):
 
 
 class SuggestProvider(BaseModel):
+    model_config = ConfigDict(
+        extra="allow",
+    )
     type: str | None = None
 
 
 class QueryProvider(BaseModel):
+    model_config = ConfigDict(
+        extra="allow",
+    )
     type: str | None = None
 
 
 class OptionsProvider(BaseModel):
+    model_config = ConfigDict(
+        extra="allow",
+    )
     type: str | None = None
     values: Any | None = None
 

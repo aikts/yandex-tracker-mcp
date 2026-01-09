@@ -1,7 +1,7 @@
 from typing import Protocol
 
 from .common import YandexAuth
-from .types.fields import LocalField
+from .types.fields import GlobalField, LocalField
 from .types.queues import Queue, QueueExpandOption, QueueVersion
 
 
@@ -29,6 +29,10 @@ class QueuesProtocol(Protocol):
     async def queues_get_versions(
         self, queue_id: str, *, auth: YandexAuth | None = None
     ) -> list[QueueVersion]: ...
+
+    async def queues_get_fields(
+        self, queue_id: str, *, auth: YandexAuth | None = None
+    ) -> list[GlobalField]: ...
 
 
 class QueuesProtocolWrap(QueuesProtocol):
