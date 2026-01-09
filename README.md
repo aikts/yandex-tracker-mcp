@@ -638,13 +638,13 @@ The server exposes the following tools through the MCP protocol:
   - Parameters:
     - `queue` (string, required): Queue key where to create the issue (e.g., 'MYQUEUE')
     - `summary` (string, required): Issue title/summary
-    - `type` (string, optional): Issue type key (e.g., 'bug', 'task', 'story')
+    - `type` (int, optional): Issue type ID (from `get_issue_types` tool)
     - `description` (string, optional): Issue description
-    - `assignee` (string, optional): Assignee login or UID
-    - `priority` (string, optional): Priority key (e.g., 'critical', 'high', 'normal', 'low')
-    - `parent` (string, optional): Parent issue key (for subtasks)
-    - `sprint` (array of strings, optional): List of sprint names or IDs
+    - `assignee` (string or int, optional): Assignee login or UID
+    - `priority` (string, optional): Priority key (from `get_priorities` tool)
+    - `fields` (object, optional): Additional fields to set during issue creation. **IMPORTANT**: Before creating an issue, you MUST call `queue_get_fields` to get available queue fields and `queue_get_local_fields` to get queue-specific custom fields. Fields with `schema.required=true` are mandatory. Use the field's `id` property as the key in this map (e.g., `{"fieldId": "value"}`)
   - Returns the newly created issue object with all standard issue fields
+  - Respects `TRACKER_LIMIT_QUEUES` restrictions
 
 ### Search and Discovery
 - **`issues_find`**: Search issues using [Yandex Tracker Query Language](https://yandex.ru/support/tracker/ru/user/query-filter)
