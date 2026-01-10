@@ -1,5 +1,5 @@
 {
-  "dxt_version": "0.1",
+  "manifest_version": "0.4",
   "name": "yandex-tracker-mcp",
   "display_name": "Yandex Tracker MCP",
   "version": "0.4.10",
@@ -9,15 +9,15 @@
     "email": "hello@kts.tech",
     "url": "https://kts.tech"
   },
-  "icon": "tracker-logo.png",
+  "icon": "images/tracker-logo.png",
   "server": {
-    "type": "python",
+    "type": "uv",
     "entry_point": "yandex-tracker-mcp",
     "mcp_config": {
-      "command": "python3.12",
+      "command": "uv",
       "args": [
-        "-m",
-        "mcp_tracker"
+        "run",
+        "yandex-tracker-mcp"
       ],
       "env": {
         "PYTHONPATH": "${__dirname}:${__dirname}/dxt-lib",
@@ -29,9 +29,9 @@
     }
   },
   "compatibility": {
-    "platforms": ["darwin"],
+    "platforms": ["darwin", "linux", "win32"],
     "runtimes": {
-      "python": ">=3.9"
+      "python": ">=3.11"
     }
   },
   "tools": [
@@ -150,28 +150,32 @@
       "title": "Yandex Tracker Token",
       "description": "OAuth token for accessing Yandex Tracker API",
       "required": false,
-      "sensitive": true
+      "sensitive": true,
+      "default": ""
     },
     "tracker_iam_token": {
       "type": "string",
       "title": "Yandex IAM Token",
       "description": "IAM token for service-to-service authentication",
       "required": false,
-      "sensitive": true
+      "sensitive": true,
+      "default": ""
     },
     "tracker_cloud_org_id": {
       "type": "string",
       "title": "Tracker Cloud Org Id",
       "description": "ID of Yandex Cloud Organization",
       "required": false,
-      "sensitive": false
+      "sensitive": false,
+      "default": ""
     },
     "tracker_org_id": {
       "type": "string",
       "title": "Tracker Org Id",
       "description": "ID of Yandex 360 Organization",
       "required": false,
-      "sensitive": false
+      "sensitive": false,
+      "default": ""
     }
   },
   "keywords": [
