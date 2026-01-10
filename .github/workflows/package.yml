@@ -30,11 +30,8 @@ jobs:
           path: dist/
           retention-days: 7
 
-  build-dxt:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ ubuntu-latest, windows-latest, macos-15 ]
+  build-mcpb:
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -42,42 +39,31 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
+          python-version: "3.13"
 
       - name: Prepare NodeJS
         uses: actions/setup-node@v4
 
-      - name: Install dxt CLI
+      - name: Install mcpb CLI
         run: |
-          npm install -g @anthropic-ai/dxt
+          npm install -g @anthropic-ai/mcpb
 
-      - name: Create dxt package
+      - name: Create mcpb package
         run: |
-          dxt validate manifest.json
-          cp images/tracker-logo.png .
-          mkdir -p dxt-lib
-          uv export > requirements.txt
-          uv pip install -r requirements.txt --target=dxt-lib
+          mcpb validate manifest.json
+          mcpb pack . yandex-tracker-mcp-${{github.ref_name}}.mcpb
 
-          python dxt-utils/patch-platform.py ${{runner.os}} > manifest2.json
-          rm manifest.json
-          mv manifest2.json manifest.json
-          dxt pack . yandex-tracker-mcp-${{github.ref_name}}-${{runner.os}}-${{runner.arch}}.dxt
-
-      - name: Upload dxt artifacts
+      - name: Upload mcpb artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: dxt-${{matrix.os}}
-          path: "*.dxt"
+          name: mcpb
+          path: "*.mcpb"
           retention-days: 7
 
   publish:
     needs:
       - build
-      - build-dxt
+      - build-mcpb
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
     environment:
@@ -99,11 +85,11 @@ jobs:
       with:
         print-hash: true
 
-    - name: Download dxt artifacts
+    - name: Download mcpb artifacts
       uses: actions/download-artifact@v4
       with:
-        pattern: "dxt-*"
-        path: dxt/
+        pattern: "mcpb*"
+        path: mcpb/
         merge-multiple: true
 
     - name: Make Github release
@@ -114,7 +100,7 @@ jobs:
         title: ${{ steps.get_tag.outputs.TAG }}
         files: |
           dist/*
-          dxt/*
+          mcpb/*
 
     - name: Checkout code for server.json
       uses: actions/checkout@v4

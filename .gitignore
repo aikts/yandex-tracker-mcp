@@ -161,6 +161,7 @@ cython_debug/
 /local
 .DS_Store
 *.dxt
+*.mcpb
 .dxt-workdir
 mcp_tracker.build
 mcp_tracker.dist
