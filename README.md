@@ -1066,7 +1066,7 @@ cd yandex-tracker-mcp
 uv sync --dev
 
 # Formatting and static checking
-make
+task
 ```
 
 ## License

@@ -1,0 +1,61 @@
+version: '3'
+
+tasks:
+  default:
+    desc: Run lock, format, and all checks
+    deps: [lock, format, check]
+
+  check:
+    desc: Run all quality checks (ruff, format-check, mypy)
+    deps: [ruff-check, format-check, mypy]
+
+  mypy:
+    desc: Run type checking with mypy
+    cmd: uv run mypy .
+
+  ruff-check:
+    desc: Run ruff linter
+    cmd: uv run ruff check .
+
+  format:
+    desc: Auto-format code with ruff
+    cmds:
+      - uv run ruff format .
+      - uv run ruff check --select I,F401 --fix .
+
+  format-check:
+    desc: Check code formatting without modifying files
+    cmd: uv run ruff format --check .
+
+  lock:
+    desc: Update lock file and sync dependencies
+    cmds:
+      - uv lock
+      - uv sync --dev
+
+  test:
+    desc: Run all tests
+    cmd: uv run pytest
+
+  test-unit:
+    desc: Run unit tests only
+    cmd: uv run pytest -m unit
+
+  test-integration:
+    desc: Run integration tests only
+    cmd: uv run pytest -m integration
+
+  test-cov:
+    desc: Run tests with HTML coverage report
+    cmds:
+      - uv run pytest --cov-report=html
+      - echo "Coverage report generated in htmlcov/index.html"
+
+  dxt:
+    desc: Build DXT package
+    cmds:
+      - mkdir -p dxt-lib
+      - uv export > requirements.txt
+      - uv pip install -r requirements.txt --target=dxt-lib
+      - cp images/tracker-logo.png .
+      - dxt pack . yandex-tracker-mcp.dxt

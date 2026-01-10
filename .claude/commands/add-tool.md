@@ -1,5 +1,5 @@
 ---
-allowed-tools: WebFetch(domain:yandex.ru), Bash(mkdir:*), Bash(grep:*), Bash(make:*), Bash(find:*), Bash(sed:*)
+allowed-tools: WebFetch(domain:yandex.ru), Bash(mkdir:*), Bash(grep:*), Bash(task:*), Bash(find:*), Bash(sed:*)
 description: add new MCP tools to the Yandex Tracker MCP server
 ---
 

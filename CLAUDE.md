@@ -13,16 +13,16 @@ MCP Yandex Tracker is a Model Context Protocol (MCP) server that provides tools 
 uv sync
 
 # Run all checks (format, lint, type checking)
-make
+task
 
 # Auto-format code
-make format
+task format
 
 # Run type checking
-make mypy
+task mypy
 
 # Update dependencies
-make lock
+task lock
 
 # Run the server
 uv run mcp-tracker
@@ -173,7 +173,7 @@ async def user_get_current(ctx: Context[Any, AppContext]) -> User:
 ```
 
 ### Verification
-- Run `make` to ensure all checks pass
+- Run `task` to ensure all checks pass
 - Test the tool functionality
 - Verify documentation is accurate and complete
 
@@ -181,5 +181,5 @@ async def user_get_current(ctx: Context[Any, AppContext]) -> User:
 
 Before each commit it is mandatory to run:
 ```bash
-make
+task
 ```
