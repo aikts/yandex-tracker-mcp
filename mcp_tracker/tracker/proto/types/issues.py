@@ -25,7 +25,7 @@ class Issue(CreatedUpdatedMixin, BaseTrackerEntity):
     model_config = ConfigDict(
         extra="allow",
     )
-
+    version: int | None = NoneExcludedField
     unique: str | None = NoneExcludedField
     key: str | None = NoneExcludedField
     summary: str | None = NoneExcludedField

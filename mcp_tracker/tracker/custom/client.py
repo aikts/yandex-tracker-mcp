@@ -18,6 +18,14 @@ from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
 from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
+from mcp_tracker.tracker.proto.types.inputs import (
+    IssueUpdateFollower,
+    IssueUpdateParent,
+    IssueUpdatePriority,
+    IssueUpdateProject,
+    IssueUpdateSprint,
+    IssueUpdateType,
+)
 from mcp_tracker.tracker.proto.types.issue_types import IssueType
 from mcp_tracker.tracker.proto.types.issues import (
     ChecklistItem,
@@ -597,3 +605,69 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
             fields=fields,
             auth=auth,
         )
+
+    async def issue_update(
+        self,
+        issue_id: str,
+        *,
+        summary: str | None = None,
+        description: str | None = None,
+        markup_type: str | None = None,
+        parent: IssueUpdateParent | None = None,
+        sprint: list[IssueUpdateSprint] | None = None,
+        type: IssueUpdateType | None = None,
+        priority: IssueUpdatePriority | None = None,
+        followers: list[IssueUpdateFollower] | None = None,
+        project: IssueUpdateProject | None = None,
+        attachment_ids: list[str] | None = None,
+        description_attachment_ids: list[str] | None = None,
+        tags: list[str] | None = None,
+        version: int | None = None,
+        auth: YandexAuth | None = None,
+        **kwargs: Any,
+    ) -> Issue:
+        body: dict[str, Any] = {}
+
+        if summary is not None:
+            body["summary"] = summary
+        if description is not None:
+            body["description"] = description
+        if markup_type is not None:
+            body["markupType"] = markup_type
+        if parent is not None:
+            body["parent"] = parent.model_dump(exclude_none=True)
+        if sprint is not None:
+            body["sprint"] = [s.model_dump(exclude_none=True) for s in sprint]
+        if type is not None:
+            body["type"] = type.model_dump(exclude_none=True)
+        if priority is not None:
+            body["priority"] = priority.model_dump(exclude_none=True)
+        if followers is not None:
+            body["followers"] = [f.model_dump(exclude_none=True) for f in followers]
+        if project is not None:
+            body["project"] = project.model_dump(exclude_none=True)
+        if attachment_ids is not None:
+            body["attachmentIds"] = attachment_ids
+        if description_attachment_ids is not None:
+            body["descriptionAttachmentIds"] = description_attachment_ids
+        if tags is not None:
+            body["tags"] = tags
+
+        for k, v in kwargs.items():
+            if k not in body:
+                body[k] = v
+
+        params: dict[str, int] = {}
+        if version is not None:
+            params["version"] = version
+
+        async with self._session.patch(
+            f"v3/issues/{issue_id}",
+            headers=await self._build_headers(auth),
+            json=body,
+            params=params if params else None,
+        ) as response:
+            if response.status == 404:
+                raise IssueNotFound(issue_id)
+            response.raise_for_status()
+            return Issue.model_validate_json(await response.read())

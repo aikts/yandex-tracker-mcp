@@ -1,6 +1,14 @@
 from typing import Any, Protocol
 
 from .common import YandexAuth
+from .types.inputs import (
+    IssueUpdateFollower,
+    IssueUpdateParent,
+    IssueUpdatePriority,
+    IssueUpdateProject,
+    IssueUpdateSprint,
+    IssueUpdateType,
+)
 from .types.issues import (
     ChecklistItem,
     Issue,
@@ -78,6 +86,27 @@ class IssueProtocol(Protocol):
         fields: dict[str, str | int | list[str]] | None = None,
         auth: YandexAuth | None = None,
     ) -> list[IssueTransition]: ...
+
+    async def issue_update(
+        self,
+        issue_id: str,
+        *,
+        summary: str | None = None,
+        description: str | None = None,
+        markup_type: str | None = None,
+        parent: IssueUpdateParent | None = None,
+        sprint: list[IssueUpdateSprint] | None = None,
+        type: IssueUpdateType | None = None,
+        priority: IssueUpdatePriority | None = None,
+        followers: list[IssueUpdateFollower] | None = None,
+        project: IssueUpdateProject | None = None,
+        attachment_ids: list[str] | None = None,
+        description_attachment_ids: list[str] | None = None,
+        tags: list[str] | None = None,
+        version: int | None = None,
+        auth: YandexAuth | None = None,
+        **kwargs: Any,
+    ) -> Issue: ...
 
 
 class IssueProtocolWrap(IssueProtocol):
