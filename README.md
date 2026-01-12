@@ -18,10 +18,11 @@ Documentation in Russian is available [here](README_ru.md) / Документа�
 
 ## Features
 
-- **Complete Queue Management**: List and access all available Yandex Tracker queues with pagination support and tag retrieval
+- **Complete Queue Management**: List and access all available Yandex Tracker queues with pagination support, tag retrieval, and detailed metadata
 - **User Management**: Retrieve user account information, including login details, email addresses, license status, and organizational data
-- **Issue Operations**: Retrieve detailed issue information, comments, related links, worklogs, and attachments
-- **Field Management**: Access global fields, queue-specific local fields, statuses, and issue types
+- **Full Issue Lifecycle**: Create, read, update, and manage issues with support for custom fields, attachments, and workflow transitions
+- **Status Workflow Management**: Execute status transitions, close issues with resolutions, and navigate complex workflows
+- **Field Management**: Access global fields, queue-specific local fields, statuses, issue types, priorities, and resolutions
 - **Advanced Query Language**: Full Yandex Tracker Query Language support with complex filtering, sorting, and date functions
 - **Performance Caching**: Optional Redis caching layer for improved response times
 - **Security Controls**: Configurable queue access restrictions and secure token handling
@@ -45,18 +46,9 @@ You can find your organization ID in the Yandex Tracker URL or organization sett
 
 Yandex Tracker MCP Server can be one-click installed in Claude Desktop as and [extension](https://www.anthropic.com/engineering/desktop-extensions).
 
-#### Prerequisites
-There is only one requirement - python 3.12 must be installed on your system.
-
-For macOS users, you can install it using the following command:
-
-```bash
-brew install python@3.12
-```
-
 #### Installation
 
-1. Download the `*.dxt` file from [GitHub Releases](https://github.com/aikts/yandex-tracker-mcp/releases/latest) for your OS and platform.
+1. Download the `*.mcpb` file from [GitHub Releases](https://github.com/aikts/yandex-tracker-mcp/releases/latest).
 2. Double-click the downloaded file to install it in Claude Desktop. ![img.png](images/claude-desktop-install.png)
 3. Provide your Yandex Tracker OAuth token when prompted. ![img.png](images/claude-desktop-config.png)
 4. Make sure extension is enabled - now you may use this MCP Server.
@@ -526,7 +518,7 @@ The server exposes the following tools through the MCP protocol:
   - Use this to find available and required fields before creating an issue with `issue_create` tool
   - Respects `TRACKER_LIMIT_QUEUES` restrictions
 
-- **`get_queue_metadata`**: Get detailed metadata about a specific queue
+- **`queue_get_metadata`**: Get detailed metadata about a specific queue
   - Parameters:
     - `queue_id` (string, required): Queue key like "SOMEPROJECT"
     - `expand` (array of strings, optional): Fields to expand in the response. Available options: `all`, `projects`, `components`, `versions`, `types`, `team`, `workflows`, `fields`, `issueTypesConfig`

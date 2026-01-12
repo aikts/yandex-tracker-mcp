@@ -2,7 +2,7 @@
   "manifest_version": "0.4",
   "name": "yandex-tracker-mcp",
   "display_name": "Yandex Tracker MCP",
-  "version": "0.4.10",
+  "version": "0.5.0b1",
   "description": "Yandex Tracker MCP Server",
   "author": {
     "name": "KTS",
@@ -52,7 +52,7 @@
       "description": "Get fields for a specific queue"
     },
     {
-      "name": "get_queue_metadata",
+      "name": "queue_get_metadata",
       "description": "Get detailed metadata about a specific queue"
     },
     {

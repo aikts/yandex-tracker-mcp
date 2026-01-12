@@ -1,13 +1,13 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
   "name": "io.github.aikts/yandex-tracker-mcp",
-  "version": "0.4.10",
+  "version": "0.5.0b1",
   "description": "MCP server for Yandex Tracker API.",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "yandex-tracker-mcp",
-      "version": "0.4.10",
+      "version": "0.5.0b1",
       "transport": {
         "type": "stdio"
       }
