@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0b1] - 2026-01-12
+
+### Breaking changes
+
+- Tool `queue_get_local_fields` is dropped and replaced with `queue_get_fields` — now this tool combines both regular
+  and local queue fields.
+- Drop Python 3.10 support, require Python 3.11+
+
+### Features
+- Add `issue_update` MCP tool to edit existing issues
+  - Supports updating summary, description, parent, sprint, type, priority, followers, project, tags, and custom fields
+  - Supports optimistic locking via `version` parameter
+- Add `issue_create` MCP tool to create new issues in a queue
+  - Supports setting summary, description, type, assignee, priority, and custom fields
+- Add `issue_close` MCP tool to close issues with a resolution
+  - Automatically finds a transition to 'done' status
+- Add `issue_execute_transition` MCP tool to execute status transitions
+  - Supports adding comments and setting fields during transition
+- Add `issue_get_transitions` MCP tool to get possible status transitions for an issue
+- Add `get_resolutions` MCP tool to retrieve all available issue resolutions
+- Add `queue_get_metadata` MCP tool to get detailed queue metadata with optional field expansion
+  - Supports expanding: `all`, `projects`, `components`, `versions`, `types`, `team`, `workflows`, `fields`, `issueTypesConfig`
+- Add `queue_get_fields` MCP tool to retrieve both global and queue-specific local fields
+  - Returns combined list of fields with `schema.required` indicating mandatory fields
+- Add tool annotations with human-readable titles and `readOnlyHint` flags for MCP tool metadata
+
+### Internal
+- Migrate from Makefile to Taskfile for development workflow
+- Add Python 3.14 to CI test matrix
+- Migrate desktop extension packaging from dxt to mcpb
+
 ## [0.4.10] - 2025-12-06
 
 ### Bug Fixes
