@@ -23,6 +23,14 @@ from mcp_tracker.mcp.utils import get_yandex_auth, set_non_needed_fields_null
 from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.custom.errors import IssueNotFound
 from mcp_tracker.tracker.proto.types.fields import GlobalField
+from mcp_tracker.tracker.proto.types.inputs import (
+    IssueUpdateFollower,
+    IssueUpdateParent,
+    IssueUpdatePriority,
+    IssueUpdateProject,
+    IssueUpdateSprint,
+    IssueUpdateType,
+)
 from mcp_tracker.tracker.proto.types.issue_types import IssueType
 from mcp_tracker.tracker.proto.types.issues import (
     ChecklistItem,
@@ -201,7 +209,7 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
         "Use expand=['issueTypesConfig'] to get available resolutions for issue_close tool.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
-    async def get_queue_metadata(
+    async def queue_get_metadata(
         ctx: Context[Any, AppContext],
         queue_id: QueueID,
         expand: Annotated[
@@ -538,7 +546,7 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
         "and executes it with the specified resolution. "
         "IMPORTANT: Before closing, you MUST: "
         "1) Call issue_get to retrieve the issue's type field. "
-        "2) Call get_queue_metadata with expand=['issueTypesConfig'] to get available resolutions. "
+        "2) Call queue_get_metadata with expand=['issueTypesConfig'] to get available resolutions. "
         "3) Choose a resolution from the issueTypesConfig entry matching the issue's type - "
         "each issue type has its own set of valid resolutions. "
         "Returns a list of transitions available for the issue in its new (closed) status.",
@@ -625,6 +633,111 @@ def register_tools(settings: Settings, mcp: FastMCP[Any]):
             description=description,
             assignee=assignee,
             priority=priority,
+            auth=get_yandex_auth(ctx),
+            **(fields or {}),
+        )
+
+    @mcp.tool(
+        title="Update Issue",
+        description="Update an existing Yandex Tracker issue. "
+        "Only fields that are provided will be updated; omitted fields remain unchanged. "
+        "Use queue_get_fields to discover available fields before updating.",
+        annotations=ToolAnnotations(readOnlyHint=False),
+    )
+    async def issue_update(
+        ctx: Context[Any, AppContext],
+        issue_id: IssueID,
+        summary: Annotated[
+            str | None,
+            Field(description="New issue title/summary"),
+        ] = None,
+        description: Annotated[
+            str | None,
+            Field(description="New issue description (use markdown formatting)"),
+        ] = None,
+        markup_type: Annotated[
+            str,
+            Field(
+                description="Markup type for description text. Use 'md' for YFM (markdown) markup."
+            ),
+        ] = "md",
+        parent: Annotated[
+            IssueUpdateParent | None,
+            Field(
+                description="Parent issue reference. Object with 'id' (parent issue ID) "
+                "and/or 'key' (parent issue key like 'QUEUE-123')."
+            ),
+        ] = None,
+        sprint: Annotated[
+            list[IssueUpdateSprint] | None,
+            Field(
+                description="Sprint assignments. Array of objects, each with 'id' field "
+                "containing the sprint ID (integer)."
+            ),
+        ] = None,
+        type: Annotated[
+            IssueUpdateType | None,
+            Field(
+                description="Issue type. Object with 'id' (type ID) and/or 'key' (type key like 'bug', 'task'). "
+                "Use `queue_get_metadata` tool with expand=['issueTypesConfig'] to get available issue types in this queue."
+            ),
+        ] = None,
+        priority: Annotated[
+            IssueUpdatePriority | None,
+            Field(
+                description="Issue priority. Object with 'id' (priority ID) and/or 'key' "
+                "(priority key like 'critical', 'normal'). Use get_priorities to find available priorities."
+            ),
+        ] = None,
+        followers: Annotated[
+            list[IssueUpdateFollower] | None,
+            Field(
+                description="Issue followers/watchers. Array of objects, each with 'id' field "
+                "containing the user ID or login."
+            ),
+        ] = None,
+        project: Annotated[
+            IssueUpdateProject | None,
+            Field(
+                description="Project assignment. Object with 'primary' (int, main project shortId) "
+                "and optional 'secondary' (list of ints, additional project shortIds)."
+            ),
+        ] = None,
+        tags: Annotated[
+            list[str] | None,
+            Field(description="Issue tags as array of strings."),
+        ] = None,
+        version: Annotated[
+            int | None,
+            Field(
+                description="Issue version for optimistic locking. "
+                "Changes are only made to the current version of the issue. Always try to receive issue's version using issue_get tool first."
+            ),
+        ] = None,
+        fields: Annotated[
+            dict[str, Any] | None,
+            Field(
+                description="Additional fields to update. "
+                "Use queue_get_fields to discover available fields. "
+                "Use the field's 'id' property as the key (e.g., {'fieldId': 'value'})."
+            ),
+        ] = None,
+    ) -> Issue:
+        check_issue_id(settings, issue_id)
+
+        return await ctx.request_context.lifespan_context.issues.issue_update(
+            issue_id,
+            summary=summary,
+            description=description,
+            markup_type=markup_type,
+            parent=parent,
+            sprint=sprint,
+            type=type,
+            priority=priority,
+            followers=followers,
+            project=project,
+            tags=tags,
+            version=version,
             auth=get_yandex_auth(ctx),
             **(fields or {}),
         )

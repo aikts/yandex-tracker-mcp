@@ -136,6 +136,10 @@
       "description": "Create a new issue in a Yandex Tracker queue"
     },
     {
+      "name": "issue_update",
+      "description": "Update an existing Yandex Tracker issue"
+    },
+    {
       "name": "issues_find",
       "description": "Search issues using Yandex Tracker Query Language"
     },

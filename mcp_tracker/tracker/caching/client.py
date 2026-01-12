@@ -7,6 +7,14 @@ from mcp_tracker.tracker.proto.fields import GlobalDataProtocolWrap
 from mcp_tracker.tracker.proto.issues import IssueProtocolWrap
 from mcp_tracker.tracker.proto.queues import QueuesProtocolWrap
 from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
+from mcp_tracker.tracker.proto.types.inputs import (
+    IssueUpdateFollower,
+    IssueUpdateParent,
+    IssueUpdatePriority,
+    IssueUpdateProject,
+    IssueUpdateSprint,
+    IssueUpdateType,
+)
 from mcp_tracker.tracker.proto.types.issue_types import IssueType
 from mcp_tracker.tracker.proto.types.issues import (
     ChecklistItem,
@@ -204,6 +212,45 @@ def make_cached_protocols(
                 comment=comment,
                 fields=fields,
                 auth=auth,
+            )
+
+        async def issue_update(
+            self,
+            issue_id: str,
+            *,
+            summary: str | None = None,
+            description: str | None = None,
+            markup_type: str | None = None,
+            parent: IssueUpdateParent | None = None,
+            sprint: list[IssueUpdateSprint] | None = None,
+            type: IssueUpdateType | None = None,
+            priority: IssueUpdatePriority | None = None,
+            followers: list[IssueUpdateFollower] | None = None,
+            project: IssueUpdateProject | None = None,
+            attachment_ids: list[str] | None = None,
+            description_attachment_ids: list[str] | None = None,
+            tags: list[str] | None = None,
+            version: int | None = None,
+            auth: YandexAuth | None = None,
+            **kwargs: Any,
+        ) -> Issue:
+            return await self._original.issue_update(
+                issue_id,
+                summary=summary,
+                description=description,
+                markup_type=markup_type,
+                parent=parent,
+                sprint=sprint,
+                type=type,
+                priority=priority,
+                followers=followers,
+                project=project,
+                attachment_ids=attachment_ids,
+                description_attachment_ids=description_attachment_ids,
+                tags=tags,
+                version=version,
+                auth=auth,
+                **kwargs,
             )
 
     class CachingGlobalDataProtocol(GlobalDataProtocolWrap):
