@@ -44,9 +44,12 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN uv venv /venv && UV_PROJECT_ENVIRONMENT=/venv uv sync --locked
 
 FROM base as final
+LABEL io.modelcontextprotocol.server.name="io.github.aikts/yandex-tracker-mcp"
+
 ENV PATH=/venv/bin:$PATH
 COPY --from=builder /venv /venv
 COPY . .
 RUN adduser --system --no-create-home nonroot
 USER nonroot
 ENTRYPOINT ["python", "-m", "mcp_tracker"]
+

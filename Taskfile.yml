@@ -15,7 +15,7 @@ tasks:
 
   ty:
     desc: Run type checking with ty
-    cmd: ty check .
+    cmd: uv run ty check .
 
   ruff-check:
     desc: Run ruff linter

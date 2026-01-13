@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.1] - 2026-01-13
+
+### Improvements
+- Add MCP server name label to Docker image for better registry discoverability
+- Update MCP registry schema to version 2025-12-11
+- Add OCI package entry to server.json for Docker image distribution
+
+### Internal
+- Fix `ty` command in Taskfile to use `uv run`
+
 ## [0.5.0] - 2026-01-12
 
 ### Breaking changes
