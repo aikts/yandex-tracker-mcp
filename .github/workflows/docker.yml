@@ -1,15 +1,6 @@
-name: Build and Push Docker Image
+name: Build and push Docker image
 
-on:
-  workflow_dispatch:
-  push:
-    branches:
-      - 'main'
-    tags:
-      - '*'
-  pull_request:
-    branches:
-      - 'main'
+on: [push]
 
 env:
   REGISTRY: ghcr.io
