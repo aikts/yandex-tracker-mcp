@@ -30,7 +30,7 @@ All notable changes to this project will be documented in this file.
 
 ### Internal
 - Migrate from Makefile to Taskfile for development workflow
-- Add Python 3.14 to CI test matrix
+- Add Python 3.13t to CI test matrix
 - Migrate desktop extension packaging from dxt to mcpb
 
 ## [0.4.10] - 2025-12-06
