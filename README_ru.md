@@ -4,7 +4,6 @@
 ![Test Workflow](https://github.com/aikts/yandex-tracker-mcp/actions/workflows/test.yml/badge.svg?branch=main)
 ![Docker Workflow](https://github.com/aikts/yandex-tracker-mcp/actions/workflows/docker.yml/badge.svg?branch=main)
 ![Package Workflow](https://github.com/aikts/yandex-tracker-mcp/actions/workflows/package.yml/badge.svg?branch=main)
-[![smithery badge](https://smithery.ai/badge/@aikts/yandex-tracker-mcp)](https://smithery.ai/server/@aikts/yandex-tracker-mcp)
 
 mcp-name: io.github.aikts/yandex-tracker-mcp
 

@@ -23,7 +23,6 @@ CLAUDE.md
 compose.yaml
 server.json
 *.Dockerfile
-smithery.yaml
 *.dxt
 *.mcpb
 .conductor
