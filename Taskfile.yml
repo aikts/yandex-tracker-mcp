@@ -3,7 +3,11 @@ version: '3'
 tasks:
   default:
     desc: Run lock, format, and all checks
-    deps: [lock, format, check]
+    cmds:
+      - task: lock
+      - task: format
+      - task: check
+      - task: test
 
   check:
     desc: Run all quality checks (ruff, format-check, mypy)
@@ -41,25 +45,14 @@ tasks:
     desc: Run all tests
     cmd: uv run pytest
 
-  test-unit:
-    desc: Run unit tests only
-    cmd: uv run pytest -m unit
-
-  test-integration:
-    desc: Run integration tests only
-    cmd: uv run pytest -m integration
-
   test-cov:
     desc: Run tests with HTML coverage report
     cmds:
       - uv run pytest --cov-report=html
       - echo "Coverage report generated in htmlcov/index.html"
 
-  dxt:
-    desc: Build DXT package
+  mcpb:
+    desc: Build MCPB package
     cmds:
-      - mkdir -p dxt-lib
-      - uv export > requirements.txt
-      - uv pip install -r requirements.txt --target=dxt-lib
-      - cp images/tracker-logo.png .
-      - dxt pack . yandex-tracker-mcp.dxt
+      - mcpb validate manifest.json
+      - mcpb pack .

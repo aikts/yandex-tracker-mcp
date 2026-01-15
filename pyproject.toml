@@ -42,9 +42,7 @@ dev = [
 plugins = [
     "pydantic.mypy"
 ]
-exclude = [
-    'dxt-lib',
-]
+exclude = []
 
 [[tool.mypy.overrides]]
 module = '*.*'
