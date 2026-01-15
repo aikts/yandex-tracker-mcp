@@ -160,12 +160,9 @@ cython_debug/
 # Custom
 /local
 .DS_Store
-*.dxt
 *.mcpb
-.dxt-workdir
 mcp_tracker.build
 mcp_tracker.dist
-dxt-lib
 requirements.txt
 /tracker-logo.png
 .mcpregistry_github_token

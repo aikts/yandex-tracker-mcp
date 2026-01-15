@@ -20,7 +20,7 @@
         "yandex-tracker-mcp"
       ],
       "env": {
-        "PYTHONPATH": "${__dirname}:${__dirname}/dxt-lib",
+        "PYTHONPATH": "${__dirname}",
         "TRACKER_TOKEN": "${user_config.tracker_token}",
         "TRACKER_IAM_TOKEN": "${user_config.tracker_iam_token}",
         "TRACKER_CLOUD_ORG_ID": "${user_config.tracker_cloud_org_id}",

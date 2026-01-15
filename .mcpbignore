@@ -23,6 +23,9 @@ CLAUDE.md
 compose.yaml
 server.json
 *.Dockerfile
-*.dxt
 *.mcpb
 .conductor
+.ruff_cache
+.dockerignore
+tests
+Taskfile.yml
