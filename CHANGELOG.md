@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.1] - 2026-01-17
+
+### Internal
+- Refactor `__main__.py` to extract entry point into a proper `main()` function for better modularity
+
 ## [0.6.0] - 2026-01-17
 
 ### Breaking Changes

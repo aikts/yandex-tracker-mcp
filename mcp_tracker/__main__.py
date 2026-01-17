@@ -21,5 +21,10 @@ def create_mcp() -> tuple[FastMCP[Any], Settings]:
 
 mcp, settings = create_mcp()
 
-if __name__ == "__main__":
+
+def main() -> None:
     mcp.run(transport=settings.transport)
+
+
+if __name__ == "__main__":
+    main()
