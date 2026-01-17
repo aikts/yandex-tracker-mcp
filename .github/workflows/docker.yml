@@ -1,6 +1,10 @@
 name: Build and push Docker image
 
-on: [push]
+on:
+  workflow_run:
+    workflows: ["Test"]
+    types:
+      - completed
 
 env:
   REGISTRY: ghcr.io
