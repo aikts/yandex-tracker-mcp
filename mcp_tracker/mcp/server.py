@@ -14,7 +14,7 @@ from mcp_tracker.mcp.oauth.stores.memory import InMemoryOAuthStore
 from mcp_tracker.mcp.oauth.stores.redis import RedisOAuthStore
 from mcp_tracker.mcp.params import instructions
 from mcp_tracker.mcp.resources import register_resources
-from mcp_tracker.mcp.tools import register_tools
+from mcp_tracker.mcp.tools import register_all_tools
 from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.caching.client import make_cached_protocols
 from mcp_tracker.tracker.custom.client import ServiceAccountSettings, TrackerClient
@@ -169,6 +169,6 @@ def create_mcp_server(
         )
 
     register_resources(settings, server)
-    register_tools(settings, server)
+    register_all_tools(settings, server)
 
     return server

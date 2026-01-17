@@ -22,7 +22,15 @@ uv run mcp-tracker # Run the server
 - **Protocols** (`mcp_tracker/tracker/proto/`): Define API contracts (`IssueProtocol`, `QueuesProtocol`, etc.)
 - **Client** (`mcp_tracker/tracker/custom/client.py`): Implements protocols, handles HTTP requests
 - **Caching** (`mcp_tracker/tracker/caching/client.py`): Wraps protocols with Redis caching
-- **MCP Tools** (`mcp_tracker/mcp/server.py`): Tool definitions using FastMCP
+- **MCP Server** (`mcp_tracker/mcp/server.py`): Server creation and configuration
+- **MCP Tools** (`mcp_tracker/mcp/tools/`): Tool definitions organized by category
+  - `_access.py`: Access control helpers (`check_issue_access`, `check_queue_access`)
+  - `queue.py`: Queue tools (5 read-only tools)
+  - `field.py`: Global field/metadata tools (6 read-only tools)
+  - `issue_read.py`: Issue read tools (9 read-only tools)
+  - `issue_write.py`: Issue write tools (4 tools, conditional on `tracker_read_only`)
+  - `user.py`: User tools (4 read-only tools)
+  - `__init__.py`: Exports `register_all_tools()` which orchestrates tool registration
 - **Settings** (`mcp_tracker/settings.py`): Pydantic settings from environment variables
 - All protocol methods accept optional `auth: YandexAuth | None` parameter for OAuth support.
 - All Pydantic models for Yandex Tracker entities inherit from `BaseTrackerEntity`.
@@ -89,9 +97,26 @@ For paginated methods, use `side_effect` for sequential returns: `mock.method.si
 1. **Protocol**: Add method signature to `mcp_tracker/tracker/proto/*.py`
 2. **Client**: Implement in `mcp_tracker/tracker/custom/client.py`
 3. **Caching**: Add wrapper in `mcp_tracker/tracker/caching/client.py`
-4. **Tool**: Add function in `mcp_tracker/mcp/server.py`
+4. **Tool**: Add function to appropriate module in `mcp_tracker/mcp/tools/`:
+   - Queue tools → `queue.py`
+   - Global field/metadata tools → `field.py`
+   - Issue read-only tools → `issue_read.py`
+   - Issue write tools → `issue_write.py`
+   - User tools → `user.py`
 5. **Tests**: Add to appropriate `tests/mcp/tools/test_*_tools.py`
 6. **Docs**: Update `README.md`, `README_ru.md`, and `manifest.json`
+
+### Tool Categories
+
+| Category | Module | Read-Only | Description |
+|----------|--------|-----------|-------------|
+| Queue | `queue.py` | Yes | Queue listing, tags, versions, fields, metadata |
+| Field | `field.py` | Yes | Global fields, statuses, types, priorities, resolutions |
+| Issue Read | `issue_read.py` | Yes | Get, find, count issues; comments, links, worklogs, etc. |
+| Issue Write | `issue_write.py` | No | Create, update, transition, close issues |
+| User | `user.py` | Yes | List, search, get users |
+
+**Write tools** in `issue_write.py` are only registered when `settings.tracker_read_only=False`.
 
 ### Test Requirements for New Tools
 
@@ -99,7 +124,10 @@ For paginated methods, use `side_effect` for sequential returns: `mock.method.si
 - Test parameter passing (verify `call_args`)
 - Test optional parameters (provided vs omitted)
 - Test queue restrictions with `client_session_with_limits` if tool accesses issues/queues
-- Add tool name to `EXPECTED_TOOL_NAMES` in `tests/mcp/server/test_server_creation.py`
+- Add tool name to appropriate list in `tests/mcp/server/test_server_creation.py`:
+  - Read-only tools → `READ_ONLY_TOOL_NAMES`
+  - Write tools → `WRITE_TOOL_NAMES`
+- For write tools, add test with `client_session_read_only` to verify not registered
 
 ## Configuration
 
@@ -114,5 +142,6 @@ Organization (one required):
 
 Optional:
 - `TRACKER_LIMIT_QUEUES`: Restrict access to specific queues
+- `TRACKER_READ_ONLY`: When `true`, disables write tools (issue_create, issue_update, issue_close, issue_execute_transition)
 - `TOOLS_CACHE_ENABLED`: Enable Redis caching
 - `OAUTH_ENABLED`: Enable OAuth provider mode
