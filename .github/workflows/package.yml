@@ -2,7 +2,7 @@ name: Build and publish Python package
 
 on:
   workflow_run:
-    workflows: ["Test", "Build and push Docker image"]
+    workflows: ["Build and push Docker image"]
     types:
       - completed
 
