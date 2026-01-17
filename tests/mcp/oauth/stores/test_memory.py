@@ -4,6 +4,7 @@ from mcp.shared.auth import OAuthClientInformationFull, OAuthToken
 from pydantic import AnyHttpUrl
 from pytest_mock import MockerFixture
 
+from mcp_tracker.mcp.oauth.stores.crypto import hash_token
 from mcp_tracker.mcp.oauth.stores.memory import InMemoryOAuthStore
 from mcp_tracker.mcp.oauth.types import YandexOauthAuthorizationCode, YandexOAuthState
 
@@ -314,7 +315,9 @@ class TestInMemoryOAuthStoreTokens:
             expires_at=1500,
         )
 
-        memory_store._refresh_tokens["test-refresh-token"] = refresh_token
+        # Store using hashed key (as the store now uses internally)
+        token_hash = hash_token("test-refresh-token")
+        memory_store._refresh_tokens[token_hash] = refresh_token
 
         mock_time = mocker.patch("time.time")
         # Token should be valid
