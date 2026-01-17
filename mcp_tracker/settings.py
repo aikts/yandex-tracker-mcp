@@ -45,6 +45,9 @@ class Settings(BaseSettings):
     oauth_client_secret: str | None = None
     oauth_token_type: Literal["Bearer", "OAuth"] | None = None
     mcp_server_public_url: AnyHttpUrl | None = None
+    # Comma-separated base64-encoded 32-byte keys for OAuth token encryption
+    # First key encrypts, all keys decrypt (enables key rotation)
+    oauth_encryption_keys: str | None = None
 
     @model_validator(mode="after")
     def validate_settings(self):

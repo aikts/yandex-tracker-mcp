@@ -1,3 +1,4 @@
+import secrets
 from typing import Any
 
 import pytest
@@ -6,8 +7,9 @@ from mcp.shared.auth import OAuthClientInformationFull, OAuthToken
 from pydantic import AnyHttpUrl
 from pytest_mock import MockerFixture
 
+from mcp_tracker.mcp.oauth.stores.crypto import hash_token
 from mcp_tracker.mcp.oauth.stores.redis import RedisOAuthStore
-from mcp_tracker.mcp.oauth.stores.serializers import PydanticJsonSerializer
+from mcp_tracker.mcp.oauth.stores.serializers import EncryptedFieldSerializer
 from mcp_tracker.mcp.oauth.types import YandexOauthAuthorizationCode, YandexOAuthState
 
 
@@ -132,12 +134,24 @@ class TestRedisOAuthStoreInit:
         mocker.patch("mcp_tracker.mcp.oauth.stores.redis.Cache")
         store = RedisOAuthStore()
 
+        # Non-token keys are not hashed
         assert store._client_key("client123") == "oauth:client:client123"
         assert store._state_key("state456") == "oauth:state:state456"
         assert store._auth_code_key("code789") == "oauth:authcode:code789"
-        assert store._access_token_key("token123") == "oauth:access:token123"
-        assert store._refresh_token_key("refresh456") == "oauth:refresh:refresh456"
-        assert store._mapping_key("refresh789") == "oauth:mapping:refresh789"
+
+        # Token keys use SHA-256 hashing
+        assert (
+            store._access_token_key("token123")
+            == f"oauth:access:{hash_token('token123')}"
+        )
+        assert (
+            store._refresh_token_key("refresh456")
+            == f"oauth:refresh:{hash_token('refresh456')}"
+        )
+        assert (
+            store._mapping_key("refresh789")
+            == f"oauth:mapping:{hash_token('refresh789')}"
+        )
 
 
 class TestRedisOAuthStoreClient:
@@ -299,9 +313,12 @@ class TestRedisOAuthStoreTokens:
 
         assert mock_cache.set.call_count == 3
 
-        # Check access token call
+        access_token_hash = hash_token("test-access-token")
+        refresh_token_hash = hash_token("test-refresh-token")
+
+        # Check access token call (key is hashed)
         access_token_call = mock_cache.set.call_args_list[0]
-        assert access_token_call[0][0] == "oauth:access:test-access-token"
+        assert access_token_call[0][0] == f"oauth:access:{access_token_hash}"
         access_token_data = access_token_call[0][1]
         assert access_token_data.token == "test-access-token"
         assert access_token_data.client_id == client_id
@@ -310,19 +327,19 @@ class TestRedisOAuthStoreTokens:
         assert access_token_data.expires_at == 1000 + 3600
         assert access_token_call[1]["ttl"] == 3600
 
-        # Check refresh token call
+        # Check refresh token call (key is hashed)
         refresh_token_call = mock_cache.set.call_args_list[1]
-        assert refresh_token_call[0][0] == "oauth:refresh:test-refresh-token"
+        assert refresh_token_call[0][0] == f"oauth:refresh:{refresh_token_hash}"
         refresh_token_data = refresh_token_call[0][1]
         assert refresh_token_data.token == "test-refresh-token"
         assert refresh_token_data.client_id == client_id
         assert refresh_token_data.scopes == scopes
         assert refresh_token_call[1]["ttl"] == 31 * 24 * 60 * 60
 
-        # Check mapping call
+        # Check mapping call (stores hash of access token, not raw token)
         mapping_call = mock_cache.set.call_args_list[2]
-        assert mapping_call[0][0] == "oauth:mapping:test-refresh-token"
-        assert mapping_call[0][1] == "test-access-token"
+        assert mapping_call[0][0] == f"oauth:mapping:{refresh_token_hash}"
+        assert mapping_call[0][1] == access_token_hash  # Now stores hash, not raw token
 
     async def test_save_oauth_token_without_refresh(
         self, redis_store: RedisOAuthStore, mock_cache: Any, mocker: MockerFixture
@@ -337,10 +354,12 @@ class TestRedisOAuthStoreTokens:
         mocker.patch("time.time", return_value=1000.0)
         await redis_store.save_oauth_token(oauth_token, "client-id", ["read"], None)
 
+        access_token_hash = hash_token("test-access-token")
+
         # Should only call set once (for access token)
         assert mock_cache.set.call_count == 1
         access_token_call = mock_cache.set.call_args_list[0]
-        assert access_token_call[0][0] == "oauth:access:test-access-token"
+        assert access_token_call[0][0] == f"oauth:access:{access_token_hash}"
 
     async def test_save_oauth_token_assertion_error(
         self, redis_store: RedisOAuthStore
@@ -367,7 +386,8 @@ class TestRedisOAuthStoreTokens:
 
         result = await redis_store.get_access_token("test-access-token")
 
-        mock_cache.get.assert_called_once_with("oauth:access:test-access-token")
+        access_token_hash = hash_token("test-access-token")
+        mock_cache.get.assert_called_once_with(f"oauth:access:{access_token_hash}")
         assert result == access_token_data
 
     async def test_get_access_token_not_found(
@@ -391,7 +411,8 @@ class TestRedisOAuthStoreTokens:
 
         result = await redis_store.get_refresh_token("test-refresh-token")
 
-        mock_cache.get.assert_called_once_with("oauth:refresh:test-refresh-token")
+        refresh_token_hash = hash_token("test-refresh-token")
+        mock_cache.get.assert_called_once_with(f"oauth:refresh:{refresh_token_hash}")
         assert result == refresh_token_data
 
     async def test_get_refresh_token_not_found(
@@ -406,23 +427,29 @@ class TestRedisOAuthStoreTokens:
     async def test_revoke_refresh_token_with_access_token(
         self, redis_store: RedisOAuthStore, mock_cache: Any
     ) -> None:
-        mock_cache.get.return_value = "test-access-token"
+        access_token_hash = hash_token("test-access-token")
+        refresh_token_hash = hash_token("test-refresh-token")
+
+        # Mapping now stores hashed access token
+        mock_cache.get.return_value = access_token_hash
 
         await redis_store.revoke_refresh_token("test-refresh-token")
 
-        # Should get the mapping first
-        mock_cache.get.assert_called_once_with("oauth:mapping:test-refresh-token")
+        # Should get the mapping first (with hashed refresh token key)
+        mock_cache.get.assert_called_once_with(f"oauth:mapping:{refresh_token_hash}")
 
         # Should delete refresh token, mapping, and access token
         assert mock_cache.delete.call_count == 3
         delete_calls = [call[0][0] for call in mock_cache.delete.call_args_list]
-        assert "oauth:refresh:test-refresh-token" in delete_calls
-        assert "oauth:mapping:test-refresh-token" in delete_calls
-        assert "oauth:access:test-access-token" in delete_calls
+        assert f"oauth:refresh:{refresh_token_hash}" in delete_calls
+        assert f"oauth:mapping:{refresh_token_hash}" in delete_calls
+        # Access token key is constructed using stored hash directly
+        assert f"oauth:access:{access_token_hash}" in delete_calls
 
     async def test_revoke_refresh_token_without_access_token(
         self, redis_store: RedisOAuthStore, mock_cache: Any
     ) -> None:
+        refresh_token_hash = hash_token("test-refresh-token")
         mock_cache.get.return_value = None
 
         await redis_store.revoke_refresh_token("test-refresh-token")
@@ -430,8 +457,8 @@ class TestRedisOAuthStoreTokens:
         # Should still delete refresh token and mapping
         assert mock_cache.delete.call_count == 2
         delete_calls = [call[0][0] for call in mock_cache.delete.call_args_list]
-        assert "oauth:refresh:test-refresh-token" in delete_calls
-        assert "oauth:mapping:test-refresh-token" in delete_calls
+        assert f"oauth:refresh:{refresh_token_hash}" in delete_calls
+        assert f"oauth:mapping:{refresh_token_hash}" in delete_calls
 
 
 class TestRedisOAuthStoreEdgeCases:
@@ -459,6 +486,29 @@ class TestRedisOAuthStoreEdgeCases:
 
         RedisOAuthStore()
 
-        # Should create serializer and pass it to Cache
+        # Should create EncryptedFieldSerializer and pass it to Cache
         call_args = mock_cache_class.call_args[1]
-        assert isinstance(call_args["serializer"], PydanticJsonSerializer)
+        assert isinstance(call_args["serializer"], EncryptedFieldSerializer)
+
+    async def test_init_with_encryption_keys(self, mocker: MockerFixture) -> None:
+        mock_cache_class = mocker.patch("mcp_tracker.mcp.oauth.stores.redis.Cache")
+        encryption_keys = [secrets.token_bytes(32)]
+
+        RedisOAuthStore(encryption_keys=encryption_keys)
+
+        # Should create EncryptedFieldSerializer with encryptor
+        call_args = mock_cache_class.call_args[1]
+        serializer = call_args["serializer"]
+        assert isinstance(serializer, EncryptedFieldSerializer)
+        assert serializer._encryptor is not None
+
+    async def test_init_without_encryption_keys(self, mocker: MockerFixture) -> None:
+        mock_cache_class = mocker.patch("mcp_tracker.mcp.oauth.stores.redis.Cache")
+
+        RedisOAuthStore()
+
+        # Should create EncryptedFieldSerializer without encryptor (passthrough mode)
+        call_args = mock_cache_class.call_args[1]
+        serializer = call_args["serializer"]
+        assert isinstance(serializer, EncryptedFieldSerializer)
+        assert serializer._encryptor is None

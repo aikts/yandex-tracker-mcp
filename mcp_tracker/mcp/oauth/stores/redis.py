@@ -8,11 +8,19 @@ from mcp.shared.auth import OAuthClientInformationFull, OAuthToken
 from mcp_tracker.mcp.oauth.store import OAuthStore
 from mcp_tracker.mcp.oauth.types import YandexOauthAuthorizationCode, YandexOAuthState
 
-from .serializers import PydanticJsonSerializer
+from .crypto import FieldEncryptor, hash_token
+from .serializers import EncryptedFieldSerializer
 
 
 class RedisOAuthStore(OAuthStore):
-    """Redis-based implementation of OAuthStore interface."""
+    """Redis-based implementation of OAuthStore interface.
+
+    Supports optional encryption for sensitive token data:
+    - When encryption_keys are provided: Redis keys use SHA-256 hashed tokens,
+      and token values are encrypted using Fernet.
+    - When encryption_keys are not provided: Keys use hashed tokens for privacy,
+      but values are stored unencrypted (backward compatible).
+    """
 
     # Redis key prefixes
     _CLIENT_KEY_PREFIX = "oauth:client:"
@@ -29,15 +37,19 @@ class RedisOAuthStore(OAuthStore):
         db: int = 0,
         password: str | None = None,
         pool_max_size: int = 10,
+        encryption_keys: list[bytes] | None = None,
         **kwargs: Any,
     ):
+        encryptor = FieldEncryptor(encryption_keys) if encryption_keys else None
+        serializer = EncryptedFieldSerializer(encryptor)
+
         self._cache: BaseCache = Cache(
             Cache.REDIS,
             endpoint=endpoint,
             port=port,
             db=db,
             password=password,
-            serializer=PydanticJsonSerializer(),
+            serializer=serializer,
             pool_max_size=pool_max_size,
             **kwargs,
         )
@@ -58,16 +70,25 @@ class RedisOAuthStore(OAuthStore):
         return f"{self._AUTH_CODE_KEY_PREFIX}{code_id}"
 
     def _access_token_key(self, token: str) -> str:
-        """Build Redis key for access token storage."""
-        return f"{self._ACCESS_TOKEN_KEY_PREFIX}{token}"
+        """Build Redis key for access token storage.
+
+        Uses SHA-256 hash of the token to prevent raw token exposure in key listings.
+        """
+        return f"{self._ACCESS_TOKEN_KEY_PREFIX}{hash_token(token)}"
 
     def _refresh_token_key(self, token: str) -> str:
-        """Build Redis key for refresh token storage."""
-        return f"{self._REFRESH_TOKEN_KEY_PREFIX}{token}"
+        """Build Redis key for refresh token storage.
+
+        Uses SHA-256 hash of the token to prevent raw token exposure in key listings.
+        """
+        return f"{self._REFRESH_TOKEN_KEY_PREFIX}{hash_token(token)}"
 
     def _mapping_key(self, refresh_token: str) -> str:
-        """Build Redis key for refresh-to-access token mapping."""
-        return f"{self._MAPPING_KEY_PREFIX}{refresh_token}"
+        """Build Redis key for refresh-to-access token mapping.
+
+        Uses SHA-256 hash of the refresh token for consistent key format.
+        """
+        return f"{self._MAPPING_KEY_PREFIX}{hash_token(refresh_token)}"
 
     async def save_client(self, client: OAuthClientInformationFull) -> None:
         """Save a client to Redis."""
@@ -150,9 +171,10 @@ class RedisOAuthStore(OAuthStore):
                 ttl=self._refresh_token_ttl,
             )
 
-            # Map refresh token to access token for cleanup
+            # Map refresh token to access token hash for cleanup
+            # Store the hash (not raw token) to avoid exposing tokens in Redis
             await self._cache.set(
-                self._mapping_key(token.refresh_token), token.access_token
+                self._mapping_key(token.refresh_token), hash_token(token.access_token)
             )
 
     async def get_access_token(self, token: str) -> AccessToken | None:
@@ -172,8 +194,8 @@ class RedisOAuthStore(OAuthStore):
 
     async def revoke_refresh_token(self, token: str) -> None:
         """Delete a refresh token and its associated mappings."""
-        # Get associated access token
-        access_token_val = await self._cache.get(self._mapping_key(token))
+        # Get associated access token hash (stored as hash, not raw token)
+        access_token_hash = await self._cache.get(self._mapping_key(token))
 
         # Delete refresh token
         await self._cache.delete(self._refresh_token_key(token))
@@ -181,6 +203,8 @@ class RedisOAuthStore(OAuthStore):
         # Delete mapping
         await self._cache.delete(self._mapping_key(token))
 
-        # Delete associated access token
-        if access_token_val:
-            await self._cache.delete(self._access_token_key(access_token_val))
+        # Delete associated access token using the stored hash directly
+        if access_token_hash:
+            await self._cache.delete(
+                f"{self._ACCESS_TOKEN_KEY_PREFIX}{access_token_hash}"
+            )
