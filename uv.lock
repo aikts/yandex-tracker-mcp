@@ -2085,11 +2085,12 @@ wheels = [
 
 [[package]]
 name = "yandex-tracker-mcp"
-version = "0.5.2"
+version = "0.6.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiocache", extra = ["redis"] },
     { name = "aiohttp" },
+    { name = "cryptography" },
     { name = "mcp", extra = ["cli"] },
     { name = "pydantic" },
     { name = "pydantic-settings" },
@@ -2116,6 +2117,7 @@ dev = [
 requires-dist = [
     { name = "aiocache", extras = ["redis"], specifier = ">=0.12.3" },
     { name = "aiohttp", specifier = ">=3.11.18" },
+    { name = "cryptography", specifier = ">=44.0" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.21" },
     { name = "pydantic", specifier = ">=2.12.4" },
     { name = "pydantic-settings", specifier = ">=2.8.1" },

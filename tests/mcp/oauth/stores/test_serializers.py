@@ -1,14 +1,25 @@
 import json
+import secrets
 
 import pytest
 from pydantic import BaseModel
 
-from mcp_tracker.mcp.oauth.stores.serializers import PydanticJsonSerializer
+from mcp_tracker.mcp.oauth.stores.crypto import FieldEncryptor
+from mcp_tracker.mcp.oauth.stores.serializers import (
+    EncryptedFieldSerializer,
+    PydanticJsonSerializer,
+)
 
 
 class SampleModel(BaseModel):
     name: str
     value: int
+
+
+class TokenModel(BaseModel):
+    token: str
+    client_id: str
+    scopes: list[str]
 
 
 @pytest.fixture
@@ -100,3 +111,139 @@ class TestPydanticJsonSerializerRoundtrip:
         deserialized = serializer.loads(serialized.decode("utf-8"))
 
         assert deserialized == data
+
+
+class TestEncryptedFieldSerializerWithoutEncryption:
+    """Tests for EncryptedFieldSerializer in passthrough mode (no encryption)."""
+
+    @pytest.fixture
+    def serializer(self) -> EncryptedFieldSerializer:
+        return EncryptedFieldSerializer(encryptor=None)
+
+    def test_dumps_pydantic_model_with_token(
+        self, serializer: EncryptedFieldSerializer
+    ) -> None:
+        model = TokenModel(
+            token="secret-token", client_id="client-123", scopes=["read", "write"]
+        )
+
+        result = serializer.dumps(model)
+        data = json.loads(result)
+
+        # Without encryption, token should be plaintext
+        assert data["token"] == "secret-token"
+        assert data["client_id"] == "client-123"
+        assert data["scopes"] == ["read", "write"]
+
+    def test_roundtrip_preserves_data(
+        self, serializer: EncryptedFieldSerializer
+    ) -> None:
+        model = TokenModel(token="my-token", client_id="client", scopes=["scope1"])
+
+        serialized = serializer.dumps(model)
+        deserialized = serializer.loads(serialized.decode("utf-8"))
+
+        assert deserialized["token"] == "my-token"
+        assert deserialized["client_id"] == "client"
+
+
+class TestEncryptedFieldSerializerWithEncryption:
+    """Tests for EncryptedFieldSerializer with encryption enabled."""
+
+    @pytest.fixture
+    def encryptor(self) -> FieldEncryptor:
+        key = secrets.token_bytes(32)
+        return FieldEncryptor([key])
+
+    @pytest.fixture
+    def serializer(self, encryptor: FieldEncryptor) -> EncryptedFieldSerializer:
+        return EncryptedFieldSerializer(encryptor=encryptor)
+
+    def test_dumps_encrypts_token_field(
+        self, serializer: EncryptedFieldSerializer
+    ) -> None:
+        model = TokenModel(
+            token="secret-token", client_id="client-123", scopes=["read"]
+        )
+
+        result = serializer.dumps(model)
+        data = json.loads(result)
+
+        # Token should be encrypted (not equal to plaintext)
+        assert data["token"] != "secret-token"
+        # Non-sensitive fields should remain plaintext
+        assert data["client_id"] == "client-123"
+        assert data["scopes"] == ["read"]
+
+    def test_dumps_encrypts_client_secret_field(
+        self, serializer: EncryptedFieldSerializer
+    ) -> None:
+        data = {"client_id": "my-client", "client_secret": "super-secret"}
+
+        result = serializer.dumps(data)
+        loaded = json.loads(result)
+
+        # client_secret should be encrypted
+        assert loaded["client_secret"] != "super-secret"
+        # client_id should remain plaintext
+        assert loaded["client_id"] == "my-client"
+
+    def test_loads_decrypts_token_field(
+        self, serializer: EncryptedFieldSerializer, encryptor: FieldEncryptor
+    ) -> None:
+        # Create encrypted data
+        encrypted_token = encryptor.encrypt("decrypted-token")
+        encrypted_data = json.dumps(
+            {"token": encrypted_token, "client_id": "client", "scopes": []}
+        )
+
+        result = serializer.loads(encrypted_data)
+
+        assert result["token"] == "decrypted-token"
+        assert result["client_id"] == "client"
+
+    def test_roundtrip_with_encryption(
+        self, serializer: EncryptedFieldSerializer
+    ) -> None:
+        model = TokenModel(
+            token="roundtrip-token", client_id="client-456", scopes=["a", "b"]
+        )
+
+        serialized = serializer.dumps(model)
+        # Verify encrypted form doesn't contain plaintext token
+        assert b"roundtrip-token" not in serialized
+
+        deserialized = serializer.loads(serialized.decode("utf-8"))
+
+        assert deserialized["token"] == "roundtrip-token"
+        assert deserialized["client_id"] == "client-456"
+        assert deserialized["scopes"] == ["a", "b"]
+
+    def test_handles_none_token_value(
+        self, serializer: EncryptedFieldSerializer
+    ) -> None:
+        data = {"token": None, "client_id": "client"}
+
+        serialized = serializer.dumps(data)
+        deserialized = serializer.loads(serialized.decode("utf-8"))
+
+        assert deserialized["token"] is None
+        assert deserialized["client_id"] == "client"
+
+    def test_handles_non_dict_values(
+        self, serializer: EncryptedFieldSerializer
+    ) -> None:
+        # Non-dict values should pass through unchanged
+        data = "plain string"
+
+        serialized = serializer.dumps(data)
+        deserialized = serializer.loads(serialized.decode("utf-8"))
+
+        assert deserialized == "plain string"
+
+    def test_loads_none_returns_none(
+        self, serializer: EncryptedFieldSerializer
+    ) -> None:
+        result = serializer.loads(None)  # type: ignore[arg-type]
+
+        assert result is None

@@ -860,6 +860,26 @@ REDIS_POOL_MAX_SIZE=10                    # Default: 10
 - **Refresh Tokens**: Stored persistently until revoked
 - **Key Namespacing**: Uses `oauth:*` prefixes to avoid conflicts with other Redis data
 
+##### Token Encryption (Required for Redis Store)
+
+When using Redis store, you must configure encryption to protect OAuth tokens at rest. Token values are encrypted using Fernet (AES-128) and Redis keys use SHA-256 hashes instead of raw tokens, preventing token exposure if Redis is compromised.
+
+**Generate an encryption key:**
+```bash
+python3 -c "import base64, os; print(base64.b64encode(os.urandom(32)).decode())"
+```
+
+**Configuration:**
+```env
+# Single encryption key
+OAUTH_ENCRYPTION_KEYS=<base64-encoded-32-byte-key>
+
+# Multiple keys for rotation (first encrypts, all decrypt)
+OAUTH_ENCRYPTION_KEYS=<new-key>,<old-key>
+```
+
+Key rotation allows seamless key updates: add the new key first, wait for old tokens to expire, then remove the old key.
+
 **Important Notes:**
 - Both stores use the same Redis connection settings as the tools caching system
 - When using Redis store, ensure your Redis instance is properly secured and accessible

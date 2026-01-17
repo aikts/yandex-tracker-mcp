@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0] - 2026-01-17
+
+### Breaking Changes
+- Redis OAuth store now requires encryption configuration via `OAUTH_ENCRYPTION_KEYS` environment variable
+- Existing OAuth tokens stored in Redis without encryption will need to be re-authenticated
+
+### Security
+- Add token encryption for Redis OAuth store using Fernet (AES-128)
+- Redis keys now use SHA-256 hashes instead of raw tokens to prevent token exposure if Redis is compromised
+- Support key rotation with multiple encryption keys (first key encrypts, all keys can decrypt)
+
+### Internal
+- Update CI workflow badges in README files to reflect new release workflow
+- Consolidate Docker and package workflows into unified release.yml
+- Remove Python 3.13t from test matrix
+
 ## [0.5.2] - 2026-01-17
 
 ### Internal

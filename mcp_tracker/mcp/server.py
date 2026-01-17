@@ -1,3 +1,4 @@
+import base64
 from collections.abc import AsyncIterator, Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from typing import Any
@@ -25,6 +26,28 @@ from mcp_tracker.tracker.proto.users import UsersProtocol
 
 # Type alias for lifespan
 Lifespan = Callable[[FastMCP[Any]], AbstractAsyncContextManager[AppContext]]
+
+
+def _parse_encryption_keys(keys_str: str | None) -> list[bytes] | None:
+    """Parse comma-separated base64-encoded 32-byte encryption keys."""
+    if not keys_str:
+        return None
+
+    keys: list[bytes] = []
+    for i, key_b64 in enumerate(keys_str.split(","), start=1):
+        if not (key_b64 := key_b64.strip()):
+            continue
+        try:
+            key_bytes = base64.b64decode(key_b64)
+        except Exception as e:
+            raise ValueError(f"Encryption key {i} is not valid base64: {e}") from e
+        if len(key_bytes) != 32:
+            raise ValueError(
+                f"Encryption key {i} must be 32 bytes, got {len(key_bytes)}"
+            )
+        keys.append(key_bytes)
+
+    return keys if keys else None
 
 
 def make_tracker_lifespan(settings: Settings) -> Lifespan:
@@ -102,15 +125,25 @@ def create_mcp_server(
         assert settings.mcp_server_public_url, "MCP server public url must be set."
 
         oauth_store: OAuthStore
+
         if settings.oauth_store == "memory":
             oauth_store = InMemoryOAuthStore()
         elif settings.oauth_store == "redis":
+            encryption_keys = _parse_encryption_keys(settings.oauth_encryption_keys)
+            if not encryption_keys:
+                raise ValueError(
+                    "OAUTH_ENCRYPTION_KEYS must be set when using Redis OAuth store. "
+                    "Generate a key with: "
+                    'python3 -c "import base64, os; print(base64.b64encode(os.urandom(32)).decode())"'
+                )
+
             oauth_store = RedisOAuthStore(
                 endpoint=settings.redis_endpoint,
                 port=settings.redis_port,
                 db=settings.redis_db,
                 password=settings.redis_password,
                 pool_max_size=settings.redis_pool_max_size,
+                encryption_keys=encryption_keys,
             )
         else:
             raise ValueError(
