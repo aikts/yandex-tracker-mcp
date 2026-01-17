@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.2] - 2026-01-17
+
+### Internal
+- Refactor MCP tools into modular structure with separate files by category:
+  - `queue.py`: Queue-related tools (read-only)
+  - `field.py`: Global field and metadata tools (read-only)
+  - `issue_read.py`: Issue read-only tools
+  - `issue_write.py`: Issue write tools (conditional on read-only mode)
+  - `user.py`: User-related tools (read-only)
+- Add comprehensive test suite for TrackerClient and MCP tools
+- Delete Smithery support
+- Update CLAUDE.md with new project structure documentation
+
 ## [0.5.1] - 2026-01-13
 
 ### Improvements
