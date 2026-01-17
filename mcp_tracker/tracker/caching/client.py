@@ -257,6 +257,22 @@ def make_cached_protocols(
                 **kwargs,
             )
 
+        @cached(**cache_config)
+        async def worklogs_search(
+            self,
+            *,
+            created_by: str | None = None,
+            created_at_from: str | None = None,
+            created_at_to: str | None = None,
+            auth: YandexAuth | None = None,
+        ) -> list[Worklog]:
+            return await self._original.worklogs_search(
+                created_by=created_by,
+                created_at_from=created_at_from,
+                created_at_to=created_at_to,
+                auth=auth,
+            )
+
     class CachingGlobalDataProtocol(GlobalDataProtocolWrap):
         @cached(**cache_config)
         async def get_global_fields(
