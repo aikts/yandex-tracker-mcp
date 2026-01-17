@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/aikts-yandex-tracker-mcp-badge.png)](https://mseep.ai/app/aikts-yandex-tracker-mcp)
+
 # Yandex Tracker MCP Server
 
 ![PyPI - Version](https://img.shields.io/pypi/v/yandex-tracker-mcp)
