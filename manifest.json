@@ -112,6 +112,10 @@
       "description": "Retrieve worklog entries"
     },
     {
+      "name": "worklogs_search",
+      "description": "Search for worklogs across all issues with optional filters by author and creation date"
+    },
+    {
       "name": "issue_get_attachments",
       "description": "Get attachments for an issue"
     },

@@ -593,6 +593,13 @@ The server exposes the following tools through the MCP protocol:
   - Parameters: `issue_ids` (array of strings)
   - Returns time tracking data for specified issues
 
+- **`worklogs_search`**: Search for worklogs across all issues
+  - Parameters (all optional):
+    - `created_by` (string): User login or ID who created the worklog (e.g., 'john.doe' or '1234567890')
+    - `created_at_from` (string): Start of time range in ISO 8601 format (e.g., '2024-01-01T00:00:00.000+0000')
+    - `created_at_to` (string): End of time range in ISO 8601 format (e.g., '2024-12-31T23:59:59.999+0000')
+  - Returns list of worklogs matching the specified filters
+
 - **`issue_get_attachments`**: Get attachments for an issue
   - Parameters: `issue_id` (string, format: "QUEUE-123")
   - Returns list of attachments with metadata for the specified issue

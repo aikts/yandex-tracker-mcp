@@ -485,6 +485,32 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
             response.raise_for_status()
             return ChecklistItemList.model_validate_json(await response.read()).root
 
+    async def worklogs_search(
+        self,
+        *,
+        created_by: str | None = None,
+        created_at_from: str | None = None,
+        created_at_to: str | None = None,
+        auth: YandexAuth | None = None,
+    ) -> list[Worklog]:
+        body: dict[str, Any] = {}
+        if created_by is not None:
+            body["createdBy"] = created_by
+        if created_at_from is not None or created_at_to is not None:
+            body["createdAt"] = {}
+            if created_at_from is not None:
+                body["createdAt"]["from"] = created_at_from
+            if created_at_to is not None:
+                body["createdAt"]["to"] = created_at_to
+
+        async with self._session.post(
+            "v3/worklog/_search",
+            headers=await self._build_headers(auth),
+            json=body,
+        ) as response:
+            response.raise_for_status()
+            return WorklogList.model_validate_json(await response.read()).root
+
     async def issues_count(self, query: str, *, auth: YandexAuth | None = None) -> int:
         body: dict[str, Any] = {
             "query": query,
