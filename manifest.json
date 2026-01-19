@@ -112,6 +112,18 @@
       "description": "Retrieve worklog entries"
     },
     {
+      "name": "issue_add_worklog",
+      "description": "Add a worklog entry (log spent time) to an issue"
+    },
+    {
+      "name": "issue_update_worklog",
+      "description": "Update a worklog entry (spent time record) in an issue"
+    },
+    {
+      "name": "issue_delete_worklog",
+      "description": "Delete a worklog entry (spent time record) from an issue"
+    },
+    {
       "name": "issue_get_attachments",
       "description": "Get attachments for an issue"
     },

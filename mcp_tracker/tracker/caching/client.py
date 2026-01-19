@@ -1,3 +1,4 @@
+import datetime
 from dataclasses import dataclass
 from typing import Any
 
@@ -132,6 +133,55 @@ def make_cached_protocols(
             self, issue_id: str, *, auth: YandexAuth | None = None
         ) -> list[Worklog]:
             return await self._original.issue_get_worklogs(issue_id, auth=auth)
+
+        async def issue_add_worklog(
+            self,
+            issue_id: str,
+            *,
+            duration: str,
+            comment: str | None = None,
+            start: datetime.datetime | None = None,
+            auth: YandexAuth | None = None,
+        ) -> Worklog:
+            return await self._original.issue_add_worklog(
+                issue_id,
+                duration=duration,
+                comment=comment,
+                start=start,
+                auth=auth,
+            )
+
+        async def issue_update_worklog(
+            self,
+            issue_id: str,
+            worklog_id: int,
+            *,
+            duration: str | None = None,
+            comment: str | None = None,
+            start: datetime.datetime | None = None,
+            auth: YandexAuth | None = None,
+        ) -> Worklog:
+            return await self._original.issue_update_worklog(
+                issue_id,
+                worklog_id,
+                duration=duration,
+                comment=comment,
+                start=start,
+                auth=auth,
+            )
+
+        async def issue_delete_worklog(
+            self,
+            issue_id: str,
+            worklog_id: int,
+            *,
+            auth: YandexAuth | None = None,
+        ) -> None:
+            return await self._original.issue_delete_worklog(
+                issue_id,
+                worklog_id,
+                auth=auth,
+            )
 
         @cached(**cache_config)
         async def issue_get_attachments(

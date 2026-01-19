@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import logging
 import random
 import time
@@ -430,6 +431,94 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
                 raise IssueNotFound(issue_id)
             response.raise_for_status()
             return WorklogList.model_validate_json(await response.read()).root
+
+    async def issue_add_worklog(
+        self,
+        issue_id: str,
+        *,
+        duration: str,
+        comment: str | None = None,
+        start: datetime.datetime | None = None,
+        auth: YandexAuth | None = None,
+    ) -> Worklog:
+        """Добавить запись трудозатрат (worklog) к задаче.
+
+        Args:
+            issue_id: Ключ задачи (например, "QUEUE-123")
+            duration: Длительность в формате ISO 8601 (например, "PT1H30M")
+            comment: Комментарий к записи
+            start: Время начала работ. Если не задано — используется текущее время на стороне Трекера.
+            auth: Опциональная auth-структура (OAuth/Org) поверх конфигурации клиента
+        """
+        body: dict[str, Any] = {"duration": duration}
+        if comment is not None:
+            body["comment"] = comment
+        if start is not None:
+            # Если tz отсутствует — считаем, что время задано в UTC.
+            if start.tzinfo is None:
+                start = start.replace(tzinfo=datetime.timezone.utc)
+            start_utc = start.astimezone(datetime.timezone.utc)
+            # Формат "+0000" (без двоеточия) совместим с API Трекера.
+            body["start"] = start_utc.strftime("%Y-%m-%dT%H:%M:%S.%f%z")
+
+        async with self._session.post(
+            f"v3/issues/{issue_id}/worklog",
+            headers=await self._build_headers(auth),
+            json=body,
+        ) as response:
+            if response.status == 404:
+                raise IssueNotFound(issue_id)
+            response.raise_for_status()
+            return Worklog.model_validate_json(await response.read())
+
+    async def issue_update_worklog(
+        self,
+        issue_id: str,
+        worklog_id: int,
+        *,
+        duration: str | None = None,
+        comment: str | None = None,
+        start: datetime.datetime | None = None,
+        auth: YandexAuth | None = None,
+    ) -> Worklog:
+        """Обновить запись трудозатрат (worklog) в задаче."""
+        body: dict[str, Any] = {}
+        if duration is not None:
+            body["duration"] = duration
+        if comment is not None:
+            body["comment"] = comment
+        if start is not None:
+            if start.tzinfo is None:
+                start = start.replace(tzinfo=datetime.timezone.utc)
+            start_utc = start.astimezone(datetime.timezone.utc)
+            body["start"] = start_utc.strftime("%Y-%m-%dT%H:%M:%S.%f%z")
+
+        async with self._session.patch(
+            f"v3/issues/{issue_id}/worklog/{worklog_id}",
+            headers=await self._build_headers(auth),
+            json=body,
+        ) as response:
+            if response.status == 404:
+                raise IssueNotFound(issue_id)
+            response.raise_for_status()
+            return Worklog.model_validate_json(await response.read())
+
+    async def issue_delete_worklog(
+        self,
+        issue_id: str,
+        worklog_id: int,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> None:
+        """Удалить запись трудозатрат (worklog) из задачи."""
+        async with self._session.delete(
+            f"v3/issues/{issue_id}/worklog/{worklog_id}",
+            headers=await self._build_headers(auth),
+        ) as response:
+            if response.status == 404:
+                raise IssueNotFound(issue_id)
+            response.raise_for_status()
+            return None
 
     async def issue_get_attachments(
         self, issue_id: str, *, auth: YandexAuth | None = None

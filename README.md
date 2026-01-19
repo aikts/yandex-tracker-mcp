@@ -593,6 +593,29 @@ The server exposes the following tools through the MCP protocol:
   - Parameters: `issue_ids` (array of strings)
   - Returns time tracking data for specified issues
 
+- **`issue_add_worklog`**: Add a worklog entry (log spent time) to an issue
+  - Parameters:
+    - `issue_id` (string, required, format: "QUEUE-123")
+    - `duration` (string, required): ISO-8601 duration (e.g. `PT1H30M`)
+    - `comment` (string, optional): Worklog comment
+    - `start` (datetime, optional): Work start datetime (UTC assumed if timezone is not provided)
+  - Returns created worklog entry
+
+- **`issue_update_worklog`**: Update a worklog entry (spent time record) in an issue
+  - Parameters:
+    - `issue_id` (string, required, format: "QUEUE-123")
+    - `worklog_id` (int, required): Worklog entry ID
+    - `duration` (string, optional): ISO-8601 duration (e.g. `PT1H30M`)
+    - `comment` (string, optional): Worklog comment
+    - `start` (datetime, optional): Work start datetime (UTC assumed if timezone is not provided)
+  - Returns updated worklog entry
+
+- **`issue_delete_worklog`**: Delete a worklog entry (spent time record) from an issue
+  - Parameters:
+    - `issue_id` (string, required, format: "QUEUE-123")
+    - `worklog_id` (int, required): Worklog entry ID
+  - Returns: `null` (success)
+
 - **`issue_get_attachments`**: Get attachments for an issue
   - Parameters: `issue_id` (string, format: "QUEUE-123")
   - Returns list of attachments with metadata for the specified issue

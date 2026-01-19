@@ -1,5 +1,6 @@
 """Issue write MCP tools (conditionally registered based on read-only mode)."""
 
+import datetime
 from typing import Annotated, Any
 
 from mcp.server import FastMCP
@@ -20,7 +21,7 @@ from mcp_tracker.tracker.proto.types.inputs import (
     IssueUpdateSprint,
     IssueUpdateType,
 )
-from mcp_tracker.tracker.proto.types.issues import Issue, IssueTransition
+from mcp_tracker.tracker.proto.types.issues import Issue, IssueTransition, Worklog
 
 
 def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
@@ -267,4 +268,102 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             version=version,
             auth=get_yandex_auth(ctx),
             **(fields or {}),
+        )
+
+    @mcp.tool(
+        title="Add Worklog",
+        description="Add a worklog entry (log spent time) to a Yandex Tracker issue",
+        annotations=ToolAnnotations(readOnlyHint=False),
+    )
+    async def issue_add_worklog(
+        ctx: Context[Any, AppContext],
+        issue_id: IssueID,
+        duration: Annotated[
+            str,
+            Field(
+                description="Time spent in ISO-8601 duration format (e.g., 'PT1H30M').",
+            ),
+        ],
+        comment: Annotated[
+            str | None,
+            Field(description="Optional comment to add to the worklog entry."),
+        ] = None,
+        start: Annotated[
+            datetime.datetime | None,
+            Field(
+                description="Optional start datetime for the worklog. "
+                "If timezone is not provided, UTC is assumed."
+            ),
+        ] = None,
+    ) -> Worklog:
+        check_issue_access(settings, issue_id)
+
+        return await ctx.request_context.lifespan_context.issues.issue_add_worklog(
+            issue_id,
+            duration=duration,
+            comment=comment,
+            start=start,
+            auth=get_yandex_auth(ctx),
+        )
+
+    @mcp.tool(
+        title="Update Worklog",
+        description="Update a worklog entry (spent time record) in a Yandex Tracker issue",
+        annotations=ToolAnnotations(readOnlyHint=False),
+    )
+    async def issue_update_worklog(
+        ctx: Context[Any, AppContext],
+        issue_id: IssueID,
+        worklog_id: Annotated[
+            int,
+            Field(description="Worklog entry ID (integer)."),
+        ],
+        duration: Annotated[
+            str | None,
+            Field(
+                description="New time spent in ISO-8601 duration format (e.g., 'PT1H30M').",
+            ),
+        ] = None,
+        comment: Annotated[
+            str | None,
+            Field(description="New comment for the worklog entry."),
+        ] = None,
+        start: Annotated[
+            datetime.datetime | None,
+            Field(
+                description="New start datetime for the worklog. "
+                "If timezone is not provided, UTC is assumed."
+            ),
+        ] = None,
+    ) -> Worklog:
+        check_issue_access(settings, issue_id)
+
+        return await ctx.request_context.lifespan_context.issues.issue_update_worklog(
+            issue_id,
+            worklog_id,
+            duration=duration,
+            comment=comment,
+            start=start,
+            auth=get_yandex_auth(ctx),
+        )
+
+    @mcp.tool(
+        title="Delete Worklog",
+        description="Delete a worklog entry (spent time record) from a Yandex Tracker issue",
+        annotations=ToolAnnotations(readOnlyHint=False),
+    )
+    async def issue_delete_worklog(
+        ctx: Context[Any, AppContext],
+        issue_id: IssueID,
+        worklog_id: Annotated[
+            int,
+            Field(description="Worklog entry ID (integer)."),
+        ],
+    ) -> None:
+        check_issue_access(settings, issue_id)
+
+        return await ctx.request_context.lifespan_context.issues.issue_delete_worklog(
+            issue_id,
+            worklog_id,
+            auth=get_yandex_auth(ctx),
         )
