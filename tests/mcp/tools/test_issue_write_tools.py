@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock
 
 from mcp.client.session import ClientSession
 
-from mcp_tracker.tracker.proto.types.issues import Issue, IssueTransition
+from mcp_tracker.tracker.proto.types.issues import Issue, IssueTransition, Worklog
 from tests.mcp.conftest import get_tool_result_content
 
 
@@ -327,3 +327,116 @@ class TestIssueUpdate:
 
         assert result.isError
         mock_issues_protocol.issue_update.assert_not_called()
+
+
+class TestIssueAddWorklog:
+    async def test_adds_worklog(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_worklog: Worklog,
+    ) -> None:
+        mock_issues_protocol.issue_add_worklog.return_value = sample_worklog
+
+        result = await client_session.call_tool(
+            "issue_add_worklog",
+            {"issue_id": "TEST-123", "duration": "PT1H", "comment": "Worked on task"},
+        )
+
+        assert not result.isError
+        mock_issues_protocol.issue_add_worklog.assert_called_once()
+        call_kwargs = mock_issues_protocol.issue_add_worklog.call_args.kwargs
+        assert call_kwargs["duration"] == "PT1H"
+        assert call_kwargs["comment"] == "Worked on task"
+        content = get_tool_result_content(result)
+        assert isinstance(content, dict)
+        assert content["id"] == sample_worklog.id
+
+    async def test_restricted_queue_raises_error(
+        self,
+        client_session_with_limits: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session_with_limits.call_tool(
+            "issue_add_worklog",
+            {"issue_id": "RESTRICTED-123", "duration": "PT15M"},
+        )
+
+        assert result.isError
+        mock_issues_protocol.issue_add_worklog.assert_not_called()
+
+
+class TestIssueUpdateWorklog:
+    async def test_updates_worklog(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_worklog: Worklog,
+    ) -> None:
+        mock_issues_protocol.issue_update_worklog.return_value = sample_worklog
+
+        result = await client_session.call_tool(
+            "issue_update_worklog",
+            {
+                "issue_id": "TEST-123",
+                "worklog_id": 10,
+                "duration": "PT2H",
+                "comment": "Updated",
+            },
+        )
+
+        assert not result.isError
+        mock_issues_protocol.issue_update_worklog.assert_called_once()
+        call_kwargs = mock_issues_protocol.issue_update_worklog.call_args.kwargs
+        assert call_kwargs["duration"] == "PT2H"
+        assert call_kwargs["comment"] == "Updated"
+        content = get_tool_result_content(result)
+        assert isinstance(content, dict)
+        assert content["id"] == sample_worklog.id
+
+    async def test_restricted_queue_raises_error(
+        self,
+        client_session_with_limits: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session_with_limits.call_tool(
+            "issue_update_worklog",
+            {"issue_id": "RESTRICTED-123", "worklog_id": 10, "comment": "x"},
+        )
+
+        assert result.isError
+        mock_issues_protocol.issue_update_worklog.assert_not_called()
+
+
+class TestIssueDeleteWorklog:
+    async def test_deletes_worklog(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        mock_issues_protocol.issue_delete_worklog.return_value = None
+
+        result = await client_session.call_tool(
+            "issue_delete_worklog",
+            {"issue_id": "TEST-123", "worklog_id": 10},
+        )
+
+        assert not result.isError
+        mock_issues_protocol.issue_delete_worklog.assert_called_once()
+        call_args = mock_issues_protocol.issue_delete_worklog.call_args
+        # Сигнатура: issue_delete_worklog(issue_id, worklog_id, *, auth=...)
+        assert call_args.args[0] == "TEST-123"
+        assert call_args.args[1] == 10
+
+    async def test_restricted_queue_raises_error(
+        self,
+        client_session_with_limits: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session_with_limits.call_tool(
+            "issue_delete_worklog",
+            {"issue_id": "RESTRICTED-123", "worklog_id": 10},
+        )
+
+        assert result.isError
+        mock_issues_protocol.issue_delete_worklog.assert_not_called()

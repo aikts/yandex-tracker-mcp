@@ -1,7 +1,7 @@
 import pytest
 from mcp.client.session import ClientSession
 
-# Read-only tool names (20 tools) - always registered
+# Read-only tool names (24 tools) - always registered
 READ_ONLY_TOOL_NAMES = [
     # Queue tools (5)
     "queues_get_all",
@@ -33,12 +33,15 @@ READ_ONLY_TOOL_NAMES = [
     "user_get_current",
 ]
 
-# Write tool names (4 tools) - only registered when not in read-only mode
+# Write tool names (5 tools) - only registered when not in read-only mode
 WRITE_TOOL_NAMES = [
     "issue_execute_transition",
     "issue_close",
     "issue_create",
     "issue_update",
+    "issue_add_worklog",
+    "issue_update_worklog",
+    "issue_delete_worklog",
 ]
 
 # All tool names that should be registered in normal mode
@@ -93,7 +96,7 @@ class TestReadOnlyModeToolRegistration:
         self,
         client_session_read_only: ClientSession,
     ) -> None:
-        """Read-only mode should have exactly 20 tools (24 total minus 4 write tools)."""
+        """Read-only mode should have only read-only tools."""
         result = await client_session_read_only.list_tools()
 
         assert len(result.tools) == len(READ_ONLY_TOOL_NAMES), (
@@ -105,7 +108,7 @@ class TestReadOnlyModeToolRegistration:
         self,
         client_session: ClientSession,
     ) -> None:
-        """Normal mode should have all 24 tools."""
+        """Normal mode should have all tools (read-only + write)."""
         result = await client_session.list_tools()
 
         assert len(result.tools) == len(EXPECTED_TOOL_NAMES), (

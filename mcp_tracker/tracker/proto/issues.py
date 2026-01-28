@@ -1,3 +1,4 @@
+import datetime
 from typing import Any, Protocol, runtime_checkable
 
 from .common import YandexAuth
@@ -42,6 +43,32 @@ class IssueProtocol(Protocol):
     async def issue_get_worklogs(
         self, issue_id: str, *, auth: YandexAuth | None = None
     ) -> list[Worklog]: ...
+    async def issue_add_worklog(
+        self,
+        issue_id: str,
+        *,
+        duration: str,
+        comment: str | None = None,
+        start: datetime.datetime | None = None,
+        auth: YandexAuth | None = None,
+    ) -> Worklog: ...
+    async def issue_update_worklog(
+        self,
+        issue_id: str,
+        worklog_id: int,
+        *,
+        duration: str | None = None,
+        comment: str | None = None,
+        start: datetime.datetime | None = None,
+        auth: YandexAuth | None = None,
+    ) -> Worklog: ...
+    async def issue_delete_worklog(
+        self,
+        issue_id: str,
+        worklog_id: int,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> None: ...
     async def issue_get_attachments(
         self, issue_id: str, *, auth: YandexAuth | None = None
     ) -> list[IssueAttachment]: ...
