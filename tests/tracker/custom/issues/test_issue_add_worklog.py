@@ -95,7 +95,9 @@ class TestIssueAddWorklog:
         capture.last_request.assert_json_field("duration", "PT30M")
         capture.last_request.assert_json_field("comment", "Investigated root cause")
         # В запросе используем формат без двоеточия в смещении (+0000)
-        capture.last_request.assert_json_field("start", "2023-01-01T12:00:00.000000+0000")
+        capture.last_request.assert_json_field(
+            "start", "2023-01-01T12:00:00.000000+0000"
+        )
 
     async def test_not_found(self, tracker_client: TrackerClient) -> None:
         with aioresponses() as m:
@@ -108,5 +110,3 @@ class TestIssueAddWorklog:
                 await tracker_client.issue_add_worklog("NOTFOUND-123", duration="PT1H")
 
             assert exc_info.value.issue_id == "NOTFOUND-123"
-
-

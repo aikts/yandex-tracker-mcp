@@ -50,7 +50,9 @@ class TestIssueUpdateWorklog:
         capture.assert_called_once()
         capture.last_request.assert_json_field("duration", "PT2H")
         capture.last_request.assert_json_field("comment", "Updated comment")
-        capture.last_request.assert_json_field("start", "2023-01-01T09:00:00.000000+0000")
+        capture.last_request.assert_json_field(
+            "start", "2023-01-01T09:00:00.000000+0000"
+        )
 
     async def test_not_found(self, tracker_client: TrackerClient) -> None:
         with aioresponses() as m:
@@ -79,8 +81,7 @@ class TestIssueDeleteWorklog:
                 callback=capture.callback,
             )
 
-            result = await tracker_client.issue_delete_worklog("TEST-123", 10)
-            assert result is None
+            await tracker_client.issue_delete_worklog("TEST-123", 10)
 
         capture.assert_called_once()
 
@@ -95,5 +96,3 @@ class TestIssueDeleteWorklog:
                 await tracker_client.issue_delete_worklog("NOTFOUND-123", 10)
 
             assert exc_info.value.issue_id == "NOTFOUND-123"
-
-
