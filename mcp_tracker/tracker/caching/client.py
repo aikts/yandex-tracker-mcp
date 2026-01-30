@@ -161,7 +161,9 @@ def make_cached_protocols(
             *,
             auth: YandexAuth | None = None,
         ) -> None:
-            return await self._original.issue_delete_comment(issue_id, comment_id, auth=auth)
+            return await self._original.issue_delete_comment(
+                issue_id, comment_id, auth=auth
+            )
 
         @cached(**cache_config)
         async def issues_find(

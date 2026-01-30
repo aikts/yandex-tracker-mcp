@@ -2,7 +2,12 @@ from unittest.mock import AsyncMock
 
 from mcp.client.session import ClientSession
 
-from mcp_tracker.tracker.proto.types.issues import Issue, IssueComment, IssueTransition, Worklog
+from mcp_tracker.tracker.proto.types.issues import (
+    Issue,
+    IssueComment,
+    IssueTransition,
+    Worklog,
+)
 from tests.mcp.conftest import get_tool_result_content
 
 

@@ -29,7 +29,9 @@ class TestIssueAddComment:
                 callback=capture.callback,
             )
 
-            result = await tracker_client.issue_add_comment("TEST-123", text="Hello from test")
+            result = await tracker_client.issue_add_comment(
+                "TEST-123", text="Hello from test"
+            )
 
             assert isinstance(result, IssueComment)
             assert result.id == 1
@@ -70,7 +72,9 @@ class TestIssueAddComment:
             assert result.summonees is not None
 
         capture.assert_called_once()
-        capture.last_request.assert_json_body({"text": "Ping", "summonees": ["user123"]})
+        capture.last_request.assert_json_body(
+            {"text": "Ping", "summonees": ["user123"]}
+        )
 
     async def test_not_found(self, tracker_client: TrackerClient) -> None:
         with aioresponses() as m:
@@ -83,4 +87,3 @@ class TestIssueAddComment:
                 await tracker_client.issue_add_comment("NOTFOUND-123", text="x")
 
             assert exc_info.value.issue_id == "NOTFOUND-123"
-

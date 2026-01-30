@@ -109,4 +109,3 @@ class TestIssueDeleteComment:
                 await tracker_client.issue_delete_comment("NOTFOUND-123", 10)
 
             assert exc_info.value.issue_id == "NOTFOUND-123"
-
