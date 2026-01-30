@@ -603,6 +603,32 @@ The server exposes the following tools through the MCP protocol:
   - Parameters: `issue_id` (string)
   - Returns chronological list of comments with metadata
 
+- **`issue_add_comment`**: Add a comment to an issue
+  - Parameters:
+    - `issue_id` (string, required, format: "QUEUE-123")
+    - `text` (string, required): Comment text (markdown supported by Tracker)
+    - `summonees` (array of strings, optional): Users to summon (logins or IDs). **This is the API way to mention/call users** (notifications are triggered by this field, not by `@login` in text).
+    - `maillist_summonees` (array of strings, optional): Mailing lists to summon (emails)
+    - `markup_type` (string, optional): Use `md` for YFM (markdown)
+    - `is_add_to_followers` (boolean, optional, default: true): Add comment author to followers
+  - Returns created comment object
+
+- **`issue_update_comment`**: Update an existing comment in an issue
+  - Parameters:
+    - `issue_id` (string, required, format: "QUEUE-123")
+    - `comment_id` (int, required): Comment ID
+    - `text` (string, required): New comment text (markdown supported by Tracker)
+    - `summonees` (array of strings, optional): Users to summon (logins or IDs)
+    - `maillist_summonees` (array of strings, optional): Mailing lists to summon (emails)
+    - `markup_type` (string, optional): Use `md` for YFM (markdown)
+  - Returns updated comment object
+
+- **`issue_delete_comment`**: Delete a comment from an issue
+  - Parameters:
+    - `issue_id` (string, required, format: "QUEUE-123")
+    - `comment_id` (int, required): Comment ID
+  - Returns: `null` (success)
+
 - **`issue_get_links`**: Get related issue links
   - Parameters: `issue_id` (string)
   - Returns links to related, blocked, or duplicate issues

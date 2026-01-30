@@ -395,6 +395,88 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
             response.raise_for_status()
             return IssueCommentList.model_validate_json(await response.read()).root
 
+    async def issue_add_comment(
+        self,
+        issue_id: str,
+        *,
+        text: str,
+        summonees: list[str] | None = None,
+        maillist_summonees: list[str] | None = None,
+        markup_type: str | None = None,
+        is_add_to_followers: bool = True,
+        auth: YandexAuth | None = None,
+    ) -> IssueComment:
+        """Добавить комментарий к задаче."""
+        body: dict[str, Any] = {"text": text}
+        if summonees is not None:
+            body["summonees"] = summonees
+        if maillist_summonees is not None:
+            body["maillistSummonees"] = maillist_summonees
+        if markup_type is not None:
+            body["markupType"] = markup_type
+
+        # Параметр опциональный, по умолчанию true на стороне API.
+        # Чтобы не менять URL (и поведение по умолчанию), передаём его только при false.
+        params = {"isAddToFollowers": "false"} if not is_add_to_followers else None
+
+        async with self._session.post(
+            f"v3/issues/{issue_id}/comments",
+            headers=await self._build_headers(auth),
+            json=body,
+            params=params,
+        ) as response:
+            if response.status == 404:
+                raise IssueNotFound(issue_id)
+            response.raise_for_status()
+            return IssueComment.model_validate_json(await response.read())
+
+    async def issue_update_comment(
+        self,
+        issue_id: str,
+        comment_id: int,
+        *,
+        text: str,
+        summonees: list[str] | None = None,
+        maillist_summonees: list[str] | None = None,
+        markup_type: str | None = None,
+        auth: YandexAuth | None = None,
+    ) -> IssueComment:
+        """Изменить комментарий в задаче."""
+        body: dict[str, Any] = {"text": text}
+        if summonees is not None:
+            body["summonees"] = summonees
+        if maillist_summonees is not None:
+            body["maillistSummonees"] = maillist_summonees
+        if markup_type is not None:
+            body["markupType"] = markup_type
+
+        async with self._session.patch(
+            f"v3/issues/{issue_id}/comments/{comment_id}",
+            headers=await self._build_headers(auth),
+            json=body,
+        ) as response:
+            if response.status == 404:
+                raise IssueNotFound(issue_id)
+            response.raise_for_status()
+            return IssueComment.model_validate_json(await response.read())
+
+    async def issue_delete_comment(
+        self,
+        issue_id: str,
+        comment_id: int,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> None:
+        """Удалить комментарий из задачи."""
+        async with self._session.delete(
+            f"v3/issues/{issue_id}/comments/{comment_id}",
+            headers=await self._build_headers(auth),
+        ) as response:
+            if response.status == 404:
+                raise IssueNotFound(issue_id)
+            response.raise_for_status()
+            return None
+
     async def issues_find(
         self,
         query: str,

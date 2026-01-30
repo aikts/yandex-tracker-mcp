@@ -72,6 +72,20 @@ class IssueComment(CreatedUpdatedMixin, BaseTrackerEntity):
     text_html: str | None = Field(
         None, validation_alias=AliasChoices("textHtml", "text_html")
     )
+    summonees: list[UserReference] | None = Field(
+        None,
+        validation_alias=AliasChoices("summonees", "summonees"),
+        exclude_if=none_excluder,
+    )
+    maillist_summonees: list["MaillistReference"] | None = Field(
+        None,
+        validation_alias=AliasChoices("maillistSummonees", "maillist_summonees"),
+        exclude_if=none_excluder,
+    )
+
+
+class MaillistReference(BaseReference):
+    display: str | None = None
 
 
 class LinkTypeReference(BaseReference):

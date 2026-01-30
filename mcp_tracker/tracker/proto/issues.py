@@ -29,6 +29,35 @@ class IssueProtocol(Protocol):
     async def issue_get_comments(
         self, issue_id: str, *, auth: YandexAuth | None = None
     ) -> list[IssueComment]: ...
+    async def issue_add_comment(
+        self,
+        issue_id: str,
+        *,
+        text: str,
+        summonees: list[str] | None = None,
+        maillist_summonees: list[str] | None = None,
+        markup_type: str | None = None,
+        is_add_to_followers: bool = True,
+        auth: YandexAuth | None = None,
+    ) -> IssueComment: ...
+    async def issue_update_comment(
+        self,
+        issue_id: str,
+        comment_id: int,
+        *,
+        text: str,
+        summonees: list[str] | None = None,
+        maillist_summonees: list[str] | None = None,
+        markup_type: str | None = None,
+        auth: YandexAuth | None = None,
+    ) -> IssueComment: ...
+    async def issue_delete_comment(
+        self,
+        issue_id: str,
+        comment_id: int,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> None: ...
     async def issues_get_links(
         self, issue_id: str, *, auth: YandexAuth | None = None
     ) -> list[IssueLink]: ...

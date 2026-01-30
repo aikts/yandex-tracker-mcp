@@ -21,7 +21,12 @@ from mcp_tracker.tracker.proto.types.inputs import (
     IssueUpdateSprint,
     IssueUpdateType,
 )
-from mcp_tracker.tracker.proto.types.issues import Issue, IssueTransition, Worklog
+from mcp_tracker.tracker.proto.types.issues import (
+    Issue,
+    IssueComment,
+    IssueTransition,
+    Worklog,
+)
 
 
 def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
@@ -365,5 +370,130 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         return await ctx.request_context.lifespan_context.issues.issue_delete_worklog(
             issue_id,
             worklog_id,
+            auth=get_yandex_auth(ctx),
+        )
+
+    @mcp.tool(
+        title="Add Issue Comment",
+        description="Add a comment to a Yandex Tracker issue. "
+        "IMPORTANT: If you need to mention/call people to the discussion (so they get notifications), "
+        "do NOT rely on '@login' in the text — use the `summonees` parameter instead.",
+        annotations=ToolAnnotations(readOnlyHint=False),
+    )
+    async def issue_add_comment(
+        ctx: Context[Any, AppContext],
+        issue_id: IssueID,
+        text: Annotated[
+            str,
+            Field(description="Comment text (markdown supported by Tracker)."),
+        ],
+        summonees: Annotated[
+            list[str] | None,
+            Field(
+                description="Optional list of summoned users (logins or IDs). "
+                "These users will be invited to the discussion and receive notifications "
+                "(this is the API way to 'mention/call' someone in Yandex Tracker comments)."
+            ),
+        ] = None,
+        maillist_summonees: Annotated[
+            list[str] | None,
+            Field(
+                description="Optional list of mailing lists to summon (emails). "
+                "Example: ['team@example.com']."
+            ),
+        ] = None,
+        markup_type: Annotated[
+            str | None,
+            Field(
+                description="Optional markup type for comment text. Use 'md' for YFM (markdown)."
+            ),
+        ] = None,
+        is_add_to_followers: Annotated[
+            bool,
+            Field(
+                description="Whether to add the comment author to issue followers. Default: true."
+            ),
+        ] = True,
+    ) -> IssueComment:
+        check_issue_access(settings, issue_id)
+
+        return await ctx.request_context.lifespan_context.issues.issue_add_comment(
+            issue_id,
+            text=text,
+            summonees=summonees,
+            maillist_summonees=maillist_summonees,
+            markup_type=markup_type,
+            is_add_to_followers=is_add_to_followers,
+            auth=get_yandex_auth(ctx),
+        )
+
+    @mcp.tool(
+        title="Update Issue Comment",
+        description="Update an existing comment in a Yandex Tracker issue. "
+        "IMPORTANT: If you need to mention/call people (notifications), use the `summonees` parameter.",
+        annotations=ToolAnnotations(readOnlyHint=False),
+    )
+    async def issue_update_comment(
+        ctx: Context[Any, AppContext],
+        issue_id: IssueID,
+        comment_id: Annotated[
+            int,
+            Field(description="Comment ID (integer)."),
+        ],
+        text: Annotated[
+            str,
+            Field(description="New comment text (markdown supported by Tracker)."),
+        ],
+        summonees: Annotated[
+            list[str] | None,
+            Field(
+                description="Optional list of summoned users (logins or IDs). "
+                "These users will be invited to the discussion and receive notifications."
+            ),
+        ] = None,
+        maillist_summonees: Annotated[
+            list[str] | None,
+            Field(
+                description="Optional list of mailing lists to summon (emails). "
+                "Example: ['team@example.com']."
+            ),
+        ] = None,
+        markup_type: Annotated[
+            str | None,
+            Field(
+                description="Optional markup type for comment text. Use 'md' for YFM (markdown)."
+            ),
+        ] = None,
+    ) -> IssueComment:
+        check_issue_access(settings, issue_id)
+
+        return await ctx.request_context.lifespan_context.issues.issue_update_comment(
+            issue_id,
+            comment_id,
+            text=text,
+            summonees=summonees,
+            maillist_summonees=maillist_summonees,
+            markup_type=markup_type,
+            auth=get_yandex_auth(ctx),
+        )
+
+    @mcp.tool(
+        title="Delete Issue Comment",
+        description="Delete a comment from a Yandex Tracker issue",
+        annotations=ToolAnnotations(readOnlyHint=False),
+    )
+    async def issue_delete_comment(
+        ctx: Context[Any, AppContext],
+        issue_id: IssueID,
+        comment_id: Annotated[
+            int,
+            Field(description="Comment ID (integer)."),
+        ],
+    ) -> None:
+        check_issue_access(settings, issue_id)
+
+        return await ctx.request_context.lifespan_context.issues.issue_delete_comment(
+            issue_id,
+            comment_id,
             auth=get_yandex_auth(ctx),
         )

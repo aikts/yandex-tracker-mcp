@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock
 
 from mcp.client.session import ClientSession
 
-from mcp_tracker.tracker.proto.types.issues import Issue, IssueTransition, Worklog
+from mcp_tracker.tracker.proto.types.issues import Issue, IssueComment, IssueTransition, Worklog
 from tests.mcp.conftest import get_tool_result_content
 
 
@@ -440,3 +440,116 @@ class TestIssueDeleteWorklog:
 
         assert result.isError
         mock_issues_protocol.issue_delete_worklog.assert_not_called()
+
+
+class TestIssueAddComment:
+    async def test_adds_comment(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_comment: IssueComment,
+    ) -> None:
+        mock_issues_protocol.issue_add_comment.return_value = sample_comment
+
+        result = await client_session.call_tool(
+            "issue_add_comment",
+            {"issue_id": "TEST-123", "text": "Hello", "summonees": ["user123"]},
+        )
+
+        assert not result.isError
+        mock_issues_protocol.issue_add_comment.assert_called_once()
+        call_kwargs = mock_issues_protocol.issue_add_comment.call_args.kwargs
+        assert call_kwargs["text"] == "Hello"
+        assert call_kwargs["summonees"] == ["user123"]
+        content = get_tool_result_content(result)
+        assert isinstance(content, dict)
+        assert content["id"] == sample_comment.id
+
+    async def test_restricted_queue_raises_error(
+        self,
+        client_session_with_limits: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session_with_limits.call_tool(
+            "issue_add_comment",
+            {"issue_id": "RESTRICTED-123", "text": "x"},
+        )
+
+        assert result.isError
+        mock_issues_protocol.issue_add_comment.assert_not_called()
+
+
+class TestIssueUpdateComment:
+    async def test_updates_comment(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_comment: IssueComment,
+    ) -> None:
+        mock_issues_protocol.issue_update_comment.return_value = sample_comment
+
+        result = await client_session.call_tool(
+            "issue_update_comment",
+            {
+                "issue_id": "TEST-123",
+                "comment_id": 10,
+                "text": "Updated",
+                "summonees": ["user123"],
+            },
+        )
+
+        assert not result.isError
+        mock_issues_protocol.issue_update_comment.assert_called_once()
+        call_kwargs = mock_issues_protocol.issue_update_comment.call_args.kwargs
+        assert call_kwargs["text"] == "Updated"
+        assert call_kwargs["summonees"] == ["user123"]
+        content = get_tool_result_content(result)
+        assert isinstance(content, dict)
+        assert content["id"] == sample_comment.id
+
+    async def test_restricted_queue_raises_error(
+        self,
+        client_session_with_limits: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session_with_limits.call_tool(
+            "issue_update_comment",
+            {"issue_id": "RESTRICTED-123", "comment_id": 10, "text": "x"},
+        )
+
+        assert result.isError
+        mock_issues_protocol.issue_update_comment.assert_not_called()
+
+
+class TestIssueDeleteComment:
+    async def test_deletes_comment(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        mock_issues_protocol.issue_delete_comment.return_value = None
+
+        result = await client_session.call_tool(
+            "issue_delete_comment",
+            {"issue_id": "TEST-123", "comment_id": 10},
+        )
+
+        assert not result.isError
+        mock_issues_protocol.issue_delete_comment.assert_called_once()
+        call_args = mock_issues_protocol.issue_delete_comment.call_args
+        # Сигнатура: issue_delete_comment(issue_id, comment_id, *, auth=...)
+        assert call_args.args[0] == "TEST-123"
+        assert call_args.args[1] == 10
+
+    async def test_restricted_queue_raises_error(
+        self,
+        client_session_with_limits: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session_with_limits.call_tool(
+            "issue_delete_comment",
+            {"issue_id": "RESTRICTED-123", "comment_id": 10},
+        )
+
+        assert result.isError
+        mock_issues_protocol.issue_delete_comment.assert_not_called()

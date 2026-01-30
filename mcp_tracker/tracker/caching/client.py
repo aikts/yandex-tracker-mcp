@@ -112,6 +112,57 @@ def make_cached_protocols(
         ) -> list[IssueComment]:
             return await self._original.issue_get_comments(issue_id, auth=auth)
 
+        async def issue_add_comment(
+            self,
+            issue_id: str,
+            *,
+            text: str,
+            summonees: list[str] | None = None,
+            maillist_summonees: list[str] | None = None,
+            markup_type: str | None = None,
+            is_add_to_followers: bool = True,
+            auth: YandexAuth | None = None,
+        ) -> IssueComment:
+            return await self._original.issue_add_comment(
+                issue_id,
+                text=text,
+                summonees=summonees,
+                maillist_summonees=maillist_summonees,
+                markup_type=markup_type,
+                is_add_to_followers=is_add_to_followers,
+                auth=auth,
+            )
+
+        async def issue_update_comment(
+            self,
+            issue_id: str,
+            comment_id: int,
+            *,
+            text: str,
+            summonees: list[str] | None = None,
+            maillist_summonees: list[str] | None = None,
+            markup_type: str | None = None,
+            auth: YandexAuth | None = None,
+        ) -> IssueComment:
+            return await self._original.issue_update_comment(
+                issue_id,
+                comment_id,
+                text=text,
+                summonees=summonees,
+                maillist_summonees=maillist_summonees,
+                markup_type=markup_type,
+                auth=auth,
+            )
+
+        async def issue_delete_comment(
+            self,
+            issue_id: str,
+            comment_id: int,
+            *,
+            auth: YandexAuth | None = None,
+        ) -> None:
+            return await self._original.issue_delete_comment(issue_id, comment_id, auth=auth)
+
         @cached(**cache_config)
         async def issues_find(
             self,

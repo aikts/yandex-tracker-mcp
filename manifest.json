@@ -104,6 +104,18 @@
       "description": "Fetch all comments for an issue"
     },
     {
+      "name": "issue_add_comment",
+      "description": "Add a comment to a Yandex Tracker issue"
+    },
+    {
+      "name": "issue_update_comment",
+      "description": "Update an existing comment in a Yandex Tracker issue"
+    },
+    {
+      "name": "issue_delete_comment",
+      "description": "Delete a comment from a Yandex Tracker issue"
+    },
+    {
       "name": "issue_get_links",
       "description": "Get related issue links"
     },
