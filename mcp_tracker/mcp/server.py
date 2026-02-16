@@ -6,6 +6,8 @@ from typing import Any
 import yarl
 from mcp.server import FastMCP
 from mcp.server.auth.settings import AuthSettings, ClientRegistrationOptions
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from mcp_tracker.mcp.context import AppContext
@@ -198,6 +200,50 @@ def create_mcp_server(
                 endpoint=auth_server_provider.handle_yandex_callback,
                 methods=["GET"],
                 name="oauth_yandex_callback",
+            )
+        )
+
+        async def handle_register(request: Request) -> JSONResponse:
+            try:
+                data = await request.json()
+            except Exception:
+                return JSONResponse(content={"error": "invalid_request"}, status_code=400)
+
+            from mcp.shared.auth import OAuthClientInformationFull
+
+            client_info = OAuthClientInformationFull(
+                client_id=data.get("client_id", ""),
+                client_id_issued_at=int(data.get("client_id_issued_at", 0)),
+                client_secret=data.get("client_secret"),
+                client_secret_expires_at=data.get("client_secret_expires_at", 0),
+                redirect_uris=data.get("redirect_uris", []),
+                grant_types=data.get("grant_types", []),
+                response_types=data.get("response_types", []),
+                token_endpoint_auth_method=data.get("token_endpoint_auth_method", "none"),
+                client_name=data.get("client_name", "OpenCode"),
+                client_uri=data.get("client_uri", ""),
+            )
+
+            await auth_server_provider.register_client(client_info)
+
+            return JSONResponse(
+                content={
+                    "client_id": client_info.client_id,
+                    "client_id_issued_at": client_info.client_id_issued_at,
+                    "client_secret_expires_at": client_info.client_secret_expires_at,
+                    "grant_types": client_info.grant_types,
+                    "response_types": client_info.response_types,
+                    "token_endpoint_auth_method": client_info.token_endpoint_auth_method,
+                },
+                status_code=201,
+            )
+
+        server._custom_starlette_routes.append(
+            Route(
+                path="/register",
+                endpoint=handle_register,
+                methods=["POST"],
+                name="oauth_register",
             )
         )
 
