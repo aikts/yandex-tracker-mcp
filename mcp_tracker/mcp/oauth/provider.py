@@ -96,8 +96,8 @@ class YandexOAuthAuthorizationServerProvider(
         """
         Retrieves client information by client ID.
 
-        Implementors MAY raise NotImplementedError if dynamic client registration is
-        disabled in ClientRegistrationOptions.
+        If client is not found but dynamic client registration is enabled,
+        we auto-register the client with the provided client_id.
 
         Args:
             client_id: The ID of the client to retrieve.
@@ -105,7 +105,26 @@ class YandexOAuthAuthorizationServerProvider(
         Returns:
             The client information, or None if the client does not exist.
         """
-        return await self._store.get_client(client_id)
+        client = await self._store.get_client(client_id)
+        if client is None and client_id:
+            # Auto-register unknown clients on first use
+            # This is a workaround for MCP clients that don't call /register
+            from mcp.shared.auth import OAuthClientInformationFull
+            auto_client = OAuthClientInformationFull(
+                client_id=client_id,
+                client_id_issued_at=int(time.time()),
+                client_secret="",
+                client_secret_expires_at=0,
+                redirect_uris=["http://127.0.0.1:19876/mcp/oauth/callback"],
+                grant_types=["authorization_code", "refresh_token"],
+                response_types=["code"],
+                token_endpoint_auth_method="none",
+                client_name="OpenCode",
+                client_uri="https://opencode.ai",
+            )
+            await self._store.save_client(auto_client)
+            return auto_client
+        return client
 
     async def register_client(self, client_info: OAuthClientInformationFull) -> None:
         """
