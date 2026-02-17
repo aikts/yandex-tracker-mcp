@@ -115,7 +115,7 @@ class YandexOAuthAuthorizationServerProvider(
                 client_id_issued_at=int(time.time()),
                 client_secret="",
                 client_secret_expires_at=0,
-                redirect_uris=["http://127.0.0.1:19876/mcp/oauth/callback"],
+                redirect_uris=[],
                 grant_types=["authorization_code", "refresh_token"],
                 response_types=["code"],
                 token_endpoint_auth_method="none",
@@ -186,7 +186,10 @@ class YandexOAuthAuthorizationServerProvider(
         """
         state_id = params.state or secrets.token_hex(16)
 
-        redirect_uri = client.validate_redirect_uri(params.redirect_uri)
+        if client.redirect_uris:
+            redirect_uri = client.validate_redirect_uri(params.redirect_uri)
+        else:
+            redirect_uri = params.redirect_uri
         if self._use_scopes:
             scopes = client.validate_scope(
                 " ".join(params.scopes) if params.scopes else None
