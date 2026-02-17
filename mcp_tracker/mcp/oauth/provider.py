@@ -110,7 +110,7 @@ class YandexOAuthAuthorizationServerProvider(
             # Auto-register unknown clients on first use
             # This is a workaround for MCP clients that don't call /register
             from mcp.shared.auth import OAuthClientInformationFull
-            auto_client = OAuthClientInformationFull(
+            auto_client = OAuthClientInformationFull.model_construct(
                 client_id=client_id,
                 client_id_issued_at=int(time.time()),
                 client_secret="",
