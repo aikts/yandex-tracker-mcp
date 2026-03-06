@@ -15,6 +15,16 @@ def get_yandex_auth(ctx: Context[Any, Any, Request]) -> YandexAuth:
     access_token = get_access_token()
     token = access_token.token if access_token else None
 
+    # Passthrough mode: when MCP OAuth is disabled (no access_token from MCP auth
+    # middleware), read the Yandex OAuth token directly from the Authorization
+    # header. This enables use behind a reverse proxy that injects per-user
+    # tokens (e.g. a gateway that resolves user identity and fetches their
+    # stored OAuth token from a secret store).
+    if token is None and ctx.request_context.request is not None:
+        auth_header = ctx.request_context.request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:].strip() or None
+
     auth = YandexAuth(token=token)
 
     if ctx.request_context.request is not None:
