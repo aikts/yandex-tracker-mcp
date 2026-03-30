@@ -38,6 +38,10 @@ Choose one of the following based on your Yandex organization type:
 You can find your organization ID in the Yandex Tracker URL or organization settings.
 
 
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/aikts-yandex-tracker-mcp).
+
 ## MCP Client Configuration
 
 ### Installing extension in Claude Desktop
