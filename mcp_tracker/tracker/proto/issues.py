@@ -165,6 +165,14 @@ class IssueProtocol(Protocol):
         **kwargs: Any,
     ) -> Issue: ...
 
+    async def issue_move(
+        self,
+        issue_id: str,
+        queue: str,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> Issue: ...
+
 
 class IssueProtocolWrap(IssueProtocol):
     def __init__(self, original: IssueProtocol):

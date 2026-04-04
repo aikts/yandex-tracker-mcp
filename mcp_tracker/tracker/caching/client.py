@@ -360,6 +360,15 @@ def make_cached_protocols(
                 **kwargs,
             )
 
+        async def issue_move(
+            self,
+            issue_id: str,
+            queue: str,
+            *,
+            auth: YandexAuth | None = None,
+        ) -> Issue:
+            return await self._original.issue_move(issue_id, queue, auth=auth)
+
     class CachingGlobalDataProtocol(GlobalDataProtocolWrap):
         @cached(**cache_config)
         async def get_global_fields(
