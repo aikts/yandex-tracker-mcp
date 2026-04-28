@@ -971,17 +971,22 @@ Yandex Tracker MCP Server supports multiple authentication methods with a clear 
    - Required env vars: `OAUTH_ENABLED=true`, `OAUTH_CLIENT_ID`, `OAUTH_CLIENT_SECRET`, `MCP_SERVER_PUBLIC_URL`
    - Additional vars for federative OAuth: `OAUTH_SERVER_URL=https://auth.yandex.cloud/oauth`, `OAUTH_TOKEN_TYPE=Bearer`, `OAUTH_USE_SCOPES=false`
 
-2. **Static OAuth Token**
+2. **Passthrough Bearer OAuth Token**
+   - When MCP OAuth middleware does not provide a token, the server can read a Yandex OAuth token from the incoming `Authorization: Bearer <token>` header
+   - Useful behind a trusted reverse proxy or gateway that authenticates users, resolves their stored Yandex OAuth token, and injects it per request
+   - The token from MCP OAuth still has priority when OAuth mode is enabled and active
+
+3. **Static OAuth Token**
    - Traditional OAuth token provided via environment variable
    - Single token used for all requests
    - Required env var: `TRACKER_TOKEN` (your OAuth token)
 
-3. **Static IAM Token**
+4. **Static IAM Token**
    - IAM (Identity and Access Management) token for service-to-service authentication
    - Suitable for automated systems and CI/CD pipelines
    - Required env var: `TRACKER_IAM_TOKEN` (your IAM token)
 
-4. **Dynamic IAM Token** (lowest priority)
+5. **Dynamic IAM Token** (lowest priority)
    - Automatically retrieved using service account credentials
    - Token is fetched and refreshed automatically
    - Required env vars: `TRACKER_SA_KEY_ID`, `TRACKER_SA_SERVICE_ACCOUNT_ID`, `TRACKER_SA_PRIVATE_KEY`
@@ -1009,7 +1014,21 @@ TRACKER_TOKEN=your_oauth_token
 TRACKER_CLOUD_ORG_ID=your_cloud_org_id  # or TRACKER_ORG_ID
 ```
 
-#### Scenario 3: Static IAM Token
+#### Scenario 3: Passthrough Bearer Token Behind a Reverse Proxy
+Use this mode when a trusted gateway handles user authentication, looks up the user's Yandex OAuth token, and forwards the request to the MCP server with that token in the request header:
+
+```http
+Authorization: Bearer <user_yandex_oauth_token>
+```
+
+```env
+# Organization ID (choose one)
+TRACKER_CLOUD_ORG_ID=your_cloud_org_id  # or TRACKER_ORG_ID
+```
+
+This passthrough token is used only when MCP OAuth middleware has not provided an access token for the request. In OAuth-enabled deployments with an active MCP OAuth session, the MCP OAuth token takes priority.
+
+#### Scenario 4: Static IAM Token
 ```env
 # IAM token
 TRACKER_IAM_TOKEN=your_iam_token
@@ -1018,7 +1037,7 @@ TRACKER_IAM_TOKEN=your_iam_token
 TRACKER_CLOUD_ORG_ID=your_cloud_org_id  # or TRACKER_ORG_ID
 ```
 
-#### Scenario 4: Dynamic IAM Token with Service Account
+#### Scenario 5: Dynamic IAM Token with Service Account
 ```env
 # Service account credentials
 TRACKER_SA_KEY_ID=your_key_id
@@ -1029,7 +1048,7 @@ TRACKER_SA_PRIVATE_KEY=your_private_key
 TRACKER_CLOUD_ORG_ID=your_cloud_org_id  # or TRACKER_ORG_ID
 ```
 
-#### Scenario 5: Federative OAuth for OIDC Applications (Advanced)
+#### Scenario 6: Federative OAuth for OIDC Applications (Advanced)
 ```env
 # Enable OAuth with Yandex Cloud federation
 OAUTH_ENABLED=true

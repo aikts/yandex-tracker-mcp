@@ -968,17 +968,22 @@ Yandex Tracker MCP Server поддерживает несколько метод
    - Необходимые переменные окружения: `OAUTH_ENABLED=true`, `OAUTH_CLIENT_ID`, `OAUTH_CLIENT_SECRET`, `MCP_SERVER_PUBLIC_URL`
    - Дополнительные переменные для федеративного OAuth: `OAUTH_SERVER_URL=https://auth.yandex.cloud/oauth`, `OAUTH_TOKEN_TYPE=Bearer`, `OAUTH_USE_SCOPES=false`
 
-2. **Статический OAuth токен**
+2. **Проброс OAuth токена через Bearer**
+   - Когда OAuth middleware MCP не предоставил токен, сервер может прочитать OAuth токен Яндекса из входящего заголовка `Authorization: Bearer <token>`
+   - Полезно за доверенным reverse proxy или gateway, который аутентифицирует пользователей, получает их сохраненный OAuth токен Яндекса и добавляет его в каждый запрос
+   - Токен из MCP OAuth сохраняет приоритет, когда OAuth режим включен и активен
+
+3. **Статический OAuth токен**
    - Традиционный OAuth токен, предоставленный через переменную окружения
    - Один токен используется для всех запросов
    - Необходимая переменная окружения: `TRACKER_TOKEN` (ваш OAuth токен)
 
-3. **Статический IAM токен**
+4. **Статический IAM токен**
    - IAM (Identity and Access Management) токен для межсервисной аутентификации
    - Подходит для автоматизированных систем и CI/CD конвейеров
    - Необходимая переменная окружения: `TRACKER_IAM_TOKEN` (ваш IAM токен)
 
-4. **Динамический IAM токен** (низший приоритет)
+5. **Динамический IAM токен** (низший приоритет)
    - Автоматически получается с использованием учетных данных сервисного аккаунта
    - Токен извлекается и обновляется автоматически
    - Необходимые переменные: `TRACKER_SA_KEY_ID`, `TRACKER_SA_SERVICE_ACCOUNT_ID`, `TRACKER_SA_PRIVATE_KEY`
@@ -1006,7 +1011,21 @@ TRACKER_TOKEN=ваш_oauth_токен
 TRACKER_CLOUD_ORG_ID=ваш_cloud_org_id  # или TRACKER_ORG_ID
 ```
 
-#### Сценарий 3: Статический IAM токен
+#### Сценарий 3: Проброс Bearer токена за reverse proxy
+Используйте этот режим, когда доверенный gateway выполняет аутентификацию пользователя, получает его OAuth токен Яндекса и проксирует запрос к MCP серверу с этим токеном в заголовке:
+
+```http
+Authorization: Bearer <oauth_токен_пользователя_в_яндексе>
+```
+
+```env
+# ID организации (выберите один)
+TRACKER_CLOUD_ORG_ID=ваш_cloud_org_id  # или TRACKER_ORG_ID
+```
+
+Проброшенный токен используется только если OAuth middleware MCP не предоставил access token для запроса. В deployments с включенным OAuth и активной MCP OAuth сессией приоритет остается у токена MCP OAuth.
+
+#### Сценарий 4: Статический IAM токен
 ```env
 # IAM токен
 TRACKER_IAM_TOKEN=ваш_iam_токен
@@ -1015,7 +1034,7 @@ TRACKER_IAM_TOKEN=ваш_iam_токен
 TRACKER_CLOUD_ORG_ID=ваш_cloud_org_id  # или TRACKER_ORG_ID
 ```
 
-#### Сценарий 4: Динамический IAM токен с сервисным аккаунтом
+#### Сценарий 5: Динамический IAM токен с сервисным аккаунтом
 ```env
 # Учетные данные сервисного аккаунта
 TRACKER_SA_KEY_ID=ваш_key_id
@@ -1026,7 +1045,7 @@ TRACKER_SA_PRIVATE_KEY=ваш_private_key
 TRACKER_CLOUD_ORG_ID=ваш_cloud_org_id  # или TRACKER_ORG_ID
 ```
 
-#### Сценарий 5: Федеративный OAuth для OIDC-приложений (расширенный)
+#### Сценарий 6: Федеративный OAuth для OIDC-приложений (расширенный)
 ```env
 # Включить OAuth с федерацией Yandex Cloud
 OAUTH_ENABLED=true
