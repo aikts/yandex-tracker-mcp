@@ -23,9 +23,12 @@ def _create_mock_context(request: Mock | None = None) -> Mock:
     return ctx
 
 
-def _create_mock_request(query_params: dict[str, str]) -> Mock:
-    """Create a mock Request with given query parameters."""
+def _create_mock_request(
+    query_params: dict[str, str], headers: dict[str, str] | None = None
+) -> Mock:
+    """Create a mock Request with given query parameters and headers."""
     request = Mock()
+    request.headers = headers or {}
     request.query_params = Mock()
     request.query_params.get = lambda key: query_params.get(key)
     return request
@@ -86,6 +89,100 @@ class TestGetYandexAuthWithToken:
 
         assert result == YandexAuth(
             token="test-oauth-token", cloud_org_id=None, org_id=None
+        )
+
+
+class TestGetYandexAuthWithPassthroughBearer:
+    @pytest.mark.parametrize(
+        ("auth_header", "expected_token"),
+        [
+            ("Bearer passthrough-token", "passthrough-token"),
+            ("Bearer   passthrough-token  ", "passthrough-token"),
+        ],
+        ids=["bearer_token", "bearer_token_with_whitespace"],
+    )
+    def test_uses_bearer_header_when_access_token_missing(
+        self,
+        mocker: MockerFixture,
+        auth_header: str,
+        expected_token: str,
+    ) -> None:
+        mocker.patch(
+            "mcp_tracker.mcp.utils.get_access_token",
+            return_value=None,
+        )
+        request = _create_mock_request({}, {"Authorization": auth_header})
+        ctx = _create_mock_context(request=request)
+
+        result = get_yandex_auth(ctx)
+
+        assert result == YandexAuth(
+            token=expected_token, cloud_org_id=None, org_id=None
+        )
+
+    @pytest.mark.parametrize(
+        "auth_header",
+        [
+            "Bearer   ",
+            "OAuth passthrough-token",
+            "Basic passthrough-token",
+            "",
+        ],
+        ids=["empty_bearer", "oauth_header", "basic_header", "empty_header"],
+    )
+    def test_ignores_invalid_bearer_header(
+        self,
+        mocker: MockerFixture,
+        auth_header: str,
+    ) -> None:
+        mocker.patch(
+            "mcp_tracker.mcp.utils.get_access_token",
+            return_value=None,
+        )
+        request = _create_mock_request({}, {"Authorization": auth_header})
+        ctx = _create_mock_context(request=request)
+
+        result = get_yandex_auth(ctx)
+
+        assert result == YandexAuth(token=None, cloud_org_id=None, org_id=None)
+
+    def test_access_token_has_priority_over_bearer_header(
+        self, mocker: MockerFixture
+    ) -> None:
+        access_token = Mock()
+        access_token.token = "test-oauth-token"
+        mocker.patch(
+            "mcp_tracker.mcp.utils.get_access_token",
+            return_value=access_token,
+        )
+        request = _create_mock_request(
+            {}, {"Authorization": "Bearer passthrough-token"}
+        )
+        ctx = _create_mock_context(request=request)
+
+        result = get_yandex_auth(ctx)
+
+        assert result == YandexAuth(
+            token="test-oauth-token", cloud_org_id=None, org_id=None
+        )
+
+    def test_bearer_header_with_org_query_params(self, mocker: MockerFixture) -> None:
+        mocker.patch(
+            "mcp_tracker.mcp.utils.get_access_token",
+            return_value=None,
+        )
+        request = _create_mock_request(
+            {"cloudOrgId": "  cloud-123  ", "orgId": "  org-456  "},
+            {"Authorization": "Bearer passthrough-token"},
+        )
+        ctx = _create_mock_context(request=request)
+
+        result = get_yandex_auth(ctx)
+
+        assert result == YandexAuth(
+            token="passthrough-token",
+            cloud_org_id="cloud-123",
+            org_id="org-456",
         )
 
 
