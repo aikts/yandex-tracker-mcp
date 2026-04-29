@@ -46,6 +46,14 @@ UserID = Annotated[
     ),
 ]
 
+GoalID = Annotated[
+    str,
+    Field(
+        description="Goal entity identifier (24-character hex string returned by goal_create / goals_search, "
+        "e.g., '69f1f551a5a4a076a93df775')."
+    ),
+]
+
 
 YTQuery = Annotated[
     str,

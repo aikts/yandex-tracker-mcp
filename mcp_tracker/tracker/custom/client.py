@@ -14,12 +14,14 @@ from pydantic import BaseModel, RootModel
 from yandex.cloud.iam.v1.iam_token_service_pb2 import CreateIamTokenRequest
 from yandex.cloud.iam.v1.iam_token_service_pb2_grpc import IamTokenServiceStub
 
-from mcp_tracker.tracker.custom.errors import IssueNotFound
+from mcp_tracker.tracker.custom.errors import GoalNotFound, IssueNotFound
 from mcp_tracker.tracker.proto.common import YandexAuth
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
+from mcp_tracker.tracker.proto.goals import GoalsProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
 from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
+from mcp_tracker.tracker.proto.types.goals import Goal
 from mcp_tracker.tracker.proto.types.inputs import (
     IssueUpdateFollower,
     IssueUpdateParent,
@@ -66,6 +68,7 @@ PriorityList = RootModel[list[Priority]]
 ResolutionList = RootModel[list[Resolution]]
 UserList = RootModel[list[User]]
 IssueTransitionList = RootModel[list[IssueTransition]]
+GoalList = RootModel[list[Goal]]
 
 
 logger = logging.getLogger(__name__)
@@ -175,7 +178,9 @@ class ServiceAccountStore:
         return IAMTokenInfo(token=iam_token.iam_token)
 
 
-class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProtocol):
+class TrackerClient(
+    QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProtocol, GoalsProtocol
+):
     def __init__(
         self,
         *,
@@ -862,3 +867,119 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
                 raise IssueNotFound(issue_id)
             response.raise_for_status()
             return Issue.model_validate_json(await response.read())
+
+    # ---- Goals (entities API) ----
+
+    async def goal_get(
+        self,
+        goal_id: str,
+        *,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> Goal:
+        params: dict[str, str] = {}
+        if fields:
+            params["fields"] = ",".join(fields)
+        async with self._session.get(
+            f"v3/entities/goal/{goal_id}",
+            headers=await self._build_headers(auth),
+            params=params if params else None,
+        ) as response:
+            if response.status == 404:
+                raise GoalNotFound(goal_id)
+            response.raise_for_status()
+            return Goal.model_validate_json(await response.read())
+
+    async def goal_create(
+        self,
+        *,
+        fields: dict[str, Any],
+        auth: YandexAuth | None = None,
+    ) -> Goal:
+        body: dict[str, Any] = {"fields": fields}
+        async with self._session.post(
+            "v3/entities/goal",
+            headers=await self._build_headers(auth),
+            json=body,
+        ) as response:
+            response.raise_for_status()
+            return Goal.model_validate_json(await response.read())
+
+    async def goal_update(
+        self,
+        goal_id: str,
+        *,
+        fields: dict[str, Any],
+        version: int | None = None,
+        auth: YandexAuth | None = None,
+    ) -> Goal:
+        body: dict[str, Any] = {"fields": fields}
+        params: dict[str, int] = {}
+        if version is not None:
+            params["version"] = version
+        async with self._session.patch(
+            f"v3/entities/goal/{goal_id}",
+            headers=await self._build_headers(auth),
+            json=body,
+            params=params if params else None,
+        ) as response:
+            if response.status == 404:
+                raise GoalNotFound(goal_id)
+            response.raise_for_status()
+            return Goal.model_validate_json(await response.read())
+
+    async def goal_delete(
+        self,
+        goal_id: str,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> None:
+        async with self._session.delete(
+            f"v3/entities/goal/{goal_id}",
+            headers=await self._build_headers(auth),
+        ) as response:
+            if response.status == 404:
+                raise GoalNotFound(goal_id)
+            response.raise_for_status()
+            return None
+
+    async def goals_search(
+        self,
+        *,
+        input: str | None = None,
+        filter: dict[str, Any] | None = None,
+        order_by: str | None = None,
+        order_asc: bool | None = None,
+        root_only: bool | None = None,
+        per_page: int = 50,
+        page: int = 1,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> list[Goal]:
+        params: dict[str, str | int] = {"perPage": per_page, "page": page}
+        if fields:
+            params["fields"] = ",".join(fields)
+
+        body: dict[str, Any] = {}
+        if input is not None:
+            body["input"] = input
+        if filter is not None:
+            body["filter"] = filter
+        if order_by is not None:
+            body["orderBy"] = order_by
+        if order_asc is not None:
+            body["orderAsc"] = order_asc
+        if root_only is not None:
+            body["rootOnly"] = root_only
+
+        async with self._session.post(
+            "v3/entities/goal/_search",
+            headers=await self._build_headers(auth),
+            json=body,
+            params=params,
+        ) as response:
+            response.raise_for_status()
+            payload = await response.json()
+            # API returns {"hits": N, "pages": M, "values": [...]} OR a bare list
+            values = payload.get("values", []) if isinstance(payload, dict) else payload
+            return GoalList.model_validate(values).root

@@ -6,9 +6,11 @@ from aiocache import cached
 
 from mcp_tracker.tracker.proto.common import YandexAuth
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocolWrap
+from mcp_tracker.tracker.proto.goals import GoalsProtocolWrap
 from mcp_tracker.tracker.proto.issues import IssueProtocolWrap
 from mcp_tracker.tracker.proto.queues import QueuesProtocolWrap
 from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
+from mcp_tracker.tracker.proto.types.goals import Goal
 from mcp_tracker.tracker.proto.types.inputs import (
     IssueUpdateFollower,
     IssueUpdateParent,
@@ -45,6 +47,7 @@ class CacheCollection:
     issues: type[IssueProtocolWrap]
     global_data: type[GlobalDataProtocolWrap]
     users: type[UsersProtocolWrap]
+    goals: type[GoalsProtocolWrap]
 
 
 def make_cached_protocols(
@@ -408,9 +411,50 @@ def make_cached_protocols(
         async def user_get_current(self, *, auth: YandexAuth | None = None) -> User:
             return await self._original.user_get_current(auth=auth)
 
+    class CachingGoalsProtocol(GoalsProtocolWrap):
+        @cached(**cache_config)
+        async def goal_get(
+            self,
+            goal_id: str,
+            *,
+            fields: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> Goal:
+            return await self._original.goal_get(goal_id, fields=fields, auth=auth)
+
+        @cached(**cache_config)
+        async def goals_search(
+            self,
+            *,
+            input: str | None = None,
+            filter: dict[str, Any] | None = None,
+            order_by: str | None = None,
+            order_asc: bool | None = None,
+            root_only: bool | None = None,
+            per_page: int = 50,
+            page: int = 1,
+            fields: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> list[Goal]:
+            return await self._original.goals_search(
+                input=input,
+                filter=filter,
+                order_by=order_by,
+                order_asc=order_asc,
+                root_only=root_only,
+                per_page=per_page,
+                page=page,
+                fields=fields,
+                auth=auth,
+            )
+
+        # Write methods are not cached and bypass to the wrapped protocol via
+        # the inherited GoalsProtocolWrap implementations.
+
     return CacheCollection(
         queues=CachingQueuesProtocol,
         issues=CachingIssuesProtocol,
         global_data=CachingGlobalDataProtocol,
         users=CachingUsersProtocol,
+        goals=CachingGoalsProtocol,
     )
