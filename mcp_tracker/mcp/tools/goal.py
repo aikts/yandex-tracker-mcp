@@ -10,7 +10,12 @@ create/update):
 - summary (str, required on create) — name
 - description (str)
 - end (str `YYYY-MM-DD`) — deadline
-- entityStatus (str) — workflow status (`draft`, `achieved`, `cancelled`, ...)
+- entityStatus (str) — workflow status. Full enum (snake_case):
+  `draft` (Новая), `according_to_plan` (По плану), `at_risk` (Есть риски),
+  `blocked` (Заблокирована), `achieved` (Достигнута),
+  `partially_achieved` (Частично достигнута), `not_achieved` (Не достигнута),
+  `exceeded` (Превышена), `cancelled` (Отменена).
+  See https://yandex.ru/support/tracker/ru/concepts/entities/about-entities
 - lead (str login or {id}) — responsible person
 - teamUsers / clients / followers (lists of user refs)
 - tags (list[str])
@@ -154,7 +159,9 @@ def register_goal_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         entity_status: Annotated[
             str | None,
             Field(
-                description="Workflow status, e.g., 'draft', 'achieved', 'cancelled'. "
+                description="Workflow status (snake_case). One of: 'draft', "
+                "'according_to_plan', 'at_risk', 'blocked', 'achieved', "
+                "'partially_achieved', 'not_achieved', 'exceeded', 'cancelled'. "
                 "Defaults to 'draft' if omitted."
             ),
         ] = None,
@@ -232,7 +239,9 @@ def register_goal_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             dict[str, Any],
             Field(
                 description="Object of fields to update. Example: "
-                "{'summary': 'New name', 'end': '2026-12-31', 'entityStatus': 'achieved'}."
+                "{'summary': 'New name', 'end': '2026-12-31', 'entityStatus': 'according_to_plan'}. "
+                "entityStatus enum (snake_case): draft, according_to_plan, at_risk, blocked, "
+                "achieved, partially_achieved, not_achieved, exceeded, cancelled."
             ),
         ],
         version: Annotated[

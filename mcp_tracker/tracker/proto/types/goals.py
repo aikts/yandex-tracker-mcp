@@ -106,7 +106,13 @@ GoalEntityStatus = Enum(  # type: ignore[misc]  # ty: ignore[unused-ignore-comme
     "GoalEntityStatus",
     {
         "draft": "draft",
+        "according_to_plan": "according_to_plan",
+        "at_risk": "at_risk",
+        "blocked": "blocked",
         "achieved": "achieved",
+        "partially_achieved": "partially_achieved",
+        "not_achieved": "not_achieved",
+        "exceeded": "exceeded",
         "cancelled": "cancelled",
     },
 )
