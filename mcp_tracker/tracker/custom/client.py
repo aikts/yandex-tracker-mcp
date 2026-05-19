@@ -317,8 +317,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
             json=body,
         ) as response:
             response.raise_for_status()
-            versions = VersionList.model_validate_json(await response.read()).root
-            return versions[0]
+            return QueueVersion.model_validate_json(await response.read())
 
     async def queues_get_fields(
         self, queue_id: str, *, auth: YandexAuth | None = None

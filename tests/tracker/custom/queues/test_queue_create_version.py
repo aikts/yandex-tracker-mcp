@@ -13,7 +13,7 @@ class TestQueueCreateVersion:
     async def test_success_required_fields(
         self, tracker_client: TrackerClient, sample_version_data: dict[str, Any]
     ) -> None:
-        capture = RequestCapture(payload=[sample_version_data])
+        capture = RequestCapture(payload=sample_version_data)
 
         with aioresponses() as m:
             m.post(
@@ -35,7 +35,7 @@ class TestQueueCreateVersion:
     async def test_success_optional_fields(
         self, tracker_client: TrackerClient, sample_version_data: dict[str, Any]
     ) -> None:
-        capture = RequestCapture(payload=[sample_version_data])
+        capture = RequestCapture(payload=sample_version_data)
 
         with aioresponses() as m:
             m.post(
@@ -71,7 +71,7 @@ class TestQueueCreateVersion:
         sample_version_data: dict[str, Any],
         yandex_auth_cloud: YandexAuth,
     ) -> None:
-        capture = RequestCapture(payload=[sample_version_data])
+        capture = RequestCapture(payload=sample_version_data)
 
         with aioresponses() as m:
             m.post(
