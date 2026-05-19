@@ -508,6 +508,16 @@ The server exposes the following tools through the MCP protocol:
   - Returns list of available versions in the specified queue with details like name, description, dates, and status
   - Respects `TRACKER_LIMIT_QUEUES` restrictions
 
+- **`queue_create_version`**: Create a new version in a specific queue
+  - Parameters:
+    - `queue_id` (string, required): Queue key like "SOMEPROJECT"
+    - `name` (string, required): Version name
+    - `description` (string, optional): Version description
+    - `start_date` (date, optional): Version start date in `YYYY-MM-DD` format
+    - `due_date` (date, optional): Version due date in `YYYY-MM-DD` format
+  - Returns the created version with details like name, description, dates, and status
+  - Respects `TRACKER_LIMIT_QUEUES` restrictions
+
 - **`queue_get_fields`**: Get fields for a specific queue
   - Parameters:
     - `queue_id` (string, required): Queue key like "SOMEPROJECT"

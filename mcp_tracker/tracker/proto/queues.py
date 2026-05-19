@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Protocol, runtime_checkable
 
 from .common import YandexAuth
@@ -30,6 +31,17 @@ class QueuesProtocol(Protocol):
     async def queues_get_versions(
         self, queue_id: str, *, auth: YandexAuth | None = None
     ) -> list[QueueVersion]: ...
+
+    async def queue_create_version(
+        self,
+        queue_id: str,
+        *,
+        name: str,
+        description: str | None = None,
+        start_date: date | None = None,
+        due_date: date | None = None,
+        auth: YandexAuth | None = None,
+    ) -> QueueVersion: ...
 
     async def queues_get_fields(
         self, queue_id: str, *, auth: YandexAuth | None = None

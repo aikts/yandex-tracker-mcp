@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -21,6 +22,13 @@ class TestCachingQueuesProtocol:
         original.queues_get_versions.return_value = [
             QueueVersion(id=1, version=1, name="1.0", released=False, archived=False)
         ]
+        original.queue_create_version.return_value = QueueVersion(
+            id=2,
+            version=1,
+            name="2.0",
+            released=False,
+            archived=False,
+        )
         original.queues_get_fields.return_value = [
             GlobalField(id="field-1", key="status", name="Status")
         ]
@@ -88,6 +96,31 @@ class TestCachingQueuesProtocol:
 
         mock_original.queues_get_versions.assert_called_once_with("TEST", auth=None)
         assert result == mock_original.queues_get_versions.return_value
+
+    async def test_queue_create_version_calls_original(
+        self,
+        caching_queues_protocol: Any,
+        mock_original: AsyncMock,
+        yandex_auth: YandexAuth,
+    ) -> None:
+        result = await caching_queues_protocol.queue_create_version(
+            "TEST",
+            name="2.0",
+            description="Major update",
+            start_date=date(2023, 1, 1),
+            due_date=date(2023, 12, 31),
+            auth=yandex_auth,
+        )
+
+        mock_original.queue_create_version.assert_called_once_with(
+            "TEST",
+            name="2.0",
+            description="Major update",
+            start_date=date(2023, 1, 1),
+            due_date=date(2023, 12, 31),
+            auth=yandex_auth,
+        )
+        assert result == mock_original.queue_create_version.return_value
 
     async def test_queues_get_fields_calls_original(
         self,
