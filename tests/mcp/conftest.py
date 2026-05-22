@@ -15,6 +15,7 @@ from mcp_tracker.mcp.server import Lifespan, create_mcp_server
 from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
+from mcp_tracker.tracker.proto.components import ComponentsProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
 from mcp_tracker.tracker.proto.users import UsersProtocol
 
@@ -125,11 +126,18 @@ def mock_users_protocol() -> AsyncMock:
 
 
 @pytest.fixture
+def mock_components_protocol() -> AsyncMock:
+    """Create a mock ComponentsProtocol."""
+    return AsyncMock(spec=ComponentsProtocol)
+
+
+@pytest.fixture
 def mock_app_context(
     mock_queues_protocol: AsyncMock,
     mock_issues_protocol: AsyncMock,
     mock_fields_protocol: AsyncMock,
     mock_users_protocol: AsyncMock,
+    mock_components_protocol: AsyncMock,
 ) -> AppContext:
     """Create AppContext with mock protocols."""
     return AppContext(
@@ -137,6 +145,7 @@ def mock_app_context(
         issues=mock_issues_protocol,
         fields=mock_fields_protocol,
         users=mock_users_protocol,
+        components=mock_components_protocol,
     )
 
 

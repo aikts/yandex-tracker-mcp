@@ -5,6 +5,7 @@ This package organizes MCP tools by category:
 - field.py: Global field and metadata tools (read-only)
 - issue_read.py: Issue read-only tools
 - issue_write.py: Issue write tools (conditional on read-only mode)
+- components.py: Component write tools (conditional on read-only mode)
 - user.py: User-related tools (read-only)
 """
 
@@ -12,6 +13,7 @@ from typing import Any
 
 from mcp.server import FastMCP
 
+from mcp_tracker.mcp.tools.components import register_component_tools
 from mcp_tracker.mcp.tools.field import register_field_tools
 from mcp_tracker.mcp.tools.issue_read import register_issue_read_tools
 from mcp_tracker.mcp.tools.issue_write import register_issue_write_tools
@@ -37,6 +39,7 @@ def register_all_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
     # Only register write tools if not in read-only mode
     if not settings.tracker_read_only:
         register_issue_write_tools(settings, mcp)
+        register_component_tools(settings, mcp)
 
 
 __all__ = ["register_all_tools"]

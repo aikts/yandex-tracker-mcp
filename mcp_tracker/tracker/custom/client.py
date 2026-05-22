@@ -16,9 +16,11 @@ from yandex.cloud.iam.v1.iam_token_service_pb2_grpc import IamTokenServiceStub
 
 from mcp_tracker.tracker.custom.errors import IssueNotFound
 from mcp_tracker.tracker.proto.common import YandexAuth
+from mcp_tracker.tracker.proto.components import ComponentsProtocol
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
+from mcp_tracker.tracker.proto.types.components import Component
 from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
 from mcp_tracker.tracker.proto.types.inputs import (
     IssueUpdateFollower,
@@ -53,6 +55,7 @@ QueueList = RootModel[list[Queue]]
 LocalFieldList = RootModel[list[LocalField]]
 QueueTagList = RootModel[list[str]]
 VersionList = RootModel[list[QueueVersion]]
+ComponentList = RootModel[list[Component]]
 IssueLinkList = RootModel[list[IssueLink]]
 IssueList = RootModel[list[Issue]]
 IssueCommentList = RootModel[list[IssueComment]]
@@ -175,7 +178,7 @@ class ServiceAccountStore:
         return IAMTokenInfo(token=iam_token.iam_token)
 
 
-class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProtocol):
+class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProtocol, ComponentsProtocol):
     def __init__(
         self,
         *,
@@ -320,6 +323,83 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         ) as response:
             response.raise_for_status()
             return Queue.model_validate_json(await response.read())
+
+    async def component_create(
+        self,
+        queue_id: str,
+        *,
+        name: str,
+        description: str | None = None,
+        auth: YandexAuth | None = None,
+    ) -> Component:
+        body: dict[str, Any] = {"name": name, "queue": queue_id}
+        if description is not None:
+            body["description"] = description
+
+        async with self._session.post(
+            "v3/components",
+            headers=await self._build_headers(auth),
+            json=body,
+        ) as response:
+            response.raise_for_status()
+            return Component.model_validate_json(await response.read())
+
+    async def component_get(
+        self,
+        component_id: int,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> Component:
+        async with self._session.get(
+            f"v3/components/{component_id}",
+            headers=await self._build_headers(auth),
+        ) as response:
+            response.raise_for_status()
+            return Component.model_validate_json(await response.read())
+
+    async def component_update(
+        self,
+        component_id: int,
+        *,
+        name: str | None = None,
+        description: str | None = None,
+        auth: YandexAuth | None = None,
+    ) -> Component:
+        component = await self.component_get(component_id, auth=auth)
+        if component.version is None:
+            raise ValueError(
+                f"Cannot update component {component_id}: version is missing from API response."
+            )
+
+        body: dict[str, Any] = {}
+        if name is not None:
+            body["name"] = name
+        if description is not None:
+            body["description"] = description
+
+        params: dict[str, int] = {"version": component.version}
+
+        async with self._session.patch(
+            f"v3/components/{component_id}",
+            headers=await self._build_headers(auth),
+            json=body,
+            params=params,
+        ) as response:
+            response.raise_for_status()
+            return Component.model_validate_json(await response.read())
+
+    async def component_delete(
+        self,
+        component_id: int,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> None:
+        async with self._session.delete(
+            f"v3/components/{component_id}",
+            headers=await self._build_headers(auth),
+        ) as response:
+            response.raise_for_status()
+            return None
 
     async def get_global_fields(
         self, *, auth: YandexAuth | None = None
