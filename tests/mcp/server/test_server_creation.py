@@ -36,6 +36,9 @@ READ_ONLY_TOOL_NAMES = [
 
 # Write tool names - only registered when not in read-only mode
 WRITE_TOOL_NAMES = [
+    "component_create",
+    "component_update",
+    "component_delete",
     "queue_create_version",
     "issue_execute_transition",
     "issue_close",
