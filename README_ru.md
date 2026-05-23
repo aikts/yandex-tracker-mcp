@@ -725,8 +725,6 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
     - `priority` (IssueUpdatePriority, опционально): Приоритет с `id` (строка) и/или `key` (строка, например, 'critical', 'normal')
     - `followers` (массив IssueUpdateFollower, опционально): Наблюдатели - массив объектов с `id` (строка, ID или логин пользователя)
     - `project` (IssueUpdateProject, опционально): Проект с `primary` (число, shortId основного проекта) и опциональным `secondary` (массив чисел)
-    - `attachment_ids` (массив строк, опционально): ID временных файлов для прикрепления
-    - `description_attachment_ids` (массив строк, опционально): ID временных файлов для встраивания в описание
     - `tags` (массив строк, опционально): Теги задачи
     - `version` (число, опционально): Версия задачи для оптимистичной блокировки - изменения применяются только к текущей версии
     - `fields` (объект, опционально): Дополнительные поля для обновления. Используйте `queue_get_fields` для получения доступных полей.
@@ -1138,7 +1136,7 @@ TOOLS_CACHE_REDIS_TTL=3600                # По умолчанию: 3600 сек
 OAUTH_ENABLED=true                        # По умолчанию: false
 OAUTH_STORE=redis                         # Опции: memory, redis (по умолчанию: memory)
 OAUTH_SERVER_URL=https://oauth.yandex.ru  # По умолчанию: https://oauth.yandex.ru (используйте https://auth.yandex.cloud/oauth для федерации)
-OAUTH_TOKEN_TYPE=<Bearer|OAuth|<empty>>   # По умолчанию: Bearer (обязательно должен быть указан Bearer для федерации Yandex Cloud)
+OAUTH_TOKEN_TYPE=<Bearer|OAuth|<empty>>   # По умолчанию: <empty> (обязательно должен быть указан Bearer для федерации Yandex Cloud)
 OAUTH_USE_SCOPES=true                    # По умолчанию: true (установите false для федерации Yandex Cloud)
 OAUTH_CLIENT_ID=ваш_oauth_client_id      # Обязательно когда OAuth включен
 OAUTH_CLIENT_SECRET=ваш_oauth_secret     # Обязательно когда OAuth включен

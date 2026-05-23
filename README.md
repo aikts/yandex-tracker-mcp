@@ -728,8 +728,6 @@ The server exposes the following tools through the MCP protocol:
     - `priority` (IssueUpdatePriority, optional): Priority with `id` (string) and/or `key` (string, e.g., 'critical', 'normal')
     - `followers` (array of IssueUpdateFollower, optional): Followers - array of objects with `id` (string, user ID or login)
     - `project` (IssueUpdateProject, optional): Project with `primary` (int, main project shortId) and optional `secondary` (array of ints)
-    - `attachment_ids` (array of strings, optional): IDs of temporary files to attach
-    - `description_attachment_ids` (array of strings, optional): IDs of temporary files to embed in description
     - `tags` (array of strings, optional): Issue tags
     - `version` (int, optional): Issue version for optimistic locking - changes only made to current version
     - `fields` (object, optional): Additional fields to update. Use `queue_get_fields` to discover available fields.
