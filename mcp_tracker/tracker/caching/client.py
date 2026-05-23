@@ -365,9 +365,21 @@ def make_cached_protocols(
             issue_id: str,
             queue: str,
             *,
+            notify: bool = True,
+            notify_author: bool = False,
+            move_all_fields: bool = False,
+            initial_status: bool = False,
             auth: YandexAuth | None = None,
         ) -> Issue:
-            return await self._original.issue_move(issue_id, queue, auth=auth)
+            return await self._original.issue_move(
+                issue_id,
+                queue,
+                notify=notify,
+                notify_author=notify_author,
+                move_all_fields=move_all_fields,
+                initial_status=initial_status,
+                auth=auth,
+            )
 
     class CachingGlobalDataProtocol(GlobalDataProtocolWrap):
         @cached(**cache_config)

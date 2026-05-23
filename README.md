@@ -731,6 +731,10 @@ The server exposes the following tools through the MCP protocol:
   - Parameters:
     - `issue_id` (string, required, format: "QUEUE-123"): The issue key to move
     - `queue` (string, required): Target queue key (e.g., 'MYQUEUE')
+    - `notify` (boolean, optional, default `true`): Notify users referenced in the issue's fields
+    - `notify_author` (boolean, optional, default `false`): Notify the issue author
+    - `move_all_fields` (boolean, optional, default `false`): Carry over versions, components and projects when matching ones exist in the target queue; otherwise they are cleared
+    - `initial_status` (boolean, optional, default `false`): Reset the issue status to the initial value (use when the target queue has a different workflow)
   - Returns the updated issue object with its new key in the target queue (e.g., `TASKS-1` → `NEWQUEUE-42`)
   - Respects `TRACKER_LIMIT_QUEUES` restrictions
 

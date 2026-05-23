@@ -491,6 +491,32 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             str,
             Field(description="Target queue key (e.g., 'MYQUEUE')"),
         ],
+        notify: Annotated[
+            bool,
+            Field(
+                description="Whether users referenced in the issue's fields are notified "
+                "of the change."
+            ),
+        ] = True,
+        notify_author: Annotated[
+            bool,
+            Field(description="Whether the issue author is notified of the change."),
+        ] = False,
+        move_all_fields: Annotated[
+            bool,
+            Field(
+                description="Whether to carry over the issue's versions, components and "
+                "projects when matching ones exist in the target queue. When false, those "
+                "fields are cleared."
+            ),
+        ] = False,
+        initial_status: Annotated[
+            bool,
+            Field(
+                description="Whether to reset the issue status to the initial value. "
+                "Set this to true when moving to a queue with a different workflow. "
+            ),
+        ] = False,
     ) -> Issue:
         check_issue_access(settings, issue_id)
         check_queue_access(settings, queue)
@@ -498,6 +524,10 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         return await ctx.request_context.lifespan_context.issues.issue_move(
             issue_id,
             queue,
+            notify=notify,
+            notify_author=notify_author,
+            move_all_fields=move_all_fields,
+            initial_status=initial_status,
             auth=get_yandex_auth(ctx),
         )
 

@@ -364,6 +364,38 @@ class TestCachingIssuesProtocol:
         )
 
         mock_original.issue_move.assert_called_once_with(
-            "TEST-1", "NEWQUEUE", auth=yandex_auth
+            "TEST-1",
+            "NEWQUEUE",
+            notify=True,
+            notify_author=False,
+            move_all_fields=False,
+            initial_status=False,
+            auth=yandex_auth,
         )
         assert result == mock_original.issue_move.return_value
+
+    async def test_issue_move_forwards_optional_flags(
+        self,
+        caching_issues_protocol: Any,
+        mock_original: AsyncMock,
+        yandex_auth: YandexAuth,
+    ) -> None:
+        await caching_issues_protocol.issue_move(
+            "TEST-1",
+            "NEWQUEUE",
+            notify=False,
+            notify_author=True,
+            move_all_fields=True,
+            initial_status=True,
+            auth=yandex_auth,
+        )
+
+        mock_original.issue_move.assert_called_once_with(
+            "TEST-1",
+            "NEWQUEUE",
+            notify=False,
+            notify_author=True,
+            move_all_fields=True,
+            initial_status=True,
+            auth=yandex_auth,
+        )

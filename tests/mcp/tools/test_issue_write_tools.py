@@ -583,6 +583,54 @@ class TestIssueMoveToQueue:
         assert isinstance(content, dict)
         assert content["key"] == "NEWQUEUE-42"
 
+    async def test_forwards_optional_flags(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        moved_issue = Issue.model_construct(key="NEWQUEUE-42", summary="Moved issue")
+        mock_issues_protocol.issue_move.return_value = moved_issue
+
+        result = await client_session.call_tool(
+            "issue_move",
+            {
+                "issue_id": "TEST-123",
+                "queue": "NEWQUEUE",
+                "notify": False,
+                "notify_author": True,
+                "move_all_fields": True,
+                "initial_status": True,
+            },
+        )
+
+        assert not result.isError
+        mock_issues_protocol.issue_move.assert_called_once()
+        call_args = mock_issues_protocol.issue_move.call_args
+        assert call_args.kwargs["notify"] is False
+        assert call_args.kwargs["notify_author"] is True
+        assert call_args.kwargs["move_all_fields"] is True
+        assert call_args.kwargs["initial_status"] is True
+
+    async def test_optional_flags_default(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        moved_issue = Issue.model_construct(key="NEWQUEUE-42", summary="Moved issue")
+        mock_issues_protocol.issue_move.return_value = moved_issue
+
+        result = await client_session.call_tool(
+            "issue_move",
+            {"issue_id": "TEST-123", "queue": "NEWQUEUE"},
+        )
+
+        assert not result.isError
+        call_args = mock_issues_protocol.issue_move.call_args
+        assert call_args.kwargs["notify"] is True
+        assert call_args.kwargs["notify_author"] is False
+        assert call_args.kwargs["move_all_fields"] is False
+        assert call_args.kwargs["initial_status"] is False
+
     async def test_restricted_source_queue_raises_error(
         self,
         client_session_with_limits: ClientSession,

@@ -170,6 +170,10 @@ class IssueProtocol(Protocol):
         issue_id: str,
         queue: str,
         *,
+        notify: bool = True,
+        notify_author: bool = False,
+        move_all_fields: bool = False,
+        initial_status: bool = False,
         auth: YandexAuth | None = None,
     ) -> Issue: ...
 

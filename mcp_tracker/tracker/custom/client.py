@@ -868,12 +868,26 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         issue_id: str,
         queue: str,
         *,
+        notify: bool = True,
+        notify_author: bool = False,
+        move_all_fields: bool = False,
+        initial_status: bool = False,
         auth: YandexAuth | None = None,
     ) -> Issue:
+        params: dict[str, str] = {"queue": queue}
+        if not notify:
+            params["notify"] = "false"
+        if notify_author:
+            params["notifyAuthor"] = "true"
+        if move_all_fields:
+            params["moveAllFields"] = "true"
+        if initial_status:
+            params["initialStatus"] = "true"
+
         async with self._session.post(
             f"v3/issues/{issue_id}/_move",
             headers=await self._build_headers(auth),
-            params={"queue": queue},
+            params=params,
         ) as response:
             if response.status == 404:
                 raise IssueNotFound(issue_id)
