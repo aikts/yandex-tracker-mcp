@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0] - 2026-05-23
+
+### Features
+- Add `issue_move` MCP tool to move an issue to a different queue ([#25](https://github.com/aikts/yandex-tracker-mcp/pull/25))
+  - Supports `notify`, `notify_author`, `move_all_fields`, and `initial_status` flags
+  - Returns the issue with its new key in the target queue
+- Add `queue_create_version` MCP tool to create a new version in a queue ([#29](https://github.com/aikts/yandex-tracker-mcp/pull/29))
+  - Supports `name`, `description`, `start_date`, and `due_date`
+- Support passthrough Bearer OAuth token authentication for reverse proxy / gateway deployments ([#23](https://github.com/aikts/yandex-tracker-mcp/pull/23), [#27](https://github.com/aikts/yandex-tracker-mcp/pull/27))
+  - Reads the Yandex OAuth token from the incoming `Authorization: Bearer <token>` header when MCP OAuth middleware does not provide a token
+
+### Bug Fixes
+- Ignore unrelated environment variables when loading `Settings` (`extra="ignore"`) ([fixes #22](https://github.com/aikts/yandex-tracker-mcp/issues/22))
+
 ## [0.6.3] - 2026-02-08
 
 ### Features
