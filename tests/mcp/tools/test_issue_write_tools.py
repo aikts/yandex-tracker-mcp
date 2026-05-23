@@ -1,6 +1,12 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from typing import Any
 from unittest.mock import AsyncMock
 
 from mcp.client.session import ClientSession
+from mcp.server import FastMCP
+from mcp.shared.context import RequestContext
+from mcp.types import ElicitRequestParams, ElicitResult
 
 from mcp_tracker.tracker.proto.types.issues import (
     Issue,
@@ -9,7 +15,31 @@ from mcp_tracker.tracker.proto.types.issues import (
     IssueTransition,
     Worklog,
 )
-from tests.mcp.conftest import get_tool_result_content
+from tests.mcp.conftest import get_tool_result_content, safe_client_session
+
+
+def _elicitation_callback(result: ElicitResult):
+    """Build a client elicitation callback that always returns ``result``."""
+
+    async def callback(
+        context: RequestContext["ClientSession", Any],
+        params: ElicitRequestParams,
+    ) -> ElicitResult:
+        return result
+
+    return callback
+
+
+@asynccontextmanager
+async def elicit_client_session(
+    mcp_server: FastMCP[Any],
+    result: ElicitResult,
+) -> AsyncIterator[ClientSession]:
+    """Connected client session that answers elicitations with ``result``."""
+    async with safe_client_session(
+        mcp_server, elicitation_callback=_elicitation_callback(result)
+    ) as session:
+        yield session
 
 
 class TestIssueExecuteTransition:
@@ -780,3 +810,95 @@ class TestIssueMoveToQueue:
         )
 
         assert result.isError
+
+    async def test_elicitation_overrides_flags(
+        self,
+        mcp_server: FastMCP[Any],
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        moved_issue = Issue.model_construct(key="NEWQUEUE-42", summary="Moved issue")
+        mock_issues_protocol.issue_move.return_value = moved_issue
+        accept = ElicitResult(
+            action="accept",
+            content={
+                "notify": False,
+                "notify_author": True,
+                "move_all_fields": True,
+                "initial_status": True,
+            },
+        )
+
+        async with elicit_client_session(mcp_server, accept) as session:
+            result = await session.call_tool(
+                "issue_move",
+                # Caller passes one set of values; the user's elicited answers win.
+                {"issue_id": "TEST-123", "queue": "NEWQUEUE", "notify": True},
+            )
+
+        assert not result.isError
+        mock_issues_protocol.issue_move.assert_called_once()
+        call_args = mock_issues_protocol.issue_move.call_args
+        assert call_args.kwargs["notify"] is False
+        assert call_args.kwargs["notify_author"] is True
+        assert call_args.kwargs["move_all_fields"] is True
+        assert call_args.kwargs["initial_status"] is True
+
+    async def test_elicitation_accept_empty_uses_seeded_values(
+        self,
+        mcp_server: FastMCP[Any],
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        moved_issue = Issue.model_construct(key="NEWQUEUE-42", summary="Moved issue")
+        mock_issues_protocol.issue_move.return_value = moved_issue
+        # Empty content -> schema defaults, which are seeded from the caller's args.
+        accept = ElicitResult(action="accept", content={})
+
+        async with elicit_client_session(mcp_server, accept) as session:
+            result = await session.call_tool(
+                "issue_move",
+                {
+                    "issue_id": "TEST-123",
+                    "queue": "NEWQUEUE",
+                    "notify": False,
+                    "move_all_fields": True,
+                },
+            )
+
+        assert not result.isError
+        call_args = mock_issues_protocol.issue_move.call_args
+        assert call_args.kwargs["notify"] is False
+        assert call_args.kwargs["notify_author"] is False
+        assert call_args.kwargs["move_all_fields"] is True
+        assert call_args.kwargs["initial_status"] is False
+
+    async def test_elicitation_decline_aborts_move(
+        self,
+        mcp_server: FastMCP[Any],
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        async with elicit_client_session(
+            mcp_server, ElicitResult(action="decline")
+        ) as session:
+            result = await session.call_tool(
+                "issue_move",
+                {"issue_id": "TEST-123", "queue": "NEWQUEUE"},
+            )
+
+        assert result.isError
+        mock_issues_protocol.issue_move.assert_not_called()
+
+    async def test_elicitation_cancel_aborts_move(
+        self,
+        mcp_server: FastMCP[Any],
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        async with elicit_client_session(
+            mcp_server, ElicitResult(action="cancel")
+        ) as session:
+            result = await session.call_tool(
+                "issue_move",
+                {"issue_id": "TEST-123", "queue": "NEWQUEUE"},
+            )
+
+        assert result.isError
+        mock_issues_protocol.issue_move.assert_not_called()

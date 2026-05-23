@@ -5,10 +5,11 @@ from typing import Annotated, Any
 
 from mcp.server import FastMCP
 from mcp.server.fastmcp import Context
-from mcp.types import ToolAnnotations
-from pydantic import Field
+from mcp.types import ClientCapabilities, ElicitationCapability, ToolAnnotations
+from pydantic import BaseModel, Field, create_model
 
 from mcp_tracker.mcp.context import AppContext
+from mcp_tracker.mcp.errors import TrackerError
 from mcp_tracker.mcp.params import IssueID
 from mcp_tracker.mcp.tools._access import check_issue_access, check_queue_access
 from mcp_tracker.mcp.utils import get_yandex_auth
@@ -29,6 +30,53 @@ from mcp_tracker.tracker.proto.types.issues import (
     IssueTransition,
     Worklog,
 )
+
+
+def _build_move_options_schema(
+    *,
+    notify: bool,
+    notify_author: bool,
+    move_all_fields: bool,
+    initial_status: bool,
+) -> type[BaseModel]:
+    """Build an elicitation schema for issue_move's boolean options.
+
+    Defaults are seeded with the values the caller passed so the elicitation
+    form is pre-filled with them and the user only adjusts what they need to.
+    """
+    return create_model(
+        "IssueMoveOptions",
+        notify=(
+            bool,
+            Field(
+                default=notify,
+                description="Notify users referenced in the issue's fields of the move.",
+            ),
+        ),
+        notify_author=(
+            bool,
+            Field(
+                default=notify_author,
+                description="Notify the issue author of the move.",
+            ),
+        ),
+        move_all_fields=(
+            bool,
+            Field(
+                default=move_all_fields,
+                description="Carry over versions, components and projects when matching "
+                "ones exist in the target queue (otherwise they are cleared).",
+            ),
+        ),
+        initial_status=(
+            bool,
+            Field(
+                default=initial_status,
+                description="Reset the issue status to the initial value (use when the "
+                "target queue has a different workflow).",
+            ),
+        ),
+    )
 
 
 def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
@@ -522,6 +570,35 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
     ) -> Issue:
         check_issue_access(settings, issue_id)
         check_queue_access(settings, queue)
+
+        # When the client supports elicitation, confirm the boolean options with
+        # the user before performing the (irreversible) move. The form is seeded
+        # with the values passed by the caller so the user only adjusts what they
+        # need to. Clients without elicitation support fall back to those values.
+        if ctx.session.check_client_capability(
+            ClientCapabilities(elicitation=ElicitationCapability())
+        ):
+            options_schema = _build_move_options_schema(
+                notify=notify,
+                notify_author=notify_author,
+                move_all_fields=move_all_fields,
+                initial_status=initial_status,
+            )
+            elicitation = await ctx.elicit(
+                message=f"Confirm the options for moving issue {issue_id} to queue {queue}.",
+                schema=options_schema,
+            )
+            if elicitation.action != "accept":
+                raise TrackerError(
+                    f"Move of issue `{issue_id}` to queue `{queue}` was cancelled by the user."
+                )
+            # mypy narrows to AcceptedElicitation here; ty does not narrow the
+            # generic union on the action discriminator, so suppress its warning.
+            options = elicitation.data.model_dump()  # ty: ignore[possibly-missing-attribute]
+            notify = options["notify"]
+            notify_author = options["notify_author"]
+            move_all_fields = options["move_all_fields"]
+            initial_status = options["initial_status"]
 
         return await ctx.request_context.lifespan_context.issues.issue_move(
             issue_id,
