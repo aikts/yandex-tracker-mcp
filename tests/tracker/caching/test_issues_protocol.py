@@ -55,6 +55,9 @@ class TestCachingIssuesProtocol:
         original.issue_update.return_value = Issue(
             key="TEST-1", summary="Updated Issue"
         )
+        original.issue_move.return_value = Issue(
+            key="NEWQUEUE-42", summary="Moved Issue"
+        )
         return original
 
     @pytest.fixture
@@ -348,3 +351,19 @@ class TestCachingIssuesProtocol:
             auth=None,
         )
         assert result == mock_original.issue_update.return_value
+        assert result == mock_original.issue_update.return_value
+
+    async def test_issue_move_calls_original(
+        self,
+        caching_issues_protocol: Any,
+        mock_original: AsyncMock,
+        yandex_auth: YandexAuth,
+    ) -> None:
+        result = await caching_issues_protocol.issue_move(
+            "TEST-1", "NEWQUEUE", auth=yandex_auth
+        )
+
+        mock_original.issue_move.assert_called_once_with(
+            "TEST-1", "NEWQUEUE", auth=yandex_auth
+        )
+        assert result == mock_original.issue_move.return_value

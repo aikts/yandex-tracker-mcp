@@ -164,6 +164,10 @@
       "description": "Update an existing Yandex Tracker issue"
     },
     {
+      "name": "issue_move",
+      "description": "Move a Yandex Tracker issue to a different queue"
+    },
+    {
       "name": "issues_find",
       "description": "Search issues using Yandex Tracker Query Language"
     },

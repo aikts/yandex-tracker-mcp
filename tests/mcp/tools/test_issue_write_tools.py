@@ -558,3 +558,52 @@ class TestIssueDeleteComment:
 
         assert result.isError
         mock_issues_protocol.issue_delete_comment.assert_not_called()
+
+
+class TestIssueMoveToQueue:
+    async def test_moves_issue(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        moved_issue = Issue.model_construct(key="NEWQUEUE-42", summary="Moved issue")
+        mock_issues_protocol.issue_move.return_value = moved_issue
+
+        result = await client_session.call_tool(
+            "issue_move",
+            {"issue_id": "TEST-123", "queue": "NEWQUEUE"},
+        )
+
+        assert not result.isError
+        mock_issues_protocol.issue_move.assert_called_once()
+        call_args = mock_issues_protocol.issue_move.call_args
+        assert call_args.args[0] == "TEST-123"
+        assert call_args.args[1] == "NEWQUEUE"
+        content = get_tool_result_content(result)
+        assert isinstance(content, dict)
+        assert content["key"] == "NEWQUEUE-42"
+
+    async def test_restricted_source_queue_raises_error(
+        self,
+        client_session_with_limits: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session_with_limits.call_tool(
+            "issue_move",
+            {"issue_id": "RESTRICTED-123", "queue": "ALLOWED"},
+        )
+
+        assert result.isError
+        mock_issues_protocol.issue_move.assert_not_called()
+
+    async def test_read_only_mode_tool_not_registered(
+        self,
+        client_session_read_only: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session_read_only.call_tool(
+            "issue_move",
+            {"issue_id": "TEST-123", "queue": "NEWQUEUE"},
+        )
+
+        assert result.isError

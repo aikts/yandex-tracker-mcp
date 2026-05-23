@@ -727,6 +727,13 @@ The server exposes the following tools through the MCP protocol:
   - Only provided fields are updated; omitted fields remain unchanged
   - Respects `TRACKER_LIMIT_QUEUES` restrictions
 
+- **`issue_move`**: Move an issue to a different queue
+  - Parameters:
+    - `issue_id` (string, required, format: "QUEUE-123"): The issue key to move
+    - `queue` (string, required): Target queue key (e.g., 'MYQUEUE')
+  - Returns the updated issue object with its new key in the target queue (e.g., `TASKS-1` → `NEWQUEUE-42`)
+  - Respects `TRACKER_LIMIT_QUEUES` restrictions
+
 </details>
 
 <details>

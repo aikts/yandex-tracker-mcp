@@ -478,6 +478,30 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         )
 
     @mcp.tool(
+        title="Move Issue to Another Queue",
+        description="Move a Yandex Tracker issue to a different queue. "
+        "The issue will receive a new key in the target queue (e.g., TASKS-1 → NEWQUEUE-42). "
+        "Returns the updated issue with its new key and queue.",
+        annotations=ToolAnnotations(readOnlyHint=False),
+    )
+    async def issue_move(
+        ctx: Context[Any, AppContext],
+        issue_id: IssueID,
+        queue: Annotated[
+            str,
+            Field(description="Target queue key (e.g., 'MYQUEUE')"),
+        ],
+    ) -> Issue:
+        check_issue_access(settings, issue_id)
+        check_queue_access(settings, queue)
+
+        return await ctx.request_context.lifespan_context.issues.issue_move(
+            issue_id,
+            queue,
+            auth=get_yandex_auth(ctx),
+        )
+
+    @mcp.tool(
         title="Delete Issue Comment",
         description="Delete a comment from a Yandex Tracker issue",
         annotations=ToolAnnotations(readOnlyHint=False),

@@ -862,3 +862,20 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
                 raise IssueNotFound(issue_id)
             response.raise_for_status()
             return Issue.model_validate_json(await response.read())
+
+    async def issue_move(
+        self,
+        issue_id: str,
+        queue: str,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> Issue:
+        async with self._session.post(
+            f"v3/issues/{issue_id}/_move",
+            headers=await self._build_headers(auth),
+            params={"queue": queue},
+        ) as response:
+            if response.status == 404:
+                raise IssueNotFound(issue_id)
+            response.raise_for_status()
+            return Issue.model_validate_json(await response.read())
