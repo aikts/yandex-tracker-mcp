@@ -8,6 +8,10 @@ All notable changes to this project will be documented in this file.
 - Add `issue_move` MCP tool to move an issue to a different queue ([#25](https://github.com/aikts/yandex-tracker-mcp/pull/25))
   - Supports `notify`, `notify_author`, `move_all_fields`, and `initial_status` flags
   - Returns the issue with its new key in the target queue
+  - When the client supports elicitation, prompts the user to confirm these flags before performing the (irreversible) move; declining or cancelling aborts the move. Clients without elicitation support fall back to the passed-in values
+- Add `issue_add_link` and `issue_delete_link` MCP tools to manage links between issues ([fixes #26](https://github.com/aikts/yandex-tracker-mcp/issues/26))
+  - `issue_add_link` accepts a `relationship` (e.g. `relates`, `depends on`, `duplicates`) and the target issue key
+  - `issue_delete_link` removes a link by its ID
 - Add `queue_create_version` MCP tool to create a new version in a queue ([#29](https://github.com/aikts/yandex-tracker-mcp/pull/29))
   - Supports `name`, `description`, `start_date`, and `due_date`
 - Support passthrough Bearer OAuth token authentication for reverse proxy / gateway deployments ([#23](https://github.com/aikts/yandex-tracker-mcp/pull/23), [#27](https://github.com/aikts/yandex-tracker-mcp/pull/27))

@@ -757,6 +757,7 @@ The server exposes the following tools through the MCP protocol:
     - `move_all_fields` (boolean, optional, default `false`): Carry over versions, components and projects when matching ones exist in the target queue; otherwise they are cleared
     - `initial_status` (boolean, optional, default `false`): Reset the issue status to the initial value (use when the target queue has a different workflow)
   - Returns the updated issue object with its new key in the target queue (e.g., `TASKS-1` → `NEWQUEUE-42`)
+  - When the MCP client supports elicitation, the user is prompted to confirm the boolean flags before the move is performed; declining or cancelling aborts the move. Clients without elicitation support proceed with the passed-in values
   - Respects `TRACKER_LIMIT_QUEUES` restrictions
 
 </details>
