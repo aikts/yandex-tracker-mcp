@@ -120,6 +120,14 @@
       "description": "Delete a comment from a Yandex Tracker issue"
     },
     {
+      "name": "issue_add_link",
+      "description": "Create a link between a Yandex Tracker issue and another issue"
+    },
+    {
+      "name": "issue_delete_link",
+      "description": "Delete a link between a Yandex Tracker issue and another issue"
+    },
+    {
       "name": "issue_get_links",
       "description": "Get related issue links"
     },

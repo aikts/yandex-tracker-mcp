@@ -5,6 +5,7 @@ from mcp.client.session import ClientSession
 from mcp_tracker.tracker.proto.types.issues import (
     Issue,
     IssueComment,
+    IssueLink,
     IssueTransition,
     Worklog,
 )
@@ -558,6 +559,130 @@ class TestIssueDeleteComment:
 
         assert result.isError
         mock_issues_protocol.issue_delete_comment.assert_not_called()
+
+
+class TestIssueAddLink:
+    async def test_adds_link(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_link: IssueLink,
+    ) -> None:
+        mock_issues_protocol.issue_add_link.return_value = sample_link
+
+        result = await client_session.call_tool(
+            "issue_add_link",
+            {
+                "issue_id": "TEST-123",
+                "relationship": "relates",
+                "issue": "TEST-456",
+            },
+        )
+
+        assert not result.isError
+        mock_issues_protocol.issue_add_link.assert_called_once()
+        call_args = mock_issues_protocol.issue_add_link.call_args
+        assert call_args.args[0] == "TEST-123"
+        assert call_args.kwargs["relationship"] == "relates"
+        assert call_args.kwargs["issue"] == "TEST-456"
+        content = get_tool_result_content(result)
+        assert isinstance(content, dict)
+        assert content["id"] == sample_link.id
+
+    async def test_invalid_relationship_raises_error(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session.call_tool(
+            "issue_add_link",
+            {
+                "issue_id": "TEST-123",
+                "relationship": "not-a-real-relationship",
+                "issue": "TEST-456",
+            },
+        )
+
+        assert result.isError
+        mock_issues_protocol.issue_add_link.assert_not_called()
+
+    async def test_restricted_queue_raises_error(
+        self,
+        client_session_with_limits: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session_with_limits.call_tool(
+            "issue_add_link",
+            {
+                "issue_id": "RESTRICTED-123",
+                "relationship": "relates",
+                "issue": "TEST-456",
+            },
+        )
+
+        assert result.isError
+        mock_issues_protocol.issue_add_link.assert_not_called()
+
+    async def test_read_only_mode_tool_not_registered(
+        self,
+        client_session_read_only: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session_read_only.call_tool(
+            "issue_add_link",
+            {
+                "issue_id": "TEST-123",
+                "relationship": "relates",
+                "issue": "TEST-456",
+            },
+        )
+
+        assert result.isError
+
+
+class TestIssueDeleteLink:
+    async def test_deletes_link(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        mock_issues_protocol.issue_delete_link.return_value = None
+
+        result = await client_session.call_tool(
+            "issue_delete_link",
+            {"issue_id": "TEST-123", "link_id": 10},
+        )
+
+        assert not result.isError
+        mock_issues_protocol.issue_delete_link.assert_called_once()
+        call_args = mock_issues_protocol.issue_delete_link.call_args
+        assert call_args.args[0] == "TEST-123"
+        assert call_args.args[1] == 10
+
+    async def test_restricted_queue_raises_error(
+        self,
+        client_session_with_limits: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session_with_limits.call_tool(
+            "issue_delete_link",
+            {"issue_id": "RESTRICTED-123", "link_id": 10},
+        )
+
+        assert result.isError
+        mock_issues_protocol.issue_delete_link.assert_not_called()
+
+    async def test_read_only_mode_tool_not_registered(
+        self,
+        client_session_read_only: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session_read_only.call_tool(
+            "issue_delete_link",
+            {"issue_id": "TEST-123", "link_id": 10},
+        )
+
+        assert result.isError
 
 
 class TestIssueMoveToQueue:

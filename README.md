@@ -639,6 +639,19 @@ The server exposes the following tools through the MCP protocol:
     - `comment_id` (int, required): Comment ID
   - Returns: `null` (success)
 
+- **`issue_add_link`**: Create a link between an issue and another issue
+  - Parameters:
+    - `issue_id` (string, required, format: "QUEUE-123"): The current issue
+    - `relationship` (string, required): Link type describing how `issue_id` relates to the linked issue. One of: `relates`, `is dependent by`, `depends on`, `is subtask for`, `is parent task for`, `duplicates`, `is duplicated by`, `is epic of`, `has epic`
+    - `issue` (string, required): ID or key of the issue to link to (e.g. "TEST-123")
+  - Returns created link object
+
+- **`issue_delete_link`**: Delete a link between an issue and another issue
+  - Parameters:
+    - `issue_id` (string, required, format: "QUEUE-123")
+    - `link_id` (int, required): Link ID (as returned by `issue_get_links`)
+  - Returns: `null` (success)
+
 - **`issue_get_links`**: Get related issue links
   - Parameters: `issue_id` (string)
   - Returns links to related, blocked, or duplicate issues

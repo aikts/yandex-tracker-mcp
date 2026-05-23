@@ -1,5 +1,6 @@
 import datetime
 from enum import Enum
+from typing import Literal
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
@@ -92,6 +93,20 @@ class LinkTypeReference(BaseReference):
     id: str
     inward: str | None = None
     outward: str | None = None
+
+
+# Link relationship types accepted by the Yandex Tracker "link issue" API.
+IssueLinkRelationship = Literal[
+    "relates",
+    "is dependent by",
+    "depends on",
+    "is subtask for",
+    "is parent task for",
+    "duplicates",
+    "is duplicated by",
+    "is epic of",
+    "has epic",
+]
 
 
 class IssueLink(CreatedUpdatedMixin, BaseTrackerEntity):

@@ -58,6 +58,10 @@ class TestCachingIssuesProtocol:
         original.issue_move.return_value = Issue(
             key="NEWQUEUE-42", summary="Moved Issue"
         )
+        original.issue_add_link.return_value = IssueLink(
+            id=2,
+            object=IssueReference(id="TEST-2", key="TEST-2", display="Linked Issue"),
+        )
         return original
 
     @pytest.fixture
@@ -92,6 +96,26 @@ class TestCachingIssuesProtocol:
 
         mock_original.issue_get_comments.assert_called_once_with("TEST-1", auth=None)
         assert result == mock_original.issue_get_comments.return_value
+
+    async def test_issue_add_link_calls_original(
+        self, caching_issues_protocol: Any, mock_original: AsyncMock
+    ) -> None:
+        result = await caching_issues_protocol.issue_add_link(
+            "TEST-1", relationship="relates", issue="TEST-2"
+        )
+
+        mock_original.issue_add_link.assert_called_once_with(
+            "TEST-1", relationship="relates", issue="TEST-2", auth=None
+        )
+        assert result == mock_original.issue_add_link.return_value
+
+    async def test_issue_delete_link_calls_original(
+        self, caching_issues_protocol: Any, mock_original: AsyncMock
+    ) -> None:
+        result = await caching_issues_protocol.issue_delete_link("TEST-1", 10)
+
+        mock_original.issue_delete_link.assert_called_once_with("TEST-1", 10, auth=None)
+        assert result == mock_original.issue_delete_link.return_value
 
     async def test_issues_find_calls_original_with_all_params(
         self,

@@ -24,6 +24,8 @@ from mcp_tracker.tracker.proto.types.inputs import (
 from mcp_tracker.tracker.proto.types.issues import (
     Issue,
     IssueComment,
+    IssueLink,
+    IssueLinkRelationship,
     IssueTransition,
     Worklog,
 )
@@ -549,5 +551,61 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         return await ctx.request_context.lifespan_context.issues.issue_delete_comment(
             issue_id,
             comment_id,
+            auth=get_yandex_auth(ctx),
+        )
+
+    @mcp.tool(
+        title="Add Issue Link",
+        description="Create a link between a Yandex Tracker issue and another issue. "
+        "The `relationship` describes how the current issue (issue_id) relates to the "
+        "linked issue. For example, 'depends on' means issue_id depends on the linked "
+        "issue, while 'is dependent by' means the linked issue depends on issue_id. "
+        "Use 'relates' for a simple connection. Returns the created link.",
+        annotations=ToolAnnotations(readOnlyHint=False),
+    )
+    async def issue_add_link(
+        ctx: Context[Any, AppContext],
+        issue_id: IssueID,
+        relationship: Annotated[
+            IssueLinkRelationship,
+            Field(
+                description="Link type describing how the current issue (issue_id) "
+                "relates to the linked issue. 'is epic of'/'has epic' apply only to "
+                "Epic-type issues."
+            ),
+        ],
+        issue: Annotated[
+            str,
+            Field(description="ID or key of the issue to link to, e.g. 'TEST-123'."),
+        ],
+    ) -> IssueLink:
+        check_issue_access(settings, issue_id)
+
+        return await ctx.request_context.lifespan_context.issues.issue_add_link(
+            issue_id,
+            relationship=relationship,
+            issue=issue,
+            auth=get_yandex_auth(ctx),
+        )
+
+    @mcp.tool(
+        title="Delete Issue Link",
+        description="Delete a link between a Yandex Tracker issue and another issue. "
+        "Use issue_get_links to retrieve the link IDs for an issue.",
+        annotations=ToolAnnotations(readOnlyHint=False),
+    )
+    async def issue_delete_link(
+        ctx: Context[Any, AppContext],
+        issue_id: IssueID,
+        link_id: Annotated[
+            int,
+            Field(description="Link ID (integer) as returned by issue_get_links."),
+        ],
+    ) -> None:
+        check_issue_access(settings, issue_id)
+
+        return await ctx.request_context.lifespan_context.issues.issue_delete_link(
+            issue_id,
+            link_id,
             auth=get_yandex_auth(ctx),
         )

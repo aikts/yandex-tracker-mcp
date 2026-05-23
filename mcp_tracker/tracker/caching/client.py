@@ -24,6 +24,7 @@ from mcp_tracker.tracker.proto.types.issues import (
     IssueAttachment,
     IssueComment,
     IssueLink,
+    IssueLinkRelationship,
     IssueTransition,
     Worklog,
 )
@@ -124,6 +125,30 @@ def make_cached_protocols(
             self, issue_id: str, *, auth: YandexAuth | None = None
         ) -> list[IssueLink]:
             return await self._original.issues_get_links(issue_id, auth=auth)
+
+        async def issue_add_link(
+            self,
+            issue_id: str,
+            *,
+            relationship: IssueLinkRelationship,
+            issue: str,
+            auth: YandexAuth | None = None,
+        ) -> IssueLink:
+            return await self._original.issue_add_link(
+                issue_id,
+                relationship=relationship,
+                issue=issue,
+                auth=auth,
+            )
+
+        async def issue_delete_link(
+            self,
+            issue_id: str,
+            link_id: int,
+            *,
+            auth: YandexAuth | None = None,
+        ) -> None:
+            return await self._original.issue_delete_link(issue_id, link_id, auth=auth)
 
         @cached(**cache_config)
         async def issue_get_comments(

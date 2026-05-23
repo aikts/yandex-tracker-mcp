@@ -46,6 +46,8 @@ WRITE_TOOL_NAMES = [
     "issue_add_comment",
     "issue_update_comment",
     "issue_delete_comment",
+    "issue_add_link",
+    "issue_delete_link",
     "issue_move",
 ]
 

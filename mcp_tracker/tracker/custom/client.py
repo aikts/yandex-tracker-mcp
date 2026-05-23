@@ -35,6 +35,7 @@ from mcp_tracker.tracker.proto.types.issues import (
     IssueAttachment,
     IssueComment,
     IssueLink,
+    IssueLinkRelationship,
     IssueTransition,
     Worklog,
 )
@@ -409,6 +410,44 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
                 raise IssueNotFound(issue_id)
             response.raise_for_status()
             return IssueLinkList.model_validate_json(await response.read()).root
+
+    async def issue_add_link(
+        self,
+        issue_id: str,
+        *,
+        relationship: IssueLinkRelationship,
+        issue: str,
+        auth: YandexAuth | None = None,
+    ) -> IssueLink:
+        """Создать связь задачи с другой задачей."""
+        body: dict[str, Any] = {"relationship": relationship, "issue": issue}
+
+        async with self._session.post(
+            f"v3/issues/{issue_id}/links",
+            headers=await self._build_headers(auth),
+            json=body,
+        ) as response:
+            if response.status == 404:
+                raise IssueNotFound(issue_id)
+            response.raise_for_status()
+            return IssueLink.model_validate_json(await response.read())
+
+    async def issue_delete_link(
+        self,
+        issue_id: str,
+        link_id: int,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> None:
+        """Удалить связь задачи с другой задачей."""
+        async with self._session.delete(
+            f"v3/issues/{issue_id}/links/{link_id}",
+            headers=await self._build_headers(auth),
+        ) as response:
+            if response.status == 404:
+                raise IssueNotFound(issue_id)
+            response.raise_for_status()
+            return None
 
     async def issue_get_comments(
         self, issue_id: str, *, auth: YandexAuth | None = None
