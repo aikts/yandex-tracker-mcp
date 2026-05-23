@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.7.0] - 2026-05-23
+## [0.7.1] - 2026-05-23
 
 ### Features
 - Add `issue_move` MCP tool to move an issue to a different queue ([#25](https://github.com/aikts/yandex-tracker-mcp/pull/25))
