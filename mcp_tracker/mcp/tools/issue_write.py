@@ -1,9 +1,10 @@
 """Issue write MCP tools (conditionally registered based on read-only mode)."""
 
 import datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, cast
 
 from mcp.server import FastMCP
+from mcp.server.elicitation import AcceptedElicitation
 from mcp.server.fastmcp import Context
 from mcp.types import ClientCapabilities, ElicitationCapability, ToolAnnotations
 from pydantic import BaseModel, Field, create_model
@@ -592,9 +593,9 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
                 raise TrackerError(
                     f"Move of issue `{issue_id}` to queue `{queue}` was cancelled by the user."
                 )
-            # mypy narrows to AcceptedElicitation here; ty does not narrow the
-            # generic union on the action discriminator, so suppress its warning.
-            options = elicitation.data.model_dump()  # ty: ignore[possibly-missing-attribute]
+
+            elicitation = cast(AcceptedElicitation[BaseModel], elicitation)
+            options = elicitation.data.model_dump()
             notify = options["notify"]
             notify_author = options["notify_author"]
             move_all_fields = options["move_all_fields"]

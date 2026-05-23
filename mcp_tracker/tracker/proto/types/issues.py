@@ -57,7 +57,7 @@ class Issue(CreatedUpdatedMixin, BaseTrackerEntity):
     spent: str | None = NoneExcludedField
 
 
-IssueFieldsEnum = Enum(  # type: ignore[misc]  # ty: ignore[unused-ignore-comment]
+IssueFieldsEnum = Enum(  # type: ignore[misc]
     "IssueFieldsEnum",
     {key: key for key in Issue.model_fields.keys()},
 )
