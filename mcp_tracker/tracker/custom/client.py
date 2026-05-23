@@ -293,6 +293,32 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
             response.raise_for_status()
             return VersionList.model_validate_json(await response.read()).root
 
+    async def queue_create_version(
+        self,
+        queue_id: str,
+        *,
+        name: str,
+        description: str | None = None,
+        start_date: datetime.date | None = None,
+        due_date: datetime.date | None = None,
+        auth: YandexAuth | None = None,
+    ) -> QueueVersion:
+        body: dict[str, Any] = {"queue": queue_id, "name": name}
+        if description is not None:
+            body["description"] = description
+        if start_date is not None:
+            body["startDate"] = start_date.isoformat()
+        if due_date is not None:
+            body["dueDate"] = due_date.isoformat()
+
+        async with self._session.post(
+            "v3/versions/",
+            headers=await self._build_headers(auth),
+            json=body,
+        ) as response:
+            response.raise_for_status()
+            return QueueVersion.model_validate_json(await response.read())
+
     async def queues_get_fields(
         self, queue_id: str, *, auth: YandexAuth | None = None
     ) -> list[GlobalField]:

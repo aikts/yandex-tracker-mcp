@@ -77,6 +77,25 @@ def make_cached_protocols(
         ) -> list[QueueVersion]:
             return await self._original.queues_get_versions(queue_id, auth=auth)
 
+        async def queue_create_version(
+            self,
+            queue_id: str,
+            *,
+            name: str,
+            description: str | None = None,
+            start_date: datetime.date | None = None,
+            due_date: datetime.date | None = None,
+            auth: YandexAuth | None = None,
+        ) -> QueueVersion:
+            return await self._original.queue_create_version(
+                queue_id,
+                name=name,
+                description=description,
+                start_date=start_date,
+                due_date=due_date,
+                auth=auth,
+            )
+
         @cached(**cache_config)
         async def queues_get_fields(
             self, queue_id: str, *, auth: YandexAuth | None = None
