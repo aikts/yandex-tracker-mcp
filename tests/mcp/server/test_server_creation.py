@@ -27,6 +27,8 @@ READ_ONLY_TOOL_NAMES = [
     "issue_get_checklist",
     "issue_get_transitions",
     "issue_get_changelog",
+    # Component read tools (1)
+    "component_get",
     # User tools (4)
     "users_get_all",
     "users_search",

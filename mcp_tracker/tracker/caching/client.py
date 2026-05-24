@@ -506,12 +506,16 @@ def make_cached_protocols(
             *,
             name: str,
             description: str | None = None,
+            lead: str | None = None,
+            assign_auto: bool | None = None,
             auth: YandexAuth | None = None,
         ) -> Component:
             return await self._original.component_create(
                 queue_id,
                 name=name,
                 description=description,
+                lead=lead,
+                assign_auto=assign_auto,
                 auth=auth,
             )
 
@@ -521,12 +525,14 @@ def make_cached_protocols(
             *,
             name: str | None = None,
             description: str | None = None,
+            lead: str | None = None,
             auth: YandexAuth | None = None,
         ) -> Component:
             return await self._original.component_update(
                 component_id,
                 name=name,
                 description=description,
+                lead=lead,
                 auth=auth,
             )
 
