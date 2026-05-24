@@ -330,11 +330,17 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         *,
         name: str,
         description: str | None = None,
+        lead: str | None = None,
+        assign_auto: bool | None = None,
         auth: YandexAuth | None = None,
     ) -> Component:
         body: dict[str, Any] = {"name": name, "queue": queue_id}
         if description is not None:
             body["description"] = description
+        if lead is not None:
+            body["lead"] = lead
+        if assign_auto is not None:
+            body["assignAuto"] = assign_auto
 
         async with self._session.post(
             "v3/components",
@@ -363,6 +369,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         *,
         name: str | None = None,
         description: str | None = None,
+        lead: str | None = None,
         auth: YandexAuth | None = None,
     ) -> Component:
         component = await self.component_get(component_id, auth=auth)
@@ -376,6 +383,8 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
             body["name"] = name
         if description is not None:
             body["description"] = description
+        if lead is not None:
+            body["lead"] = lead
 
         params: dict[str, int] = {"version": component.version}
 

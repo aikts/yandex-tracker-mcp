@@ -56,6 +56,10 @@
       "description": "Get detailed metadata about a specific queue"
     },
     {
+      "name": "component_get",
+      "description": "Get a component from Yandex Tracker by its ID"
+    },
+    {
       "name": "component_create",
       "description": "Create a new component in a Yandex Tracker queue"
     },
