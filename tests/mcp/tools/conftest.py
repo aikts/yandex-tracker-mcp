@@ -13,6 +13,7 @@ from mcp_tracker.tracker.proto.types.issues import (
     Worklog,
 )
 from mcp_tracker.tracker.proto.types.priorities import Priority
+from mcp_tracker.tracker.proto.types.components import Component
 from mcp_tracker.tracker.proto.types.queues import Queue, QueueVersion
 from mcp_tracker.tracker.proto.types.refs import (
     IssueReference,
@@ -70,6 +71,16 @@ def sample_queues(sample_queue: Queue) -> list[Queue]:
 def sample_queue_tags() -> list[str]:
     """Sample queue tags for testing."""
     return ["bug", "feature", "enhancement", "documentation"]
+
+
+@pytest.fixture
+def sample_queue_component() -> Component:
+    """Sample queue component for testing."""
+    return Component.model_construct(
+        id=111175,
+        name="Test Component",
+        description="A test component",
+    )
 
 
 @pytest.fixture

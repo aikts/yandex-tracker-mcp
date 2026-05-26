@@ -5,9 +5,11 @@ from typing import Any
 from aiocache import cached
 
 from mcp_tracker.tracker.proto.common import YandexAuth
+from mcp_tracker.tracker.proto.components import ComponentsProtocolWrap
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocolWrap
 from mcp_tracker.tracker.proto.issues import IssueProtocolWrap
 from mcp_tracker.tracker.proto.queues import QueuesProtocolWrap
+from mcp_tracker.tracker.proto.types.components import Component
 from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
 from mcp_tracker.tracker.proto.types.inputs import (
     IssueUpdateFollower,
@@ -46,6 +48,7 @@ class CacheCollection:
     issues: type[IssueProtocolWrap]
     global_data: type[GlobalDataProtocolWrap]
     users: type[UsersProtocolWrap]
+    components: type[ComponentsProtocolWrap]
 
 
 def make_cached_protocols(
@@ -473,9 +476,58 @@ def make_cached_protocols(
         async def user_get_current(self, *, auth: YandexAuth | None = None) -> User:
             return await self._original.user_get_current(auth=auth)
 
+    class CachingComponentsProtocol(ComponentsProtocolWrap):
+        async def component_create(
+            self,
+            queue_id: str,
+            *,
+            name: str,
+            description: str | None = None,
+            lead: str | None = None,
+            assign_auto: bool | None = None,
+            auth: YandexAuth | None = None,
+        ) -> Component:
+            return await self._original.component_create(
+                queue_id,
+                name=name,
+                description=description,
+                lead=lead,
+                assign_auto=assign_auto,
+                auth=auth,
+            )
+
+        async def component_update(
+            self,
+            component_id: int,
+            *,
+            name: str | None = None,
+            description: str | None = None,
+            lead: str | None = None,
+            auth: YandexAuth | None = None,
+        ) -> Component:
+            return await self._original.component_update(
+                component_id,
+                name=name,
+                description=description,
+                lead=lead,
+                auth=auth,
+            )
+
+        async def component_delete(
+            self,
+            component_id: int,
+            *,
+            auth: YandexAuth | None = None,
+        ) -> None:
+            return await self._original.component_delete(
+                component_id,
+                auth=auth,
+            )
+
     return CacheCollection(
         queues=CachingQueuesProtocol,
         issues=CachingIssuesProtocol,
         global_data=CachingGlobalDataProtocol,
         users=CachingUsersProtocol,
+        components=CachingComponentsProtocol,
     )
