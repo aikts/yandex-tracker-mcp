@@ -11,6 +11,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         str_strip_whitespace=True,
+        extra="ignore",
     )
 
     host: str = "0.0.0.0"

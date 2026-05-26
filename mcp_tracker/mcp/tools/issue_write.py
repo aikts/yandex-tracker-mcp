@@ -1,14 +1,16 @@
 """Issue write MCP tools (conditionally registered based on read-only mode)."""
 
 import datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, cast
 
 from mcp.server import FastMCP
+from mcp.server.elicitation import AcceptedElicitation
 from mcp.server.fastmcp import Context
-from mcp.types import ToolAnnotations
-from pydantic import Field
+from mcp.types import ClientCapabilities, ElicitationCapability, ToolAnnotations
+from pydantic import BaseModel, Field, create_model
 
 from mcp_tracker.mcp.context import AppContext
+from mcp_tracker.mcp.errors import TrackerError
 from mcp_tracker.mcp.params import IssueID
 from mcp_tracker.mcp.tools._access import check_issue_access, check_queue_access
 from mcp_tracker.mcp.utils import get_yandex_auth
@@ -24,9 +26,58 @@ from mcp_tracker.tracker.proto.types.inputs import (
 from mcp_tracker.tracker.proto.types.issues import (
     Issue,
     IssueComment,
+    IssueLink,
+    IssueLinkRelationship,
     IssueTransition,
     Worklog,
 )
+
+
+def _build_move_options_schema(
+    *,
+    notify: bool,
+    notify_author: bool,
+    move_all_fields: bool,
+    initial_status: bool,
+) -> type[BaseModel]:
+    """Build an elicitation schema for issue_move's boolean options.
+
+    Defaults are seeded with the values the caller passed so the elicitation
+    form is pre-filled with them and the user only adjusts what they need to.
+    """
+    return create_model(
+        "IssueMoveOptions",
+        notify=(
+            bool,
+            Field(
+                default=notify,
+                description="Notify users referenced in the issue's fields of the move.",
+            ),
+        ),
+        notify_author=(
+            bool,
+            Field(
+                default=notify_author,
+                description="Notify the issue author of the move.",
+            ),
+        ),
+        move_all_fields=(
+            bool,
+            Field(
+                default=move_all_fields,
+                description="Carry over versions, components and projects when matching "
+                "ones exist in the target queue (otherwise they are cleared).",
+            ),
+        ),
+        initial_status=(
+            bool,
+            Field(
+                default=initial_status,
+                description="Reset the issue status to the initial value (use when the "
+                "target queue has a different workflow).",
+            ),
+        ),
+    )
 
 
 def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
@@ -478,6 +529,89 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         )
 
     @mcp.tool(
+        title="Move Issue to Another Queue",
+        description="Move a Yandex Tracker issue to a different queue. "
+        "The issue will receive a new key in the target queue (e.g., TASKS-1 → NEWQUEUE-42). "
+        "Returns the updated issue with its new key and queue.",
+        annotations=ToolAnnotations(readOnlyHint=False),
+    )
+    async def issue_move(
+        ctx: Context[Any, AppContext],
+        issue_id: IssueID,
+        queue: Annotated[
+            str,
+            Field(description="Target queue key (e.g., 'MYQUEUE')"),
+        ],
+        notify: Annotated[
+            bool,
+            Field(
+                description="Whether users referenced in the issue's fields are notified "
+                "of the change."
+            ),
+        ] = True,
+        notify_author: Annotated[
+            bool,
+            Field(description="Whether the issue author is notified of the change."),
+        ] = False,
+        move_all_fields: Annotated[
+            bool,
+            Field(
+                description="Whether to carry over the issue's versions, components and "
+                "projects when matching ones exist in the target queue. When false, those "
+                "fields are cleared."
+            ),
+        ] = False,
+        initial_status: Annotated[
+            bool,
+            Field(
+                description="Whether to reset the issue status to the initial value. "
+                "Set this to true when moving to a queue with a different workflow. "
+            ),
+        ] = False,
+    ) -> Issue:
+        check_issue_access(settings, issue_id)
+        check_queue_access(settings, queue)
+
+        # When the client supports elicitation, confirm the boolean options with
+        # the user before performing the (irreversible) move. The form is seeded
+        # with the values passed by the caller so the user only adjusts what they
+        # need to. Clients without elicitation support fall back to those values.
+        if ctx.session.check_client_capability(
+            ClientCapabilities(elicitation=ElicitationCapability())
+        ):
+            options_schema = _build_move_options_schema(
+                notify=notify,
+                notify_author=notify_author,
+                move_all_fields=move_all_fields,
+                initial_status=initial_status,
+            )
+            elicitation = await ctx.elicit(
+                message=f"Confirm the options for moving issue {issue_id} to queue {queue}.",
+                schema=options_schema,
+            )
+            if elicitation.action != "accept":
+                raise TrackerError(
+                    f"Move of issue `{issue_id}` to queue `{queue}` was cancelled by the user."
+                )
+
+            elicitation = cast(AcceptedElicitation[BaseModel], elicitation)
+            options = elicitation.data.model_dump()
+            notify = options["notify"]
+            notify_author = options["notify_author"]
+            move_all_fields = options["move_all_fields"]
+            initial_status = options["initial_status"]
+
+        return await ctx.request_context.lifespan_context.issues.issue_move(
+            issue_id,
+            queue,
+            notify=notify,
+            notify_author=notify_author,
+            move_all_fields=move_all_fields,
+            initial_status=initial_status,
+            auth=get_yandex_auth(ctx),
+        )
+
+    @mcp.tool(
         title="Delete Issue Comment",
         description="Delete a comment from a Yandex Tracker issue",
         annotations=ToolAnnotations(readOnlyHint=False),
@@ -495,5 +629,61 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         return await ctx.request_context.lifespan_context.issues.issue_delete_comment(
             issue_id,
             comment_id,
+            auth=get_yandex_auth(ctx),
+        )
+
+    @mcp.tool(
+        title="Add Issue Link",
+        description="Create a link between a Yandex Tracker issue and another issue. "
+        "The `relationship` describes how the current issue (issue_id) relates to the "
+        "linked issue. For example, 'depends on' means issue_id depends on the linked "
+        "issue, while 'is dependent by' means the linked issue depends on issue_id. "
+        "Use 'relates' for a simple connection. Returns the created link.",
+        annotations=ToolAnnotations(readOnlyHint=False),
+    )
+    async def issue_add_link(
+        ctx: Context[Any, AppContext],
+        issue_id: IssueID,
+        relationship: Annotated[
+            IssueLinkRelationship,
+            Field(
+                description="Link type describing how the current issue (issue_id) "
+                "relates to the linked issue. 'is epic of'/'has epic' apply only to "
+                "Epic-type issues."
+            ),
+        ],
+        issue: Annotated[
+            str,
+            Field(description="ID or key of the issue to link to, e.g. 'TEST-123'."),
+        ],
+    ) -> IssueLink:
+        check_issue_access(settings, issue_id)
+
+        return await ctx.request_context.lifespan_context.issues.issue_add_link(
+            issue_id,
+            relationship=relationship,
+            issue=issue,
+            auth=get_yandex_auth(ctx),
+        )
+
+    @mcp.tool(
+        title="Delete Issue Link",
+        description="Delete a link between a Yandex Tracker issue and another issue. "
+        "Use issue_get_links to retrieve the link IDs for an issue.",
+        annotations=ToolAnnotations(readOnlyHint=False),
+    )
+    async def issue_delete_link(
+        ctx: Context[Any, AppContext],
+        issue_id: IssueID,
+        link_id: Annotated[
+            int,
+            Field(description="Link ID (integer) as returned by issue_get_links."),
+        ],
+    ) -> None:
+        check_issue_access(settings, issue_id)
+
+        return await ctx.request_context.lifespan_context.issues.issue_delete_link(
+            issue_id,
+            link_id,
             auth=get_yandex_auth(ctx),
         )

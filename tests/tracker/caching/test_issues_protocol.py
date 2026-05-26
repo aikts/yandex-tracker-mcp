@@ -55,6 +55,13 @@ class TestCachingIssuesProtocol:
         original.issue_update.return_value = Issue(
             key="TEST-1", summary="Updated Issue"
         )
+        original.issue_move.return_value = Issue(
+            key="NEWQUEUE-42", summary="Moved Issue"
+        )
+        original.issue_add_link.return_value = IssueLink(
+            id=2,
+            object=IssueReference(id="TEST-2", key="TEST-2", display="Linked Issue"),
+        )
         return original
 
     @pytest.fixture
@@ -89,6 +96,26 @@ class TestCachingIssuesProtocol:
 
         mock_original.issue_get_comments.assert_called_once_with("TEST-1", auth=None)
         assert result == mock_original.issue_get_comments.return_value
+
+    async def test_issue_add_link_calls_original(
+        self, caching_issues_protocol: Any, mock_original: AsyncMock
+    ) -> None:
+        result = await caching_issues_protocol.issue_add_link(
+            "TEST-1", relationship="relates", issue="TEST-2"
+        )
+
+        mock_original.issue_add_link.assert_called_once_with(
+            "TEST-1", relationship="relates", issue="TEST-2", auth=None
+        )
+        assert result == mock_original.issue_add_link.return_value
+
+    async def test_issue_delete_link_calls_original(
+        self, caching_issues_protocol: Any, mock_original: AsyncMock
+    ) -> None:
+        result = await caching_issues_protocol.issue_delete_link("TEST-1", 10)
+
+        mock_original.issue_delete_link.assert_called_once_with("TEST-1", 10, auth=None)
+        assert result == mock_original.issue_delete_link.return_value
 
     async def test_issues_find_calls_original_with_all_params(
         self,
@@ -348,3 +375,51 @@ class TestCachingIssuesProtocol:
             auth=None,
         )
         assert result == mock_original.issue_update.return_value
+        assert result == mock_original.issue_update.return_value
+
+    async def test_issue_move_calls_original(
+        self,
+        caching_issues_protocol: Any,
+        mock_original: AsyncMock,
+        yandex_auth: YandexAuth,
+    ) -> None:
+        result = await caching_issues_protocol.issue_move(
+            "TEST-1", "NEWQUEUE", auth=yandex_auth
+        )
+
+        mock_original.issue_move.assert_called_once_with(
+            "TEST-1",
+            "NEWQUEUE",
+            notify=True,
+            notify_author=False,
+            move_all_fields=False,
+            initial_status=False,
+            auth=yandex_auth,
+        )
+        assert result == mock_original.issue_move.return_value
+
+    async def test_issue_move_forwards_optional_flags(
+        self,
+        caching_issues_protocol: Any,
+        mock_original: AsyncMock,
+        yandex_auth: YandexAuth,
+    ) -> None:
+        await caching_issues_protocol.issue_move(
+            "TEST-1",
+            "NEWQUEUE",
+            notify=False,
+            notify_author=True,
+            move_all_fields=True,
+            initial_status=True,
+            auth=yandex_auth,
+        )
+
+        mock_original.issue_move.assert_called_once_with(
+            "TEST-1",
+            "NEWQUEUE",
+            notify=False,
+            notify_author=True,
+            move_all_fields=True,
+            initial_status=True,
+            auth=yandex_auth,
+        )

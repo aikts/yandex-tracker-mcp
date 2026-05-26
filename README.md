@@ -508,6 +508,16 @@ The server exposes the following tools through the MCP protocol:
   - Returns list of available versions in the specified queue with details like name, description, dates, and status
   - Respects `TRACKER_LIMIT_QUEUES` restrictions
 
+- **`queue_create_version`**: Create a new version in a specific queue
+  - Parameters:
+    - `queue_id` (string, required): Queue key like "SOMEPROJECT"
+    - `name` (string, required): Version name
+    - `description` (string, optional): Version description
+    - `start_date` (date, optional): Version start date in `YYYY-MM-DD` format
+    - `due_date` (date, optional): Version due date in `YYYY-MM-DD` format
+  - Returns the created version with details like name, description, dates, and status
+  - Respects `TRACKER_LIMIT_QUEUES` restrictions
+
 - **`queue_get_fields`**: Get fields for a specific queue
   - Parameters:
     - `queue_id` (string, required): Queue key like "SOMEPROJECT"
@@ -629,6 +639,19 @@ The server exposes the following tools through the MCP protocol:
     - `comment_id` (int, required): Comment ID
   - Returns: `null` (success)
 
+- **`issue_add_link`**: Create a link between an issue and another issue
+  - Parameters:
+    - `issue_id` (string, required, format: "QUEUE-123"): The current issue
+    - `relationship` (string, required): Link type describing how `issue_id` relates to the linked issue. One of: `relates`, `is dependent by`, `depends on`, `is subtask for`, `is parent task for`, `duplicates`, `is duplicated by`, `is epic of`, `has epic`
+    - `issue` (string, required): ID or key of the issue to link to (e.g. "TEST-123")
+  - Returns created link object
+
+- **`issue_delete_link`**: Delete a link between an issue and another issue
+  - Parameters:
+    - `issue_id` (string, required, format: "QUEUE-123")
+    - `link_id` (int, required): Link ID (as returned by `issue_get_links`)
+  - Returns: `null` (success)
+
 - **`issue_get_links`**: Get related issue links
   - Parameters: `issue_id` (string)
   - Returns links to related, blocked, or duplicate issues
@@ -718,13 +741,23 @@ The server exposes the following tools through the MCP protocol:
     - `priority` (IssueUpdatePriority, optional): Priority with `id` (string) and/or `key` (string, e.g., 'critical', 'normal')
     - `followers` (array of IssueUpdateFollower, optional): Followers - array of objects with `id` (string, user ID or login)
     - `project` (IssueUpdateProject, optional): Project with `primary` (int, main project shortId) and optional `secondary` (array of ints)
-    - `attachment_ids` (array of strings, optional): IDs of temporary files to attach
-    - `description_attachment_ids` (array of strings, optional): IDs of temporary files to embed in description
     - `tags` (array of strings, optional): Issue tags
     - `version` (int, optional): Issue version for optimistic locking - changes only made to current version
     - `fields` (object, optional): Additional fields to update. Use `queue_get_fields` to discover available fields.
   - Returns the updated issue object with all standard issue fields
   - Only provided fields are updated; omitted fields remain unchanged
+  - Respects `TRACKER_LIMIT_QUEUES` restrictions
+
+- **`issue_move`**: Move an issue to a different queue
+  - Parameters:
+    - `issue_id` (string, required, format: "QUEUE-123"): The issue key to move
+    - `queue` (string, required): Target queue key (e.g., 'MYQUEUE')
+    - `notify` (boolean, optional, default `true`): Notify users referenced in the issue's fields
+    - `notify_author` (boolean, optional, default `false`): Notify the issue author
+    - `move_all_fields` (boolean, optional, default `false`): Carry over versions, components and projects when matching ones exist in the target queue; otherwise they are cleared
+    - `initial_status` (boolean, optional, default `false`): Reset the issue status to the initial value (use when the target queue has a different workflow)
+  - Returns the updated issue object with its new key in the target queue (e.g., `TASKS-1` → `NEWQUEUE-42`)
+  - When the MCP client supports elicitation, the user is prompted to confirm the boolean flags before the move is performed; declining or cancelling aborts the move. Clients without elicitation support proceed with the passed-in values
   - Respects `TRACKER_LIMIT_QUEUES` restrictions
 
 </details>

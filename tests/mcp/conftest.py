@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 import pytest_asyncio
-from mcp.client.session import ClientSession
+from mcp.client.session import ClientSession, ElicitationFnT
 from mcp.server import FastMCP
 from mcp.shared.memory import create_connected_server_and_client_session
 from mcp.types import CallToolResult
@@ -23,6 +23,7 @@ from mcp_tracker.tracker.proto.users import UsersProtocol
 @asynccontextmanager
 async def safe_client_session(
     mcp_server: FastMCP[Any],
+    elicitation_callback: ElicitationFnT | None = None,
 ) -> AsyncIterator[ClientSession]:
     """Context manager wrapper that handles anyio teardown issues.
 
@@ -32,7 +33,7 @@ async def safe_client_session(
     completed successfully at that point.
     """
     ctx_mgr = create_connected_server_and_client_session(
-        mcp_server, raise_exceptions=True
+        mcp_server, raise_exceptions=True, elicitation_callback=elicitation_callback
     )
     session = await ctx_mgr.__aenter__()
     try:

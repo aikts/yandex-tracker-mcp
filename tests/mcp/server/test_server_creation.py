@@ -40,6 +40,7 @@ WRITE_TOOL_NAMES = [
     "component_create",
     "component_update",
     "component_delete",
+    "queue_create_version",
     "issue_execute_transition",
     "issue_close",
     "issue_create",
@@ -50,6 +51,9 @@ WRITE_TOOL_NAMES = [
     "issue_add_comment",
     "issue_update_comment",
     "issue_delete_comment",
+    "issue_add_link",
+    "issue_delete_link",
+    "issue_move",
 ]
 
 # All tool names that should be registered in normal mode

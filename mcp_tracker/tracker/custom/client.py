@@ -37,6 +37,7 @@ from mcp_tracker.tracker.proto.types.issues import (
     IssueAttachment,
     IssueComment,
     IssueLink,
+    IssueLinkRelationship,
     IssueTransition,
     Worklog,
 )
@@ -296,6 +297,32 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
             response.raise_for_status()
             return VersionList.model_validate_json(await response.read()).root
 
+    async def queue_create_version(
+        self,
+        queue_id: str,
+        *,
+        name: str,
+        description: str | None = None,
+        start_date: datetime.date | None = None,
+        due_date: datetime.date | None = None,
+        auth: YandexAuth | None = None,
+    ) -> QueueVersion:
+        body: dict[str, Any] = {"queue": queue_id, "name": name}
+        if description is not None:
+            body["description"] = description
+        if start_date is not None:
+            body["startDate"] = start_date.isoformat()
+        if due_date is not None:
+            body["dueDate"] = due_date.isoformat()
+
+        async with self._session.post(
+            "v3/versions/",
+            headers=await self._build_headers(auth),
+            json=body,
+        ) as response:
+            response.raise_for_status()
+            return QueueVersion.model_validate_json(await response.read())
+
     async def queues_get_fields(
         self, queue_id: str, *, auth: YandexAuth | None = None
     ) -> list[GlobalField]:
@@ -472,6 +499,44 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
                 raise IssueNotFound(issue_id)
             response.raise_for_status()
             return IssueLinkList.model_validate_json(await response.read()).root
+
+    async def issue_add_link(
+        self,
+        issue_id: str,
+        *,
+        relationship: IssueLinkRelationship,
+        issue: str,
+        auth: YandexAuth | None = None,
+    ) -> IssueLink:
+        """Создать связь задачи с другой задачей."""
+        body: dict[str, Any] = {"relationship": relationship, "issue": issue}
+
+        async with self._session.post(
+            f"v3/issues/{issue_id}/links",
+            headers=await self._build_headers(auth),
+            json=body,
+        ) as response:
+            if response.status == 404:
+                raise IssueNotFound(issue_id)
+            response.raise_for_status()
+            return IssueLink.model_validate_json(await response.read())
+
+    async def issue_delete_link(
+        self,
+        issue_id: str,
+        link_id: int,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> None:
+        """Удалить связь задачи с другой задачей."""
+        async with self._session.delete(
+            f"v3/issues/{issue_id}/links/{link_id}",
+            headers=await self._build_headers(auth),
+        ) as response:
+            if response.status == 404:
+                raise IssueNotFound(issue_id)
+            response.raise_for_status()
+            return None
 
     async def issue_get_comments(
         self, issue_id: str, *, auth: YandexAuth | None = None
@@ -946,6 +1011,37 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
             headers=await self._build_headers(auth),
             json=body,
             params=params if params else None,
+        ) as response:
+            if response.status == 404:
+                raise IssueNotFound(issue_id)
+            response.raise_for_status()
+            return Issue.model_validate_json(await response.read())
+
+    async def issue_move(
+        self,
+        issue_id: str,
+        queue: str,
+        *,
+        notify: bool = True,
+        notify_author: bool = False,
+        move_all_fields: bool = False,
+        initial_status: bool = False,
+        auth: YandexAuth | None = None,
+    ) -> Issue:
+        params: dict[str, str] = {"queue": queue}
+        if not notify:
+            params["notify"] = "false"
+        if notify_author:
+            params["notifyAuthor"] = "true"
+        if move_all_fields:
+            params["moveAllFields"] = "true"
+        if initial_status:
+            params["initialStatus"] = "true"
+
+        async with self._session.post(
+            f"v3/issues/{issue_id}/_move",
+            headers=await self._build_headers(auth),
+            params=params,
         ) as response:
             if response.status == 404:
                 raise IssueNotFound(issue_id)

@@ -90,7 +90,7 @@ class TestPydanticJsonSerializerLoads:
         assert result == "hello"
 
     def test_loads_none(self, serializer: PydanticJsonSerializer) -> None:
-        result = serializer.loads(None)  # type: ignore[arg-type]
+        result = serializer.loads(None)  # type: ignore[arg-type]  # ty: ignore[invalid-argument-type]
 
         assert result is None
 
@@ -244,6 +244,6 @@ class TestEncryptedFieldSerializerWithEncryption:
     def test_loads_none_returns_none(
         self, serializer: EncryptedFieldSerializer
     ) -> None:
-        result = serializer.loads(None)  # type: ignore[arg-type]
+        result = serializer.loads(None)  # type: ignore[arg-type]  # ty: ignore[invalid-argument-type]
 
         assert result is None

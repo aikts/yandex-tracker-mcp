@@ -43,7 +43,7 @@ class RedisOAuthStore(OAuthStore):
         encryptor = FieldEncryptor(encryption_keys) if encryption_keys else None
         serializer = EncryptedFieldSerializer(encryptor)
 
-        self._cache: BaseCache = Cache(
+        self._cache: BaseCache = Cache(  # ty: ignore[invalid-assignment]
             Cache.REDIS,
             endpoint=endpoint,
             port=port,

@@ -2,7 +2,7 @@
   "manifest_version": "0.4",
   "name": "yandex-tracker-mcp",
   "display_name": "Yandex Tracker MCP",
-  "version": "0.6.3",
+  "version": "0.7.1",
   "description": "Yandex Tracker MCP Server",
   "author": {
     "name": "KTS",
@@ -46,6 +46,10 @@
     {
       "name": "queue_get_versions",
       "description": "Get all versions for a specific queue"
+    },
+    {
+      "name": "queue_create_version",
+      "description": "Create a new version in a specific queue"
     },
     {
       "name": "queue_get_fields",
@@ -132,6 +136,14 @@
       "description": "Delete a comment from a Yandex Tracker issue"
     },
     {
+      "name": "issue_add_link",
+      "description": "Create a link between a Yandex Tracker issue and another issue"
+    },
+    {
+      "name": "issue_delete_link",
+      "description": "Delete a link between a Yandex Tracker issue and another issue"
+    },
+    {
       "name": "issue_get_links",
       "description": "Get related issue links"
     },
@@ -178,6 +190,10 @@
     {
       "name": "issue_update",
       "description": "Update an existing Yandex Tracker issue"
+    },
+    {
+      "name": "issue_move",
+      "description": "Move a Yandex Tracker issue to a different queue"
     },
     {
       "name": "issues_find",

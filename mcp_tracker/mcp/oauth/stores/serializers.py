@@ -46,14 +46,16 @@ class EncryptedFieldSerializer(PydanticJsonSerializer):
 
     def _encrypt_fields(self, data: dict[str, Any]) -> dict[str, Any]:
         result = data.copy()
-        for field in self.ENCRYPTED_FIELDS:
-            if field in result and result[field] is not None:
-                result[field] = self._encryptor.encrypt(str(result[field]))  # type: ignore[union-attr]
+        if self._encryptor is not None:
+            for field in self.ENCRYPTED_FIELDS:
+                if field in result and result[field] is not None:
+                    result[field] = self._encryptor.encrypt(str(result[field]))  # type: ignore[union-attr]
         return result
 
     def _decrypt_fields(self, data: dict[str, Any]) -> dict[str, Any]:
         result = data.copy()
-        for field in self.ENCRYPTED_FIELDS:
-            if field in result and result[field] is not None:
-                result[field] = self._encryptor.decrypt(result[field])  # type: ignore[union-attr]
+        if self._encryptor is not None:
+            for field in self.ENCRYPTED_FIELDS:
+                if field in result and result[field] is not None:
+                    result[field] = self._encryptor.decrypt(result[field])  # type: ignore[union-attr]
         return result

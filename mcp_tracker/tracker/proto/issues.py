@@ -16,6 +16,7 @@ from .types.issues import (
     IssueAttachment,
     IssueComment,
     IssueLink,
+    IssueLinkRelationship,
     IssueTransition,
     Worklog,
 )
@@ -61,6 +62,21 @@ class IssueProtocol(Protocol):
     async def issues_get_links(
         self, issue_id: str, *, auth: YandexAuth | None = None
     ) -> list[IssueLink]: ...
+    async def issue_add_link(
+        self,
+        issue_id: str,
+        *,
+        relationship: IssueLinkRelationship,
+        issue: str,
+        auth: YandexAuth | None = None,
+    ) -> IssueLink: ...
+    async def issue_delete_link(
+        self,
+        issue_id: str,
+        link_id: int,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> None: ...
     async def issues_find(
         self,
         query: str,
@@ -163,6 +179,18 @@ class IssueProtocol(Protocol):
         version: int | None = None,
         auth: YandexAuth | None = None,
         **kwargs: Any,
+    ) -> Issue: ...
+
+    async def issue_move(
+        self,
+        issue_id: str,
+        queue: str,
+        *,
+        notify: bool = True,
+        notify_author: bool = False,
+        move_all_fields: bool = False,
+        initial_status: bool = False,
+        auth: YandexAuth | None = None,
     ) -> Issue: ...
 
 

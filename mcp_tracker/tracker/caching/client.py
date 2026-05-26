@@ -26,6 +26,7 @@ from mcp_tracker.tracker.proto.types.issues import (
     IssueAttachment,
     IssueComment,
     IssueLink,
+    IssueLinkRelationship,
     IssueTransition,
     Worklog,
 )
@@ -80,6 +81,25 @@ def make_cached_protocols(
         ) -> list[QueueVersion]:
             return await self._original.queues_get_versions(queue_id, auth=auth)
 
+        async def queue_create_version(
+            self,
+            queue_id: str,
+            *,
+            name: str,
+            description: str | None = None,
+            start_date: datetime.date | None = None,
+            due_date: datetime.date | None = None,
+            auth: YandexAuth | None = None,
+        ) -> QueueVersion:
+            return await self._original.queue_create_version(
+                queue_id,
+                name=name,
+                description=description,
+                start_date=start_date,
+                due_date=due_date,
+                auth=auth,
+            )
+
         @cached(**cache_config)
         async def queues_get_fields(
             self, queue_id: str, *, auth: YandexAuth | None = None
@@ -108,6 +128,30 @@ def make_cached_protocols(
             self, issue_id: str, *, auth: YandexAuth | None = None
         ) -> list[IssueLink]:
             return await self._original.issues_get_links(issue_id, auth=auth)
+
+        async def issue_add_link(
+            self,
+            issue_id: str,
+            *,
+            relationship: IssueLinkRelationship,
+            issue: str,
+            auth: YandexAuth | None = None,
+        ) -> IssueLink:
+            return await self._original.issue_add_link(
+                issue_id,
+                relationship=relationship,
+                issue=issue,
+                auth=auth,
+            )
+
+        async def issue_delete_link(
+            self,
+            issue_id: str,
+            link_id: int,
+            *,
+            auth: YandexAuth | None = None,
+        ) -> None:
+            return await self._original.issue_delete_link(issue_id, link_id, auth=auth)
 
         @cached(**cache_config)
         async def issue_get_comments(
@@ -361,6 +405,27 @@ def make_cached_protocols(
                 version=version,
                 auth=auth,
                 **kwargs,
+            )
+
+        async def issue_move(
+            self,
+            issue_id: str,
+            queue: str,
+            *,
+            notify: bool = True,
+            notify_author: bool = False,
+            move_all_fields: bool = False,
+            initial_status: bool = False,
+            auth: YandexAuth | None = None,
+        ) -> Issue:
+            return await self._original.issue_move(
+                issue_id,
+                queue,
+                notify=notify,
+                notify_author=notify_author,
+                move_all_fields=move_all_fields,
+                initial_status=initial_status,
+                auth=auth,
             )
 
     class CachingGlobalDataProtocol(GlobalDataProtocolWrap):

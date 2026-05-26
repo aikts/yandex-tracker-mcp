@@ -46,7 +46,7 @@ QueueExpandOption = Literal[
 ]
 
 
-QueueFieldsEnum = Enum(  # type: ignore[misc]  # ty: ignore[unused-ignore-comment]
+QueueFieldsEnum = Enum(  # type: ignore[misc]
     "QueueFieldsEnum",
     {key: key for key in Queue.model_fields.keys()},
 )
