@@ -1,6 +1,6 @@
 import datetime
 from enum import Enum
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
@@ -167,3 +167,48 @@ class IssueTransition(BaseTrackerEntity):
     id: str
     display: str | None = None
     to: StatusReference | None = None
+
+
+class ChangelogFieldReference(BaseReference):
+    """Reference to the field that changed in a changelog entry (id + human-readable display)."""
+
+    display: str | None = None
+
+
+class ChangelogFieldChange(BaseTrackerEntity):
+    """A single field change within a changelog entry (old value -> new value).
+
+    `from`/`to` are intentionally untyped: Yandex Tracker returns a reference object
+    for relation fields (status, assignee, ...), a plain string for text fields
+    (summary, description, ...) or an array for collection fields (tags, components, ...).
+    """
+
+    field: ChangelogFieldReference | None = None
+    from_: Any | None = Field(
+        None,
+        validation_alias=AliasChoices("from", "from_"),
+        serialization_alias="from",
+        exclude_if=none_excluder,
+    )
+    to: Any | None = NoneExcludedField
+
+
+class ChangelogEntry(CreatedUpdatedMixin, BaseTrackerEntity):
+    """A single entry of an issue change history (status transitions, field edits, etc.)."""
+
+    id: str
+    issue: IssueReference | None = None
+    type: str | None = None
+    transport: str | None = None
+    fields: list[ChangelogFieldChange] | None = None
+
+
+class ChangelogPage(BaseModel):
+    """A page of issue changelog entries plus the cursor to fetch the next page.
+
+    `next_cursor` is parsed from the `Link: rel="next"` response header; it is `None`
+    when there are no more pages. Pass it back as the `cursor` argument to continue.
+    """
+
+    entries: list[ChangelogEntry]
+    next_cursor: str | None = None

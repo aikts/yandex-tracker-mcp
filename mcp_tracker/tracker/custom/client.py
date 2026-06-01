@@ -9,10 +9,11 @@ from typing import Any, Literal
 
 import jwt
 import yandexcloud
-from aiohttp import ClientSession, ClientTimeout
+from aiohttp import ClientResponse, ClientSession, ClientTimeout
 from pydantic import BaseModel, RootModel
 from yandex.cloud.iam.v1.iam_token_service_pb2 import CreateIamTokenRequest
 from yandex.cloud.iam.v1.iam_token_service_pb2_grpc import IamTokenServiceStub
+from yarl import URL
 
 from mcp_tracker.tracker.custom.errors import IssueNotFound
 from mcp_tracker.tracker.proto.common import YandexAuth
@@ -30,6 +31,8 @@ from mcp_tracker.tracker.proto.types.inputs import (
 )
 from mcp_tracker.tracker.proto.types.issue_types import IssueType
 from mcp_tracker.tracker.proto.types.issues import (
+    ChangelogEntry,
+    ChangelogPage,
     ChecklistItem,
     Issue,
     IssueAttachment,
@@ -67,6 +70,7 @@ PriorityList = RootModel[list[Priority]]
 ResolutionList = RootModel[list[Resolution]]
 UserList = RootModel[list[User]]
 IssueTransitionList = RootModel[list[IssueTransition]]
+ChangelogList = RootModel[list[ChangelogEntry]]
 
 
 logger = logging.getLogger(__name__)
@@ -784,6 +788,54 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
                 raise IssueNotFound(issue_id)
             response.raise_for_status()
             return IssueTransitionList.model_validate_json(await response.read()).root
+
+    async def issue_get_changelog(
+        self,
+        issue_id: str,
+        *,
+        per_page: int = 50,
+        cursor: str | None = None,
+        field: str | None = None,
+        type: str | None = None,
+        auth: YandexAuth | None = None,
+    ) -> ChangelogPage:
+        params: dict[str, Any] = {"perPage": per_page}
+        if cursor is not None:
+            params["id"] = cursor
+        if field is not None:
+            params["field"] = field
+        if type is not None:
+            params["type"] = type
+
+        async with self._session.get(
+            f"v3/issues/{issue_id}/changelog",
+            headers=await self._build_headers(auth),
+            params=params,
+        ) as response:
+            if response.status == 404:
+                raise IssueNotFound(issue_id)
+            response.raise_for_status()
+            entries = ChangelogList.model_validate_json(await response.read()).root
+            return ChangelogPage(
+                entries=entries,
+                next_cursor=self._parse_next_cursor(response),
+            )
+
+    @staticmethod
+    def _parse_next_cursor(response: ClientResponse) -> str | None:
+        """Extract the next-page cursor from the `Link: rel="next"` response header.
+
+        Yandex Tracker paginates the changelog with an opaque cursor delivered as the
+        `id` query parameter of the `next` link, not via the last entry's id.
+        """
+        next_link = response.links.get("next")
+        if next_link is None:
+            return None
+        next_url = next_link.get("url")
+        if not isinstance(next_url, URL):
+            return None
+        cursor = next_url.query.get("id")
+        return str(cursor) if cursor is not None else None
 
     async def issue_execute_transition(
         self,

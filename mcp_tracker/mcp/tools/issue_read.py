@@ -9,6 +9,7 @@ from pydantic import Field
 
 from mcp_tracker.mcp.context import AppContext
 from mcp_tracker.mcp.params import (
+    CursorPerPageParam,
     IssueID,
     IssueIDs,
     PageParam,
@@ -19,6 +20,7 @@ from mcp_tracker.mcp.tools._access import check_issue_access
 from mcp_tracker.mcp.utils import get_yandex_auth, set_non_needed_fields_null
 from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.proto.types.issues import (
+    ChangelogPage,
     ChecklistItem,
     Issue,
     IssueAttachment,
@@ -217,5 +219,50 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
 
         return await ctx.request_context.lifespan_context.issues.issue_get_transitions(
             issue_id,
+            auth=get_yandex_auth(ctx),
+        )
+
+    @mcp.tool(
+        title="Get Issue Changelog",
+        description="Get the change history (changelog) of a Yandex Tracker issue by its id: "
+        "status transitions, field edits, who changed what (from -> to) and when. "
+        "Returns a page of entries plus 'next_cursor'. To fetch the next page, pass "
+        "'next_cursor' from the previous result as the 'cursor' argument; when "
+        "'next_cursor' is null there are no more pages.",
+        annotations=ToolAnnotations(readOnlyHint=True),
+    )
+    async def issue_get_changelog(
+        ctx: Context[Any, AppContext],
+        issue_id: IssueID,
+        per_page: CursorPerPageParam = 50,
+        cursor: Annotated[
+            str | None,
+            Field(
+                description="Cursor for the next page: the 'next_cursor' value returned by "
+                "the previous call. Leave empty for the first page.",
+            ),
+        ] = None,
+        field: Annotated[
+            str | None,
+            Field(
+                description="Optional field key to filter the changelog by "
+                "(e.g. 'status' to only see status changes).",
+            ),
+        ] = None,
+        type: Annotated[
+            str | None,
+            Field(
+                description="Optional change type to filter by (e.g. 'IssueWorkflow' for status transitions).",
+            ),
+        ] = None,
+    ) -> ChangelogPage:
+        check_issue_access(settings, issue_id)
+
+        return await ctx.request_context.lifespan_context.issues.issue_get_changelog(
+            issue_id,
+            per_page=per_page,
+            cursor=cursor,
+            field=field,
+            type=type,
             auth=get_yandex_auth(ctx),
         )

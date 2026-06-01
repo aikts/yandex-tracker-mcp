@@ -3,6 +3,10 @@ import pytest
 from mcp_tracker.tracker.proto.types.fields import FieldSchema, GlobalField, LocalField
 from mcp_tracker.tracker.proto.types.issue_types import IssueType
 from mcp_tracker.tracker.proto.types.issues import (
+    ChangelogEntry,
+    ChangelogFieldChange,
+    ChangelogFieldReference,
+    ChangelogPage,
     ChecklistItem,
     Issue,
     IssueAttachment,
@@ -504,6 +508,55 @@ def sample_transitions(sample_transition: IssueTransition) -> list[IssueTransiti
             ),
         ),
     ]
+
+
+# Changelog fixtures
+@pytest.fixture
+def sample_changelog_entry() -> ChangelogEntry:
+    """Sample issue changelog entry for testing."""
+    return ChangelogEntry.model_construct(
+        id="5f2c0000000000000000abcd",
+        type="IssueWorkflow",
+        transport="front",
+        updated_by=UserReference.model_construct(id="user123", display="Test User"),
+        fields=[
+            ChangelogFieldChange.model_construct(
+                field=ChangelogFieldReference.model_construct(
+                    id="status", display="Status"
+                ),
+                from_={"id": "1", "key": "open", "display": "Open"},
+                to={"id": "2", "key": "inProgress", "display": "In Progress"},
+            )
+        ],
+    )
+
+
+@pytest.fixture
+def sample_changelog(sample_changelog_entry: ChangelogEntry) -> ChangelogPage:
+    """Sample changelog page (with a next cursor) for testing."""
+    return ChangelogPage(
+        entries=[
+            sample_changelog_entry,
+            ChangelogEntry.model_construct(
+                id="5f2c0000000000000000ef01",
+                type="IssueUpdated",
+                transport="front",
+                updated_by=UserReference.model_construct(
+                    id="user123", display="Test User"
+                ),
+                fields=[
+                    ChangelogFieldChange.model_construct(
+                        field=ChangelogFieldReference.model_construct(
+                            id="assignee", display="Assignee"
+                        ),
+                        from_=None,
+                        to={"id": "user456", "display": "Another User"},
+                    )
+                ],
+            ),
+        ],
+        next_cursor="5f2c0000000000000000ef01",
+    )
 
 
 # User fixtures

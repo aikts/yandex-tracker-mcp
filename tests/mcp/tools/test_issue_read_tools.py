@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock
 from mcp.client.session import ClientSession
 
 from mcp_tracker.tracker.proto.types.issues import (
+    ChangelogPage,
     ChecklistItem,
     Issue,
     IssueAttachment,
@@ -302,3 +303,69 @@ class TestIssueGetTransitions:
         assert len(content) == len(sample_transitions)
         assert content[0]["id"] == sample_transitions[0].id
         assert content[0]["display"] == sample_transitions[0].display
+
+
+class TestIssueGetChangelog:
+    async def test_returns_changelog(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_changelog: ChangelogPage,
+    ) -> None:
+        mock_issues_protocol.issue_get_changelog.return_value = sample_changelog
+
+        result = await client_session.call_tool(
+            "issue_get_changelog", {"issue_id": "TEST-123"}
+        )
+
+        assert not result.isError
+        mock_issues_protocol.issue_get_changelog.assert_called_once()
+        content = get_tool_result_content(result)
+        assert isinstance(content, dict)
+        assert content["next_cursor"] == sample_changelog.next_cursor
+        entries = content["entries"]
+        assert len(entries) == len(sample_changelog.entries)
+        assert entries[0]["id"] == sample_changelog.entries[0].id
+        assert entries[0]["type"] == sample_changelog.entries[0].type
+        # `from` is serialized by its alias, not the python-safe `from_`
+        assert "from" in entries[0]["fields"][0]
+        # field display must survive serialization
+        assert entries[0]["fields"][0]["field"]["display"] == "Status"
+
+    async def test_passes_pagination_and_filters(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_changelog: ChangelogPage,
+    ) -> None:
+        mock_issues_protocol.issue_get_changelog.return_value = sample_changelog
+
+        result = await client_session.call_tool(
+            "issue_get_changelog",
+            {
+                "issue_id": "TEST-123",
+                "per_page": 10,
+                "cursor": "prev-entry-id",
+                "field": "status",
+                "type": "IssueWorkflow",
+            },
+        )
+
+        assert not result.isError
+        _, kwargs = mock_issues_protocol.issue_get_changelog.call_args
+        assert kwargs["per_page"] == 10
+        assert kwargs["cursor"] == "prev-entry-id"
+        assert kwargs["field"] == "status"
+        assert kwargs["type"] == "IssueWorkflow"
+
+    async def test_restricted_queue_raises_error(
+        self,
+        client_session_with_limits: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session_with_limits.call_tool(
+            "issue_get_changelog", {"issue_id": "RESTRICTED-123"}
+        )
+
+        assert result.isError
+        mock_issues_protocol.issue_get_changelog.assert_not_called()
