@@ -203,7 +203,7 @@ class ChangelogEntry(CreatedUpdatedMixin, BaseTrackerEntity):
     fields: list[ChangelogFieldChange] | None = None
 
 
-class ChangelogPage(BaseModel):
+class ChangelogPage(BaseTrackerEntity):
     """A page of issue changelog entries plus the cursor to fetch the next page.
 
     `next_cursor` is parsed from the `Link: rel="next"` response header; it is `None`
