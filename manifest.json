@@ -152,6 +152,10 @@
       "description": "Get attachments for an issue"
     },
     {
+      "name": "issue_download_attachment",
+      "description": "Download a Yandex Tracker issue attachment and save it to a local directory"
+    },
+    {
       "name": "issue_get_checklist",
       "description": "Get checklist items of a Yandex Tracker issue by its id"
     },

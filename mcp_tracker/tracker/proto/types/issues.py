@@ -137,6 +137,13 @@ class IssueAttachment(CreatedMixin, BaseTrackerEntity):
     metadata: dict[str, str] | None = None
 
 
+class DownloadedIssueAttachment(BaseModel):
+    local_path: str
+    name: str
+    mime_type: str
+    size: int
+
+
 class ChecklistItemDeadline(BaseModel):
     date: datetime.datetime
     deadline_type: str = Field(

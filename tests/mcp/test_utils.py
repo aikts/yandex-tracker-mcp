@@ -1,10 +1,15 @@
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
 from pydantic import BaseModel
 from pytest_mock import MockerFixture
 
-from mcp_tracker.mcp.utils import get_yandex_auth, set_non_needed_fields_null
+from mcp_tracker.mcp.utils import (
+    get_yandex_auth,
+    save_issue_attachment_file,
+    set_non_needed_fields_null,
+)
 from mcp_tracker.tracker.proto.common import YandexAuth
 
 
@@ -349,3 +354,81 @@ class TestSetNonNeededFieldsNull:
         assert item.name == "test"
         assert item.value is None
         assert item.description is None
+
+
+class TestSaveIssueAttachmentFile:
+    def test_saves_file_with_issue_and_attachment_id(self, tmp_path: Path) -> None:
+        data = b"file content"
+        save_directory = tmp_path / "attachments"
+
+        local_path = save_issue_attachment_file(
+            data,
+            issue_id="HELPDESK-1054",
+            attachment_id="7699",
+            file_name="image.png",
+            save_directory=str(save_directory),
+        )
+
+        assert local_path == save_directory.resolve() / "HELPDESK-1054-7699.png"
+        assert local_path.read_bytes() == data
+
+    def test_uses_basename_only(self, tmp_path: Path) -> None:
+        data = b"safe content"
+
+        local_path = save_issue_attachment_file(
+            data,
+            issue_id="TEST-1",
+            attachment_id="1",
+            file_name="../../etc/passwd",
+            save_directory=str(tmp_path),
+        )
+
+        assert local_path.name == "TEST-1-1"
+        assert local_path.read_bytes() == data
+
+    @pytest.mark.parametrize(
+        ("file_name", "expected_suffix"),
+        [
+            ("report.pdf", ".pdf"),
+            ("archive.tar.gz", ".gz"),
+            ("noextension", ""),
+        ],
+    )
+    def test_preserves_file_suffix(
+        self,
+        tmp_path: Path,
+        file_name: str,
+        expected_suffix: str,
+    ) -> None:
+        local_path = save_issue_attachment_file(
+            b"x",
+            issue_id="TEST-1",
+            attachment_id="42",
+            file_name=file_name,
+            save_directory=str(tmp_path),
+        )
+
+        assert local_path.suffix == expected_suffix
+
+    @pytest.mark.parametrize(
+        ("issue_id", "attachment_id"),
+        [
+            ("TEST/1", "42"),
+            ("TEST-1", "../42"),
+            ("TEST 1", "42"),
+        ],
+    )
+    def test_rejects_unsafe_identifiers(
+        self,
+        tmp_path: Path,
+        issue_id: str,
+        attachment_id: str,
+    ) -> None:
+        with pytest.raises(ValueError):
+            save_issue_attachment_file(
+                b"x",
+                issue_id=issue_id,
+                attachment_id=attachment_id,
+                file_name="report.pdf",
+                save_directory=str(tmp_path),
+            )

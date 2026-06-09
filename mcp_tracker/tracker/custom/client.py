@@ -678,6 +678,23 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
             response.raise_for_status()
             return IssueAttachmentList.model_validate_json(await response.read()).root
 
+    async def issue_download_attachment(
+        self,
+        issue_id: str,
+        attachment_id: str,
+        file_name: str,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> bytes:
+        async with self._session.get(
+            f"v3/issues/{issue_id}/attachments/{attachment_id}/{file_name}",
+            headers=await self._build_headers(auth),
+        ) as response:
+            if response.status == 404:
+                raise IssueNotFound(issue_id)
+            response.raise_for_status()
+            return await response.read()
+
     async def users_list(
         self, per_page: int = 50, page: int = 1, *, auth: YandexAuth | None = None
     ) -> list[User]:

@@ -48,3 +48,38 @@ class TestIssueGetAttachments:
                 await tracker_client.issue_get_attachments("NOTFOUND-123")
 
             assert exc_info.value.issue_id == "NOTFOUND-123"
+
+
+class TestIssueDownloadAttachment:
+    async def test_success(self, tracker_client: TrackerClient) -> None:
+        file_content = b"hello attachment"
+
+        with aioresponses() as m:
+            m.get(
+                "https://api.tracker.yandex.net/v3/issues/TEST-123/attachments/7698/image.png",
+                body=file_content,
+            )
+
+            result = await tracker_client.issue_download_attachment(
+                "TEST-123",
+                "7698",
+                "image.png",
+            )
+
+            assert result == file_content
+
+    async def test_not_found(self, tracker_client: TrackerClient) -> None:
+        with aioresponses() as m:
+            m.get(
+                "https://api.tracker.yandex.net/v3/issues/NOTFOUND-123/attachments/1/file.txt",
+                status=404,
+            )
+
+            with pytest.raises(IssueNotFound) as exc_info:
+                await tracker_client.issue_download_attachment(
+                    "NOTFOUND-123",
+                    "1",
+                    "file.txt",
+                )
+
+            assert exc_info.value.issue_id == "NOTFOUND-123"
