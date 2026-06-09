@@ -646,6 +646,13 @@ The server exposes the following tools through the MCP protocol:
     - `issue` (string, required): ID or key of the issue to link to (e.g. "TEST-123")
   - Returns created link object
 
+- **`issue_add_attachment`**: Attach a local file to an issue (uploaded from the MCP server's filesystem, max 1024 MB)
+  - Parameters:
+    - `issue_id` (string, required, format: "QUEUE-123")
+    - `file_path` (string, required): Path to the file on the MCP server's filesystem
+    - `filename` (string, optional): Name to store the attachment as (defaults to the base name of `file_path`)
+  - Returns created attachment object
+
 - **`issue_delete_link`**: Delete a link between an issue and another issue
   - Parameters:
     - `issue_id` (string, required, format: "QUEUE-123")

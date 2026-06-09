@@ -109,6 +109,18 @@ class TestCachingIssuesProtocol:
         )
         assert result == mock_original.issue_add_link.return_value
 
+    async def test_issue_add_attachment_calls_original(
+        self, caching_issues_protocol: Any, mock_original: AsyncMock
+    ) -> None:
+        result = await caching_issues_protocol.issue_add_attachment(
+            "TEST-1", content=b"data", filename="file.txt"
+        )
+
+        mock_original.issue_add_attachment.assert_called_once_with(
+            "TEST-1", content=b"data", filename="file.txt", auth=None
+        )
+        assert result == mock_original.issue_add_attachment.return_value
+
     async def test_issue_delete_link_calls_original(
         self, caching_issues_protocol: Any, mock_original: AsyncMock
     ) -> None:

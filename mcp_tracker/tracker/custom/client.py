@@ -9,7 +9,7 @@ from typing import Any, Literal
 
 import jwt
 import yandexcloud
-from aiohttp import ClientSession, ClientTimeout
+from aiohttp import ClientSession, ClientTimeout, FormData
 from pydantic import BaseModel, RootModel
 from yandex.cloud.iam.v1.iam_token_service_pb2 import CreateIamTokenRequest
 from yandex.cloud.iam.v1.iam_token_service_pb2_grpc import IamTokenServiceStub
@@ -677,6 +677,27 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
                 raise IssueNotFound(issue_id)
             response.raise_for_status()
             return IssueAttachmentList.model_validate_json(await response.read()).root
+
+    async def issue_add_attachment(
+        self,
+        issue_id: str,
+        *,
+        content: bytes,
+        filename: str,
+        auth: YandexAuth | None = None,
+    ) -> IssueAttachment:
+        """Прикрепить файл к задаче (multipart upload)."""
+        form = FormData()
+        form.add_field("file", content, filename=filename)
+        async with self._session.post(
+            f"v3/issues/{issue_id}/attachments/",
+            headers=await self._build_headers(auth),
+            data=form,
+        ) as response:
+            if response.status == 404:
+                raise IssueNotFound(issue_id)
+            response.raise_for_status()
+            return IssueAttachment.model_validate_json(await response.read())
 
     async def users_list(
         self, per_page: int = 50, page: int = 1, *, auth: YandexAuth | None = None

@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Features
+- Add `issue_add_attachment` MCP tool to attach a local file to an issue
+  - Reads the file from the MCP server's filesystem by `file_path` and uploads it via `multipart/form-data` to the issue's attachments (max 1024 MB)
+  - Optional `filename` overrides the stored attachment name (defaults to the file's base name)
+  - Registered only when not in read-only mode and subject to `TRACKER_LIMIT_QUEUES` access checks
+
 ## [0.7.1] - 2026-05-23
 
 ### Features

@@ -48,3 +48,50 @@ class TestIssueGetAttachments:
                 await tracker_client.issue_get_attachments("NOTFOUND-123")
 
             assert exc_info.value.issue_id == "NOTFOUND-123"
+
+
+class TestIssueAddAttachment:
+    async def test_success(self, tracker_client: TrackerClient) -> None:
+        attachment_data = {
+            "self": "https://api.tracker.yandex.net/v3/issues/TEST-123/attachments/1",
+            "id": "attachment-123",
+            "name": "report.pdf",
+            "content": "https://api.tracker.yandex.net/v3/issues/TEST-123/attachments/1/content",
+            "createdBy": {
+                "self": "https://api.tracker.yandex.net/v3/users/1234567890",
+                "id": "user123",
+                "display": "Test User",
+            },
+            "createdAt": "2023-01-01T12:00:00.000+0000",
+            "mimetype": "application/pdf",
+            "size": 2048,
+        }
+
+        with aioresponses() as m:
+            m.post(
+                "https://api.tracker.yandex.net/v3/issues/TEST-123/attachments/",
+                payload=attachment_data,
+                status=201,
+            )
+
+            result = await tracker_client.issue_add_attachment(
+                "TEST-123", content=b"hello world", filename="report.pdf"
+            )
+
+            assert isinstance(result, IssueAttachment)
+            assert result.id == "attachment-123"
+            assert result.name == "report.pdf"
+
+    async def test_not_found(self, tracker_client: TrackerClient) -> None:
+        with aioresponses() as m:
+            m.post(
+                "https://api.tracker.yandex.net/v3/issues/NOTFOUND-123/attachments/",
+                status=404,
+            )
+
+            with pytest.raises(IssueNotFound) as exc_info:
+                await tracker_client.issue_add_attachment(
+                    "NOTFOUND-123", content=b"x", filename="x.txt"
+                )
+
+            assert exc_info.value.issue_id == "NOTFOUND-123"

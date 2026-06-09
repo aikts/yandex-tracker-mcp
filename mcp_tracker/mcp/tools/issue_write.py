@@ -1,6 +1,7 @@
 """Issue write MCP tools (conditionally registered based on read-only mode)."""
 
 import datetime
+from pathlib import Path
 from typing import Annotated, Any, cast
 
 from mcp.server import FastMCP
@@ -25,6 +26,7 @@ from mcp_tracker.tracker.proto.types.inputs import (
 )
 from mcp_tracker.tracker.proto.types.issues import (
     Issue,
+    IssueAttachment,
     IssueComment,
     IssueLink,
     IssueLinkRelationship,
@@ -475,6 +477,49 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             maillist_summonees=maillist_summonees,
             markup_type=markup_type,
             is_add_to_followers=is_add_to_followers,
+            auth=get_yandex_auth(ctx),
+        )
+
+    @mcp.tool(
+        title="Attach File to Issue",
+        description=(
+            "Attach a local file to a Yandex Tracker issue. The file is read from "
+            "the MCP server's filesystem by its path and uploaded to the issue's "
+            "attachments (max 1024 MB). Typically used right after creating an issue "
+            "to add files the user provided (screenshots, logs, documents)."
+        ),
+        annotations=ToolAnnotations(readOnlyHint=False),
+    )
+    async def issue_add_attachment(
+        ctx: Context[Any, AppContext],
+        issue_id: IssueID,
+        file_path: Annotated[
+            str,
+            Field(
+                description="Path to the file on the MCP server's filesystem. "
+                "The server process must be able to read it."
+            ),
+        ],
+        filename: Annotated[
+            str | None,
+            Field(
+                description="Optional name to store the attachment as. "
+                "Defaults to the base name of file_path."
+            ),
+        ] = None,
+    ) -> IssueAttachment:
+        check_issue_access(settings, issue_id)
+
+        path = Path(file_path)
+        try:
+            content = path.read_bytes()
+        except OSError as exc:
+            raise TrackerError(f"Could not read file '{file_path}': {exc}") from exc
+
+        return await ctx.request_context.lifespan_context.issues.issue_add_attachment(
+            issue_id,
+            content=content,
+            filename=filename or path.name,
             auth=get_yandex_auth(ctx),
         )
 
