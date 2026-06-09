@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     # Project/portfolio/goal tools are opt-in: they add a large tool manifest and
     # are not subject to the queue restrictions (an entity has no single queue).
     tracker_entities_enabled: bool = False
+    tracker_attachment_download_enabled: bool = False
+    tracker_attachments_dir: str = "tmp/tracker-attachments"
+    tracker_max_attachment_bytes: int = 52_428_800  # 50 MiB
 
     tracker_sa_key_id: str | None = None
     tracker_sa_service_account_id: str | None = None

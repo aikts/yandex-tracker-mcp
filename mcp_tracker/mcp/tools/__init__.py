@@ -23,7 +23,10 @@ from mcp.server import FastMCP
 from mcp_tracker.mcp.tools.field import register_field_tools
 from mcp_tracker.mcp.tools.goal import register_goal_tools
 from mcp_tracker.mcp.tools.goal_write import register_goal_write_tools
-from mcp_tracker.mcp.tools.issue_read import register_issue_read_tools
+from mcp_tracker.mcp.tools.issue_read import (
+    register_issue_attachment_download_tool,
+    register_issue_read_tools,
+)
 from mcp_tracker.mcp.tools.issue_write import register_issue_write_tools
 from mcp_tracker.mcp.tools.portfolio import register_portfolio_tools
 from mcp_tracker.mcp.tools.portfolio_write import register_portfolio_write_tools
@@ -56,6 +59,9 @@ def register_all_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         register_project_tools(settings, mcp)
         register_portfolio_tools(settings, mcp)
         register_goal_tools(settings, mcp)
+
+    if settings.tracker_attachment_download_enabled:
+        register_issue_attachment_download_tool(settings, mcp)
 
     # Only register write tools if not in read-only mode
     if not settings.tracker_read_only:

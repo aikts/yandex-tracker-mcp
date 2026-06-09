@@ -54,6 +54,11 @@ ENTITY_READ_ONLY_TOOL_NAMES = [
     "goal_get_comments",
 ]
 
+# Attachment download tool - only registered when TRACKER_ATTACHMENT_DOWNLOAD_ENABLED=true
+ATTACHMENT_DOWNLOAD_TOOL_NAMES = [
+    "issue_download_attachment",
+]
+
 # Write tool names - only registered when not in read-only mode
 WRITE_TOOL_NAMES = [
     "queue_create_version",
@@ -112,6 +117,12 @@ ALL_WRITE_TOOL_NAMES = WRITE_TOOL_NAMES + ENTITY_WRITE_TOOL_NAMES
 # All tool names that should be registered in normal mode (entity tools enabled)
 EXPECTED_TOOL_NAMES = ALL_READ_ONLY_TOOL_NAMES + ALL_WRITE_TOOL_NAMES
 
+# All tool names when attachment download is enabled (default test settings
+# enable entity tools).
+EXPECTED_TOOL_NAMES_WITH_ATTACHMENT_DOWNLOAD = (
+    ALL_READ_ONLY_TOOL_NAMES + ATTACHMENT_DOWNLOAD_TOOL_NAMES + ALL_WRITE_TOOL_NAMES
+)
+
 
 class TestToolRegistration:
     @pytest.mark.parametrize("tool_name", EXPECTED_TOOL_NAMES)
@@ -124,6 +135,42 @@ class TestToolRegistration:
 
         tool_names = [tool.name for tool in result.tools]
         assert tool_name in tool_names, f"Tool '{tool_name}' is not registered"
+
+    @pytest.mark.parametrize("tool_name", ATTACHMENT_DOWNLOAD_TOOL_NAMES)
+    async def test_attachment_download_tool_is_not_registered_by_default(
+        self,
+        client_session: ClientSession,
+        tool_name: str,
+    ) -> None:
+        result = await client_session.list_tools()
+
+        tool_names = [tool.name for tool in result.tools]
+        assert tool_name not in tool_names, (
+            f"Tool '{tool_name}' should not be registered by default"
+        )
+
+    @pytest.mark.parametrize("tool_name", ATTACHMENT_DOWNLOAD_TOOL_NAMES)
+    async def test_attachment_download_tool_is_registered_when_enabled(
+        self,
+        client_session_attachment_download_enabled: ClientSession,
+        tool_name: str,
+    ) -> None:
+        result = await client_session_attachment_download_enabled.list_tools()
+
+        tool_names = [tool.name for tool in result.tools]
+        assert tool_name in tool_names, (
+            f"Tool '{tool_name}' should be registered when download is enabled"
+        )
+
+    async def test_attachment_download_tool_has_read_only_hint_false(
+        self,
+        client_session_attachment_download_enabled: ClientSession,
+    ) -> None:
+        result = await client_session_attachment_download_enabled.list_tools()
+
+        tool = next(t for t in result.tools if t.name == "issue_download_attachment")
+        assert tool.annotations is not None
+        assert tool.annotations.readOnlyHint is False
 
 
 class TestReadOnlyModeToolRegistration:
@@ -178,6 +225,18 @@ class TestReadOnlyModeToolRegistration:
 
         assert len(result.tools) == len(EXPECTED_TOOL_NAMES), (
             f"Expected {len(EXPECTED_TOOL_NAMES)} tools in normal mode, "
+            f"got {len(result.tools)}"
+        )
+
+    async def test_correct_tool_count_with_attachment_download_enabled(
+        self,
+        client_session_attachment_download_enabled: ClientSession,
+    ) -> None:
+        """Normal mode with download enabled should include attachment download tool."""
+        result = await client_session_attachment_download_enabled.list_tools()
+
+        assert len(result.tools) == len(EXPECTED_TOOL_NAMES_WITH_ATTACHMENT_DOWNLOAD), (
+            f"Expected {len(EXPECTED_TOOL_NAMES_WITH_ATTACHMENT_DOWNLOAD)} tools, "
             f"got {len(result.tools)}"
         )
 
