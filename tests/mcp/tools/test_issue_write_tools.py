@@ -1,5 +1,6 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -10,6 +11,7 @@ from mcp.types import ElicitRequestParams, ElicitResult
 
 from mcp_tracker.tracker.proto.types.issues import (
     Issue,
+    IssueAttachment,
     IssueComment,
     IssueLink,
     IssueTransition,
@@ -513,6 +515,88 @@ class TestIssueAddComment:
 
         assert result.isError
         mock_issues_protocol.issue_add_comment.assert_not_called()
+
+
+class TestIssueAddAttachment:
+    async def test_attaches_file(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_attachment: IssueAttachment,
+        tmp_path: Path,
+    ) -> None:
+        mock_issues_protocol.issue_add_attachment.return_value = sample_attachment
+        file_path = tmp_path / "report.pdf"
+        file_path.write_bytes(b"PDF-DATA")
+
+        result = await client_session.call_tool(
+            "issue_add_attachment",
+            {"issue_id": "TEST-123", "file_path": str(file_path)},
+        )
+
+        assert not result.isError
+        mock_issues_protocol.issue_add_attachment.assert_called_once()
+        call_kwargs = mock_issues_protocol.issue_add_attachment.call_args.kwargs
+        assert call_kwargs["content"] == b"PDF-DATA"
+        assert call_kwargs["filename"] == "report.pdf"
+        content = get_tool_result_content(result)
+        assert isinstance(content, dict)
+        assert content["id"] == sample_attachment.id
+
+    async def test_filename_override(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_attachment: IssueAttachment,
+        tmp_path: Path,
+    ) -> None:
+        mock_issues_protocol.issue_add_attachment.return_value = sample_attachment
+        file_path = tmp_path / "tmp123.bin"
+        file_path.write_bytes(b"x")
+
+        result = await client_session.call_tool(
+            "issue_add_attachment",
+            {
+                "issue_id": "TEST-123",
+                "file_path": str(file_path),
+                "filename": "renamed.png",
+            },
+        )
+
+        assert not result.isError
+        call_kwargs = mock_issues_protocol.issue_add_attachment.call_args.kwargs
+        assert call_kwargs["filename"] == "renamed.png"
+
+    async def test_missing_file_raises_error(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        tmp_path: Path,
+    ) -> None:
+        result = await client_session.call_tool(
+            "issue_add_attachment",
+            {"issue_id": "TEST-123", "file_path": str(tmp_path / "nope.txt")},
+        )
+
+        assert result.isError
+        mock_issues_protocol.issue_add_attachment.assert_not_called()
+
+    async def test_restricted_queue_raises_error(
+        self,
+        client_session_with_limits: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        tmp_path: Path,
+    ) -> None:
+        file_path = tmp_path / "f.txt"
+        file_path.write_bytes(b"x")
+
+        result = await client_session_with_limits.call_tool(
+            "issue_add_attachment",
+            {"issue_id": "RESTRICTED-123", "file_path": str(file_path)},
+        )
+
+        assert result.isError
+        mock_issues_protocol.issue_add_attachment.assert_not_called()
 
 
 class TestIssueUpdateComment:
