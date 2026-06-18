@@ -1,10 +1,9 @@
 """Issue write MCP tools (conditionally registered based on read-only mode)."""
 
 import datetime
-from typing import Annotated, Any, cast
+from typing import Annotated, Any
 
 from mcp.server import FastMCP
-from mcp.server.elicitation import AcceptedElicitation
 from mcp.server.fastmcp import Context
 from mcp.types import ClientCapabilities, ElicitationCapability, ToolAnnotations
 from pydantic import BaseModel, Field, create_model
@@ -594,7 +593,6 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
                     f"Move of issue `{issue_id}` to queue `{queue}` was cancelled by the user."
                 )
 
-            elicitation = cast(AcceptedElicitation[BaseModel], elicitation)
             options = elicitation.data.model_dump()
             notify = options["notify"]
             notify_author = options["notify_author"]
