@@ -3,7 +3,11 @@ from unittest.mock import AsyncMock
 from mcp.client.session import ClientSession
 
 from mcp_tracker.tracker.proto.types.issues import (
+    ChangelogComments,
+    ChangelogEntry,
+    ChangelogExecutedTrigger,
     ChangelogPage,
+    ChangelogReference,
     ChecklistItem,
     Issue,
     IssueAttachment,
@@ -327,10 +331,52 @@ class TestIssueGetChangelog:
         assert len(entries) == len(sample_changelog.entries)
         assert entries[0]["id"] == sample_changelog.entries[0].id
         assert entries[0]["type"] == sample_changelog.entries[0].type
-        # `from` is serialized by its alias, not the python-safe `from_`
-        assert "from" in entries[0]["fields"][0]
+        # `from` is serialized by its alias, not the python-safe `from_`,
+        # and its full reference-object value must survive serialization
+        assert entries[0]["fields"][0]["from"] == {
+            "id": "1",
+            "key": "open",
+            "display": "Open",
+        }
         # field display must survive serialization
         assert entries[0]["fields"][0]["field"]["display"] == "Status"
+
+    async def test_surfaces_comment_and_trigger_payload(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        # A comment-type entry carries its payload in top-level `comments`/
+        # `executedTriggers` rather than `fields`; both must reach the client.
+        mock_issues_protocol.issue_get_changelog.return_value = ChangelogPage(
+            entries=[
+                ChangelogEntry(
+                    id="c1",
+                    type="IssueCommentAdded",
+                    comments=ChangelogComments(
+                        added=[ChangelogReference(id=98765, display="Looks good")]
+                    ),
+                    executed_triggers=[
+                        ChangelogExecutedTrigger(
+                            trigger=ChangelogReference(id=7, display="Auto-assign"),
+                            success=True,
+                            message="ok",
+                        )
+                    ],
+                )
+            ],
+            next_cursor=None,
+        )
+
+        result = await client_session.call_tool(
+            "issue_get_changelog", {"issue_id": "TEST-123"}
+        )
+
+        assert not result.isError
+        entry = get_tool_result_content(result)["entries"][0]
+        assert entry["comments"]["added"][0]["display"] == "Looks good"
+        assert entry["executed_triggers"][0]["trigger"]["display"] == "Auto-assign"
+        assert entry["executed_triggers"][0]["success"] is True
 
     async def test_passes_pagination_and_filters(
         self,
@@ -365,6 +411,18 @@ class TestIssueGetChangelog:
     ) -> None:
         result = await client_session_with_limits.call_tool(
             "issue_get_changelog", {"issue_id": "RESTRICTED-123"}
+        )
+
+        assert result.isError
+        mock_issues_protocol.issue_get_changelog.assert_not_called()
+
+    async def test_rejects_non_positive_per_page(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session.call_tool(
+            "issue_get_changelog", {"issue_id": "TEST-123", "per_page": 0}
         )
 
         assert result.isError

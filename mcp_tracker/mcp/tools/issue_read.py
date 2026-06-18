@@ -225,7 +225,8 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
     @mcp.tool(
         title="Get Issue Changelog",
         description="Get the change history (changelog) of a Yandex Tracker issue by its id: "
-        "status transitions, field edits, who changed what (from -> to) and when. "
+        "status transitions, field edits (who changed what from -> to and when), "
+        "comment changes and executed triggers. "
         "Returns a page of entries plus 'next_cursor'. To fetch the next page, pass "
         "'next_cursor' from the previous result as the 'cursor' argument; when "
         "'next_cursor' is null there are no more pages.",

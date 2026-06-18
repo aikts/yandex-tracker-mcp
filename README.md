@@ -703,7 +703,7 @@ The server exposes the following tools through the MCP protocol:
     - `cursor` (string, optional): The `next_cursor` value returned by the previous call; pass it to fetch the next page (cursor pagination)
     - `field` (string, optional): Filter the changelog by a field key (e.g. `status`)
     - `type` (string, optional): Filter by change type (e.g. `IssueWorkflow` for status transitions)
-  - Returns an object with `entries` (status transitions and field edits, including who changed what `from` → `to` and when) and `next_cursor` (pass it back as `cursor` for the next page; `null` when there are no more pages)
+  - Returns an object with `entries` (status transitions and field edits — including who changed what `from` → `to` and when — plus comment changes and executed triggers) and `next_cursor` (pass it back as `cursor` for the next page; `null` when there are no more pages)
 
 - **`issue_execute_transition`**: Execute a status transition for an issue
   - Parameters:

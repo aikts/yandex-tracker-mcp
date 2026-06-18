@@ -193,14 +193,55 @@ class ChangelogFieldChange(BaseTrackerEntity):
     to: Any | None = NoneExcludedField
 
 
+class ChangelogReference(BaseReference):
+    """Reference to a sub-object (comment, trigger, ...) in a changelog entry (id + display)."""
+
+    display: str | None = None
+
+
+class ChangelogComments(BaseTrackerEntity):
+    """Comment changes captured in a changelog entry (e.g. comments added).
+
+    Modeled leniently (`extra="allow"`) so sibling keys the API may attach
+    (`removed`, `changed`, ...) survive instead of being dropped.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    added: list[ChangelogReference] | None = NoneExcludedField
+
+
+class ChangelogExecutedTrigger(BaseTrackerEntity):
+    """A trigger executed as part of a changelog entry: which automation fired and its outcome."""
+
+    trigger: ChangelogReference | None = None
+    success: bool | None = None
+    message: str | None = None
+
+
 class ChangelogEntry(CreatedUpdatedMixin, BaseTrackerEntity):
-    """A single entry of an issue change history (status transitions, field edits, etc.)."""
+    """A single entry of an issue change history: status transitions, field edits,
+    comment changes, executed triggers, etc.
+
+    `extra="allow"` so that documented top-level payloads the API attaches to specific
+    change types but that are not modeled explicitly here (worklog/attachment/link/vote
+    changes) pass through to the client instead of being silently dropped, matching the
+    `Issue` model's passthrough behavior.
+    """
+
+    model_config = ConfigDict(extra="allow")
 
     id: str
     issue: IssueReference | None = None
     type: str | None = None
     transport: str | None = None
     fields: list[ChangelogFieldChange] | None = None
+    comments: ChangelogComments | None = NoneExcludedField
+    executed_triggers: list[ChangelogExecutedTrigger] | None = Field(
+        None,
+        validation_alias=AliasChoices("executedTriggers", "executed_triggers"),
+        exclude_if=none_excluder,
+    )
 
 
 class ChangelogPage(BaseTrackerEntity):

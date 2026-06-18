@@ -1,3 +1,4 @@
+import datetime
 import re
 from typing import Any
 
@@ -72,6 +73,10 @@ class TestIssueGetChangelog:
         assert entry.type == "IssueWorkflow"
         assert entry.updated_by is not None
         assert entry.updated_by.display == "Test User"
+        # updatedAt (ms + +0000 offset) must parse into a tz-aware datetime
+        assert entry.updated_at == datetime.datetime(
+            2023, 1, 2, 10, 30, tzinfo=datetime.timezone.utc
+        )
         assert entry.fields is not None
         change = entry.fields[0]
         assert change.field is not None
@@ -90,6 +95,54 @@ class TestIssueGetChangelog:
         assert isinstance(result, ChangelogPage)
         assert result.entries == []
         assert result.next_cursor is None
+
+    async def test_comment_and_trigger_payload_survives(
+        self, tracker_client: TrackerClient, sample_changelog_entry: dict[str, Any]
+    ) -> None:
+        # A comment-type change delivers its payload via the top-level `comments`
+        # key (not inside `fields`); executedTriggers and any other documented
+        # top-level keys must not be silently dropped.
+        entry = {
+            **sample_changelog_entry,
+            "type": "IssueCommentAdded",
+            "fields": [],
+            "comments": {
+                "added": [
+                    {"self": "https://api/c", "id": 98765, "display": "Looks good"}
+                ]
+            },
+            "executedTriggers": [
+                {
+                    "trigger": {
+                        "self": "https://api/t",
+                        "id": 7,
+                        "display": "Auto-assign",
+                    },
+                    "success": True,
+                    "message": "ok",
+                }
+            ],
+            # an unmodeled top-level key (e.g. worklog change) must pass through
+            "worklog": {"added": [{"id": 42}]},
+        }
+        with aioresponses() as m:
+            m.get(f"{CHANGELOG_URL}?perPage=50", payload=[entry])
+
+            result = await tracker_client.issue_get_changelog("TEST-123")
+
+        change = result.entries[0]
+        assert change.comments is not None
+        assert change.comments.added is not None
+        assert change.comments.added[0].id == 98765
+        assert change.comments.added[0].display == "Looks good"
+        assert change.executed_triggers is not None
+        trigger = change.executed_triggers[0]
+        assert trigger.success is True
+        assert trigger.message == "ok"
+        assert trigger.trigger is not None
+        assert trigger.trigger.display == "Auto-assign"
+        # unmodeled top-level keys survive via extra="allow"
+        assert change.model_dump(by_alias=True)["worklog"] == {"added": [{"id": 42}]}
 
     async def test_next_cursor_parsed_from_link_header(
         self, tracker_client: TrackerClient, sample_changelog_entry: dict[str, Any]

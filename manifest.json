@@ -161,7 +161,7 @@
     },
     {
       "name": "issue_get_changelog",
-      "description": "Get the change history (changelog) of a Yandex Tracker issue: status transitions, field edits, who changed what and when. Supports cursor pagination and field/type filters."
+      "description": "Get the change history (changelog) of a Yandex Tracker issue: status transitions, field edits, comment changes and executed triggers, who changed what and when. Supports cursor pagination and field/type filters."
     },
     {
       "name": "issue_execute_transition",
