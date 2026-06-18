@@ -696,6 +696,15 @@ The server exposes the following tools through the MCP protocol:
   - Returns list of available transitions that can be performed on the issue
   - Each transition includes an ID, display name, and target status information
 
+- **`issue_get_changelog`**: Get the change history (changelog) of an issue
+  - Parameters:
+    - `issue_id` (string, required, format: "QUEUE-123"): The issue key
+    - `per_page` (integer, optional, default: 50): Number of entries per page
+    - `cursor` (string, optional): The `next_cursor` value returned by the previous call; pass it to fetch the next page (cursor pagination)
+    - `field` (string, optional): Filter the changelog by a field key (e.g. `status`)
+    - `type` (string, optional): Filter by change type (e.g. `IssueWorkflow` for status transitions)
+  - Returns an object with `entries` (status transitions and field edits, including who changed what `from` → `to` and when) and `next_cursor` (pass it back as `cursor` for the next page; `null` when there are no more pages)
+
 - **`issue_execute_transition`**: Execute a status transition for an issue
   - Parameters:
     - `issue_id` (string, required, format: "QUEUE-123"): The issue key

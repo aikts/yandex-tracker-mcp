@@ -160,6 +160,10 @@
       "description": "Get possible status transitions for a Yandex Tracker issue"
     },
     {
+      "name": "issue_get_changelog",
+      "description": "Get the change history (changelog) of a Yandex Tracker issue: status transitions, field edits, who changed what and when. Supports cursor pagination and field/type filters."
+    },
+    {
       "name": "issue_execute_transition",
       "description": "Execute a status transition for a Yandex Tracker issue. Must call issue_get_transitions first to get available transition IDs."
     },

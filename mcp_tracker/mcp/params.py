@@ -20,6 +20,15 @@ PerPageParam = Annotated[
     ),
 ]
 
+CursorPerPageParam = Annotated[
+    int,
+    Field(
+        description="The number of items per page for cursor-paginated endpoints. "
+        "May be decreased if results exceed the context window.",
+        ge=1,
+    ),
+]
+
 IssueID = Annotated[
     str,
     Field(description="Issue ID in the format '<project>-<id>', like 'SOMEPROJECT-1'"),
@@ -103,4 +112,6 @@ Queues may be called "Очереди".
 Tasks may be called "Задачи", "Issues", "Таски", "ишью".
 
 When using tools that accept `page` and/or `per_page` parameters and when the task is to find something in the result set (or to receive all available data) - always call the tool as many times as needed increasing the `page` parameter until ther result set is exhausted. If you stumble with the context size limit — try to change the `per_page` parameter to a lower value and restart the search from the `page=1`.
+
+Some tools use cursor pagination instead of `page` (e.g. `issue_get_changelog`): they accept a `cursor` argument and return a `next_cursor` value. To get all data, keep calling the tool passing the previous `next_cursor` as `cursor` until `next_cursor` is null. Do not change `per_page` mid-pagination; if you must, restart with `cursor` empty.
 """

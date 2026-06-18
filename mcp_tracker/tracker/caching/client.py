@@ -19,6 +19,7 @@ from mcp_tracker.tracker.proto.types.inputs import (
 )
 from mcp_tracker.tracker.proto.types.issue_types import IssueType
 from mcp_tracker.tracker.proto.types.issues import (
+    ChangelogPage,
     ChecklistItem,
     Issue,
     IssueAttachment,
@@ -330,6 +331,28 @@ def make_cached_protocols(
             self, issue_id: str, *, auth: YandexAuth | None = None
         ) -> list[IssueTransition]:
             return await self._original.issue_get_transitions(issue_id, auth=auth)
+
+        # Not cached: the changelog is an append-only, growing history. Caching the
+        # first page (cursor=None) would keep serving a stale page that misses the
+        # most recent changes until the TTL expires.
+        async def issue_get_changelog(
+            self,
+            issue_id: str,
+            *,
+            per_page: int = 50,
+            cursor: str | None = None,
+            field: str | None = None,
+            type: str | None = None,
+            auth: YandexAuth | None = None,
+        ) -> ChangelogPage:
+            return await self._original.issue_get_changelog(
+                issue_id,
+                per_page=per_page,
+                cursor=cursor,
+                field=field,
+                type=type,
+                auth=auth,
+            )
 
         async def issue_execute_transition(
             self,

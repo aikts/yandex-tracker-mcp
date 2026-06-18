@@ -6,6 +6,8 @@ import pytest
 from mcp_tracker.tracker.caching.client import make_cached_protocols
 from mcp_tracker.tracker.proto.common import YandexAuth
 from mcp_tracker.tracker.proto.types.issues import (
+    ChangelogEntry,
+    ChangelogPage,
     ChecklistItem,
     Issue,
     IssueAttachment,
@@ -45,6 +47,10 @@ class TestCachingIssuesProtocol:
         original.issue_get_transitions.return_value = [
             IssueTransition(id="close", display="Close")
         ]
+        original.issue_get_changelog.return_value = ChangelogPage(
+            entries=[ChangelogEntry(id="changelog-1", type="IssueWorkflow")],
+            next_cursor=None,
+        )
         original.issue_create.return_value = Issue(key="TEST-2", summary="New Issue")
         original.issue_execute_transition.return_value = [
             IssueTransition(id="reopen", display="Reopen")
@@ -193,6 +199,31 @@ class TestCachingIssuesProtocol:
 
         mock_original.issue_get_transitions.assert_called_once_with("TEST-1", auth=None)
         assert result == mock_original.issue_get_transitions.return_value
+
+    async def test_issue_get_changelog_calls_original(
+        self,
+        caching_issues_protocol: Any,
+        mock_original: AsyncMock,
+        yandex_auth: YandexAuth,
+    ) -> None:
+        result = await caching_issues_protocol.issue_get_changelog(
+            "TEST-1",
+            per_page=10,
+            cursor="prev-id",
+            field="status",
+            type="IssueWorkflow",
+            auth=yandex_auth,
+        )
+
+        mock_original.issue_get_changelog.assert_called_once_with(
+            "TEST-1",
+            per_page=10,
+            cursor="prev-id",
+            field="status",
+            type="IssueWorkflow",
+            auth=yandex_auth,
+        )
+        assert result == mock_original.issue_get_changelog.return_value
 
     async def test_issue_create_calls_original(
         self,

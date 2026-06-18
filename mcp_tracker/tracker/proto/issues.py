@@ -11,6 +11,7 @@ from .types.inputs import (
     IssueUpdateType,
 )
 from .types.issues import (
+    ChangelogPage,
     ChecklistItem,
     Issue,
     IssueAttachment,
@@ -140,6 +141,16 @@ class IssueProtocol(Protocol):
     async def issue_get_transitions(
         self, issue_id: str, *, auth: YandexAuth | None = None
     ) -> list[IssueTransition]: ...
+    async def issue_get_changelog(
+        self,
+        issue_id: str,
+        *,
+        per_page: int = 50,
+        cursor: str | None = None,
+        field: str | None = None,
+        type: str | None = None,
+        auth: YandexAuth | None = None,
+    ) -> ChangelogPage: ...
     async def issue_execute_transition(
         self,
         issue_id: str,

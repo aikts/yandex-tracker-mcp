@@ -16,7 +16,7 @@ READ_ONLY_TOOL_NAMES = [
     "get_priorities",
     "get_resolutions",
     "issue_get_url",
-    # Issue read tools (9)
+    # Issue read tools (10)
     "issue_get",
     "issue_get_comments",
     "issue_get_links",
@@ -26,6 +26,7 @@ READ_ONLY_TOOL_NAMES = [
     "issue_get_attachments",
     "issue_get_checklist",
     "issue_get_transitions",
+    "issue_get_changelog",
     # User tools (4)
     "users_get_all",
     "users_search",
