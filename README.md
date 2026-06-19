@@ -687,6 +687,14 @@ The server exposes the following tools through the MCP protocol:
   - Parameters: `issue_id` (string, format: "QUEUE-123")
   - Returns list of attachments with metadata for the specified issue
 
+- **`issue_download_attachment`**: Download attachment file content for an issue
+  - Parameters:
+    - `issue_id` (string, format: "QUEUE-123")
+    - `attachment_id` (string): Attachment ID from `issue_get_attachments`
+    - `file_name` (string): Attachment file name from `issue_get_attachments`
+    - `save_directory` (string): Directory to save the file (absolute or relative path, e.g. `tmp/tracker-attachments/`)
+  - Saves the file locally and returns metadata: `local_path`, `name`, `mime_type`, `size`
+
 - **`issue_get_checklist`**: Get checklist items of an issue
   - Parameters: `issue_id` (string, format: "QUEUE-123")
   - Returns list of checklist items including text, status, assignee, and deadline information

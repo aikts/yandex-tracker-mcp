@@ -118,6 +118,14 @@ class IssueProtocol(Protocol):
     async def issue_get_attachments(
         self, issue_id: str, *, auth: YandexAuth | None = None
     ) -> list[IssueAttachment]: ...
+    async def issue_download_attachment(
+        self,
+        issue_id: str,
+        attachment_id: str,
+        file_name: str,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> bytes: ...
     async def issues_count(
         self, query: str, *, auth: YandexAuth | None = None
     ) -> int: ...

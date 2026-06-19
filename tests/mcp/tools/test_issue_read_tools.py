@@ -1,5 +1,7 @@
 from unittest.mock import AsyncMock
 
+from pathlib import Path
+
 from mcp.client.session import ClientSession
 
 from mcp_tracker.tracker.proto.types.issues import (
@@ -264,6 +266,39 @@ class TestIssueGetAttachments:
         assert isinstance(content, list)
         assert len(content) == len(sample_attachments)
         assert content[0]["name"] == sample_attachments[0].name
+
+
+class TestIssueDownloadAttachment:
+    async def test_saves_file_and_returns_metadata(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        tmp_path: Path,
+    ) -> None:
+        file_content = b"hello attachment"
+        mock_issues_protocol.issue_download_attachment.return_value = file_content
+        save_directory = tmp_path / "tracker-attachments"
+
+        result = await client_session.call_tool(
+            "issue_download_attachment",
+            {
+                "issue_id": "TEST-123",
+                "attachment_id": "7698",
+                "file_name": "image.png",
+                "save_directory": str(save_directory),
+            },
+        )
+
+        assert not result.isError
+        mock_issues_protocol.issue_download_attachment.assert_called_once()
+        content = get_tool_result_content(result)
+        assert content == {
+            "local_path": str(save_directory.resolve() / "TEST-123-7698.png"),
+            "name": "image.png",
+            "mime_type": "image/png",
+            "size": len(file_content),
+        }
+        assert (save_directory / "TEST-123-7698.png").read_bytes() == file_content
 
 
 class TestIssueGetChecklist:

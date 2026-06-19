@@ -1,5 +1,7 @@
 """Issue read-only MCP tools."""
 
+import mimetypes
+from pathlib import Path
 from typing import Annotated, Any
 
 from mcp.server import FastMCP
@@ -17,11 +19,16 @@ from mcp_tracker.mcp.params import (
     YTQuery,
 )
 from mcp_tracker.mcp.tools._access import check_issue_access
-from mcp_tracker.mcp.utils import get_yandex_auth, set_non_needed_fields_null
+from mcp_tracker.mcp.utils import (
+    get_yandex_auth,
+    save_issue_attachment_file,
+    set_non_needed_fields_null,
+)
 from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.proto.types.issues import (
     ChangelogPage,
     ChecklistItem,
+    DownloadedIssueAttachment,
     Issue,
     IssueAttachment,
     IssueComment,
@@ -187,6 +194,57 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         return await ctx.request_context.lifespan_context.issues.issue_get_attachments(
             issue_id,
             auth=get_yandex_auth(ctx),
+        )
+
+    @mcp.tool(
+        title="Download Issue Attachment",
+        description=(
+            "Download a Yandex Tracker issue attachment and save it to a local directory. "
+            "Returns the absolute path to the saved file and its metadata."
+        ),
+    )
+    async def issue_download_attachment(
+        ctx: Context[Any, AppContext],
+        issue_id: IssueID,
+        attachment_id: str,
+        file_name: str,
+        save_directory: Annotated[
+            str,
+            Field(
+                description=(
+                    "Directory to save the downloaded file. "
+                    "MUST be an absolute path, for example "
+                    "/Users/me/projects/myproject/tmp/tracker-attachments/. "
+                    "Relative paths resolve against the MCP server process cwd, "
+                    "not your project, so pass an absolute path."
+                ),
+            ),
+        ],
+    ) -> DownloadedIssueAttachment:
+        check_issue_access(settings, issue_id)
+
+        data = await ctx.request_context.lifespan_context.issues.issue_download_attachment(
+            issue_id,
+            attachment_id,
+            file_name,
+            auth=get_yandex_auth(ctx),
+        )
+
+        local_path = save_issue_attachment_file(
+            data,
+            issue_id=issue_id,
+            attachment_id=attachment_id,
+            file_name=file_name,
+            save_directory=save_directory,
+        )
+        safe_name = Path(file_name).name
+        mime_type, _ = mimetypes.guess_type(safe_name)
+
+        return DownloadedIssueAttachment(
+            local_path=str(local_path),
+            name=safe_name,
+            mime_type=mime_type or "application/octet-stream",
+            size=len(data),
         )
 
     @mcp.tool(

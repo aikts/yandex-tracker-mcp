@@ -1,4 +1,6 @@
 from collections.abc import Iterable
+from pathlib import Path
+import re
 from typing import Any, TypeVar
 
 from mcp.server.auth.middleware.auth_context import get_access_token
@@ -9,6 +11,7 @@ from starlette.requests import Request
 from mcp_tracker.tracker.proto.common import YandexAuth
 
 T = TypeVar("T", bound=BaseModel)
+SAFE_IDENTIFIER_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
 def get_yandex_auth(ctx: Context[Any, Any, Request]) -> YandexAuth:
@@ -47,3 +50,26 @@ def set_non_needed_fields_null(data: Iterable[T], needed_fields: set[str]) -> No
         for field in item.model_fields_set:
             if field not in needed_fields:
                 setattr(item, field, None)
+
+
+def save_issue_attachment_file(
+    data: bytes,
+    *,
+    issue_id: str,
+    attachment_id: str,
+    file_name: str,
+    save_directory: str,
+) -> Path:
+    # Keep generated local file names predictable and path-safe.
+    if not SAFE_IDENTIFIER_RE.fullmatch(issue_id):
+        raise ValueError("issue_id contains unsafe characters")
+    if not SAFE_IDENTIFIER_RE.fullmatch(attachment_id):
+        raise ValueError("attachment_id contains unsafe characters")
+
+    directory = Path(save_directory).expanduser().resolve()
+    directory.mkdir(parents=True, exist_ok=True)
+
+    safe_name = Path(file_name).name
+    local_path = directory / f"{issue_id}-{attachment_id}{Path(safe_name).suffix}"
+    local_path.write_bytes(data)
+    return local_path
