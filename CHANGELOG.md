@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.2] - 2026-06-19
+
+### Features
+- Add `issue_get_changelog` MCP tool to read an issue's change history ([#32](https://github.com/aikts/yandex-tracker-mcp/pull/32))
+  - Returns status transitions and field edits (who changed what `from` → `to` and when)
+  - Also surfaces comment changes and executed triggers in the changelog entries
+  - Supports cursor pagination via `cursor`/`next_cursor` and `field`/`type` filters
+
+### Internal
+- Clean up `issue_write` elicitation logic
+- Update dependencies and downgrade `aiohttp` to 3.13.5
+
 ## [0.7.1] - 2026-05-23
 
 ### Features
