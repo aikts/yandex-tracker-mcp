@@ -50,6 +50,9 @@ WRITE_TOOL_NAMES = [
     "issue_add_link",
     "issue_delete_link",
     "issue_move",
+    # Entity tools (2)
+    "entity_create",
+    "entity_delete",
 ]
 
 # All tool names that should be registered in normal mode

@@ -17,9 +17,11 @@ from yarl import URL
 
 from mcp_tracker.tracker.custom.errors import IssueNotFound
 from mcp_tracker.tracker.proto.common import YandexAuth
+from mcp_tracker.tracker.proto.entities import EntitiesProtocol
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
+from mcp_tracker.tracker.proto.types.entities import Entity, EntityType
 from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
 from mcp_tracker.tracker.proto.types.inputs import (
     IssueUpdateFollower,
@@ -180,7 +182,13 @@ class ServiceAccountStore:
         return IAMTokenInfo(token=iam_token.iam_token)
 
 
-class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProtocol):
+class TrackerClient(
+    QueuesProtocol,
+    IssueProtocol,
+    GlobalDataProtocol,
+    UsersProtocol,
+    EntitiesProtocol,
+):
     def __init__(
         self,
         *,
@@ -1010,3 +1018,61 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
                 raise IssueNotFound(issue_id)
             response.raise_for_status()
             return Issue.model_validate_json(await response.read())
+
+    async def entity_create(
+        self,
+        entity_type: EntityType,
+        *,
+        summary: str,
+        fields: dict[str, Any] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> Entity:
+        """Создать сущность Трекера — проект, портфель или цель.
+
+        Args:
+            entity_type: Тип сущности: "project", "portfolio" или "goal".
+            summary: Название сущности (обязательное поле).
+            fields: Дополнительные поля сущности (например, lead, description,
+                start, end). Объединяются с summary в объект ``fields`` запроса.
+            auth: Опциональная auth-структура (OAuth/Org) поверх конфигурации клиента.
+        """
+        entity_fields: dict[str, Any] = {"summary": summary}
+        if fields:
+            for key, value in fields.items():
+                if key not in entity_fields:
+                    entity_fields[key] = value
+
+        body: dict[str, Any] = {"fields": entity_fields}
+
+        async with self._session.post(
+            f"v3/entities/{entity_type}",
+            headers=await self._build_headers(auth),
+            json=body,
+        ) as response:
+            response.raise_for_status()
+            return Entity.model_validate_json(await response.read())
+
+    async def entity_delete(
+        self,
+        entity_type: EntityType,
+        entity_id: str,
+        *,
+        with_board: bool = False,
+        auth: YandexAuth | None = None,
+    ) -> None:
+        """Удалить сущность Трекера (проект, портфель или цель).
+
+        Args:
+            entity_type: Тип сущности: "project", "portfolio" или "goal".
+            entity_id: Идентификатор сущности (длинный id, не shortId).
+            with_board: Удалить также доску, связанную с сущностью.
+            auth: Опциональная auth-структура (OAuth/Org) поверх конфигурации клиента.
+        """
+        params = {"withBoard": "true"} if with_board else None
+        async with self._session.delete(
+            f"v3/entities/{entity_type}/{entity_id}",
+            headers=await self._build_headers(auth),
+            params=params,
+        ) as response:
+            response.raise_for_status()
+            return None
