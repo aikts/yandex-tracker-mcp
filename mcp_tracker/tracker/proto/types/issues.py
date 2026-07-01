@@ -53,6 +53,7 @@ class Issue(CreatedUpdatedMixin, BaseTrackerEntity):
     sprint: list[SprintReference] | None = NoneExcludedField
     epic: IssueReference | None = NoneExcludedField
     parent: IssueReference | None = NoneExcludedField
+    project: Any | None = NoneExcludedField
     estimation: str | None = NoneExcludedField
     spent: str | None = NoneExcludedField
 

@@ -552,10 +552,30 @@ def make_cached_protocols(
             *,
             summary: str,
             fields: dict[str, Any] | None = None,
+            links: list[dict[str, Any]] | None = None,
             auth: YandexAuth | None = None,
         ) -> Entity:
             return await self._original.entity_create(
-                entity_type, summary=summary, fields=fields, auth=auth
+                entity_type, summary=summary, fields=fields, links=links, auth=auth
+            )
+
+        async def entity_update(
+            self,
+            entity_type: EntityType,
+            entity_id: str,
+            *,
+            fields: dict[str, Any] | None = None,
+            comment: str | None = None,
+            links: list[dict[str, Any]] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> Entity:
+            return await self._original.entity_update(
+                entity_type,
+                entity_id,
+                fields=fields,
+                comment=comment,
+                links=links,
+                auth=auth,
             )
 
         async def entity_delete(

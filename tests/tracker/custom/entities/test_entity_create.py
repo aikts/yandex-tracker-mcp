@@ -109,3 +109,28 @@ class TestEntityCreate:
             }
         )
         capture.last_request.assert_json_body({"fields": {"summary": "Portfolio A"}})
+
+    async def test_with_links(
+        self, tracker_client: TrackerClient, sample_entity_data: dict[str, Any]
+    ) -> None:
+        capture = RequestCapture(payload=sample_entity_data)
+
+        with aioresponses() as m:
+            m.post(
+                "https://api.tracker.yandex.net/v3/entities/project",
+                callback=capture.callback,
+            )
+
+            await tracker_client.entity_create(
+                "project",
+                summary="Linked Project",
+                links=[{"relationship": "works towards", "entity": "goal-1"}],
+            )
+
+        capture.assert_called_once()
+        capture.last_request.assert_json_body(
+            {
+                "fields": {"summary": "Linked Project"},
+                "links": [{"relationship": "works towards", "entity": "goal-1"}],
+            }
+        )

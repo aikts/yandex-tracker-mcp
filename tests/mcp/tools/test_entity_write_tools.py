@@ -94,3 +94,29 @@ class TestEntityDelete:
 
         assert result.isError
         mock_entities_protocol.entity_delete.assert_not_called()
+
+
+class TestEntityUpdate:
+    async def test_links_to_portfolio(
+        self,
+        client_session: ClientSession,
+        mock_entities_protocol: AsyncMock,
+    ) -> None:
+        updated = Entity.model_construct(id="p-1", shortId=1, entityType="project")
+        mock_entities_protocol.entity_update.return_value = updated
+
+        result = await client_session.call_tool(
+            "entity_update",
+            {
+                "entity_type": "project",
+                "entity_id": "p-1",
+                "fields": {"parentEntity": {"primary": "portf-1"}},
+            },
+        )
+
+        assert not result.isError
+        mock_entities_protocol.entity_update.assert_called_once()
+        call_args = mock_entities_protocol.entity_update.call_args
+        assert call_args.args[0] == "project"
+        assert call_args.args[1] == "p-1"
+        assert call_args.kwargs["fields"] == {"parentEntity": {"primary": "portf-1"}}

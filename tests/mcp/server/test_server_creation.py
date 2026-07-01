@@ -53,8 +53,9 @@ WRITE_TOOL_NAMES = [
     "issue_add_link",
     "issue_delete_link",
     "issue_move",
-    # Entity tools (2)
+    # Entity write tools (3)
     "entity_create",
+    "entity_update",
     "entity_delete",
 ]
 

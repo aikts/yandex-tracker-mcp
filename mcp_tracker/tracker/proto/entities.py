@@ -37,6 +37,18 @@ class EntitiesProtocol(Protocol):
         *,
         summary: str,
         fields: dict[str, Any] | None = None,
+        links: list[dict[str, Any]] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> Entity: ...
+
+    async def entity_update(
+        self,
+        entity_type: EntityType,
+        entity_id: str,
+        *,
+        fields: dict[str, Any] | None = None,
+        comment: str | None = None,
+        links: list[dict[str, Any]] | None = None,
         auth: YandexAuth | None = None,
     ) -> Entity: ...
 

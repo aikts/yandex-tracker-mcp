@@ -1114,6 +1114,7 @@ class TrackerClient(
         *,
         summary: str,
         fields: dict[str, Any] | None = None,
+        links: list[dict[str, Any]] | None = None,
         auth: YandexAuth | None = None,
     ) -> Entity:
         """Создать сущность Трекера — проект, портфель или цель.
@@ -1123,6 +1124,10 @@ class TrackerClient(
             summary: Название сущности (обязательное поле).
             fields: Дополнительные поля сущности (например, lead, description,
                 start, end). Объединяются с summary в объект ``fields`` запроса.
+                Связь с портфелем задаётся полем ``parentEntity``:
+                {"parentEntity": {"primary": "<portfolioId>"}}.
+            links: Связи с другими сущностями, например с целью:
+                [{"relationship": "works towards", "entity": "<goalId>"}].
             auth: Опциональная auth-структура (OAuth/Org) поверх конфигурации клиента.
         """
         entity_fields: dict[str, Any] = {"summary": summary}
@@ -1132,9 +1137,50 @@ class TrackerClient(
                     entity_fields[key] = value
 
         body: dict[str, Any] = {"fields": entity_fields}
+        if links is not None:
+            body["links"] = links
 
         async with self._session.post(
             f"v3/entities/{entity_type}",
+            headers=await self._build_headers(auth),
+            json=body,
+        ) as response:
+            response.raise_for_status()
+            return Entity.model_validate_json(await response.read())
+
+    async def entity_update(
+        self,
+        entity_type: EntityType,
+        entity_id: str,
+        *,
+        fields: dict[str, Any] | None = None,
+        comment: str | None = None,
+        links: list[dict[str, Any]] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> Entity:
+        """Изменить сущность Трекера (проект, портфель или цель).
+
+        Args:
+            entity_type: Тип сущности: "project", "portfolio" или "goal".
+            entity_id: Идентификатор сущности (длинный id или shortId).
+            fields: Поля для изменения. Связь проекта/портфеля с портфелем —
+                через ``parentEntity``: {"parentEntity": {"primary": "<portfolioId>"}}
+                (``primary`` — основной портфель; ``secondary`` — список доп. портфелей).
+            comment: Комментарий к изменению.
+            links: Связи с другими сущностями (например, с целью):
+                [{"relationship": "works towards", "entity": "<goalId>"}].
+            auth: Опциональная auth-структура (OAuth/Org) поверх конфигурации клиента.
+        """
+        body: dict[str, Any] = {}
+        if fields is not None:
+            body["fields"] = fields
+        if comment is not None:
+            body["comment"] = comment
+        if links is not None:
+            body["links"] = links
+
+        async with self._session.patch(
+            f"v3/entities/{entity_type}/{entity_id}",
             headers=await self._build_headers(auth),
             json=body,
         ) as response:
