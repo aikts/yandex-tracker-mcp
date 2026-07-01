@@ -5,9 +5,11 @@ from typing import Any
 from aiocache import cached
 
 from mcp_tracker.tracker.proto.common import YandexAuth
+from mcp_tracker.tracker.proto.entities import EntitiesProtocolWrap
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocolWrap
 from mcp_tracker.tracker.proto.issues import IssueProtocolWrap
 from mcp_tracker.tracker.proto.queues import QueuesProtocolWrap
+from mcp_tracker.tracker.proto.types.entities import Entity, EntityType
 from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
 from mcp_tracker.tracker.proto.types.inputs import (
     IssueUpdateFollower,
@@ -47,6 +49,7 @@ class CacheCollection:
     issues: type[IssueProtocolWrap]
     global_data: type[GlobalDataProtocolWrap]
     users: type[UsersProtocolWrap]
+    entities: type[EntitiesProtocolWrap]
 
 
 def make_cached_protocols(
@@ -496,9 +499,81 @@ def make_cached_protocols(
         async def user_get_current(self, *, auth: YandexAuth | None = None) -> User:
             return await self._original.user_get_current(auth=auth)
 
+    class CachingEntitiesProtocol(EntitiesProtocolWrap):
+        @cached(**cache_config)
+        async def entity_get(
+            self,
+            entity_type: EntityType,
+            entity_id: str,
+            *,
+            fields: str | None = None,
+            expand_attachments: bool = False,
+            auth: YandexAuth | None = None,
+        ) -> Entity:
+            return await self._original.entity_get(
+                entity_type,
+                entity_id,
+                fields=fields,
+                expand_attachments=expand_attachments,
+                auth=auth,
+            )
+
+        @cached(**cache_config)
+        async def entities_find(
+            self,
+            entity_type: EntityType,
+            *,
+            input: str | None = None,
+            filter: dict[str, Any] | None = None,
+            order_by: str | None = None,
+            order_asc: bool | None = None,
+            root_only: bool | None = None,
+            fields: str | None = None,
+            per_page: int = 50,
+            page: int = 1,
+            auth: YandexAuth | None = None,
+        ) -> list[Entity]:
+            return await self._original.entities_find(
+                entity_type,
+                input=input,
+                filter=filter,
+                order_by=order_by,
+                order_asc=order_asc,
+                root_only=root_only,
+                fields=fields,
+                per_page=per_page,
+                page=page,
+                auth=auth,
+            )
+
+        async def entity_create(
+            self,
+            entity_type: EntityType,
+            *,
+            summary: str,
+            fields: dict[str, Any] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> Entity:
+            return await self._original.entity_create(
+                entity_type, summary=summary, fields=fields, auth=auth
+            )
+
+        async def entity_delete(
+            self,
+            entity_type: EntityType,
+            entity_id: str,
+            *,
+            with_board: bool = False,
+            auth: YandexAuth | None = None,
+        ) -> None:
+            return await self._original.entity_delete(
+                entity_type, entity_id, with_board=with_board, auth=auth
+            )
+
     return CacheCollection(
         queues=CachingQueuesProtocol,
         issues=CachingIssuesProtocol,
         global_data=CachingGlobalDataProtocol,
         users=CachingUsersProtocol,
+        entities=CachingEntitiesProtocol,
     )

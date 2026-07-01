@@ -7,6 +7,7 @@ This package organizes MCP tools by category:
 - issue_read.py: Issue read-only tools
 - issue_write.py: Issue write tools (conditional on read-only mode)
 - user.py: User-related tools (read-only)
+- entity.py: Entity (project/portfolio/goal) read tools (read-only)
 - entity_write.py: Entity (project/portfolio/goal) write tools (conditional on read-only mode)
 """
 
@@ -14,6 +15,7 @@ from typing import Any
 
 from mcp.server import FastMCP
 
+from mcp_tracker.mcp.tools.entity import register_entity_tools
 from mcp_tracker.mcp.tools.entity_write import register_entity_write_tools
 from mcp_tracker.mcp.tools.field import register_field_tools
 from mcp_tracker.mcp.tools.issue_read import register_issue_read_tools
@@ -37,6 +39,7 @@ def register_all_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
     register_field_tools(settings, mcp)
     register_issue_read_tools(settings, mcp)
     register_user_tools(settings, mcp)
+    register_entity_tools(settings, mcp)
 
     # Only register write tools if not in read-only mode
     if not settings.tracker_read_only:

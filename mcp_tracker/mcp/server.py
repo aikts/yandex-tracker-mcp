@@ -82,8 +82,6 @@ def make_tracker_lifespan(settings: Settings) -> Lifespan:
         issues: IssueProtocol = tracker
         global_data: GlobalDataProtocol = tracker
         users: UsersProtocol = tracker
-        # Entities (projects/portfolios/goals) only expose write operations,
-        # so there is nothing to cache — always use the raw client.
         entities: EntitiesProtocol = tracker
         if settings.tools_cache_enabled:
             cache_collection = make_cached_protocols(settings.cache_kwargs())
@@ -91,6 +89,7 @@ def make_tracker_lifespan(settings: Settings) -> Lifespan:
             issues = cache_collection.issues(issues)
             global_data = cache_collection.global_data(global_data)
             users = cache_collection.users(users)
+            entities = cache_collection.entities(entities)
 
         try:
             await tracker.prepare()

@@ -21,7 +21,11 @@ from mcp_tracker.tracker.proto.entities import EntitiesProtocol
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
-from mcp_tracker.tracker.proto.types.entities import Entity, EntityType
+from mcp_tracker.tracker.proto.types.entities import (
+    Entity,
+    EntitySearchResult,
+    EntityType,
+)
 from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
 from mcp_tracker.tracker.proto.types.inputs import (
     IssueUpdateFollower,
@@ -1018,6 +1022,91 @@ class TrackerClient(
                 raise IssueNotFound(issue_id)
             response.raise_for_status()
             return Issue.model_validate_json(await response.read())
+
+    async def entity_get(
+        self,
+        entity_type: EntityType,
+        entity_id: str,
+        *,
+        fields: str | None = None,
+        expand_attachments: bool = False,
+        auth: YandexAuth | None = None,
+    ) -> Entity:
+        """Получить сущность Трекера (проект, портфель или цель) по id или shortId.
+
+        Args:
+            entity_type: Тип сущности: "project", "portfolio" или "goal".
+            entity_id: Идентификатор сущности (длинный id или shortId).
+            fields: Доп. поля в ответе через запятую (например, "summary,description").
+            expand_attachments: Включить вложения в ответ.
+            auth: Опциональная auth-структура (OAuth/Org) поверх конфигурации клиента.
+        """
+        params: dict[str, str] = {}
+        if fields:
+            params["fields"] = fields
+        if expand_attachments:
+            params["expand"] = "attachments"
+
+        async with self._session.get(
+            f"v3/entities/{entity_type}/{entity_id}",
+            headers=await self._build_headers(auth),
+            params=params or None,
+        ) as response:
+            response.raise_for_status()
+            return Entity.model_validate_json(await response.read())
+
+    async def entities_find(
+        self,
+        entity_type: EntityType,
+        *,
+        input: str | None = None,
+        filter: dict[str, Any] | None = None,
+        order_by: str | None = None,
+        order_asc: bool | None = None,
+        root_only: bool | None = None,
+        fields: str | None = None,
+        per_page: int = 50,
+        page: int = 1,
+        auth: YandexAuth | None = None,
+    ) -> list[Entity]:
+        """Найти сущности заданного типа (POST /v3/entities/<type>/_search).
+
+        Args:
+            entity_type: Тип сущности: "project", "portfolio" или "goal".
+            input: Подстрока в названии сущности.
+            filter: Параметры фильтрации (ключ поля -> значение).
+            order_by: Ключ поля для сортировки.
+            order_asc: Направление сортировки (по возрастанию, если True).
+            root_only: Только не вложенные сущности.
+            fields: Доп. поля в ответе через запятую.
+            per_page: Число элементов на странице (по умолчанию 50).
+            page: Номер страницы (по умолчанию 1).
+            auth: Опциональная auth-структура (OAuth/Org) поверх конфигурации клиента.
+        """
+        params: dict[str, Any] = {"perPage": per_page, "page": page}
+        if fields:
+            params["fields"] = fields
+
+        body: dict[str, Any] = {}
+        if input is not None:
+            body["input"] = input
+        if filter is not None:
+            body["filter"] = filter
+        if order_by is not None:
+            body["orderBy"] = order_by
+        if order_asc is not None:
+            body["orderAsc"] = order_asc
+        if root_only is not None:
+            body["rootOnly"] = root_only
+
+        async with self._session.post(
+            f"v3/entities/{entity_type}/_search",
+            headers=await self._build_headers(auth),
+            json=body,
+            params=params,
+        ) as response:
+            response.raise_for_status()
+            return EntitySearchResult.model_validate_json(await response.read()).values
 
     async def entity_create(
         self,

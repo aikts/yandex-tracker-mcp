@@ -32,6 +32,9 @@ READ_ONLY_TOOL_NAMES = [
     "users_search",
     "user_get",
     "user_get_current",
+    # Entity read tools (2)
+    "entity_get",
+    "entities_find",
 ]
 
 # Write tool names - only registered when not in read-only mode
