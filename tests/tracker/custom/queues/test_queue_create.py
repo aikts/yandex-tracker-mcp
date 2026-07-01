@@ -9,7 +9,7 @@ from tests.aioresponses_utils import RequestCapture
 
 
 class TestQueueCreate:
-    async def test_success(
+    async def test_success_explicit_config(
         self, tracker_client: TrackerClient, sample_queue_data: dict[str, Any]
     ) -> None:
         capture = RequestCapture(payload=sample_queue_data)
@@ -45,6 +45,38 @@ class TestQueueCreate:
             }
         )
 
+    async def test_auto_workflow(
+        self, tracker_client: TrackerClient, sample_queue_data: dict[str, Any]
+    ) -> None:
+        # Without issue_types_config the client fetches workflows and uses the first.
+        capture = RequestCapture(payload=sample_queue_data)
+
+        with aioresponses() as m:
+            m.get(
+                "https://api.tracker.yandex.net/v3/workflows",
+                payload=[{"id": "W1", "name": "Default"}, {"id": "W2"}],
+            )
+            m.post(
+                "https://api.tracker.yandex.net/v3/queues/",
+                callback=capture.callback,
+            )
+
+            await tracker_client.queue_create(key="TRASH", name="Trash", lead="ivan")
+
+        capture.assert_called_once()
+        capture.last_request.assert_json_body(
+            {
+                "key": "TRASH",
+                "name": "Trash",
+                "lead": "ivan",
+                "defaultType": "task",
+                "defaultPriority": "normal",
+                "issueTypesConfig": [
+                    {"issueType": "task", "workflow": "W1", "resolutions": []}
+                ],
+            }
+        )
+
     async def test_with_auth(
         self,
         tracker_client_no_org: TrackerClient,
@@ -54,6 +86,10 @@ class TestQueueCreate:
         capture = RequestCapture(payload=sample_queue_data)
 
         with aioresponses() as m:
+            m.get(
+                "https://api.tracker.yandex.net/v3/workflows",
+                payload=[{"id": "W1"}],
+            )
             m.post(
                 "https://api.tracker.yandex.net/v3/queues/",
                 callback=capture.callback,

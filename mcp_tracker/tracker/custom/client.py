@@ -57,6 +57,7 @@ from mcp_tracker.tracker.proto.types.queues import (
 from mcp_tracker.tracker.proto.types.resolutions import Resolution
 from mcp_tracker.tracker.proto.types.statuses import Status
 from mcp_tracker.tracker.proto.types.users import User
+from mcp_tracker.tracker.proto.types.workflows import Workflow
 from mcp_tracker.tracker.proto.users import UsersProtocol
 
 QueueList = RootModel[list[Queue]]
@@ -75,6 +76,7 @@ IssueTypeList = RootModel[list[IssueType]]
 PriorityList = RootModel[list[Priority]]
 ResolutionList = RootModel[list[Resolution]]
 UserList = RootModel[list[User]]
+WorkflowList = RootModel[list[Workflow]]
 IssueTransitionList = RootModel[list[IssueTransition]]
 ChangelogList = RootModel[list[ChangelogEntry]]
 
@@ -360,15 +362,32 @@ class TrackerClient(
                 workflow обязателен и специфичен для организации.
             auth: Опциональная auth-структура (OAuth/Org) поверх конфигурации клиента.
         """
+        if issue_types_config is None:
+            # A queue requires an issueTypesConfig with an org-specific workflow id,
+            # which an agent can't easily discover — auto-pick the first workflow so
+            # that key+name+lead is enough to create a (e.g. throwaway) queue.
+            workflows = await self.get_workflows(auth=auth)
+            if not workflows:
+                raise ValueError(
+                    "No workflows available to auto-build issueTypesConfig; "
+                    "pass issue_types_config explicitly."
+                )
+            issue_types_config = [
+                {
+                    "issueType": default_type,
+                    "workflow": workflows[0].id,
+                    "resolutions": [],
+                }
+            ]
+
         body: dict[str, Any] = {
             "key": key,
             "name": name,
             "lead": lead,
             "defaultType": default_type,
             "defaultPriority": default_priority,
+            "issueTypesConfig": issue_types_config,
         }
-        if issue_types_config is not None:
-            body["issueTypesConfig"] = issue_types_config
 
         async with self._session.post(
             "v3/queues/",
@@ -463,6 +482,13 @@ class TrackerClient(
         ) as response:
             response.raise_for_status()
             return ResolutionList.model_validate_json(await response.read()).root
+
+    async def get_workflows(self, *, auth: YandexAuth | None = None) -> list[Workflow]:
+        async with self._session.get(
+            "v3/workflows", headers=await self._build_headers(auth)
+        ) as response:
+            response.raise_for_status()
+            return WorkflowList.model_validate_json(await response.read()).root
 
     async def issue_get(
         self, issue_id: str, *, auth: YandexAuth | None = None

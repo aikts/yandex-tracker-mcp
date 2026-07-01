@@ -40,6 +40,7 @@ from mcp_tracker.tracker.proto.types.queues import (
 from mcp_tracker.tracker.proto.types.resolutions import Resolution
 from mcp_tracker.tracker.proto.types.statuses import Status
 from mcp_tracker.tracker.proto.types.users import User
+from mcp_tracker.tracker.proto.types.workflows import Workflow
 from mcp_tracker.tracker.proto.users import UsersProtocolWrap
 
 
@@ -505,6 +506,12 @@ def make_cached_protocols(
             self, *, auth: YandexAuth | None = None
         ) -> list[Resolution]:
             return await self._original.get_resolutions(auth=auth)
+
+        @cached(**cache_config)
+        async def get_workflows(
+            self, *, auth: YandexAuth | None = None
+        ) -> list[Workflow]:
+            return await self._original.get_workflows(auth=auth)
 
     class CachingUsersProtocol(UsersProtocolWrap):
         @cached(**cache_config)
