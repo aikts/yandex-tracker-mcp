@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock
 
 from mcp.client.session import ClientSession
 
-from mcp_tracker.tracker.proto.types.queues import QueueVersion
+from mcp_tracker.tracker.proto.types.queues import Queue, QueueVersion
 from tests.mcp.conftest import get_tool_result_content
 
 
@@ -51,3 +51,56 @@ class TestQueueCreateVersion:
 
         assert result.isError
         mock_queues_protocol.queue_create_version.assert_not_called()
+
+
+class TestQueueCreate:
+    async def test_creates_queue(
+        self,
+        client_session: ClientSession,
+        mock_queues_protocol: AsyncMock,
+        sample_queue: Queue,
+    ) -> None:
+        mock_queues_protocol.queue_create.return_value = sample_queue
+
+        result = await client_session.call_tool(
+            "queue_create",
+            {
+                "key": "TRASH",
+                "name": "Trash",
+                "lead": "ivan",
+                "issue_types_config": [
+                    {"issueType": "task", "workflow": "W1", "resolutions": ["wontFix"]}
+                ],
+            },
+        )
+
+        assert not result.isError
+        mock_queues_protocol.queue_create.assert_called_once()
+        assert mock_queues_protocol.queue_create.call_args.kwargs["key"] == "TRASH"
+
+
+class TestQueueDelete:
+    async def test_deletes_queue(
+        self,
+        client_session: ClientSession,
+        mock_queues_protocol: AsyncMock,
+    ) -> None:
+        mock_queues_protocol.queue_delete.return_value = None
+
+        result = await client_session.call_tool("queue_delete", {"queue_id": "TRASH"})
+
+        assert not result.isError
+        mock_queues_protocol.queue_delete.assert_called_once()
+        assert mock_queues_protocol.queue_delete.call_args.args[0] == "TRASH"
+
+    async def test_not_registered_in_read_only(
+        self,
+        client_session_read_only: ClientSession,
+        mock_queues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session_read_only.call_tool(
+            "queue_delete", {"queue_id": "TRASH"}
+        )
+
+        assert result.isError
+        mock_queues_protocol.queue_delete.assert_not_called()

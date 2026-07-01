@@ -101,6 +101,32 @@ def make_cached_protocols(
                 auth=auth,
             )
 
+        async def queue_create(
+            self,
+            *,
+            key: str,
+            name: str,
+            lead: str,
+            default_type: str = "task",
+            default_priority: str = "normal",
+            issue_types_config: list[dict[str, Any]] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> Queue:
+            return await self._original.queue_create(
+                key=key,
+                name=name,
+                lead=lead,
+                default_type=default_type,
+                default_priority=default_priority,
+                issue_types_config=issue_types_config,
+                auth=auth,
+            )
+
+        async def queue_delete(
+            self, queue_id: str, *, auth: YandexAuth | None = None
+        ) -> None:
+            return await self._original.queue_delete(queue_id, auth=auth)
+
         @cached(**cache_config)
         async def queues_get_fields(
             self, queue_id: str, *, auth: YandexAuth | None = None

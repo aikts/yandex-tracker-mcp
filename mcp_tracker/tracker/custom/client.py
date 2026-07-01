@@ -336,6 +336,65 @@ class TrackerClient(
             response.raise_for_status()
             return QueueVersion.model_validate_json(await response.read())
 
+    async def queue_create(
+        self,
+        *,
+        key: str,
+        name: str,
+        lead: str,
+        default_type: str = "task",
+        default_priority: str = "normal",
+        issue_types_config: list[dict[str, Any]] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> Queue:
+        """Создать очередь Трекера.
+
+        Args:
+            key: Ключ очереди (латиница в верхнем регистре).
+            name: Название очереди.
+            lead: Логин или id владельца очереди.
+            default_type: Тип задач по умолчанию (ключ или id), напр. "task".
+            default_priority: Приоритет по умолчанию (ключ или id), напр. "normal".
+            issue_types_config: Настройки типов задач —
+                [{"issueType": "task", "workflow": "<id>", "resolutions": [...]}].
+                workflow обязателен и специфичен для организации.
+            auth: Опциональная auth-структура (OAuth/Org) поверх конфигурации клиента.
+        """
+        body: dict[str, Any] = {
+            "key": key,
+            "name": name,
+            "lead": lead,
+            "defaultType": default_type,
+            "defaultPriority": default_priority,
+        }
+        if issue_types_config is not None:
+            body["issueTypesConfig"] = issue_types_config
+
+        async with self._session.post(
+            "v3/queues/",
+            headers=await self._build_headers(auth),
+            json=body,
+        ) as response:
+            response.raise_for_status()
+            return Queue.model_validate_json(await response.read())
+
+    async def queue_delete(
+        self, queue_id: str, *, auth: YandexAuth | None = None
+    ) -> None:
+        """Удалить очередь Трекера вместе со всеми её задачами.
+
+        Удаление отложенное: очередь помечается deleted и вычищается позже
+        (восстановление — через API restore). Задачи уходят вместе с очередью —
+        это единственный способ удалить задачи, так как отдельную задачу Трекер
+        удалять не умеет (DELETE /issues → 405).
+        """
+        async with self._session.delete(
+            f"v3/queues/{queue_id}",
+            headers=await self._build_headers(auth),
+        ) as response:
+            response.raise_for_status()
+            return None
+
     async def queues_get_fields(
         self, queue_id: str, *, auth: YandexAuth | None = None
     ) -> list[GlobalField]:
