@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from mcp_tracker.tracker.proto.entities import EntitiesProtocol
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
@@ -12,3 +13,4 @@ class AppContext:
     issues: IssueProtocol
     fields: GlobalDataProtocol
     users: UsersProtocol
+    entities: EntitiesProtocol

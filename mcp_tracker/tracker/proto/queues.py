@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from .common import YandexAuth
 from .types.fields import GlobalField, LocalField
@@ -42,6 +42,22 @@ class QueuesProtocol(Protocol):
         due_date: date | None = None,
         auth: YandexAuth | None = None,
     ) -> QueueVersion: ...
+
+    async def queue_create(
+        self,
+        *,
+        key: str,
+        name: str,
+        lead: str,
+        default_type: str = "task",
+        default_priority: str = "normal",
+        issue_types_config: list[dict[str, Any]] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> Queue: ...
+
+    async def queue_delete(
+        self, queue_id: str, *, auth: YandexAuth | None = None
+    ) -> None: ...
 
     async def queues_get_fields(
         self, queue_id: str, *, auth: YandexAuth | None = None
