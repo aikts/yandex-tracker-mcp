@@ -267,3 +267,20 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             type=type,
             auth=get_yandex_auth(ctx),
         )
+
+    @mcp.tool(
+        title="Delete Issue",
+        description="Yandex Tracker has no per-issue delete. This tool returns the exact "
+        "steps to physically delete an issue (via a throwaway queue); it does not modify "
+        "anything itself.",
+        annotations=ToolAnnotations(readOnlyHint=True),
+    )
+    async def issue_delete(
+        issue_id: IssueID,
+    ) -> str:
+        return (
+            f"To physically delete issue {issue_id}:\n"
+            "1) queue_create — create a throwaway queue.\n"
+            f"2) issue_move — move {issue_id} into that queue.\n"
+            "3) queue_delete — delete that queue."
+        )
