@@ -500,6 +500,15 @@ def make_cached_protocols(
             return await self._original.user_get_current(auth=auth)
 
     class CachingComponentsProtocol(ComponentsProtocolWrap):
+        @cached(**cache_config)
+        async def component_get(
+            self,
+            component_id: int,
+            *,
+            auth: YandexAuth | None = None,
+        ) -> Component:
+            return await self._original.component_get(component_id, auth=auth)
+
         async def component_create(
             self,
             queue_id: str,
