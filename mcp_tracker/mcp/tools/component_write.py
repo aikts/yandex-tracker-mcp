@@ -9,7 +9,7 @@ from pydantic import Field
 
 from mcp_tracker.mcp.context import AppContext
 from mcp_tracker.mcp.params import QueueID
-from mcp_tracker.mcp.tools._access import check_queue_access
+from mcp_tracker.mcp.tools._access import check_component_access, check_queue_access
 from mcp_tracker.mcp.utils import get_yandex_auth
 from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.proto.types.components import Component
@@ -82,7 +82,10 @@ def register_component_write_tools(settings: Settings, mcp: FastMCP[Any]) -> Non
             ),
         ] = None,
     ) -> Component:
-        return await ctx.request_context.lifespan_context.components.component_update(
+        components = ctx.request_context.lifespan_context.components
+        component = await components.component_get(component_id, auth=get_yandex_auth(ctx))
+        check_component_access(settings, component)
+        return await components.component_update(
             component_id,
             name=name,
             description=description,
@@ -102,7 +105,10 @@ def register_component_write_tools(settings: Settings, mcp: FastMCP[Any]) -> Non
             Field(description="Component ID (integer)."),
         ],
     ) -> None:
-        await ctx.request_context.lifespan_context.components.component_delete(
+        components = ctx.request_context.lifespan_context.components
+        component = await components.component_get(component_id, auth=get_yandex_auth(ctx))
+        check_component_access(settings, component)
+        await components.component_delete(
             component_id,
             auth=get_yandex_auth(ctx),
         )
