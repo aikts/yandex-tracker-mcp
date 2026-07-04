@@ -232,6 +232,7 @@ class TestComponentGet:
         )
 
         assert result.isError
+        mock_components_protocol.component_get.assert_called_once()
 
 
 class TestComponentCreate:
@@ -403,6 +404,7 @@ class TestComponentUpdate:
         )
 
         assert result.isError
+        mock_components_protocol.component_get.assert_called_once()
         mock_components_protocol.component_update.assert_not_called()
 
 
@@ -444,4 +446,5 @@ class TestComponentDelete:
         )
 
         assert result.isError
+        mock_components_protocol.component_get.assert_called_once()
         mock_components_protocol.component_delete.assert_not_called()

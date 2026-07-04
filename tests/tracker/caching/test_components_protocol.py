@@ -48,6 +48,18 @@ class TestCachingComponentsProtocol:
         )
         assert result == mock_original.components_list.return_value
 
+    async def test_components_list_calls_original_without_auth(
+        self,
+        caching_components_protocol: Any,
+        mock_original: AsyncMock,
+    ) -> None:
+        result = await caching_components_protocol.components_list(per_page=50, page=1)
+
+        mock_original.components_list.assert_called_once_with(
+            per_page=50, page=1, auth=None
+        )
+        assert result == mock_original.components_list.return_value
+
     async def test_component_get_calls_original(
         self,
         caching_components_protocol: Any,
@@ -59,6 +71,16 @@ class TestCachingComponentsProtocol:
         )
 
         mock_original.component_get.assert_called_once_with(111175, auth=yandex_auth)
+        assert result == mock_original.component_get.return_value
+
+    async def test_component_get_calls_original_without_auth(
+        self,
+        caching_components_protocol: Any,
+        mock_original: AsyncMock,
+    ) -> None:
+        result = await caching_components_protocol.component_get(111175)
+
+        mock_original.component_get.assert_called_once_with(111175, auth=None)
         assert result == mock_original.component_get.return_value
 
     async def test_component_create_calls_original(
