@@ -60,6 +60,10 @@
       "description": "Get detailed metadata about a specific queue"
     },
     {
+      "name": "components_get_all",
+      "description": "Get all components in the Yandex Tracker organization"
+    },
+    {
       "name": "component_get",
       "description": "Get a component from Yandex Tracker by its ID"
     },

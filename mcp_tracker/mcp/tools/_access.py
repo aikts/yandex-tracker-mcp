@@ -26,6 +26,8 @@ def check_component_access(settings: Settings, component: Component) -> None:
 
     queue_key = component.queue.key if component.queue is not None else None
     if queue_key is None:
-        raise TrackerError(f"Component `{component.name}` queue is unknown; access denied.")
+        raise TrackerError(
+            f"Component `{component.name}` queue is unknown; access denied."
+        )
 
     check_queue_access(settings, queue_key)

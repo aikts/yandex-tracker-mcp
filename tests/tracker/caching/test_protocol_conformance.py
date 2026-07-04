@@ -5,9 +5,9 @@ from unittest.mock import AsyncMock
 import pytest
 
 from mcp_tracker.tracker.caching.client import make_cached_protocols
+from mcp_tracker.tracker.proto.components import ComponentsProtocol
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
-from mcp_tracker.tracker.proto.components import ComponentsProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
 from mcp_tracker.tracker.proto.users import UsersProtocol
 

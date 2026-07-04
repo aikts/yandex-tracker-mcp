@@ -13,9 +13,7 @@ class TestComponentDelete:
                 status=204,
             )
 
-            result = await tracker_client.component_delete(111175)
-
-            assert result is None
+            await tracker_client.component_delete(111175)
 
     async def test_with_auth(
         self, tracker_client: TrackerClient, yandex_auth: YandexAuth
@@ -28,11 +26,7 @@ class TestComponentDelete:
                 callback=capture.callback,
             )
 
-            result = await tracker_client.component_delete(
-                111177, auth=yandex_auth
-            )
-
-            assert result is None
+            await tracker_client.component_delete(111177, auth=yandex_auth)
 
         capture.assert_called_once()
         capture.last_request.assert_headers(

@@ -501,6 +501,18 @@ def make_cached_protocols(
 
     class CachingComponentsProtocol(ComponentsProtocolWrap):
         @cached(**cache_config)
+        async def components_list(
+            self,
+            per_page: int = 50,
+            page: int = 1,
+            *,
+            auth: YandexAuth | None = None,
+        ) -> list[Component]:
+            return await self._original.components_list(
+                per_page=per_page, page=page, auth=auth
+            )
+
+        @cached(**cache_config)
         async def component_get(
             self,
             component_id: int,

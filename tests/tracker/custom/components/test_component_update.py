@@ -112,7 +112,9 @@ class TestComponentUpdate:
                 status=200,
             )
             m.patch(
-                re.compile(r"https://api\.tracker\.yandex\.net/v3/components/111175\?.*"),
+                re.compile(
+                    r"https://api\.tracker\.yandex\.net/v3/components/111175\?.*"
+                ),
                 payload=patch_response,
                 status=200,
             )
@@ -163,7 +165,9 @@ class TestComponentUpdate:
                 status=200,
             )
             m.patch(
-                re.compile(r"https://api\.tracker\.yandex\.net/v3/components/111175\?.*"),
+                re.compile(
+                    r"https://api\.tracker\.yandex\.net/v3/components/111175\?.*"
+                ),
                 callback=patch_capture.callback,
             )
 
@@ -175,9 +179,7 @@ class TestComponentUpdate:
         patch_capture.last_request.assert_json_body({"name": "OnlyName"})
         patch_capture.last_request.assert_param("version", 2)
 
-    async def test_with_lead(
-        self, tracker_client: TrackerClient
-    ) -> None:
+    async def test_with_lead(self, tracker_client: TrackerClient) -> None:
         get_response = {
             "self": "https://api.tracker.yandex.net/v3/components/111178",
             "id": 111178,
@@ -215,7 +217,9 @@ class TestComponentUpdate:
                 status=200,
             )
             m.patch(
-                re.compile(r"https://api\.tracker\.yandex\.net/v3/components/111178\?.*"),
+                re.compile(
+                    r"https://api\.tracker\.yandex\.net/v3/components/111178\?.*"
+                ),
                 callback=patch_capture.callback,
             )
 
@@ -271,7 +275,9 @@ class TestComponentUpdate:
                 status=200,
             )
             m.patch(
-                re.compile(r"https://api\.tracker\.yandex\.net/v3/components/111177\?.*"),
+                re.compile(
+                    r"https://api\.tracker\.yandex\.net/v3/components/111177\?.*"
+                ),
                 callback=patch_capture.callback,
             )
 
@@ -314,6 +320,6 @@ class TestComponentUpdate:
 
             try:
                 await tracker_client.component_update(111175, name="Should Fail")
-                assert False, "Expected ValueError"
+                raise AssertionError("Expected ValueError")
             except ValueError as e:
                 assert "version is missing" in str(e)

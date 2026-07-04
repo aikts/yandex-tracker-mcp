@@ -183,7 +183,9 @@ class ServiceAccountStore:
         return IAMTokenInfo(token=iam_token.iam_token)
 
 
-class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProtocol, ComponentsProtocol):
+class TrackerClient(
+    QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProtocol, ComponentsProtocol
+):
     def __init__(
         self,
         *,
@@ -381,12 +383,38 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
             response.raise_for_status()
             return Component.model_validate_json(await response.read())
 
+    async def components_list(
+        self,
+        per_page: int = 50,
+        page: int = 1,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> list[Component]:
+        params = {
+            "perPage": per_page,
+            "page": page,
+        }
+        async with self._session.get(
+            "v3/components",
+            headers=await self._build_headers(auth),
+            params=params,
+        ) as response:
+            response.raise_for_status()
+            return ComponentList.model_validate_json(await response.read()).root
+
     async def component_get(
         self,
         component_id: int,
         *,
         auth: YandexAuth | None = None,
     ) -> Component:
+        """Get a component by ID.
+
+        This endpoint is not documented in the official Yandex Tracker API
+        documentation, but it is used by the official Python client.
+
+        Endpoint: GET https://api.tracker.yandex.net/v3/components/<component_id>
+        """
         async with self._session.get(
             f"v3/components/{component_id}",
             headers=await self._build_headers(auth),
@@ -434,6 +462,13 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         *,
         auth: YandexAuth | None = None,
     ) -> None:
+        """Delete a component by ID.
+
+        This endpoint is not documented in the official Yandex Tracker API
+        documentation, but it is used by the official Python client.
+
+        Endpoint: DELETE https://api.tracker.yandex.net/v3/components/<component_id>
+        """
         async with self._session.delete(
             f"v3/components/{component_id}",
             headers=await self._build_headers(auth),

@@ -83,7 +83,9 @@ def register_component_write_tools(settings: Settings, mcp: FastMCP[Any]) -> Non
         ] = None,
     ) -> Component:
         components = ctx.request_context.lifespan_context.components
-        component = await components.component_get(component_id, auth=get_yandex_auth(ctx))
+        component = await components.component_get(
+            component_id, auth=get_yandex_auth(ctx)
+        )
         check_component_access(settings, component)
         return await components.component_update(
             component_id,
@@ -106,7 +108,9 @@ def register_component_write_tools(settings: Settings, mcp: FastMCP[Any]) -> Non
         ],
     ) -> None:
         components = ctx.request_context.lifespan_context.components
-        component = await components.component_get(component_id, auth=get_yandex_auth(ctx))
+        component = await components.component_get(
+            component_id, auth=get_yandex_auth(ctx)
+        )
         check_component_access(settings, component)
         await components.component_delete(
             component_id,

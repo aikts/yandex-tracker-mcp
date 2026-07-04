@@ -6,6 +6,14 @@ from mcp_tracker.tracker.proto.types.components import Component
 
 @runtime_checkable
 class ComponentsProtocol(Protocol):
+    async def components_list(
+        self,
+        per_page: int = 50,
+        page: int = 1,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> list[Component]: ...
+
     async def component_create(
         self,
         queue_id: str,
