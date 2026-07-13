@@ -221,11 +221,13 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
     ) -> DownloadedIssueAttachment:
         check_issue_access(settings, issue_id)
 
-        data = await ctx.request_context.lifespan_context.issues.issue_download_attachment(
-            issue_id,
-            attachment_id,
-            file_name,
-            auth=get_yandex_auth(ctx),
+        data = (
+            await ctx.request_context.lifespan_context.issues.issue_download_attachment(
+                issue_id,
+                attachment_id,
+                file_name,
+                auth=get_yandex_auth(ctx),
+            )
         )
 
         local_path = save_issue_attachment_file(

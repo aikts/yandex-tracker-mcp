@@ -1,6 +1,6 @@
+import re
 from collections.abc import Iterable
 from pathlib import Path
-import re
 from typing import Any, TypeVar
 
 from mcp.server.auth.middleware.auth_context import get_access_token
