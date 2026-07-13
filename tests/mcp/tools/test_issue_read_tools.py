@@ -279,7 +279,10 @@ class TestIssueDownloadAttachment:
         file_content = b"hello attachment"
         mock_issues_protocol.issue_download_attachment.return_value = file_content
         save_directory = tmp_path / "tracker-attachments"
-        settings = create_test_settings(tracker_attachments_dir=str(tmp_path))
+        settings = create_test_settings(
+            tracker_attachments_dir=str(tmp_path),
+            attachment_download_enabled=True,
+        )
         mcp_server = create_mcp_server(
             settings=settings,
             lifespan=make_test_lifespan(mock_app_context),

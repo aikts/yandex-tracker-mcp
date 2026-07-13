@@ -684,7 +684,7 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
   - Параметры: `issue_id` (строка, формат: "QUEUE-123")
   - Возвращает список вложений с метаданными для указанной задачи
 
-- **`issue_download_attachment`**: Скачать содержимое файла вложения задачи
+- **`issue_download_attachment`**: Скачать содержимое файла вложения задачи (требует `TRACKER_ATTACHMENT_DOWNLOAD_ENABLED=true`)
   - Параметры:
     - `issue_id` (строка, формат: "QUEUE-123")
     - `attachment_id` (строка): ID вложения из `issue_get_attachments`
@@ -1137,6 +1137,10 @@ TRACKER_API_BASE_URL=https://api.tracker.yandex.net  # По умолчанию: 
 
 # Безопасность - Ограничить доступ к конкретным очередям (опционально)
 TRACKER_LIMIT_QUEUES=PROJ1,PROJ2,DEV      # Ключи очередей через запятую
+
+# Скачивание вложений (опционально, по умолчанию выключено)
+TRACKER_ATTACHMENT_DOWNLOAD_ENABLED=true  # По умолчанию: false - Включить tool issue_download_attachment
+TRACKER_ATTACHMENTS_DIR=tmp/tracker-attachments  # По умолчанию: tmp/tracker-attachments - Песочница для сохранённых файлов
 
 # Конфигурация сервера
 HOST=0.0.0.0                              # По умолчанию: 0.0.0.0

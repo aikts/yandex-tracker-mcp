@@ -1,7 +1,7 @@
 import pytest
 from mcp.client.session import ClientSession
 
-# Read-only tool names (25 tools) - always registered
+# Read-only tool names (24 tools) - always registered
 READ_ONLY_TOOL_NAMES = [
     # Queue tools (5)
     "queues_get_all",
@@ -16,7 +16,7 @@ READ_ONLY_TOOL_NAMES = [
     "get_priorities",
     "get_resolutions",
     "issue_get_url",
-    # Issue read tools (10)
+    # Issue read tools (9)
     "issue_get",
     "issue_get_comments",
     "issue_get_links",
@@ -24,7 +24,6 @@ READ_ONLY_TOOL_NAMES = [
     "issues_count",
     "issue_get_worklogs",
     "issue_get_attachments",
-    "issue_download_attachment",
     "issue_get_checklist",
     "issue_get_transitions",
     # User tools (4)
@@ -32,6 +31,11 @@ READ_ONLY_TOOL_NAMES = [
     "users_search",
     "user_get",
     "user_get_current",
+]
+
+# Attachment download tool - only registered when TRACKER_ATTACHMENT_DOWNLOAD_ENABLED=true
+ATTACHMENT_DOWNLOAD_TOOL_NAMES = [
+    "issue_download_attachment",
 ]
 
 # Write tool names - only registered when not in read-only mode
@@ -52,8 +56,13 @@ WRITE_TOOL_NAMES = [
     "issue_move",
 ]
 
-# All tool names that should be registered in normal mode
+# All tool names that should be registered in normal mode (download disabled by default)
 EXPECTED_TOOL_NAMES = READ_ONLY_TOOL_NAMES + WRITE_TOOL_NAMES
+
+# All tool names when attachment download is enabled
+EXPECTED_TOOL_NAMES_WITH_ATTACHMENT_DOWNLOAD = (
+    READ_ONLY_TOOL_NAMES + ATTACHMENT_DOWNLOAD_TOOL_NAMES + WRITE_TOOL_NAMES
+)
 
 
 class TestToolRegistration:
@@ -67,6 +76,32 @@ class TestToolRegistration:
 
         tool_names = [tool.name for tool in result.tools]
         assert tool_name in tool_names, f"Tool '{tool_name}' is not registered"
+
+    @pytest.mark.parametrize("tool_name", ATTACHMENT_DOWNLOAD_TOOL_NAMES)
+    async def test_attachment_download_tool_is_not_registered_by_default(
+        self,
+        client_session: ClientSession,
+        tool_name: str,
+    ) -> None:
+        result = await client_session.list_tools()
+
+        tool_names = [tool.name for tool in result.tools]
+        assert tool_name not in tool_names, (
+            f"Tool '{tool_name}' should not be registered by default"
+        )
+
+    @pytest.mark.parametrize("tool_name", ATTACHMENT_DOWNLOAD_TOOL_NAMES)
+    async def test_attachment_download_tool_is_registered_when_enabled(
+        self,
+        client_session_attachment_download_enabled: ClientSession,
+        tool_name: str,
+    ) -> None:
+        result = await client_session_attachment_download_enabled.list_tools()
+
+        tool_names = [tool.name for tool in result.tools]
+        assert tool_name in tool_names, (
+            f"Tool '{tool_name}' should be registered when download is enabled"
+        )
 
 
 class TestReadOnlyModeToolRegistration:
@@ -121,6 +156,18 @@ class TestReadOnlyModeToolRegistration:
 
         assert len(result.tools) == len(EXPECTED_TOOL_NAMES), (
             f"Expected {len(EXPECTED_TOOL_NAMES)} tools in normal mode, "
+            f"got {len(result.tools)}"
+        )
+
+    async def test_correct_tool_count_with_attachment_download_enabled(
+        self,
+        client_session_attachment_download_enabled: ClientSession,
+    ) -> None:
+        """Normal mode with download enabled should include attachment download tool."""
+        result = await client_session_attachment_download_enabled.list_tools()
+
+        assert len(result.tools) == len(EXPECTED_TOOL_NAMES_WITH_ATTACHMENT_DOWNLOAD), (
+            f"Expected {len(EXPECTED_TOOL_NAMES_WITH_ATTACHMENT_DOWNLOAD)} tools, "
             f"got {len(result.tools)}"
         )
 

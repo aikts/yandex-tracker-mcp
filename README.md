@@ -687,7 +687,7 @@ The server exposes the following tools through the MCP protocol:
   - Parameters: `issue_id` (string, format: "QUEUE-123")
   - Returns list of attachments with metadata for the specified issue
 
-- **`issue_download_attachment`**: Download attachment file content for an issue
+- **`issue_download_attachment`**: Download attachment file content for an issue (requires `TRACKER_ATTACHMENT_DOWNLOAD_ENABLED=true`)
   - Parameters:
     - `issue_id` (string, format: "QUEUE-123")
     - `attachment_id` (string): Attachment ID from `issue_get_attachments`
@@ -1140,6 +1140,10 @@ TRACKER_API_BASE_URL=https://api.tracker.yandex.net  # Default: https://api.trac
 
 # Security - Restrict access to specific queues (optional)
 TRACKER_LIMIT_QUEUES=PROJ1,PROJ2,DEV      # Comma-separated queue keys
+
+# Attachment download (optional, disabled by default)
+TRACKER_ATTACHMENT_DOWNLOAD_ENABLED=true  # Default: false - Enable issue_download_attachment tool
+TRACKER_ATTACHMENTS_DIR=tmp/tracker-attachments  # Default: tmp/tracker-attachments - Sandbox for saved files
 
 # Server Configuration
 HOST=0.0.0.0                              # Default: 0.0.0.0

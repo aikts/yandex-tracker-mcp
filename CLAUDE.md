@@ -31,6 +31,7 @@ uv run mcp-tracker # Run the server
   - `user.py`: User tools (read-only)
   - `__init__.py`: Exports `register_all_tools()` which orchestrates tool registration
   - `*_write.py` modules are only registered when `settings.tracker_read_only=False`
+  - `issue_download_attachment` is only registered when `settings.tracker_attachment_download_enabled=True`
 - **Settings** (`mcp_tracker/settings.py`): Pydantic settings from environment variables
 - All protocol methods accept optional `auth: YandexAuth | None` parameter for OAuth support.
 - All Pydantic models for Yandex Tracker entities inherit from `BaseTrackerEntity`.
@@ -120,6 +121,8 @@ For paginated methods, use `side_effect` for sequential returns: `mock.method.si
 
 **Write tools** (`*_write.py`) are only registered when `settings.tracker_read_only=False`.
 
+**Attachment download tool** (`issue_download_attachment`) is only registered when `settings.tracker_attachment_download_enabled=True`.
+
 ### Test Requirements for New Tools
 
 - Test success case with expected return data
@@ -129,6 +132,7 @@ For paginated methods, use `side_effect` for sequential returns: `mock.method.si
 - Add tool name to appropriate list in `tests/mcp/server/test_server_creation.py`:
   - Read-only tools → `READ_ONLY_TOOL_NAMES`
   - Write tools → `WRITE_TOOL_NAMES`
+  - Attachment download tool → `ATTACHMENT_DOWNLOAD_TOOL_NAMES`
 - For write tools, add test with `client_session_read_only` to verify not registered
 
 ## Configuration
@@ -145,5 +149,7 @@ Organization (one required):
 Optional:
 - `TRACKER_LIMIT_QUEUES`: Restrict access to specific queues
 - `TRACKER_READ_ONLY`: When `true`, disables all write tools (the `*_write.py` modules)
+- `TRACKER_ATTACHMENT_DOWNLOAD_ENABLED`: When `true`, enables `issue_download_attachment` tool (default: `false`)
+- `TRACKER_ATTACHMENTS_DIR`: Sandbox directory for downloaded attachments (default: `tmp/tracker-attachments`)
 - `TOOLS_CACHE_ENABLED`: Enable Redis caching
 - `OAUTH_ENABLED`: Enable OAuth provider mode

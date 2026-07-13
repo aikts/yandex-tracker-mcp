@@ -195,6 +195,45 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         )
 
     @mcp.tool(
+        title="Get Issue Checklist",
+        description="Get checklist items of a Yandex Tracker issue by its id",
+        annotations=ToolAnnotations(readOnlyHint=True),
+    )
+    async def issue_get_checklist(
+        ctx: Context[Any, AppContext],
+        issue_id: IssueID,
+    ) -> list[ChecklistItem]:
+        check_issue_access(settings, issue_id)
+
+        return await ctx.request_context.lifespan_context.issues.issue_get_checklist(
+            issue_id,
+            auth=get_yandex_auth(ctx),
+        )
+
+    @mcp.tool(
+        title="Get Issue Transitions",
+        description="Get possible status transitions for a Yandex Tracker issue. "
+        "Returns list of available transitions that can be performed on the issue.",
+        annotations=ToolAnnotations(readOnlyHint=True),
+    )
+    async def issue_get_transitions(
+        ctx: Context[Any, AppContext],
+        issue_id: IssueID,
+    ) -> list[IssueTransition]:
+        check_issue_access(settings, issue_id)
+
+        return await ctx.request_context.lifespan_context.issues.issue_get_transitions(
+            issue_id,
+            auth=get_yandex_auth(ctx),
+        )
+
+
+def register_issue_attachment_download_tool(
+    settings: Settings, mcp: FastMCP[Any]
+) -> None:
+    """Register issue attachment download tool (opt-in via settings)."""
+
+    @mcp.tool(
         title="Download Issue Attachment",
         description=(
             "Download a Yandex Tracker issue attachment and save it to a local directory. "
@@ -246,37 +285,4 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             name=safe_name,
             mime_type=mime_type or "application/octet-stream",
             size=len(data),
-        )
-
-    @mcp.tool(
-        title="Get Issue Checklist",
-        description="Get checklist items of a Yandex Tracker issue by its id",
-        annotations=ToolAnnotations(readOnlyHint=True),
-    )
-    async def issue_get_checklist(
-        ctx: Context[Any, AppContext],
-        issue_id: IssueID,
-    ) -> list[ChecklistItem]:
-        check_issue_access(settings, issue_id)
-
-        return await ctx.request_context.lifespan_context.issues.issue_get_checklist(
-            issue_id,
-            auth=get_yandex_auth(ctx),
-        )
-
-    @mcp.tool(
-        title="Get Issue Transitions",
-        description="Get possible status transitions for a Yandex Tracker issue. "
-        "Returns list of available transitions that can be performed on the issue.",
-        annotations=ToolAnnotations(readOnlyHint=True),
-    )
-    async def issue_get_transitions(
-        ctx: Context[Any, AppContext],
-        issue_id: IssueID,
-    ) -> list[IssueTransition]:
-        check_issue_access(settings, issue_id)
-
-        return await ctx.request_context.lifespan_context.issues.issue_get_transitions(
-            issue_id,
-            auth=get_yandex_auth(ctx),
         )

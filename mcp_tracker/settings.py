@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     tracker_org_id: str | None = None
     tracker_limit_queues: Annotated[list[str] | None, NoDecode] = None
     tracker_read_only: bool = False
+    tracker_attachment_download_enabled: bool = False
     tracker_attachments_dir: str = "tmp/tracker-attachments"
 
     tracker_sa_key_id: str | None = None

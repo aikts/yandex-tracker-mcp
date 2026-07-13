@@ -69,6 +69,7 @@ def create_test_settings(
     limit_queues: list[str] | None = None,
     read_only: bool = False,
     tracker_attachments_dir: str = "tmp/tracker-attachments",
+    attachment_download_enabled: bool = False,
 ) -> Settings:
     """Create Settings for testing with minimal required configuration."""
     return Settings.model_construct(
@@ -77,6 +78,7 @@ def create_test_settings(
         tracker_cloud_org_id=None,
         tracker_limit_queues=limit_queues,
         tracker_read_only=read_only,
+        tracker_attachment_download_enabled=attachment_download_enabled,
         tracker_attachments_dir=tracker_attachments_dir,
         tools_cache_enabled=False,
         oauth_enabled=False,
@@ -189,6 +191,33 @@ async def client_session_with_limits(
 ) -> AsyncIterator[ClientSession]:
     """Create connected client session with queue restrictions."""
     async with safe_client_session(mcp_server_with_queue_limits) as session:
+        yield session
+
+
+@pytest.fixture
+def test_settings_attachment_download_enabled() -> Settings:
+    """Settings with attachment download tool enabled."""
+    return create_test_settings(attachment_download_enabled=True)
+
+
+@pytest.fixture
+def mcp_server_attachment_download_enabled(
+    test_settings_attachment_download_enabled: Settings,
+    mock_app_context: AppContext,
+) -> FastMCP[Any]:
+    """Create test MCP server with attachment download tool enabled."""
+    return create_mcp_server(
+        settings=test_settings_attachment_download_enabled,
+        lifespan=make_test_lifespan(mock_app_context),
+    )
+
+
+@pytest_asyncio.fixture(loop_scope="function")
+async def client_session_attachment_download_enabled(
+    mcp_server_attachment_download_enabled: FastMCP[Any],
+) -> AsyncIterator[ClientSession]:
+    """Create connected client session with attachment download tool enabled."""
+    async with safe_client_session(mcp_server_attachment_download_enabled) as session:
         yield session
 
 

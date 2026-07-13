@@ -14,7 +14,10 @@ from typing import Any
 from mcp.server import FastMCP
 
 from mcp_tracker.mcp.tools.field import register_field_tools
-from mcp_tracker.mcp.tools.issue_read import register_issue_read_tools
+from mcp_tracker.mcp.tools.issue_read import (
+    register_issue_attachment_download_tool,
+    register_issue_read_tools,
+)
 from mcp_tracker.mcp.tools.issue_write import register_issue_write_tools
 from mcp_tracker.mcp.tools.queue import register_queue_tools
 from mcp_tracker.mcp.tools.queue_write import register_queue_write_tools
@@ -35,6 +38,9 @@ def register_all_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
     register_field_tools(settings, mcp)
     register_issue_read_tools(settings, mcp)
     register_user_tools(settings, mcp)
+
+    if settings.tracker_attachment_download_enabled:
+        register_issue_attachment_download_tool(settings, mcp)
 
     # Only register write tools if not in read-only mode
     if not settings.tracker_read_only:
