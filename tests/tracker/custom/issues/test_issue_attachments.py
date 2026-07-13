@@ -2,6 +2,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 import pytest
+from aiohttp import ClientResponseError
 from aioresponses import aioresponses
 
 from mcp_tracker.tracker.custom.client import TrackerClient
@@ -259,3 +260,61 @@ class TestIssueDownloadAttachment:
 
             assert not (m.requests or {})
             assert not destination.exists()
+
+    async def test_forbidden_raises(
+        self, tracker_client: TrackerClient, tmp_path: Path
+    ) -> None:
+        destination = tmp_path / "TEST-123-7698.png"
+
+        with aioresponses() as m:
+            m.get(_DOWNLOAD_URL, status=403)
+
+            with pytest.raises(ClientResponseError):
+                await tracker_client.issue_download_attachment(
+                    "TEST-123",
+                    "7698",
+                    "image.png",
+                    destination,
+                    max_bytes=1024,
+                )
+
+            assert not destination.exists()
+
+    async def test_server_error_raises(
+        self, tracker_client: TrackerClient, tmp_path: Path
+    ) -> None:
+        destination = tmp_path / "TEST-123-7698.png"
+
+        with aioresponses() as m:
+            m.get(_DOWNLOAD_URL, status=500)
+
+            with pytest.raises(ClientResponseError):
+                await tracker_client.issue_download_attachment(
+                    "TEST-123",
+                    "7698",
+                    "image.png",
+                    destination,
+                    max_bytes=1024,
+                )
+
+            assert not destination.exists()
+
+    async def test_empty_body_succeeds(
+        self, tracker_client: TrackerClient, tmp_path: Path
+    ) -> None:
+        destination = tmp_path / "TEST-123-7698.png"
+
+        with aioresponses() as m:
+            m.get(_DOWNLOAD_URL, body=b"")
+
+            size = await tracker_client.issue_download_attachment(
+                "TEST-123",
+                "7698",
+                "image.png",
+                destination,
+                max_bytes=1024,
+            )
+
+            assert size == 0
+            assert destination.exists()
+            assert destination.read_bytes() == b""

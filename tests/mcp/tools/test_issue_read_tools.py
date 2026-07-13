@@ -5,6 +5,7 @@ from mcp.client.session import ClientSession
 
 from mcp_tracker.mcp.context import AppContext
 from mcp_tracker.mcp.server import create_mcp_server
+from mcp_tracker.tracker.custom.errors import AttachmentNotFound
 from mcp_tracker.tracker.proto.types.issues import (
     ChecklistItem,
     Issue,
@@ -320,6 +321,7 @@ class TestIssueDownloadAttachment:
 
         assert not result.isError
         expected_path = save_directory.resolve() / "TEST-123-7698.png"
+        expected_local_path = expected_path.relative_to(tmp_path.resolve())
         mock_issues_protocol.issue_get_attachments.assert_called_once()
         mock_issues_protocol.issue_download_attachment.assert_called_once()
         call_args = mock_issues_protocol.issue_download_attachment.call_args
@@ -335,7 +337,7 @@ class TestIssueDownloadAttachment:
         assert content == {
             "issue_id": "TEST-123",
             "attachment_id": "7698",
-            "local_path": str(expected_path),
+            "local_path": str(expected_local_path),
             "name": "TEST-123-7698.png",
             "original_name": "image.png",
             "mime_type": "image/png",
@@ -382,7 +384,8 @@ class TestIssueDownloadAttachment:
         assert not result.isError
         content = get_tool_result_content(result)
         expected_path = save_directory.resolve() / "TEST-1-42.gz"
-        assert content["local_path"] == str(expected_path)
+        expected_local_path = expected_path.relative_to(tmp_path.resolve())
+        assert content["local_path"] == str(expected_local_path)
         assert content["name"] == "TEST-1-42.gz"
         assert content["original_name"] == "archive.tar.gz"
         assert content["name"] == Path(content["local_path"]).name
@@ -464,6 +467,113 @@ class TestIssueDownloadAttachment:
         assert not result.isError
         content = get_tool_result_content(result)
         assert content["mime_type"] == "text/csv"
+        assert content["name"] == "TEST-123-7698"
+        assert content["original_name"] == "export"
+
+    async def test_restricted_queue_raises_error(
+        self,
+        mock_app_context: AppContext,
+        mock_issues_protocol: AsyncMock,
+        tmp_path: Path,
+    ) -> None:
+        save_directory = tmp_path / "tracker-attachments"
+        settings = create_test_settings(
+            limit_queues=["ALLOWED", "PERMITTED"],
+            tracker_attachments_dir=str(tmp_path),
+            attachment_download_enabled=True,
+        )
+        mcp_server = create_mcp_server(
+            settings=settings,
+            lifespan=make_test_lifespan(mock_app_context),
+        )
+
+        async with safe_client_session(mcp_server) as client_session:
+            result = await client_session.call_tool(
+                "issue_download_attachment",
+                {
+                    "issue_id": "RESTRICTED-123",
+                    "attachment_id": "7698",
+                    "file_name": "image.png",
+                    "save_directory": str(save_directory),
+                },
+            )
+
+        assert result.isError
+        mock_issues_protocol.issue_get_attachments.assert_not_called()
+        mock_issues_protocol.issue_download_attachment.assert_not_called()
+
+    async def test_protocol_not_found_error_propagates(
+        self,
+        mock_app_context: AppContext,
+        mock_issues_protocol: AsyncMock,
+        tmp_path: Path,
+    ) -> None:
+        mock_issues_protocol.issue_get_attachments.return_value = [
+            IssueAttachment.model_construct(
+                id="7698",
+                name="image.png",
+                mimetype="image/png",
+            )
+        ]
+        mock_issues_protocol.issue_download_attachment.side_effect = AttachmentNotFound(
+            "TEST-123",
+            "7698",
+            "image.png",
+        )
+
+        save_directory = tmp_path / "tracker-attachments"
+        settings = create_test_settings(
+            tracker_attachments_dir=str(tmp_path),
+            attachment_download_enabled=True,
+        )
+        mcp_server = create_mcp_server(
+            settings=settings,
+            lifespan=make_test_lifespan(mock_app_context),
+        )
+
+        async with safe_client_session(mcp_server) as client_session:
+            result = await client_session.call_tool(
+                "issue_download_attachment",
+                {
+                    "issue_id": "TEST-123",
+                    "attachment_id": "7698",
+                    "file_name": "image.png",
+                    "save_directory": str(save_directory),
+                },
+            )
+
+        assert result.isError
+
+    async def test_path_resolve_error_propagates(
+        self,
+        mock_app_context: AppContext,
+        mock_issues_protocol: AsyncMock,
+        tmp_path: Path,
+    ) -> None:
+        outside_sandbox = tmp_path.parent / f"outside-{tmp_path.name}"
+        settings = create_test_settings(
+            tracker_attachments_dir=str(tmp_path),
+            attachment_download_enabled=True,
+        )
+        mcp_server = create_mcp_server(
+            settings=settings,
+            lifespan=make_test_lifespan(mock_app_context),
+        )
+
+        async with safe_client_session(mcp_server) as client_session:
+            result = await client_session.call_tool(
+                "issue_download_attachment",
+                {
+                    "issue_id": "TEST-123",
+                    "attachment_id": "7698",
+                    "file_name": "image.png",
+                    "save_directory": str(outside_sandbox),
+                },
+            )
+
+        assert result.isError
+        mock_issues_protocol.issue_get_attachments.assert_not_called()
+        mock_issues_protocol.issue_download_attachment.assert_not_called()
 
     async def test_missing_mime_type_returns_none(
         self,
@@ -577,7 +687,10 @@ class TestIssueDownloadAttachment:
             assert content["original_name"] == Path(request["file_name"]).name
 
         assert {item["attachment_id"] for item in downloaded} == {"100", "200"}
-        assert {item["original_name"] for item in downloaded} == {"first.pdf", "second.png"}
+        assert {item["original_name"] for item in downloaded} == {
+            "first.pdf",
+            "second.png",
+        }
 
 
 class TestIssueGetChecklist:

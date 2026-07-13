@@ -108,6 +108,15 @@ def test_settings_with_queue_limits() -> Settings:
 
 
 @pytest.fixture
+def test_settings_with_queue_limits_and_download() -> Settings:
+    """Settings with queue restrictions and attachment download enabled."""
+    return create_test_settings(
+        limit_queues=["ALLOWED", "PERMITTED"],
+        attachment_download_enabled=True,
+    )
+
+
+@pytest.fixture
 def mock_queues_protocol() -> AsyncMock:
     """Create a mock QueuesProtocol."""
     return AsyncMock(spec=QueuesProtocol)
@@ -178,6 +187,18 @@ def mcp_server_with_queue_limits(
     )
 
 
+@pytest.fixture
+def mcp_server_with_queue_limits_and_download(
+    test_settings_with_queue_limits_and_download: Settings,
+    mock_app_context: AppContext,
+) -> FastMCP[Any]:
+    """Create test MCP server with queue restrictions and attachment download."""
+    return create_mcp_server(
+        settings=test_settings_with_queue_limits_and_download,
+        lifespan=make_test_lifespan(mock_app_context),
+    )
+
+
 @pytest_asyncio.fixture(loop_scope="function")
 async def client_session(
     mcp_server: FastMCP[Any],
@@ -193,6 +214,17 @@ async def client_session_with_limits(
 ) -> AsyncIterator[ClientSession]:
     """Create connected client session with queue restrictions."""
     async with safe_client_session(mcp_server_with_queue_limits) as session:
+        yield session
+
+
+@pytest_asyncio.fixture(loop_scope="function")
+async def client_session_with_limits_and_download(
+    mcp_server_with_queue_limits_and_download: FastMCP[Any],
+) -> AsyncIterator[ClientSession]:
+    """Connected session with queue limits and attachment download enabled."""
+    async with safe_client_session(
+        mcp_server_with_queue_limits_and_download
+    ) as session:
         yield session
 
 

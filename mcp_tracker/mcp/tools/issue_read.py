@@ -239,8 +239,8 @@ def register_issue_attachment_download_tool(
             "(sandbox directory TRACKER_ATTACHMENTS_DIR). "
             "The file is saved as {issue_id}-{attachment_id}{suffix}, where suffix is Path(file_name).suffix "
             "(e.g. archive.tar.gz → .gz). "
-            "Returns issue_id, attachment_id, local_path (absolute), name (disk basename), "
-            "original_name (Tracker basename), mime_type, and size."
+            "Returns issue_id, attachment_id, local_path (relative to TRACKER_ATTACHMENTS_DIR), "
+            "name (disk basename), original_name (Tracker basename), mime_type, and size."
         ),
         annotations=ToolAnnotations(readOnlyHint=False),
     )
@@ -292,10 +292,11 @@ def register_issue_attachment_download_tool(
             )
         )
 
+        base_dir = Path(settings.tracker_attachments_dir).resolve()
         return DownloadedIssueAttachment(
             issue_id=issue_id,
             attachment_id=attachment_id,
-            local_path=str(local_path),
+            local_path=str(local_path.relative_to(base_dir)),
             name=local_path.name,
             original_name=safe_file_name,
             mime_type=mime_type,
