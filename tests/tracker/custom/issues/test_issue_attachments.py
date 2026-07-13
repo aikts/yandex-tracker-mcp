@@ -169,6 +169,26 @@ class TestIssueDownloadAttachment:
 
             assert not destination.exists()
 
+    async def test_does_not_overwrite_existing_destination(
+        self, tracker_client: TrackerClient, tmp_path: Path
+    ) -> None:
+        destination = tmp_path / "TEST-123-7698.png"
+        destination.write_bytes(b"existing")
+
+        with aioresponses() as m:
+            m.get(_DOWNLOAD_URL, body=b"new content")
+
+            with pytest.raises(ValueError, match="Attachment file already exists"):
+                await tracker_client.issue_download_attachment(
+                    "TEST-123",
+                    "7698",
+                    "image.png",
+                    destination,
+                    max_bytes=10_000,
+                )
+
+            assert destination.read_bytes() == b"existing"
+
     @pytest.mark.parametrize(
         ("file_name", "expected_segment"),
         [

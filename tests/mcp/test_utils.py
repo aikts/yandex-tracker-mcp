@@ -358,11 +358,11 @@ class TestSetNonNeededFieldsNull:
 
 
 class TestResolveIssueAttachmentLocalPath:
-    def test_resolves_path_inside_sandbox(self, tmp_path: Path) -> None:
+    async def test_resolves_path_inside_sandbox(self, tmp_path: Path) -> None:
         base_dir = tmp_path / "sandbox"
         save_directory = base_dir / "attachments"
 
-        local_path = resolve_issue_attachment_local_path(
+        local_path = await resolve_issue_attachment_local_path(
             issue_id="HELPDESK-1054",
             attachment_id="7699",
             file_name="image.png",
@@ -374,14 +374,47 @@ class TestResolveIssueAttachmentLocalPath:
         assert save_directory.resolve().is_dir()
         assert not local_path.exists()
 
+    async def test_rejects_existing_local_path(self, tmp_path: Path) -> None:
+        base_dir = tmp_path / "sandbox"
+        save_directory = base_dir / "attachments"
+        existing = save_directory / "TEST-1-42.png"
+        save_directory.mkdir(parents=True)
+        existing.write_bytes(b"old")
+
+        with pytest.raises(ValueError, match="Attachment file already exists"):
+            await resolve_issue_attachment_local_path(
+                issue_id="TEST-1",
+                attachment_id="42",
+                file_name="image.png",
+                save_directory=str(save_directory),
+                attachments_base_dir=base_dir,
+            )
+
+    async def test_rejects_save_directory_that_is_file(self, tmp_path: Path) -> None:
+        base_dir = tmp_path / "sandbox"
+        save_directory = base_dir / "not-a-dir"
+        base_dir.mkdir(parents=True)
+        save_directory.write_bytes(b"blocker")
+
+        with pytest.raises(ValueError, match="save_directory is a file"):
+            await resolve_issue_attachment_local_path(
+                issue_id="TEST-1",
+                attachment_id="1",
+                file_name="file.txt",
+                save_directory=str(save_directory),
+                attachments_base_dir=base_dir,
+            )
+
 
 class TestSaveIssueAttachmentFile:
-    def test_saves_file_with_issue_and_attachment_id(self, tmp_path: Path) -> None:
+    async def test_saves_file_with_issue_and_attachment_id(
+        self, tmp_path: Path
+    ) -> None:
         data = b"file content"
         base_dir = tmp_path / "sandbox"
         save_directory = base_dir / "attachments"
 
-        local_path = save_issue_attachment_file(
+        local_path = await save_issue_attachment_file(
             data,
             issue_id="HELPDESK-1054",
             attachment_id="7699",
@@ -393,11 +426,39 @@ class TestSaveIssueAttachmentFile:
         assert local_path == save_directory.resolve() / "HELPDESK-1054-7699.png"
         assert local_path.read_bytes() == data
 
-    def test_uses_basename_only(self, tmp_path: Path) -> None:
+    async def test_does_not_overwrite_existing_file(self, tmp_path: Path) -> None:
+        base_dir = tmp_path / "sandbox"
+        save_directory = base_dir / "attachments"
+        original = b"original"
+        replacement = b"replacement"
+
+        await save_issue_attachment_file(
+            original,
+            issue_id="TEST-1",
+            attachment_id="1",
+            file_name="file.txt",
+            save_directory=str(save_directory),
+            attachments_base_dir=base_dir,
+        )
+
+        with pytest.raises(ValueError, match="Attachment file already exists"):
+            await save_issue_attachment_file(
+                replacement,
+                issue_id="TEST-1",
+                attachment_id="1",
+                file_name="file.txt",
+                save_directory=str(save_directory),
+                attachments_base_dir=base_dir,
+            )
+
+        local_path = save_directory.resolve() / "TEST-1-1.txt"
+        assert local_path.read_bytes() == original
+
+    async def test_uses_basename_only(self, tmp_path: Path) -> None:
         data = b"safe content"
         base_dir = tmp_path / "sandbox"
 
-        local_path = save_issue_attachment_file(
+        local_path = await save_issue_attachment_file(
             data,
             issue_id="TEST-1",
             attachment_id="1",
@@ -417,14 +478,14 @@ class TestSaveIssueAttachmentFile:
             ("noextension", ""),
         ],
     )
-    def test_preserves_file_suffix(
+    async def test_preserves_file_suffix(
         self,
         tmp_path: Path,
         file_name: str,
         expected_suffix: str,
     ) -> None:
         base_dir = tmp_path / "sandbox"
-        local_path = save_issue_attachment_file(
+        local_path = await save_issue_attachment_file(
             b"x",
             issue_id="TEST-1",
             attachment_id="42",
@@ -443,7 +504,7 @@ class TestSaveIssueAttachmentFile:
             ("TEST 1", "42"),
         ],
     )
-    def test_rejects_unsafe_identifiers(
+    async def test_rejects_unsafe_identifiers(
         self,
         tmp_path: Path,
         issue_id: str,
@@ -451,7 +512,7 @@ class TestSaveIssueAttachmentFile:
     ) -> None:
         base_dir = tmp_path / "sandbox"
         with pytest.raises(ValueError):
-            save_issue_attachment_file(
+            await save_issue_attachment_file(
                 b"x",
                 issue_id=issue_id,
                 attachment_id=attachment_id,
@@ -460,11 +521,11 @@ class TestSaveIssueAttachmentFile:
                 attachments_base_dir=base_dir,
             )
 
-    def test_allows_path_inside_base(self, tmp_path: Path) -> None:
+    async def test_allows_path_inside_base(self, tmp_path: Path) -> None:
         base_dir = tmp_path / "sandbox"
         save_directory = base_dir / "nested" / "dir"
 
-        local_path = save_issue_attachment_file(
+        local_path = await save_issue_attachment_file(
             b"inside",
             issue_id="TEST-1",
             attachment_id="1",
@@ -491,7 +552,7 @@ class TestSaveIssueAttachmentFile:
             "traversal_after_resolve",
         ],
     )
-    def test_rejects_path_outside_base(
+    async def test_rejects_path_outside_base(
         self,
         tmp_path: Path,
         save_directory: str,
@@ -500,11 +561,33 @@ class TestSaveIssueAttachmentFile:
         base_dir.mkdir(parents=True)
 
         with pytest.raises(ValueError, match="save_directory must be inside"):
-            save_issue_attachment_file(
+            await save_issue_attachment_file(
                 b"x",
                 issue_id="TEST-1",
                 attachment_id="1",
                 file_name="file.txt",
                 save_directory=save_directory,
+                attachments_base_dir=base_dir,
+            )
+
+    async def test_wraps_oserror_from_mkdir(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        base_dir = tmp_path / "sandbox"
+
+        def _raise_oserror(self: Path, *args: object, **kwargs: object) -> None:
+            raise OSError(13, "Permission denied")
+
+        monkeypatch.setattr(Path, "mkdir", _raise_oserror)
+
+        with pytest.raises(ValueError, match="Failed to create save directory"):
+            await save_issue_attachment_file(
+                b"x",
+                issue_id="TEST-1",
+                attachment_id="1",
+                file_name="file.txt",
+                save_directory=str(base_dir),
                 attachments_base_dir=base_dir,
             )

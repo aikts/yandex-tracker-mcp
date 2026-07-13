@@ -262,7 +262,7 @@ def register_issue_attachment_download_tool(
         check_issue_access(settings, issue_id)
 
         safe_file_name = Path(file_name).name
-        local_path = resolve_issue_attachment_local_path(
+        local_path = await resolve_issue_attachment_local_path(
             issue_id=issue_id,
             attachment_id=attachment_id,
             file_name=file_name,
