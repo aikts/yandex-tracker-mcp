@@ -15,6 +15,7 @@ from yandex.cloud.iam.v1.iam_token_service_pb2 import CreateIamTokenRequest
 from yandex.cloud.iam.v1.iam_token_service_pb2_grpc import IamTokenServiceStub
 
 from mcp_tracker.tracker.custom.errors import IssueNotFound
+from mcp_tracker.tracker.custom.safe_identifiers import build_attachment_download_path
 from mcp_tracker.tracker.proto.common import YandexAuth
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
@@ -686,8 +687,9 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         *,
         auth: YandexAuth | None = None,
     ) -> bytes:
+        url = build_attachment_download_path(issue_id, attachment_id, file_name)
         async with self._session.get(
-            f"v3/issues/{issue_id}/attachments/{attachment_id}/{file_name}",
+            url,
             headers=await self._build_headers(auth),
         ) as response:
             if response.status == 404:

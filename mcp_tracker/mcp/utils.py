@@ -1,4 +1,3 @@
-import re
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any, TypeVar
@@ -8,10 +7,10 @@ from mcp.server.fastmcp import Context
 from pydantic import BaseModel
 from starlette.requests import Request
 
+from mcp_tracker.tracker.custom.safe_identifiers import validate_safe_identifier
 from mcp_tracker.tracker.proto.common import YandexAuth
 
 T = TypeVar("T", bound=BaseModel)
-SAFE_IDENTIFIER_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
 def get_yandex_auth(ctx: Context[Any, Any, Request]) -> YandexAuth:
@@ -61,10 +60,8 @@ def save_issue_attachment_file(
     save_directory: str,
 ) -> Path:
     # Keep generated local file names predictable and path-safe.
-    if not SAFE_IDENTIFIER_RE.fullmatch(issue_id):
-        raise ValueError("issue_id contains unsafe characters")
-    if not SAFE_IDENTIFIER_RE.fullmatch(attachment_id):
-        raise ValueError("attachment_id contains unsafe characters")
+    validate_safe_identifier(issue_id, field_name="issue_id")
+    validate_safe_identifier(attachment_id, field_name="attachment_id")
 
     directory = Path(save_directory).expanduser().resolve()
     directory.mkdir(parents=True, exist_ok=True)

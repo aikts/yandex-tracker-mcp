@@ -1,3 +1,5 @@
+from urllib.parse import quote
+
 import pytest
 from aioresponses import aioresponses
 
@@ -83,3 +85,61 @@ class TestIssueDownloadAttachment:
                 )
 
             assert exc_info.value.issue_id == "NOTFOUND-123"
+
+    @pytest.mark.parametrize(
+        ("file_name", "expected_segment"),
+        [
+            ("a/b.png", "b.png"),
+            ("../../v3/issues/X", "X"),
+            ("файл.png", quote("файл.png", safe="")),
+            ("my file.png", quote("my file.png", safe="")),
+        ],
+    )
+    async def test_file_name_path_is_sanitized(
+        self,
+        tracker_client: TrackerClient,
+        file_name: str,
+        expected_segment: str,
+    ) -> None:
+        file_content = b"payload"
+
+        with aioresponses() as m:
+            m.get(
+                (
+                    "https://api.tracker.yandex.net/v3/issues/TEST-123/"
+                    f"attachments/7698/{expected_segment}"
+                ),
+                body=file_content,
+            )
+
+            result = await tracker_client.issue_download_attachment(
+                "TEST-123",
+                "7698",
+                file_name,
+            )
+
+            assert result == file_content
+
+    @pytest.mark.parametrize(
+        ("issue_id", "attachment_id"),
+        [
+            ("../../evil", "1"),
+            ("TEST-123", "../attachments/1"),
+            ("TEST/123", "1"),
+        ],
+    )
+    async def test_invalid_identifiers_raise_before_http(
+        self,
+        tracker_client: TrackerClient,
+        issue_id: str,
+        attachment_id: str,
+    ) -> None:
+        with aioresponses() as m:
+            with pytest.raises(ValueError, match="contains unsafe characters"):
+                await tracker_client.issue_download_attachment(
+                    issue_id,
+                    attachment_id,
+                    "file.txt",
+                )
+
+            assert len(m.requests) == 0
