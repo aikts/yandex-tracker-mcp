@@ -5,7 +5,7 @@ import pytest
 from aioresponses import aioresponses
 
 from mcp_tracker.tracker.custom.client import TrackerClient
-from mcp_tracker.tracker.custom.errors import IssueNotFound
+from mcp_tracker.tracker.custom.errors import AttachmentNotFound, IssueNotFound
 from mcp_tracker.tracker.proto.types.issues import IssueAttachment
 
 _DOWNLOAD_URL = (
@@ -90,7 +90,7 @@ class TestIssueDownloadAttachment:
                 status=404,
             )
 
-            with pytest.raises(IssueNotFound) as exc_info:
+            with pytest.raises(AttachmentNotFound) as exc_info:
                 await tracker_client.issue_download_attachment(
                     "NOTFOUND-123",
                     "1",
@@ -100,6 +100,8 @@ class TestIssueDownloadAttachment:
                 )
 
             assert exc_info.value.issue_id == "NOTFOUND-123"
+            assert exc_info.value.attachment_id == "1"
+            assert exc_info.value.file_name == "file.txt"
             assert not destination.exists()
 
     async def test_rejects_by_content_length(

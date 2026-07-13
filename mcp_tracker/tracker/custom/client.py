@@ -15,7 +15,7 @@ from pydantic import BaseModel, RootModel
 from yandex.cloud.iam.v1.iam_token_service_pb2 import CreateIamTokenRequest
 from yandex.cloud.iam.v1.iam_token_service_pb2_grpc import IamTokenServiceStub
 
-from mcp_tracker.tracker.custom.errors import IssueNotFound
+from mcp_tracker.tracker.custom.errors import AttachmentNotFound, IssueNotFound
 from mcp_tracker.tracker.custom.safe_identifiers import build_attachment_download_path
 from mcp_tracker.tracker.proto.common import YandexAuth
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
@@ -696,7 +696,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
             headers=await self._build_headers(auth),
         ) as response:
             if response.status == 404:
-                raise IssueNotFound(issue_id)
+                raise AttachmentNotFound(issue_id, attachment_id, file_name)
             response.raise_for_status()
             return await self._stream_response_to_path(response, destination, max_bytes)
 
