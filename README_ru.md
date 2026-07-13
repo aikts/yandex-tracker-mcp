@@ -1141,6 +1141,7 @@ TRACKER_LIMIT_QUEUES=PROJ1,PROJ2,DEV      # Ключи очередей чере
 # Скачивание вложений (опционально, по умолчанию выключено)
 TRACKER_ATTACHMENT_DOWNLOAD_ENABLED=true  # По умолчанию: false - Включить tool issue_download_attachment
 TRACKER_ATTACHMENTS_DIR=tmp/tracker-attachments  # По умолчанию: tmp/tracker-attachments - Песочница для сохранённых файлов
+TRACKER_MAX_ATTACHMENT_BYTES=52428800  # По умолчанию: 52428800 (50 MiB) - Максимальный размер скачиваемого вложения
 
 # Конфигурация сервера
 HOST=0.0.0.0                              # По умолчанию: 0.0.0.0

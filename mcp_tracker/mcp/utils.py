@@ -51,8 +51,7 @@ def set_non_needed_fields_null(data: Iterable[T], needed_fields: set[str]) -> No
                 setattr(item, field, None)
 
 
-def save_issue_attachment_file(
-    data: bytes,
+def resolve_issue_attachment_local_path(
     *,
     issue_id: str,
     attachment_id: str,
@@ -73,6 +72,24 @@ def save_issue_attachment_file(
     directory.mkdir(parents=True, exist_ok=True)
 
     safe_name = Path(file_name).name
-    local_path = directory / f"{issue_id}-{attachment_id}{Path(safe_name).suffix}"
+    return directory / f"{issue_id}-{attachment_id}{Path(safe_name).suffix}"
+
+
+def save_issue_attachment_file(
+    data: bytes,
+    *,
+    issue_id: str,
+    attachment_id: str,
+    file_name: str,
+    save_directory: str,
+    attachments_base_dir: str | Path,
+) -> Path:
+    local_path = resolve_issue_attachment_local_path(
+        issue_id=issue_id,
+        attachment_id=attachment_id,
+        file_name=file_name,
+        save_directory=save_directory,
+        attachments_base_dir=attachments_base_dir,
+    )
     local_path.write_bytes(data)
     return local_path

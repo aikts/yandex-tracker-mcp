@@ -70,6 +70,7 @@ def create_test_settings(
     read_only: bool = False,
     tracker_attachments_dir: str = "tmp/tracker-attachments",
     attachment_download_enabled: bool = False,
+    tracker_max_attachment_bytes: int = 52_428_800,
 ) -> Settings:
     """Create Settings for testing with minimal required configuration."""
     return Settings.model_construct(
@@ -80,6 +81,7 @@ def create_test_settings(
         tracker_read_only=read_only,
         tracker_attachment_download_enabled=attachment_download_enabled,
         tracker_attachments_dir=tracker_attachments_dir,
+        tracker_max_attachment_bytes=tracker_max_attachment_bytes,
         tools_cache_enabled=False,
         oauth_enabled=False,
         host="0.0.0.0",

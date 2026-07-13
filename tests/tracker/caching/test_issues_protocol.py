@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -149,18 +150,23 @@ class TestCachingIssuesProtocol:
         assert result == mock_original.issue_get_attachments.return_value
 
     async def test_issue_download_attachment_calls_original(
-        self, caching_issues_protocol: Any, mock_original: AsyncMock
+        self, caching_issues_protocol: Any, mock_original: AsyncMock, tmp_path: Path
     ) -> None:
+        destination = tmp_path / "TEST-1-7698.png"
         result = await caching_issues_protocol.issue_download_attachment(
             "TEST-1",
             "7698",
             "image.png",
+            destination,
+            1024,
         )
 
         mock_original.issue_download_attachment.assert_called_once_with(
             "TEST-1",
             "7698",
             "image.png",
+            destination,
+            1024,
             auth=None,
         )
         assert result == mock_original.issue_download_attachment.return_value

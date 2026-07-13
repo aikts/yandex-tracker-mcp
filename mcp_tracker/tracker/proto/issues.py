@@ -1,4 +1,5 @@
 import datetime
+from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 from .common import YandexAuth
@@ -122,9 +123,11 @@ class IssueProtocol(Protocol):
         issue_id: str,
         attachment_id: str,
         file_name: str,
+        destination: Path,
+        max_bytes: int,
         *,
         auth: YandexAuth | None = None,
-    ) -> bytes: ...
+    ) -> int: ...
     async def issues_count(
         self, query: str, *, auth: YandexAuth | None = None
     ) -> int: ...

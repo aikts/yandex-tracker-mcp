@@ -151,5 +151,6 @@ Optional:
 - `TRACKER_READ_ONLY`: When `true`, disables all write tools (the `*_write.py` modules)
 - `TRACKER_ATTACHMENT_DOWNLOAD_ENABLED`: When `true`, enables `issue_download_attachment` tool (default: `false`)
 - `TRACKER_ATTACHMENTS_DIR`: Sandbox directory for downloaded attachments (default: `tmp/tracker-attachments`)
+- `TRACKER_MAX_ATTACHMENT_BYTES`: Max attachment download size in bytes (default: `52428800` / 50 MiB)
 - `TOOLS_CACHE_ENABLED`: Enable Redis caching
 - `OAUTH_ENABLED`: Enable OAuth provider mode

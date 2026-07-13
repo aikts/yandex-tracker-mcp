@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     tracker_read_only: bool = False
     tracker_attachment_download_enabled: bool = False
     tracker_attachments_dir: str = "tmp/tracker-attachments"
+    tracker_max_attachment_bytes: int = 52_428_800  # 50 MiB
 
     tracker_sa_key_id: str | None = None
     tracker_sa_service_account_id: str | None = None

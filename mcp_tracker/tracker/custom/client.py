@@ -5,11 +5,12 @@ import random
 import time
 from asyncio import CancelledError
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 from typing import Any, Literal
 
 import jwt
 import yandexcloud
-from aiohttp import ClientSession, ClientTimeout
+from aiohttp import ClientResponse, ClientSession, ClientTimeout
 from pydantic import BaseModel, RootModel
 from yandex.cloud.iam.v1.iam_token_service_pb2 import CreateIamTokenRequest
 from yandex.cloud.iam.v1.iam_token_service_pb2_grpc import IamTokenServiceStub
@@ -684,9 +685,11 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         issue_id: str,
         attachment_id: str,
         file_name: str,
+        destination: Path,
+        max_bytes: int,
         *,
         auth: YandexAuth | None = None,
-    ) -> bytes:
+    ) -> int:
         url = build_attachment_download_path(issue_id, attachment_id, file_name)
         async with self._session.get(
             url,
@@ -695,7 +698,38 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
             if response.status == 404:
                 raise IssueNotFound(issue_id)
             response.raise_for_status()
-            return await response.read()
+            return await self._stream_response_to_path(response, destination, max_bytes)
+
+    @staticmethod
+    async def _stream_response_to_path(
+        response: ClientResponse,
+        destination: Path,
+        max_bytes: int,
+        *,
+        chunk_size: int = 64 * 1024,
+    ) -> int:
+        content_length = response.content_length
+        if content_length is not None and content_length > max_bytes:
+            raise ValueError(
+                f"Attachment size {content_length} bytes exceeds limit of "
+                f"{max_bytes} bytes"
+            )
+
+        total = 0
+        try:
+            with destination.open("wb") as file_obj:
+                async for chunk in response.content.iter_chunked(chunk_size):
+                    total += len(chunk)
+                    if total > max_bytes:
+                        raise ValueError(
+                            f"Attachment exceeds limit of {max_bytes} bytes "
+                            f"(received at least {total} bytes)"
+                        )
+                    file_obj.write(chunk)
+        except Exception:
+            destination.unlink(missing_ok=True)
+            raise
+        return total
 
     async def users_list(
         self, per_page: int = 50, page: int = 1, *, auth: YandexAuth | None = None

@@ -7,6 +7,7 @@ from pytest_mock import MockerFixture
 
 from mcp_tracker.mcp.utils import (
     get_yandex_auth,
+    resolve_issue_attachment_local_path,
     save_issue_attachment_file,
     set_non_needed_fields_null,
 )
@@ -356,6 +357,24 @@ class TestSetNonNeededFieldsNull:
         assert item.description is None
 
 
+class TestResolveIssueAttachmentLocalPath:
+    def test_resolves_path_inside_sandbox(self, tmp_path: Path) -> None:
+        base_dir = tmp_path / "sandbox"
+        save_directory = base_dir / "attachments"
+
+        local_path = resolve_issue_attachment_local_path(
+            issue_id="HELPDESK-1054",
+            attachment_id="7699",
+            file_name="image.png",
+            save_directory=str(save_directory),
+            attachments_base_dir=base_dir,
+        )
+
+        assert local_path == save_directory.resolve() / "HELPDESK-1054-7699.png"
+        assert save_directory.resolve().is_dir()
+        assert not local_path.exists()
+
+
 class TestSaveIssueAttachmentFile:
     def test_saves_file_with_issue_and_attachment_id(self, tmp_path: Path) -> None:
         data = b"file content"
@@ -465,7 +484,12 @@ class TestSaveIssueAttachmentFile:
             "~/.config",
             "nested/../../outside",
         ],
-        ids=["parent_relative", "absolute_outside", "tilde_path", "traversal_after_resolve"],
+        ids=[
+            "parent_relative",
+            "absolute_outside",
+            "tilde_path",
+            "traversal_after_resolve",
+        ],
     )
     def test_rejects_path_outside_base(
         self,

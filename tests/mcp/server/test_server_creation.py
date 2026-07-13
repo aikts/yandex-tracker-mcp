@@ -109,9 +109,7 @@ class TestToolRegistration:
     ) -> None:
         result = await client_session_attachment_download_enabled.list_tools()
 
-        tool = next(
-            t for t in result.tools if t.name == "issue_download_attachment"
-        )
+        tool = next(t for t in result.tools if t.name == "issue_download_attachment")
         assert tool.annotations is not None
         assert tool.annotations.readOnlyHint is False
 

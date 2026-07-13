@@ -1144,6 +1144,7 @@ TRACKER_LIMIT_QUEUES=PROJ1,PROJ2,DEV      # Comma-separated queue keys
 # Attachment download (optional, disabled by default)
 TRACKER_ATTACHMENT_DOWNLOAD_ENABLED=true  # Default: false - Enable issue_download_attachment tool
 TRACKER_ATTACHMENTS_DIR=tmp/tracker-attachments  # Default: tmp/tracker-attachments - Sandbox for saved files
+TRACKER_MAX_ATTACHMENT_BYTES=52428800  # Default: 52428800 (50 MiB) - Max attachment download size
 
 # Server Configuration
 HOST=0.0.0.0                              # Default: 0.0.0.0

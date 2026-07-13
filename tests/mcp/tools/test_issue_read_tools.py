@@ -277,7 +277,20 @@ class TestIssueDownloadAttachment:
         tmp_path: Path,
     ) -> None:
         file_content = b"hello attachment"
-        mock_issues_protocol.issue_download_attachment.return_value = file_content
+
+        async def _fake_download(
+            issue_id: str,
+            attachment_id: str,
+            file_name: str,
+            destination: Path,
+            max_bytes: int,
+            *,
+            auth: object | None = None,
+        ) -> int:
+            destination.write_bytes(file_content)
+            return len(file_content)
+
+        mock_issues_protocol.issue_download_attachment.side_effect = _fake_download
         save_directory = tmp_path / "tracker-attachments"
         settings = create_test_settings(
             tracker_attachments_dir=str(tmp_path),
@@ -300,15 +313,25 @@ class TestIssueDownloadAttachment:
             )
 
         assert not result.isError
+        expected_path = save_directory.resolve() / "TEST-123-7698.png"
         mock_issues_protocol.issue_download_attachment.assert_called_once()
+        call_args = mock_issues_protocol.issue_download_attachment.call_args
+        assert call_args.args == (
+            "TEST-123",
+            "7698",
+            "image.png",
+            expected_path,
+            settings.tracker_max_attachment_bytes,
+        )
+        assert "auth" in call_args.kwargs
         content = get_tool_result_content(result)
         assert content == {
-            "local_path": str(save_directory.resolve() / "TEST-123-7698.png"),
+            "local_path": str(expected_path),
             "name": "image.png",
             "mime_type": "image/png",
             "size": len(file_content),
         }
-        assert (save_directory / "TEST-123-7698.png").read_bytes() == file_content
+        assert expected_path.read_bytes() == file_content
 
 
 class TestIssueGetChecklist:

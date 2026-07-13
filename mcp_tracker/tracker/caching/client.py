@@ -1,5 +1,6 @@
 import datetime
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from aiocache import cached
@@ -291,13 +292,17 @@ def make_cached_protocols(
             issue_id: str,
             attachment_id: str,
             file_name: str,
+            destination: Path,
+            max_bytes: int,
             *,
             auth: YandexAuth | None = None,
-        ) -> bytes:
+        ) -> int:
             return await self._original.issue_download_attachment(
                 issue_id,
                 attachment_id,
                 file_name,
+                destination,
+                max_bytes,
                 auth=auth,
             )
 

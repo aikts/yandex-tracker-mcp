@@ -20,7 +20,7 @@ from mcp_tracker.mcp.params import (
 from mcp_tracker.mcp.tools._access import check_issue_access
 from mcp_tracker.mcp.utils import (
     get_yandex_auth,
-    save_issue_attachment_file,
+    resolve_issue_attachment_local_path,
     set_non_needed_fields_null,
 )
 from mcp_tracker.settings import Settings
@@ -262,29 +262,28 @@ def register_issue_attachment_download_tool(
         check_issue_access(settings, issue_id)
 
         safe_file_name = Path(file_name).name
-        data = (
-            await ctx.request_context.lifespan_context.issues.issue_download_attachment(
-                issue_id,
-                attachment_id,
-                safe_file_name,
-                auth=get_yandex_auth(ctx),
-            )
-        )
-
-        local_path = save_issue_attachment_file(
-            data,
+        local_path = resolve_issue_attachment_local_path(
             issue_id=issue_id,
             attachment_id=attachment_id,
             file_name=file_name,
             save_directory=save_directory,
             attachments_base_dir=settings.tracker_attachments_dir,
         )
-        safe_name = Path(file_name).name
-        mime_type, _ = mimetypes.guess_type(safe_name)
+        size = (
+            await ctx.request_context.lifespan_context.issues.issue_download_attachment(
+                issue_id,
+                attachment_id,
+                safe_file_name,
+                local_path,
+                settings.tracker_max_attachment_bytes,
+                auth=get_yandex_auth(ctx),
+            )
+        )
+        mime_type, _ = mimetypes.guess_type(safe_file_name)
 
         return DownloadedIssueAttachment(
             local_path=str(local_path),
-            name=safe_name,
+            name=safe_file_name,
             mime_type=mime_type or "application/octet-stream",
-            size=len(data),
+            size=size,
         )
