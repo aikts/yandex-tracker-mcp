@@ -277,6 +277,12 @@ class TestIssueDownloadAttachment:
         tmp_path: Path,
     ) -> None:
         file_content = b"hello attachment"
+        attachment = IssueAttachment.model_construct(
+            id="7698",
+            name="image.png",
+            mimetype="image/png",
+        )
+        mock_issues_protocol.issue_get_attachments.return_value = [attachment]
 
         async def _fake_download(
             issue_id: str,
@@ -314,6 +320,7 @@ class TestIssueDownloadAttachment:
 
         assert not result.isError
         expected_path = save_directory.resolve() / "TEST-123-7698.png"
+        mock_issues_protocol.issue_get_attachments.assert_called_once()
         mock_issues_protocol.issue_download_attachment.assert_called_once()
         call_args = mock_issues_protocol.issue_download_attachment.call_args
         assert call_args.args == (
@@ -332,6 +339,123 @@ class TestIssueDownloadAttachment:
             "size": len(file_content),
         }
         assert expected_path.read_bytes() == file_content
+
+    async def test_api_mime_type_overrides_extension(
+        self,
+        mock_app_context: AppContext,
+        mock_issues_protocol: AsyncMock,
+        tmp_path: Path,
+    ) -> None:
+        attachment = IssueAttachment.model_construct(
+            id="7698",
+            name="image.png",
+            mimetype="application/pdf",
+        )
+        mock_issues_protocol.issue_get_attachments.return_value = [attachment]
+        mock_issues_protocol.issue_download_attachment.return_value = 4
+
+        save_directory = tmp_path / "tracker-attachments"
+        settings = create_test_settings(
+            tracker_attachments_dir=str(tmp_path),
+            attachment_download_enabled=True,
+        )
+        mcp_server = create_mcp_server(
+            settings=settings,
+            lifespan=make_test_lifespan(mock_app_context),
+        )
+
+        async with safe_client_session(mcp_server) as client_session:
+            result = await client_session.call_tool(
+                "issue_download_attachment",
+                {
+                    "issue_id": "TEST-123",
+                    "attachment_id": "7698",
+                    "file_name": "image.png",
+                    "save_directory": str(save_directory),
+                },
+            )
+
+        assert not result.isError
+        content = get_tool_result_content(result)
+        assert content["mime_type"] == "application/pdf"
+
+    async def test_extensionless_uses_api_mime_type(
+        self,
+        mock_app_context: AppContext,
+        mock_issues_protocol: AsyncMock,
+        tmp_path: Path,
+    ) -> None:
+        attachment = IssueAttachment.model_construct(
+            id="7698",
+            name="export",
+            mimetype="text/csv",
+        )
+        mock_issues_protocol.issue_get_attachments.return_value = [attachment]
+        mock_issues_protocol.issue_download_attachment.return_value = 4
+
+        save_directory = tmp_path / "tracker-attachments"
+        settings = create_test_settings(
+            tracker_attachments_dir=str(tmp_path),
+            attachment_download_enabled=True,
+        )
+        mcp_server = create_mcp_server(
+            settings=settings,
+            lifespan=make_test_lifespan(mock_app_context),
+        )
+
+        async with safe_client_session(mcp_server) as client_session:
+            result = await client_session.call_tool(
+                "issue_download_attachment",
+                {
+                    "issue_id": "TEST-123",
+                    "attachment_id": "7698",
+                    "file_name": "export",
+                    "save_directory": str(save_directory),
+                },
+            )
+
+        assert not result.isError
+        content = get_tool_result_content(result)
+        assert content["mime_type"] == "text/csv"
+
+    async def test_missing_mime_type_returns_none(
+        self,
+        mock_app_context: AppContext,
+        mock_issues_protocol: AsyncMock,
+        tmp_path: Path,
+    ) -> None:
+        attachment = IssueAttachment.model_construct(
+            id="7698",
+            name="image.png",
+            mimetype=None,
+        )
+        mock_issues_protocol.issue_get_attachments.return_value = [attachment]
+        mock_issues_protocol.issue_download_attachment.return_value = 4
+
+        save_directory = tmp_path / "tracker-attachments"
+        settings = create_test_settings(
+            tracker_attachments_dir=str(tmp_path),
+            attachment_download_enabled=True,
+        )
+        mcp_server = create_mcp_server(
+            settings=settings,
+            lifespan=make_test_lifespan(mock_app_context),
+        )
+
+        async with safe_client_session(mcp_server) as client_session:
+            result = await client_session.call_tool(
+                "issue_download_attachment",
+                {
+                    "issue_id": "TEST-123",
+                    "attachment_id": "7698",
+                    "file_name": "image.png",
+                    "save_directory": str(save_directory),
+                },
+            )
+
+        assert not result.isError
+        content = get_tool_result_content(result)
+        assert content["mime_type"] is None
 
 
 class TestIssueGetChecklist:

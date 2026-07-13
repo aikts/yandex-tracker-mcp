@@ -1,6 +1,5 @@
 """Issue read-only MCP tools."""
 
-import mimetypes
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -269,6 +268,16 @@ def register_issue_attachment_download_tool(
             save_directory=save_directory,
             attachments_base_dir=settings.tracker_attachments_dir,
         )
+        auth = get_yandex_auth(ctx)
+        attachments = (
+            await ctx.request_context.lifespan_context.issues.issue_get_attachments(
+                issue_id,
+                auth=auth,
+            )
+        )
+        attachment = next((a for a in attachments if a.id == attachment_id), None)
+        mime_type = attachment.mimetype if attachment else None
+
         size = (
             await ctx.request_context.lifespan_context.issues.issue_download_attachment(
                 issue_id,
@@ -276,14 +285,13 @@ def register_issue_attachment_download_tool(
                 safe_file_name,
                 local_path,
                 settings.tracker_max_attachment_bytes,
-                auth=get_yandex_auth(ctx),
+                auth=auth,
             )
         )
-        mime_type, _ = mimetypes.guess_type(safe_file_name)
 
         return DownloadedIssueAttachment(
             local_path=str(local_path),
             name=safe_file_name,
-            mime_type=mime_type or "application/octet-stream",
+            mime_type=mime_type,
             size=size,
         )

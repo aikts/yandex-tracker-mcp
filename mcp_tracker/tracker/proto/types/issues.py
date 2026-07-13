@@ -140,7 +140,7 @@ class IssueAttachment(CreatedMixin, BaseTrackerEntity):
 class DownloadedIssueAttachment(BaseModel):
     local_path: str
     name: str
-    mime_type: str
+    mime_type: str | None
     size: int
 
 
