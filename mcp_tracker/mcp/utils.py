@@ -58,12 +58,18 @@ def save_issue_attachment_file(
     attachment_id: str,
     file_name: str,
     save_directory: str,
+    attachments_base_dir: str | Path,
 ) -> Path:
     # Keep generated local file names predictable and path-safe.
     validate_safe_identifier(issue_id, field_name="issue_id")
     validate_safe_identifier(attachment_id, field_name="attachment_id")
 
-    directory = Path(save_directory).expanduser().resolve()
+    base_dir = Path(attachments_base_dir).resolve()
+    directory = Path(save_directory).resolve()
+    if not directory.is_relative_to(base_dir):
+        msg = f"save_directory must be inside {base_dir}, got {directory}"
+        raise ValueError(msg)
+
     directory.mkdir(parents=True, exist_ok=True)
 
     safe_name = Path(file_name).name

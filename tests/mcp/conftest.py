@@ -68,6 +68,7 @@ def get_tool_result_content(result: CallToolResult) -> Any:
 def create_test_settings(
     limit_queues: list[str] | None = None,
     read_only: bool = False,
+    tracker_attachments_dir: str = "tmp/tracker-attachments",
 ) -> Settings:
     """Create Settings for testing with minimal required configuration."""
     return Settings.model_construct(
@@ -76,6 +77,7 @@ def create_test_settings(
         tracker_cloud_org_id=None,
         tracker_limit_queues=limit_queues,
         tracker_read_only=read_only,
+        tracker_attachments_dir=tracker_attachments_dir,
         tools_cache_enabled=False,
         oauth_enabled=False,
         host="0.0.0.0",

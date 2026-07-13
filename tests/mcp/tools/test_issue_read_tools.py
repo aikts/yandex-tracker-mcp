@@ -3,6 +3,8 @@ from unittest.mock import AsyncMock
 
 from mcp.client.session import ClientSession
 
+from mcp_tracker.mcp.context import AppContext
+from mcp_tracker.mcp.server import create_mcp_server
 from mcp_tracker.tracker.proto.types.issues import (
     ChecklistItem,
     Issue,
@@ -12,7 +14,12 @@ from mcp_tracker.tracker.proto.types.issues import (
     IssueTransition,
     Worklog,
 )
-from tests.mcp.conftest import get_tool_result_content
+from tests.mcp.conftest import (
+    create_test_settings,
+    get_tool_result_content,
+    make_test_lifespan,
+    safe_client_session,
+)
 
 
 class TestIssueGetUrl:
@@ -265,23 +272,29 @@ class TestIssueGetAttachments:
 class TestIssueDownloadAttachment:
     async def test_saves_file_and_returns_metadata(
         self,
-        client_session: ClientSession,
+        mock_app_context: AppContext,
         mock_issues_protocol: AsyncMock,
         tmp_path: Path,
     ) -> None:
         file_content = b"hello attachment"
         mock_issues_protocol.issue_download_attachment.return_value = file_content
         save_directory = tmp_path / "tracker-attachments"
-
-        result = await client_session.call_tool(
-            "issue_download_attachment",
-            {
-                "issue_id": "TEST-123",
-                "attachment_id": "7698",
-                "file_name": "image.png",
-                "save_directory": str(save_directory),
-            },
+        settings = create_test_settings(tracker_attachments_dir=str(tmp_path))
+        mcp_server = create_mcp_server(
+            settings=settings,
+            lifespan=make_test_lifespan(mock_app_context),
         )
+
+        async with safe_client_session(mcp_server) as client_session:
+            result = await client_session.call_tool(
+                "issue_download_attachment",
+                {
+                    "issue_id": "TEST-123",
+                    "attachment_id": "7698",
+                    "file_name": "image.png",
+                    "save_directory": str(save_directory),
+                },
+            )
 
         assert not result.isError
         mock_issues_protocol.issue_download_attachment.assert_called_once()

@@ -359,7 +359,8 @@ class TestSetNonNeededFieldsNull:
 class TestSaveIssueAttachmentFile:
     def test_saves_file_with_issue_and_attachment_id(self, tmp_path: Path) -> None:
         data = b"file content"
-        save_directory = tmp_path / "attachments"
+        base_dir = tmp_path / "sandbox"
+        save_directory = base_dir / "attachments"
 
         local_path = save_issue_attachment_file(
             data,
@@ -367,6 +368,7 @@ class TestSaveIssueAttachmentFile:
             attachment_id="7699",
             file_name="image.png",
             save_directory=str(save_directory),
+            attachments_base_dir=base_dir,
         )
 
         assert local_path == save_directory.resolve() / "HELPDESK-1054-7699.png"
@@ -374,13 +376,15 @@ class TestSaveIssueAttachmentFile:
 
     def test_uses_basename_only(self, tmp_path: Path) -> None:
         data = b"safe content"
+        base_dir = tmp_path / "sandbox"
 
         local_path = save_issue_attachment_file(
             data,
             issue_id="TEST-1",
             attachment_id="1",
             file_name="../../etc/passwd",
-            save_directory=str(tmp_path),
+            save_directory=str(base_dir),
+            attachments_base_dir=base_dir,
         )
 
         assert local_path.name == "TEST-1-1"
@@ -400,12 +404,14 @@ class TestSaveIssueAttachmentFile:
         file_name: str,
         expected_suffix: str,
     ) -> None:
+        base_dir = tmp_path / "sandbox"
         local_path = save_issue_attachment_file(
             b"x",
             issue_id="TEST-1",
             attachment_id="42",
             file_name=file_name,
-            save_directory=str(tmp_path),
+            save_directory=str(base_dir),
+            attachments_base_dir=base_dir,
         )
 
         assert local_path.suffix == expected_suffix
@@ -424,11 +430,57 @@ class TestSaveIssueAttachmentFile:
         issue_id: str,
         attachment_id: str,
     ) -> None:
+        base_dir = tmp_path / "sandbox"
         with pytest.raises(ValueError):
             save_issue_attachment_file(
                 b"x",
                 issue_id=issue_id,
                 attachment_id=attachment_id,
                 file_name="report.pdf",
-                save_directory=str(tmp_path),
+                save_directory=str(base_dir),
+                attachments_base_dir=base_dir,
+            )
+
+    def test_allows_path_inside_base(self, tmp_path: Path) -> None:
+        base_dir = tmp_path / "sandbox"
+        save_directory = base_dir / "nested" / "dir"
+
+        local_path = save_issue_attachment_file(
+            b"inside",
+            issue_id="TEST-1",
+            attachment_id="1",
+            file_name="file.txt",
+            save_directory=str(save_directory),
+            attachments_base_dir=base_dir,
+        )
+
+        assert local_path.is_relative_to(base_dir.resolve())
+        assert local_path.read_bytes() == b"inside"
+
+    @pytest.mark.parametrize(
+        "save_directory",
+        [
+            "../outside",
+            "/tmp/tracker-attachments-outside",
+            "~/.config",
+            "nested/../../outside",
+        ],
+        ids=["parent_relative", "absolute_outside", "tilde_path", "traversal_after_resolve"],
+    )
+    def test_rejects_path_outside_base(
+        self,
+        tmp_path: Path,
+        save_directory: str,
+    ) -> None:
+        base_dir = tmp_path / "sandbox"
+        base_dir.mkdir(parents=True)
+
+        with pytest.raises(ValueError, match="save_directory must be inside"):
+            save_issue_attachment_file(
+                b"x",
+                issue_id="TEST-1",
+                attachment_id="1",
+                file_name="file.txt",
+                save_directory=save_directory,
+                attachments_base_dir=base_dir,
             )

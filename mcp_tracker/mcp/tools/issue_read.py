@@ -211,10 +211,9 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             Field(
                 description=(
                     "Directory to save the downloaded file. "
-                    "MUST be an absolute path, for example "
-                    "/Users/me/projects/myproject/tmp/tracker-attachments/. "
-                    "Relative paths resolve against the MCP server process cwd, "
-                    "not your project, so pass an absolute path."
+                    "Must be inside TRACKER_ATTACHMENTS_DIR (server sandbox). "
+                    "Use an absolute path within the allowed base directory, "
+                    "for example /path/to/project/tmp/tracker-attachments/."
                 ),
             ),
         ],
@@ -237,6 +236,7 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             attachment_id=attachment_id,
             file_name=file_name,
             save_directory=save_directory,
+            attachments_base_dir=settings.tracker_attachments_dir,
         )
         safe_name = Path(file_name).name
         mime_type, _ = mimetypes.guess_type(safe_name)
