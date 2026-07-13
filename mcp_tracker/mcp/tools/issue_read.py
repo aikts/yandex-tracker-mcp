@@ -236,9 +236,11 @@ def register_issue_attachment_download_tool(
     @mcp.tool(
         title="Download Issue Attachment",
         description=(
-            "Download a Yandex Tracker issue attachment and save it to a local directory. "
+            "Download a Yandex Tracker issue attachment and write it to a file on the MCP server disk "
+            "(sandbox directory TRACKER_ATTACHMENTS_DIR). "
             "Returns the absolute path to the saved file and its metadata."
         ),
+        annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def issue_download_attachment(
         ctx: Context[Any, AppContext],

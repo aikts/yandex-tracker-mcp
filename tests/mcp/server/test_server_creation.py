@@ -103,6 +103,18 @@ class TestToolRegistration:
             f"Tool '{tool_name}' should be registered when download is enabled"
         )
 
+    async def test_attachment_download_tool_has_read_only_hint_false(
+        self,
+        client_session_attachment_download_enabled: ClientSession,
+    ) -> None:
+        result = await client_session_attachment_download_enabled.list_tools()
+
+        tool = next(
+            t for t in result.tools if t.name == "issue_download_attachment"
+        )
+        assert tool.annotations is not None
+        assert tool.annotations.readOnlyHint is False
+
 
 class TestReadOnlyModeToolRegistration:
     """Test tool registration in read-only mode."""
