@@ -333,6 +333,8 @@ class TestIssueDownloadAttachment:
         assert "auth" in call_args.kwargs
         content = get_tool_result_content(result)
         assert content == {
+            "issue_id": "TEST-123",
+            "attachment_id": "7698",
             "local_path": str(expected_path),
             "name": "TEST-123-7698.png",
             "original_name": "image.png",
@@ -501,6 +503,81 @@ class TestIssueDownloadAttachment:
         assert not result.isError
         content = get_tool_result_content(result)
         assert content["mime_type"] is None
+
+    async def test_multiple_attachments_correlate_by_ids_without_path_parsing(
+        self,
+        mock_app_context: AppContext,
+        mock_issues_protocol: AsyncMock,
+        tmp_path: Path,
+    ) -> None:
+        attachments = [
+            IssueAttachment.model_construct(
+                id="100",
+                name="first.pdf",
+                mimetype="application/pdf",
+            ),
+            IssueAttachment.model_construct(
+                id="200",
+                name="second.png",
+                mimetype="image/png",
+            ),
+        ]
+        mock_issues_protocol.issue_get_attachments.return_value = attachments
+
+        async def _fake_download(
+            issue_id: str,
+            attachment_id: str,
+            file_name: str,
+            destination: Path,
+            max_bytes: int,
+            *,
+            auth: object | None = None,
+        ) -> int:
+            destination.write_bytes(f"{attachment_id}:{file_name}".encode())
+            return destination.stat().st_size
+
+        mock_issues_protocol.issue_download_attachment.side_effect = _fake_download
+        save_directory = tmp_path / "tracker-attachments"
+        settings = create_test_settings(
+            tracker_attachments_dir=str(tmp_path),
+            attachment_download_enabled=True,
+        )
+        mcp_server = create_mcp_server(
+            settings=settings,
+            lifespan=make_test_lifespan(mock_app_context),
+        )
+
+        requests = [
+            {
+                "issue_id": "TEST-1",
+                "attachment_id": "100",
+                "file_name": "first.pdf",
+                "save_directory": str(save_directory),
+            },
+            {
+                "issue_id": "TEST-1",
+                "attachment_id": "200",
+                "file_name": "second.png",
+                "save_directory": str(save_directory),
+            },
+        ]
+
+        async with safe_client_session(mcp_server) as client_session:
+            results = [
+                await client_session.call_tool("issue_download_attachment", request)
+                for request in requests
+            ]
+
+        assert all(not result.isError for result in results)
+        downloaded = [get_tool_result_content(result) for result in results]
+
+        for request, content in zip(requests, downloaded, strict=True):
+            assert content["issue_id"] == request["issue_id"]
+            assert content["attachment_id"] == request["attachment_id"]
+            assert content["original_name"] == Path(request["file_name"]).name
+
+        assert {item["attachment_id"] for item in downloaded} == {"100", "200"}
+        assert {item["original_name"] for item in downloaded} == {"first.pdf", "second.png"}
 
 
 class TestIssueGetChecklist:

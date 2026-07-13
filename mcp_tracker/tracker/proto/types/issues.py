@@ -138,6 +138,8 @@ class IssueAttachment(CreatedMixin, BaseTrackerEntity):
 
 
 class DownloadedIssueAttachment(BaseModel):
+    issue_id: str = Field(description="Issue key the attachment belongs to.")
+    attachment_id: str = Field(description="Attachment id from Yandex Tracker.")
     local_path: str = Field(description="Absolute path to the saved file on disk.")
     name: str = Field(
         description=(
