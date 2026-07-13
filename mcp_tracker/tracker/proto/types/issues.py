@@ -138,8 +138,16 @@ class IssueAttachment(CreatedMixin, BaseTrackerEntity):
 
 
 class DownloadedIssueAttachment(BaseModel):
-    local_path: str
-    name: str
+    local_path: str = Field(description="Absolute path to the saved file on disk.")
+    name: str = Field(
+        description=(
+            "Basename of the saved file on disk (Path(local_path).name). "
+            "Format: {issue_id}-{attachment_id}{suffix}."
+        ),
+    )
+    original_name: str = Field(
+        description="Original attachment basename from Yandex Tracker (Path(file_name).name).",
+    )
     mime_type: str | None
     size: int
 

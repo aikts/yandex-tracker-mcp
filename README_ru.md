@@ -690,7 +690,7 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
     - `attachment_id` (строка): ID вложения из `issue_get_attachments`
     - `file_name` (строка): имя файла из `issue_get_attachments`
     - `save_directory` (строка): каталог для сохранения файла (абсолютный или относительный путь, например `tmp/tracker-attachments/`)
-  - Сохраняет файл локально и возвращает метаданные: `local_path`, `name`, `mime_type`, `size`
+  - Сохраняет файл локально как `{issue_id}-{attachment_id}{suffix}` и возвращает метаданные: `local_path`, `name` (имя на диске), `original_name` (имя из Tracker), `mime_type`, `size`
 
 - **`issue_get_checklist`**: Получить элементы чек-листа задачи
   - Параметры: `issue_id` (строка, формат: "QUEUE-123")

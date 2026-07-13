@@ -237,7 +237,10 @@ def register_issue_attachment_download_tool(
         description=(
             "Download a Yandex Tracker issue attachment and write it to a file on the MCP server disk "
             "(sandbox directory TRACKER_ATTACHMENTS_DIR). "
-            "Returns the absolute path to the saved file and its metadata."
+            "The file is saved as {issue_id}-{attachment_id}{suffix}, where suffix is Path(file_name).suffix "
+            "(e.g. archive.tar.gz → .gz). "
+            "Returns local_path (absolute), name (disk basename), original_name (Tracker basename), "
+            "mime_type, and size."
         ),
         annotations=ToolAnnotations(readOnlyHint=False),
     )
@@ -291,7 +294,8 @@ def register_issue_attachment_download_tool(
 
         return DownloadedIssueAttachment(
             local_path=str(local_path),
-            name=safe_file_name,
+            name=local_path.name,
+            original_name=safe_file_name,
             mime_type=mime_type,
             size=size,
         )

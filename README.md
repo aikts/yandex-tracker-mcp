@@ -693,7 +693,7 @@ The server exposes the following tools through the MCP protocol:
     - `attachment_id` (string): Attachment ID from `issue_get_attachments`
     - `file_name` (string): Attachment file name from `issue_get_attachments`
     - `save_directory` (string): Directory to save the file (absolute or relative path, e.g. `tmp/tracker-attachments/`)
-  - Saves the file locally and returns metadata: `local_path`, `name`, `mime_type`, `size`
+  - Saves the file locally as `{issue_id}-{attachment_id}{suffix}` and returns metadata: `local_path`, `name` (disk basename), `original_name` (Tracker basename), `mime_type`, `size`
 
 - **`issue_get_checklist`**: Get checklist items of an issue
   - Parameters: `issue_id` (string, format: "QUEUE-123")

@@ -334,11 +334,56 @@ class TestIssueDownloadAttachment:
         content = get_tool_result_content(result)
         assert content == {
             "local_path": str(expected_path),
-            "name": "image.png",
+            "name": "TEST-123-7698.png",
+            "original_name": "image.png",
             "mime_type": "image/png",
             "size": len(file_content),
         }
+        assert content["name"] == expected_path.name
         assert expected_path.read_bytes() == file_content
+
+    async def test_disk_name_matches_local_path_and_multi_suffix(
+        self,
+        mock_app_context: AppContext,
+        mock_issues_protocol: AsyncMock,
+        tmp_path: Path,
+    ) -> None:
+        attachment = IssueAttachment.model_construct(
+            id="42",
+            name="archive.tar.gz",
+            mimetype="application/gzip",
+        )
+        mock_issues_protocol.issue_get_attachments.return_value = [attachment]
+        mock_issues_protocol.issue_download_attachment.return_value = 3
+
+        save_directory = tmp_path / "tracker-attachments"
+        settings = create_test_settings(
+            tracker_attachments_dir=str(tmp_path),
+            attachment_download_enabled=True,
+        )
+        mcp_server = create_mcp_server(
+            settings=settings,
+            lifespan=make_test_lifespan(mock_app_context),
+        )
+
+        async with safe_client_session(mcp_server) as client_session:
+            result = await client_session.call_tool(
+                "issue_download_attachment",
+                {
+                    "issue_id": "TEST-1",
+                    "attachment_id": "42",
+                    "file_name": "archive.tar.gz",
+                    "save_directory": str(save_directory),
+                },
+            )
+
+        assert not result.isError
+        content = get_tool_result_content(result)
+        expected_path = save_directory.resolve() / "TEST-1-42.gz"
+        assert content["local_path"] == str(expected_path)
+        assert content["name"] == "TEST-1-42.gz"
+        assert content["original_name"] == "archive.tar.gz"
+        assert content["name"] == Path(content["local_path"]).name
 
     async def test_api_mime_type_overrides_extension(
         self,
