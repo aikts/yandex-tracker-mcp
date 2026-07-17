@@ -1,0 +1,68 @@
+## Context
+
+- Current git status: On branch main
+Your branch is up to date with 'origin/main'.
+
+nothing to commit, working tree clean
+- Current git diff (staged and unstaged changes): (Bash completed with no output)
+- Current branch: main
+- Recent commits: 49c5d93 chore: add worktrees to gitignore
+a1ff0ed chore: downgrade aiohttp to 3.13.5
+b9a5e33 refactor: cleanup issue_write elicitation logic and update libs
+7ec6f01 feat: surface comment changes and executed triggers in issue_get_changelog
+65162a5 feat: add issue_get_changelog tool to read issue change history (#32)
+277e36c up to 0.7.1
+8ed8cf0 chore: update dependencies
+547e612 docs: document issue link tools and issue_move elicitation for 0.7.0
+b62191b feat: elicit move options confirmation in issue_move
+08f55d6 feat: add issue_add_link and issue_delete_link tools
+- Linters status: task: [lock] uv lock
+Resolved 83 packages in 4ms
+task: [lock] uv sync --dev
+Resolved 83 packages in 4ms
+Checked 79 packages in 7ms
+task: [format] uv run ruff format .
+127 files left unchanged
+task: [format] uv run ruff check --select I,F401 --fix .
+All checks passed!
+task: [format-check] uv run ruff format --check .
+task: [ty] uv run ty check .
+task: [ruff-check] uv run ruff check .
+task: [mypy] uv run mypy .
+127 files already formatted
+All checks passed!
+All checks passed!
+Success: no issues found in 127 source files
+task: [test] uv run pytest
+============================= test session starts ==============================
+platform darwin -- Python 3.13.9, pytest-9.1.0, pluggy-1.6.0
+rootdir: /Volumes/Workspace/Projects/_/ai/mcp/mcp-yandex-tracker
+configfile: pyproject.toml
+testpaths: tests
+plugins: anyio-4.14.0, mock-3.15.1, cov-7.1.0, xdist-3.8.0, asyncio-1.4.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+created: 12/12 workers
+12 workers [559 items]
+
+........................................................................ [ 12%]
+........................................................................ [ 25%]
+........................................................................ [ 38%]
+........................................................................ [ 51%]
+........................................................................ [ 64%]
+........................................................................ [ 77%]
+........................................................................ [ 90%]
+.......................................................                  [100%]
+============================= 559 passed in 3.42s ==============================
+
+# Task
+Prepare a new release of the project. You may spin parallel tasks if you need as long as changed files don't overlap.
+
+# Instructions
+1. Make sure to fix all linter problems with `task` command.
+2. Make sure that @README.md is up to date with current code structure, specification, architecture, features, environment variables. Make sure to also update the translated version at @README_ru.md. Also if there are new tools added to the project - make sure they are documented in @README.md, @README_ru.md, @manifest.json
+3. If it is a minor change or a patch, update the version in @pyproject.toml accordingly. While major version is still 0.x, any minor changes should be reflected at increase of patch part, and any big changes - in the minor part of the version.
+4. Always make sure that the version in @manifest.json and @server.json are the same as in @pyproject.toml. Also don't forget to update the version `identifier` of oci image in @server.json - it should match the new version.
+5. Make sure @CHANGELOG.md is up to date with the latest changes. Changes may be collected through git history since last git tag or current unstaged changes. Always add a new version to the @CHANGELOG.md, even if it is a patch release. Never edit previous versions.
+6. Call `uv sync --all-extras --all-packages` to update uv.lock file.
+7. Make a git commit reflecting changes currently made. The first line must be a commit changes summary in short sentence (don't use version bump as a commit headline). Then using bullet points highlight main changes made.
+8. Other requirements:
