@@ -1,0 +1,4 @@
+▎ - Заголовок PR issue_attachment_download ≠ реальное имя тула issue_download_attachment (поправить заголовок/squash-commit).
+это пофиг,
+нейминга тула норм
+thumbnail/preview - не надо и упоминать
