@@ -15,6 +15,7 @@ from mcp_tracker.tracker.proto.types.issue_types import IssueType
 from mcp_tracker.tracker.proto.types.priorities import Priority
 from mcp_tracker.tracker.proto.types.resolutions import Resolution
 from mcp_tracker.tracker.proto.types.statuses import Status
+from mcp_tracker.tracker.proto.types.workflows import Workflow
 
 
 def register_field_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
@@ -77,6 +78,20 @@ def register_field_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
         ctx: Context[Any, AppContext],
     ) -> list[Resolution]:
         return await ctx.request_context.lifespan_context.fields.get_resolutions(
+            auth=get_yandex_auth(ctx),
+        )
+
+    @mcp.tool(
+        title="Get Workflows",
+        description="Get all workflows available in the organization. A workflow id is "
+        "needed in a queue's issueTypesConfig when creating a queue with an explicit "
+        "config (queue_create auto-picks one if you omit issue_types_config).",
+        annotations=ToolAnnotations(readOnlyHint=True),
+    )
+    async def get_workflows(
+        ctx: Context[Any, AppContext],
+    ) -> list[Workflow]:
+        return await ctx.request_context.lifespan_context.fields.get_workflows(
             auth=get_yandex_auth(ctx),
         )
 

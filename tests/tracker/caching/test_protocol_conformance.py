@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from mcp_tracker.tracker.caching.client import make_cached_protocols
+from mcp_tracker.tracker.proto.entities import EntitiesProtocol
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
@@ -51,3 +52,11 @@ class TestCachingProtocolConformance:
         instance = cache_collection.users(mock_original)
 
         assert isinstance(instance, UsersProtocol)
+
+    def test_caching_entities_implements_protocol(
+        self, cache_config: dict[str, int], mock_original: EntitiesProtocol
+    ) -> None:
+        cache_collection = make_cached_protocols(cache_config)
+        instance = cache_collection.entities(mock_original)
+
+        assert isinstance(instance, EntitiesProtocol)
