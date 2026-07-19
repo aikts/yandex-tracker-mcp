@@ -60,6 +60,26 @@
       "description": "Get detailed metadata about a specific queue"
     },
     {
+      "name": "components_get_all",
+      "description": "Get all components in the Yandex Tracker organization"
+    },
+    {
+      "name": "component_get",
+      "description": "Get a component from Yandex Tracker by its ID"
+    },
+    {
+      "name": "component_create",
+      "description": "Create a new component in a Yandex Tracker queue"
+    },
+    {
+      "name": "component_update",
+      "description": "Update an existing component in Yandex Tracker"
+    },
+    {
+      "name": "component_delete",
+      "description": "Delete a component from Yandex Tracker"
+    },
+    {
       "name": "users_get_all",
       "description": "Get information about user accounts registered in the organization"
     },

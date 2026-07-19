@@ -1,5 +1,6 @@
 import pytest
 
+from mcp_tracker.tracker.proto.types.components import Component
 from mcp_tracker.tracker.proto.types.fields import FieldSchema, GlobalField, LocalField
 from mcp_tracker.tracker.proto.types.issue_types import IssueType
 from mcp_tracker.tracker.proto.types.issues import (
@@ -22,6 +23,7 @@ from mcp_tracker.tracker.proto.types.refs import (
     IssueReference,
     IssueTypeReference,
     PriorityReference,
+    QueueReference,
     StatusReference,
     UserReference,
 )
@@ -74,6 +76,17 @@ def sample_queues(sample_queue: Queue) -> list[Queue]:
 def sample_queue_tags() -> list[str]:
     """Sample queue tags for testing."""
     return ["bug", "feature", "enhancement", "documentation"]
+
+
+@pytest.fixture
+def sample_queue_component() -> Component:
+    """Sample queue component for testing."""
+    return Component.model_construct(
+        id=111175,
+        name="Test Component",
+        description="A test component",
+        queue=QueueReference(id="12345", key="TEST", display="Test Queue"),
+    )
 
 
 @pytest.fixture
