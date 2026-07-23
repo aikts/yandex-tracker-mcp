@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     tracker_org_id: str | None = None
     tracker_limit_queues: Annotated[list[str] | None, NoDecode] = None
     tracker_read_only: bool = False
+    tracker_read_only_queues: Annotated[list[str] | None, NoDecode] = None
 
     tracker_sa_key_id: str | None = None
     tracker_sa_service_account_id: str | None = None
@@ -81,7 +82,7 @@ class Settings(BaseSettings):
 
         return self
 
-    @field_validator("tracker_limit_queues", mode="before")
+    @field_validator("tracker_limit_queues", "tracker_read_only_queues", mode="before")
     @classmethod
     def decode_numbers(cls, v: str | None) -> list[str] | None:
         if v is None:

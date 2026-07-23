@@ -68,6 +68,7 @@ def get_tool_result_content(result: CallToolResult) -> Any:
 def create_test_settings(
     limit_queues: list[str] | None = None,
     read_only: bool = False,
+    read_only_queues: list[str] | None = None,
 ) -> Settings:
     """Create Settings for testing with minimal required configuration."""
     return Settings.model_construct(
@@ -76,6 +77,7 @@ def create_test_settings(
         tracker_cloud_org_id=None,
         tracker_limit_queues=limit_queues,
         tracker_read_only=read_only,
+        tracker_read_only_queues=read_only_queues,
         tools_cache_enabled=False,
         oauth_enabled=False,
         host="0.0.0.0",
@@ -187,6 +189,38 @@ async def client_session_with_limits(
 ) -> AsyncIterator[ClientSession]:
     """Create connected client session with queue restrictions."""
     async with safe_client_session(mcp_server_with_queue_limits) as session:
+        yield session
+
+
+@pytest.fixture
+def test_settings_with_read_only_queues() -> Settings:
+    """Settings with per-queue read-only access configured.
+
+    Write tools are registered globally, but mutations targeting a queue in
+    ``tracker_read_only_queues`` are rejected. ``READONLY`` is read-only while
+    other queues (e.g. ``TEST``) remain read-write.
+    """
+    return create_test_settings(read_only_queues=["READONLY"])
+
+
+@pytest.fixture
+def mcp_server_with_read_only_queues(
+    test_settings_with_read_only_queues: Settings,
+    mock_app_context: AppContext,
+) -> FastMCP[Any]:
+    """Create test MCP server with per-queue read-only access."""
+    return create_mcp_server(
+        settings=test_settings_with_read_only_queues,
+        lifespan=make_test_lifespan(mock_app_context),
+    )
+
+
+@pytest_asyncio.fixture(loop_scope="function")
+async def client_session_with_read_only_queues(
+    mcp_server_with_read_only_queues: FastMCP[Any],
+) -> AsyncIterator[ClientSession]:
+    """Create connected client session with per-queue read-only access."""
+    async with safe_client_session(mcp_server_with_read_only_queues) as session:
         yield session
 
 
