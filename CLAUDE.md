@@ -143,7 +143,8 @@ Organization (one required):
 - `TRACKER_ORG_ID`: For on-premise
 
 Optional:
-- `TRACKER_LIMIT_QUEUES`: Restrict access to specific queues
+- `TRACKER_LIMIT_QUEUES`: Restrict access to specific queues (allow-list, reads and writes)
 - `TRACKER_READ_ONLY`: When `true`, disables all write tools (the `*_write.py` modules)
+- `TRACKER_READ_ONLY_QUEUES`: Per-queue read-only allow-list. Write tools stay registered, but mutating calls targeting a listed queue are rejected via `check_*_access(..., write=True)` in `_access.py`; reads still work.
 - `TOOLS_CACHE_ENABLED`: Enable Redis caching
 - `OAUTH_ENABLED`: Enable OAuth provider mode

@@ -1140,7 +1140,8 @@ TRACKER_ORG_ID=your_org_id                # For Yandex 360 organizations
 TRACKER_API_BASE_URL=https://api.tracker.yandex.net  # Default: https://api.tracker.yandex.net
 
 # Security - Restrict access to specific queues (optional)
-TRACKER_LIMIT_QUEUES=PROJ1,PROJ2,DEV      # Comma-separated queue keys
+TRACKER_LIMIT_QUEUES=PROJ1,PROJ2,DEV      # Comma-separated queue keys - allow-list of accessible queues
+TRACKER_READ_ONLY_QUEUES=PROJ2            # Comma-separated queue keys - allowed for reads but reject writes (per-queue read-only)
 
 # Server Configuration
 HOST=0.0.0.0                              # Default: 0.0.0.0
@@ -1167,8 +1168,31 @@ OAUTH_USE_SCOPES=true                     # Default: true (set to false for Yand
 OAUTH_CLIENT_ID=your_oauth_client_id      # Required when OAuth enabled
 OAUTH_CLIENT_SECRET=your_oauth_secret     # Required when OAuth enabled
 MCP_SERVER_PUBLIC_URL=https://your.server.com  # Required when OAuth enabled
-TRACKER_READ_ONLY=true                    # Default: false - Limit OAuth to read-only permissions
+TRACKER_READ_ONLY=true                    # Default: false - Disable all write tools for the whole instance
 ```
+
+### Queue Access Control
+
+Access to queues can be scoped at three levels, from coarse to fine-grained:
+
+- **`TRACKER_LIMIT_QUEUES`** — allow-list of queue keys. Queues outside the list
+  are treated as *not found / not allowed* for both reads and writes.
+- **`TRACKER_READ_ONLY`** — when `true`, all write tools are unregistered, so the
+  whole instance is read-only.
+- **`TRACKER_READ_ONLY_QUEUES`** — per-queue read-only allow-list. Write tools stay
+  registered, but any mutating call (create/update/move/comment/worklog/link,
+  queue version creation) targeting a listed queue is rejected, while reads keep
+  working. Queues not listed here remain read-write.
+
+This lets a single instance be **read-write on some queues and read-only on
+others** at the same time — e.g. `TRACKER_LIMIT_QUEUES=DEV,MGMT` together with
+`TRACKER_READ_ONLY_QUEUES=MGMT` gives full access to `DEV` and read-only
+visibility into `MGMT`. This is especially useful for a shared MCP gateway where
+end users reach Tracker only through the server and never hold the raw token
+themselves.
+
+> These checks are in-process guardrails. For clients that hold the raw Tracker
+> token directly, real limits should additionally be enforced on the token itself.
 
 ## Docker Deployment
 

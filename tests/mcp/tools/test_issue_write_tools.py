@@ -902,3 +902,97 @@ class TestIssueMoveToQueue:
 
         assert result.isError
         mock_issues_protocol.issue_move.assert_not_called()
+
+
+class TestPerQueueReadOnlyAccess:
+    """Per-queue read-only enforcement (TRACKER_READ_ONLY_QUEUES).
+
+    The ``client_session_with_read_only_queues`` fixture marks the ``READONLY``
+    queue as read-only while leaving other queues (e.g. ``TEST``) read-write.
+    Write tools remain registered, but mutations targeting a read-only queue
+    are rejected.
+    """
+
+    async def test_create_in_read_only_queue_rejected(
+        self,
+        client_session_with_read_only_queues: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session_with_read_only_queues.call_tool(
+            "issue_create",
+            {"queue": "READONLY", "summary": "Nope"},
+        )
+
+        assert result.isError
+        mock_issues_protocol.issue_create.assert_not_called()
+
+    async def test_create_in_writable_queue_allowed(
+        self,
+        client_session_with_read_only_queues: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_issue: Issue,
+    ) -> None:
+        mock_issues_protocol.issue_create.return_value = sample_issue
+
+        result = await client_session_with_read_only_queues.call_tool(
+            "issue_create",
+            {"queue": "TEST", "summary": "Fine"},
+        )
+
+        assert not result.isError
+        mock_issues_protocol.issue_create.assert_called_once()
+
+    async def test_update_in_read_only_queue_rejected(
+        self,
+        client_session_with_read_only_queues: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session_with_read_only_queues.call_tool(
+            "issue_update",
+            {"issue_id": "READONLY-1", "summary": "Nope"},
+        )
+
+        assert result.isError
+        mock_issues_protocol.issue_update.assert_not_called()
+
+    async def test_update_in_writable_queue_allowed(
+        self,
+        client_session_with_read_only_queues: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_issue: Issue,
+    ) -> None:
+        mock_issues_protocol.issue_update.return_value = sample_issue
+
+        result = await client_session_with_read_only_queues.call_tool(
+            "issue_update",
+            {"issue_id": "TEST-123", "summary": "Fine"},
+        )
+
+        assert not result.isError
+        mock_issues_protocol.issue_update.assert_called_once()
+
+    async def test_add_comment_in_read_only_queue_rejected(
+        self,
+        client_session_with_read_only_queues: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session_with_read_only_queues.call_tool(
+            "issue_add_comment",
+            {"issue_id": "READONLY-1", "text": "Nope"},
+        )
+
+        assert result.isError
+        mock_issues_protocol.issue_add_comment.assert_not_called()
+
+    async def test_move_to_read_only_target_queue_rejected(
+        self,
+        client_session_with_read_only_queues: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session_with_read_only_queues.call_tool(
+            "issue_move",
+            {"issue_id": "TEST-123", "queue": "READONLY"},
+        )
+
+        assert result.isError
+        mock_issues_protocol.issue_move.assert_not_called()
