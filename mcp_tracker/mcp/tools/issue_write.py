@@ -113,7 +113,7 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             ),
         ] = None,
     ) -> list[IssueTransition]:
-        check_issue_access(settings, issue_id)
+        check_issue_access(settings, issue_id, write=True)
 
         return (
             await ctx.request_context.lifespan_context.issues.issue_execute_transition(
@@ -161,7 +161,7 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             Field(description="Optional comment to add when closing the issue."),
         ] = None,
     ) -> list[IssueTransition]:
-        check_issue_access(settings, issue_id)
+        check_issue_access(settings, issue_id, write=True)
 
         return await ctx.request_context.lifespan_context.issues.issue_close(
             issue_id,
@@ -208,7 +208,7 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             ),
         ] = None,
     ) -> Issue:
-        check_queue_access(settings, queue)
+        check_queue_access(settings, queue, write=True)
         return await ctx.request_context.lifespan_context.issues.issue_create(
             queue=queue,
             summary=summary,
@@ -306,7 +306,7 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             ),
         ] = None,
     ) -> Issue:
-        check_issue_access(settings, issue_id)
+        check_issue_access(settings, issue_id, write=True)
 
         return await ctx.request_context.lifespan_context.issues.issue_update(
             issue_id,
@@ -351,7 +351,7 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             ),
         ] = None,
     ) -> Worklog:
-        check_issue_access(settings, issue_id)
+        check_issue_access(settings, issue_id, write=True)
 
         return await ctx.request_context.lifespan_context.issues.issue_add_worklog(
             issue_id,
@@ -391,7 +391,7 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             ),
         ] = None,
     ) -> Worklog:
-        check_issue_access(settings, issue_id)
+        check_issue_access(settings, issue_id, write=True)
 
         return await ctx.request_context.lifespan_context.issues.issue_update_worklog(
             issue_id,
@@ -415,7 +415,7 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             Field(description="Worklog entry ID (integer)."),
         ],
     ) -> None:
-        check_issue_access(settings, issue_id)
+        check_issue_access(settings, issue_id, write=True)
 
         return await ctx.request_context.lifespan_context.issues.issue_delete_worklog(
             issue_id,
@@ -465,7 +465,7 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             ),
         ] = True,
     ) -> IssueComment:
-        check_issue_access(settings, issue_id)
+        check_issue_access(settings, issue_id, write=True)
 
         return await ctx.request_context.lifespan_context.issues.issue_add_comment(
             issue_id,
@@ -515,7 +515,7 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             ),
         ] = None,
     ) -> IssueComment:
-        check_issue_access(settings, issue_id)
+        check_issue_access(settings, issue_id, write=True)
 
         return await ctx.request_context.lifespan_context.issues.issue_update_comment(
             issue_id,
@@ -568,8 +568,8 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             ),
         ] = False,
     ) -> Issue:
-        check_issue_access(settings, issue_id)
-        check_queue_access(settings, queue)
+        check_issue_access(settings, issue_id, write=True)
+        check_queue_access(settings, queue, write=True)
 
         # When the client supports elicitation, confirm the boolean options with
         # the user before performing the (irreversible) move. The form is seeded
@@ -622,7 +622,7 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             Field(description="Comment ID (integer)."),
         ],
     ) -> None:
-        check_issue_access(settings, issue_id)
+        check_issue_access(settings, issue_id, write=True)
 
         return await ctx.request_context.lifespan_context.issues.issue_delete_comment(
             issue_id,
@@ -655,7 +655,7 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             Field(description="ID or key of the issue to link to, e.g. 'TEST-123'."),
         ],
     ) -> IssueLink:
-        check_issue_access(settings, issue_id)
+        check_issue_access(settings, issue_id, write=True)
 
         return await ctx.request_context.lifespan_context.issues.issue_add_link(
             issue_id,
@@ -678,7 +678,7 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             Field(description="Link ID (integer) as returned by issue_get_links."),
         ],
     ) -> None:
-        check_issue_access(settings, issue_id)
+        check_issue_access(settings, issue_id, write=True)
 
         return await ctx.request_context.lifespan_context.issues.issue_delete_link(
             issue_id,

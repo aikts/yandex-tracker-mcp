@@ -41,7 +41,7 @@ def register_queue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             Field(description="Optional version due date in YYYY-MM-DD format"),
         ] = None,
     ) -> QueueVersion:
-        check_queue_access(settings, queue_id)
+        check_queue_access(settings, queue_id, write=True)
         return await ctx.request_context.lifespan_context.queues.queue_create_version(
             queue_id,
             name=name,

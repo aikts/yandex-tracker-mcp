@@ -51,3 +51,38 @@ class TestQueueCreateVersion:
 
         assert result.isError
         mock_queues_protocol.queue_create_version.assert_not_called()
+
+
+class TestPerQueueReadOnlyAccess:
+    """Per-queue read-only enforcement (TRACKER_READ_ONLY_QUEUES)."""
+
+    async def test_create_version_in_read_only_queue_rejected(
+        self,
+        client_session_with_read_only_queues: ClientSession,
+        mock_queues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session_with_read_only_queues.call_tool(
+            "queue_create_version",
+            {"queue_id": "READONLY", "name": "1.0.0"},
+        )
+
+        assert result.isError
+        mock_queues_protocol.queue_create_version.assert_not_called()
+
+    async def test_create_version_in_writable_queue_allowed(
+        self,
+        client_session_with_read_only_queues: ClientSession,
+        mock_queues_protocol: AsyncMock,
+        sample_queue_versions: list[QueueVersion],
+    ) -> None:
+        mock_queues_protocol.queue_create_version.return_value = sample_queue_versions[
+            0
+        ]
+
+        result = await client_session_with_read_only_queues.call_tool(
+            "queue_create_version",
+            {"queue_id": "TEST", "name": "1.0.0"},
+        )
+
+        assert not result.isError
+        mock_queues_protocol.queue_create_version.assert_called_once()
