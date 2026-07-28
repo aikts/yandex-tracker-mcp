@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.3] - 2026-07-28
+
+### Bug Fixes
+- Constrain the `mcp` SDK dependency to `>=1.21,<2` ([fixes #39](https://github.com/aikts/yandex-tracker-mcp/issues/39))
+  - `mcp` 2.0.0 removed `FastMCP` (renamed to `MCPServer`) and dropped the `mcp.server.fastmcp` package, so fresh `uvx`/`pip` installs failed at startup with `ImportError: cannot import name 'FastMCP' from 'mcp.server'`
+  - Docker images were unaffected because they build from the pinned `uv.lock`
+
 ## [0.7.2] - 2026-06-19
 
 ### Features
