@@ -8,6 +8,12 @@ This package organizes MCP tools by category:
 - issue_read.py: Issue read-only tools
 - issue_write.py: Issue write tools (conditional on read-only mode)
 - user.py: User-related tools (read-only)
+- project.py: Project entity tools (read-only)
+- project_write.py: Project entity write tools (conditional on read-only mode)
+- portfolio.py: Portfolio entity tools (read-only)
+- portfolio_write.py: Portfolio entity write tools (conditional on read-only mode)
+- goal.py: Goal entity tools (read-only)
+- goal_write.py: Goal entity write tools (conditional on read-only mode)
 """
 
 from typing import Any
@@ -15,8 +21,14 @@ from typing import Any
 from mcp.server import FastMCP
 
 from mcp_tracker.mcp.tools.field import register_field_tools
+from mcp_tracker.mcp.tools.goal import register_goal_tools
+from mcp_tracker.mcp.tools.goal_write import register_goal_write_tools
 from mcp_tracker.mcp.tools.issue_read import register_issue_read_tools
 from mcp_tracker.mcp.tools.issue_write import register_issue_write_tools
+from mcp_tracker.mcp.tools.portfolio import register_portfolio_tools
+from mcp_tracker.mcp.tools.portfolio_write import register_portfolio_write_tools
+from mcp_tracker.mcp.tools.project import register_project_tools
+from mcp_tracker.mcp.tools.project_write import register_project_write_tools
 from mcp_tracker.mcp.tools.queue import register_queue_tools
 from mcp_tracker.mcp.tools.queue_write import register_queue_write_tools
 from mcp_tracker.mcp.tools.template import register_template_tools
@@ -38,11 +50,17 @@ def register_all_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
     register_template_tools(settings, mcp)
     register_issue_read_tools(settings, mcp)
     register_user_tools(settings, mcp)
+    register_project_tools(settings, mcp)
+    register_portfolio_tools(settings, mcp)
+    register_goal_tools(settings, mcp)
 
     # Only register write tools if not in read-only mode
     if not settings.tracker_read_only:
         register_queue_write_tools(settings, mcp)
         register_issue_write_tools(settings, mcp)
+        register_project_write_tools(settings, mcp)
+        register_portfolio_write_tools(settings, mcp)
+        register_goal_write_tools(settings, mcp)
 
 
 __all__ = ["register_all_tools"]

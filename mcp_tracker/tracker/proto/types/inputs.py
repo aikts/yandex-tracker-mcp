@@ -15,6 +15,11 @@ from typing import Self
 
 from pydantic import BaseModel, Field, model_validator
 
+from mcp_tracker.tracker.proto.types.entities import (
+    GoalLinkRelationship,
+    ProjectPortfolioLinkRelationship,
+)
+
 
 class IssueParentRef(BaseModel):
     """Parent issue reference."""
@@ -120,3 +125,26 @@ class IssueProjectRef(BaseModel):
     secondary: list[int] | None = Field(
         None, description="Secondary project IDs (shortId of additional projects)"
     )
+
+
+class EntityParentEntityInput(BaseModel):
+    """Parent entity reference for project/portfolio/goal create/update."""
+
+    primary: str | None = Field(None, description="Primary parent entity ID")
+    secondary: list[str] | None = Field(None, description="Secondary parent entity IDs")
+
+
+class ProjectPortfolioLinkInput(BaseModel):
+    """Link to another entity for project/portfolio create/update."""
+
+    relationship: ProjectPortfolioLinkRelationship = Field(
+        ..., description="Relationship type"
+    )
+    entity: str = Field(..., description="Linked entity ID")
+
+
+class GoalLinkInput(BaseModel):
+    """Link to another entity for goal create/update."""
+
+    relationship: GoalLinkRelationship = Field(..., description="Relationship type")
+    entity: str = Field(..., description="Linked entity ID")

@@ -13,6 +13,7 @@ from mcp.types import CallToolResult
 from mcp_tracker.mcp.context import AppContext
 from mcp_tracker.mcp.server import Lifespan, create_mcp_server
 from mcp_tracker.settings import Settings
+from mcp_tracker.tracker.proto.entities import EntitiesProtocol
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
@@ -135,12 +136,19 @@ def mock_users_protocol() -> AsyncMock:
 
 
 @pytest.fixture
+def mock_entities_protocol() -> AsyncMock:
+    """Create a mock EntitiesProtocol."""
+    return AsyncMock(spec=EntitiesProtocol)
+
+
+@pytest.fixture
 def mock_app_context(
     mock_queues_protocol: AsyncMock,
     mock_issues_protocol: AsyncMock,
     mock_fields_protocol: AsyncMock,
     mock_templates_protocol: AsyncMock,
     mock_users_protocol: AsyncMock,
+    mock_entities_protocol: AsyncMock,
 ) -> AppContext:
     """Create AppContext with mock protocols."""
     return AppContext(
@@ -149,6 +157,7 @@ def mock_app_context(
         fields=mock_fields_protocol,
         templates=mock_templates_protocol,
         users=mock_users_protocol,
+        entities=mock_entities_protocol,
     )
 
 

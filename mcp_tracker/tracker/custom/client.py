@@ -25,12 +25,25 @@ from mcp_tracker.tracker.custom.errors import (
     TrackerAPIError,
 )
 from mcp_tracker.tracker.proto.common import YandexAuth
+from mcp_tracker.tracker.proto.entities import EntitiesProtocol
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
 from mcp_tracker.tracker.proto.templates import TemplatesProtocol
+from mcp_tracker.tracker.proto.types.entities import (
+    GoalEntity,
+    GoalSearchResult,
+    GoalStatus,
+    PortfolioEntity,
+    PortfolioSearchResult,
+    ProjectEntity,
+    ProjectPortfolioStatus,
+    ProjectSearchResult,
+)
 from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
 from mcp_tracker.tracker.proto.types.inputs import (
+    EntityParentEntityInput,
+    GoalLinkInput,
     IssueComponentRef,
     IssueFollowerRef,
     IssueParentRef,
@@ -38,6 +51,7 @@ from mcp_tracker.tracker.proto.types.inputs import (
     IssueProjectRef,
     IssueSprintRef,
     IssueTypeRef,
+    ProjectPortfolioLinkInput,
 )
 from mcp_tracker.tracker.proto.types.issue_types import IssueType
 from mcp_tracker.tracker.proto.types.issues import (
@@ -87,6 +101,21 @@ ChangelogList = RootModel[list[ChangelogEntry]]
 
 
 logger = logging.getLogger(__name__)
+
+# Base (non-custom) entity fields requested by default when the caller does not
+# specify a `fields` list. Yandex Tracker only includes fields explicitly listed
+# in the `fields` query parameter in the response's `fields` object.
+DEFAULT_ENTITY_FIELDS = [
+    "summary",
+    "description",
+    "entityStatus",
+    "start",
+    "end",
+    "lead",
+    "author",
+    "tags",
+]
+DEFAULT_ENTITY_FIELDS_PARAM = ",".join(DEFAULT_ENTITY_FIELDS)
 
 
 def _ref_body(value: BaseModel | str | int) -> Any:
@@ -206,7 +235,12 @@ class ServiceAccountStore:
 
 
 class TrackerClient(
-    QueuesProtocol, IssueProtocol, GlobalDataProtocol, TemplatesProtocol, UsersProtocol
+    QueuesProtocol,
+    IssueProtocol,
+    GlobalDataProtocol,
+    TemplatesProtocol,
+    UsersProtocol,
+    EntitiesProtocol,
 ):
     def __init__(
         self,
@@ -1173,3 +1207,578 @@ class TrackerClient(
                 raise IssueNotFound(issue_id)
             await self._raise_for_status(response)
             return Issue.model_validate_json(await response.read())
+
+    async def _entity_get(
+        self,
+        entity_type: Literal["project", "portfolio", "goal"],
+        entity_id: str,
+        *,
+        fields: list[str] | None,
+        auth: YandexAuth | None,
+    ) -> bytes:
+        params = {
+            "fields": ",".join(fields)
+            if fields is not None
+            else DEFAULT_ENTITY_FIELDS_PARAM
+        }
+        async with self._session.get(
+            f"v3/entities/{entity_type}/{entity_id}",
+            headers=await self._build_headers(auth),
+            params=params,
+        ) as response:
+            response.raise_for_status()
+            return await response.read()
+
+    async def _entity_search(
+        self,
+        entity_type: Literal["project", "portfolio", "goal"],
+        *,
+        input: str | None,
+        filter: dict[str, str | list[str]] | None,
+        order_by: str | None,
+        order_asc: bool | None,
+        root_only: bool | None,
+        per_page: int,
+        page: int,
+        fields: list[str] | None,
+        auth: YandexAuth | None,
+    ) -> bytes:
+        params: dict[str, Any] = {
+            "perPage": per_page,
+            "page": page,
+            "fields": ",".join(fields)
+            if fields is not None
+            else DEFAULT_ENTITY_FIELDS_PARAM,
+        }
+
+        body: dict[str, Any] = {}
+        if input is not None:
+            body["input"] = input
+        if filter is not None:
+            body["filter"] = filter
+        if order_by is not None:
+            body["orderBy"] = order_by
+        if order_asc is not None:
+            body["orderAsc"] = order_asc
+        if root_only is not None:
+            body["rootOnly"] = root_only
+
+        async with self._session.post(
+            f"v3/entities/{entity_type}/_search",
+            headers=await self._build_headers(auth),
+            json=body,
+            params=params,
+        ) as response:
+            response.raise_for_status()
+            return await response.read()
+
+    async def project_get(
+        self,
+        entity_id: str,
+        *,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> ProjectEntity:
+        return ProjectEntity.model_validate_json(
+            await self._entity_get("project", entity_id, fields=fields, auth=auth)
+        )
+
+    async def project_find(
+        self,
+        *,
+        input: str | None = None,
+        filter: dict[str, str | list[str]] | None = None,
+        order_by: str | None = None,
+        order_asc: bool | None = None,
+        root_only: bool | None = None,
+        per_page: int = 50,
+        page: int = 1,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> ProjectSearchResult:
+        return ProjectSearchResult.model_validate_json(
+            await self._entity_search(
+                "project",
+                input=input,
+                filter=filter,
+                order_by=order_by,
+                order_asc=order_asc,
+                root_only=root_only,
+                per_page=per_page,
+                page=page,
+                fields=fields,
+                auth=auth,
+            )
+        )
+
+    async def portfolio_get(
+        self,
+        entity_id: str,
+        *,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> PortfolioEntity:
+        return PortfolioEntity.model_validate_json(
+            await self._entity_get("portfolio", entity_id, fields=fields, auth=auth)
+        )
+
+    async def portfolio_find(
+        self,
+        *,
+        input: str | None = None,
+        filter: dict[str, str | list[str]] | None = None,
+        order_by: str | None = None,
+        order_asc: bool | None = None,
+        root_only: bool | None = None,
+        per_page: int = 50,
+        page: int = 1,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> PortfolioSearchResult:
+        return PortfolioSearchResult.model_validate_json(
+            await self._entity_search(
+                "portfolio",
+                input=input,
+                filter=filter,
+                order_by=order_by,
+                order_asc=order_asc,
+                root_only=root_only,
+                per_page=per_page,
+                page=page,
+                fields=fields,
+                auth=auth,
+            )
+        )
+
+    async def goal_get(
+        self,
+        entity_id: str,
+        *,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> GoalEntity:
+        return GoalEntity.model_validate_json(
+            await self._entity_get("goal", entity_id, fields=fields, auth=auth)
+        )
+
+    async def goal_find(
+        self,
+        *,
+        input: str | None = None,
+        filter: dict[str, str | list[str]] | None = None,
+        order_by: str | None = None,
+        order_asc: bool | None = None,
+        root_only: bool | None = None,
+        per_page: int = 50,
+        page: int = 1,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> GoalSearchResult:
+        return GoalSearchResult.model_validate_json(
+            await self._entity_search(
+                "goal",
+                input=input,
+                filter=filter,
+                order_by=order_by,
+                order_asc=order_asc,
+                root_only=root_only,
+                per_page=per_page,
+                page=page,
+                fields=fields,
+                auth=auth,
+            )
+        )
+
+    @staticmethod
+    def _build_entity_fields_body(
+        *,
+        summary: str | None,
+        description: str | None,
+        lead: str | None,
+        team_users: list[str] | None,
+        clients: list[str] | None,
+        followers: list[str] | None,
+        start: datetime.date | datetime.datetime | None,
+        end: datetime.date | datetime.datetime | None,
+        tags: list[str] | None,
+        entity_status: str | None,
+        parent_entity: EntityParentEntityInput | None,
+        team_access: bool | None = None,
+    ) -> dict[str, Any]:
+        fields_body: dict[str, Any] = {}
+        if summary is not None:
+            fields_body["summary"] = summary
+        if description is not None:
+            fields_body["description"] = description
+        if lead is not None:
+            fields_body["lead"] = lead
+        if team_users is not None:
+            fields_body["teamUsers"] = team_users
+        if clients is not None:
+            fields_body["clients"] = clients
+        if followers is not None:
+            fields_body["followers"] = followers
+        if start is not None:
+            fields_body["start"] = start.isoformat()
+        if end is not None:
+            fields_body["end"] = end.isoformat()
+        if tags is not None:
+            fields_body["tags"] = tags
+        if entity_status is not None:
+            fields_body["entityStatus"] = entity_status
+        if parent_entity is not None:
+            fields_body["parentEntity"] = parent_entity.model_dump(exclude_none=True)
+        if team_access is not None:
+            fields_body["teamAccess"] = team_access
+        return fields_body
+
+    async def _entity_create(
+        self,
+        entity_type: Literal["project", "portfolio", "goal"],
+        *,
+        fields_body: dict[str, Any],
+        links: list[ProjectPortfolioLinkInput] | list[GoalLinkInput] | None,
+        auth: YandexAuth | None,
+    ) -> bytes:
+        body: dict[str, Any] = {"fields": fields_body}
+        if links is not None:
+            body["links"] = [link.model_dump() for link in links]
+
+        async with self._session.post(
+            f"v3/entities/{entity_type}",
+            headers=await self._build_headers(auth),
+            json=body,
+        ) as response:
+            response.raise_for_status()
+            return await response.read()
+
+    async def _entity_update(
+        self,
+        entity_type: Literal["project", "portfolio", "goal"],
+        entity_id: str,
+        *,
+        fields_body: dict[str, Any],
+        links: list[ProjectPortfolioLinkInput] | list[GoalLinkInput] | None,
+        comment: str | None,
+        version: int | None,
+        auth: YandexAuth | None,
+    ) -> bytes:
+        body: dict[str, Any] = {"fields": fields_body}
+        if links is not None:
+            body["links"] = [link.model_dump() for link in links]
+        if comment is not None:
+            body["comment"] = comment
+
+        params: dict[str, int] = {}
+        if version is not None:
+            params["version"] = version
+
+        async with self._session.patch(
+            f"v3/entities/{entity_type}/{entity_id}",
+            headers=await self._build_headers(auth),
+            json=body,
+            params=params if params else None,
+        ) as response:
+            response.raise_for_status()
+            return await response.read()
+
+    async def _entity_delete(
+        self,
+        entity_type: Literal["project", "portfolio", "goal"],
+        entity_id: str,
+        *,
+        with_board: bool,
+        auth: YandexAuth | None,
+    ) -> None:
+        params = {"withBoard": "true"} if with_board else None
+        async with self._session.delete(
+            f"v3/entities/{entity_type}/{entity_id}",
+            headers=await self._build_headers(auth),
+            params=params,
+        ) as response:
+            response.raise_for_status()
+            return None
+
+    async def project_create(
+        self,
+        *,
+        summary: str,
+        description: str | None = None,
+        lead: str | None = None,
+        team_users: list[str] | None = None,
+        clients: list[str] | None = None,
+        followers: list[str] | None = None,
+        start: datetime.date | datetime.datetime | None = None,
+        end: datetime.date | datetime.datetime | None = None,
+        tags: list[str] | None = None,
+        entity_status: ProjectPortfolioStatus | None = None,
+        parent_entity: EntityParentEntityInput | None = None,
+        team_access: bool | None = None,
+        links: list[ProjectPortfolioLinkInput] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> ProjectEntity:
+        fields_body = self._build_entity_fields_body(
+            summary=summary,
+            description=description,
+            lead=lead,
+            team_users=team_users,
+            clients=clients,
+            followers=followers,
+            start=start,
+            end=end,
+            tags=tags,
+            entity_status=entity_status,
+            parent_entity=parent_entity,
+            team_access=team_access,
+        )
+        return ProjectEntity.model_validate_json(
+            await self._entity_create(
+                "project", fields_body=fields_body, links=links, auth=auth
+            )
+        )
+
+    async def project_update(
+        self,
+        entity_id: str,
+        *,
+        summary: str | None = None,
+        description: str | None = None,
+        lead: str | None = None,
+        team_users: list[str] | None = None,
+        clients: list[str] | None = None,
+        followers: list[str] | None = None,
+        start: datetime.date | datetime.datetime | None = None,
+        end: datetime.date | datetime.datetime | None = None,
+        tags: list[str] | None = None,
+        entity_status: ProjectPortfolioStatus | None = None,
+        parent_entity: EntityParentEntityInput | None = None,
+        team_access: bool | None = None,
+        links: list[ProjectPortfolioLinkInput] | None = None,
+        comment: str | None = None,
+        version: int | None = None,
+        auth: YandexAuth | None = None,
+    ) -> ProjectEntity:
+        fields_body = self._build_entity_fields_body(
+            summary=summary,
+            description=description,
+            lead=lead,
+            team_users=team_users,
+            clients=clients,
+            followers=followers,
+            start=start,
+            end=end,
+            tags=tags,
+            entity_status=entity_status,
+            parent_entity=parent_entity,
+            team_access=team_access,
+        )
+        return ProjectEntity.model_validate_json(
+            await self._entity_update(
+                "project",
+                entity_id,
+                fields_body=fields_body,
+                links=links,
+                comment=comment,
+                version=version,
+                auth=auth,
+            )
+        )
+
+    async def project_delete(
+        self,
+        entity_id: str,
+        *,
+        with_board: bool = False,
+        auth: YandexAuth | None = None,
+    ) -> None:
+        await self._entity_delete(
+            "project", entity_id, with_board=with_board, auth=auth
+        )
+
+    async def portfolio_create(
+        self,
+        *,
+        summary: str,
+        description: str | None = None,
+        lead: str | None = None,
+        team_users: list[str] | None = None,
+        clients: list[str] | None = None,
+        followers: list[str] | None = None,
+        start: datetime.date | datetime.datetime | None = None,
+        end: datetime.date | datetime.datetime | None = None,
+        tags: list[str] | None = None,
+        entity_status: ProjectPortfolioStatus | None = None,
+        parent_entity: EntityParentEntityInput | None = None,
+        team_access: bool | None = None,
+        links: list[ProjectPortfolioLinkInput] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> PortfolioEntity:
+        fields_body = self._build_entity_fields_body(
+            summary=summary,
+            description=description,
+            lead=lead,
+            team_users=team_users,
+            clients=clients,
+            followers=followers,
+            start=start,
+            end=end,
+            tags=tags,
+            entity_status=entity_status,
+            parent_entity=parent_entity,
+            team_access=team_access,
+        )
+        return PortfolioEntity.model_validate_json(
+            await self._entity_create(
+                "portfolio", fields_body=fields_body, links=links, auth=auth
+            )
+        )
+
+    async def portfolio_update(
+        self,
+        entity_id: str,
+        *,
+        summary: str | None = None,
+        description: str | None = None,
+        lead: str | None = None,
+        team_users: list[str] | None = None,
+        clients: list[str] | None = None,
+        followers: list[str] | None = None,
+        start: datetime.date | datetime.datetime | None = None,
+        end: datetime.date | datetime.datetime | None = None,
+        tags: list[str] | None = None,
+        entity_status: ProjectPortfolioStatus | None = None,
+        parent_entity: EntityParentEntityInput | None = None,
+        team_access: bool | None = None,
+        links: list[ProjectPortfolioLinkInput] | None = None,
+        comment: str | None = None,
+        version: int | None = None,
+        auth: YandexAuth | None = None,
+    ) -> PortfolioEntity:
+        fields_body = self._build_entity_fields_body(
+            summary=summary,
+            description=description,
+            lead=lead,
+            team_users=team_users,
+            clients=clients,
+            followers=followers,
+            start=start,
+            end=end,
+            tags=tags,
+            entity_status=entity_status,
+            parent_entity=parent_entity,
+            team_access=team_access,
+        )
+        return PortfolioEntity.model_validate_json(
+            await self._entity_update(
+                "portfolio",
+                entity_id,
+                fields_body=fields_body,
+                links=links,
+                comment=comment,
+                version=version,
+                auth=auth,
+            )
+        )
+
+    async def portfolio_delete(
+        self,
+        entity_id: str,
+        *,
+        with_board: bool = False,
+        auth: YandexAuth | None = None,
+    ) -> None:
+        await self._entity_delete(
+            "portfolio", entity_id, with_board=with_board, auth=auth
+        )
+
+    async def goal_create(
+        self,
+        *,
+        summary: str,
+        description: str | None = None,
+        lead: str | None = None,
+        team_users: list[str] | None = None,
+        clients: list[str] | None = None,
+        followers: list[str] | None = None,
+        end: datetime.date | datetime.datetime | None = None,
+        tags: list[str] | None = None,
+        entity_status: GoalStatus | None = None,
+        parent_entity: EntityParentEntityInput | None = None,
+        team_access: bool | None = None,
+        links: list[GoalLinkInput] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> GoalEntity:
+        fields_body = self._build_entity_fields_body(
+            summary=summary,
+            description=description,
+            lead=lead,
+            team_users=team_users,
+            clients=clients,
+            followers=followers,
+            start=None,
+            end=end,
+            tags=tags,
+            entity_status=entity_status,
+            parent_entity=parent_entity,
+            team_access=team_access,
+        )
+        return GoalEntity.model_validate_json(
+            await self._entity_create(
+                "goal", fields_body=fields_body, links=links, auth=auth
+            )
+        )
+
+    async def goal_update(
+        self,
+        entity_id: str,
+        *,
+        summary: str | None = None,
+        description: str | None = None,
+        lead: str | None = None,
+        team_users: list[str] | None = None,
+        clients: list[str] | None = None,
+        followers: list[str] | None = None,
+        end: datetime.date | datetime.datetime | None = None,
+        tags: list[str] | None = None,
+        entity_status: GoalStatus | None = None,
+        parent_entity: EntityParentEntityInput | None = None,
+        team_access: bool | None = None,
+        links: list[GoalLinkInput] | None = None,
+        comment: str | None = None,
+        version: int | None = None,
+        auth: YandexAuth | None = None,
+    ) -> GoalEntity:
+        fields_body = self._build_entity_fields_body(
+            summary=summary,
+            description=description,
+            lead=lead,
+            team_users=team_users,
+            clients=clients,
+            followers=followers,
+            start=None,
+            end=end,
+            tags=tags,
+            entity_status=entity_status,
+            parent_entity=parent_entity,
+            team_access=team_access,
+        )
+        return GoalEntity.model_validate_json(
+            await self._entity_update(
+                "goal",
+                entity_id,
+                fields_body=fields_body,
+                links=links,
+                comment=comment,
+                version=version,
+                auth=auth,
+            )
+        )
+
+    async def goal_delete(
+        self,
+        entity_id: str,
+        *,
+        with_board: bool = False,
+        auth: YandexAuth | None = None,
+    ) -> None:
+        await self._entity_delete("goal", entity_id, with_board=with_board, auth=auth)

@@ -1,8 +1,10 @@
+import datetime
 from typing import Annotated
 
 from pydantic import Field
 
 from mcp_tracker.tracker.proto.types.inputs import (
+    EntityParentEntityInput,
     IssueComponentRef,
     IssueFollowerRef,
     IssueParentRef,
@@ -168,6 +170,127 @@ UserID = Annotated[
     Field(
         description="User identifier - can be user login (e.g., 'john.doe') or user UID (e.g., '12345')"
     ),
+]
+
+EntityID = Annotated[
+    str,
+    Field(
+        description="Entity identifier (id or shortId) of a Yandex Tracker project, portfolio or goal"
+    ),
+]
+
+EntityFieldsParam = Annotated[
+    list[str] | None,
+    Field(
+        description="Additional entity fields to include in the response, e.g. "
+        "['summary', 'description', 'entityStatus', 'start', 'end', 'lead', 'author', 'tags']. "
+        "Not specifying this returns a reasonable default set of base fields. "
+        "Custom (organization-defined) attributes are not supported by this tool."
+    ),
+]
+
+EntityInputParam = Annotated[
+    str | None,
+    Field(description="Substring to search for in the entity name (summary)"),
+]
+
+EntityFilterParam = Annotated[
+    dict[str, str | list[str]] | None,
+    Field(
+        description="Field criteria to filter entities by, e.g. {'entityStatus': 'in_progress'}"
+    ),
+]
+
+EntityOrderByParam = Annotated[
+    str | None,
+    Field(description="Field to sort results by"),
+]
+
+EntityOrderAscParam = Annotated[
+    bool | None,
+    Field(description="Sort order: True for ascending, False for descending"),
+]
+
+EntityRootOnlyParam = Annotated[
+    bool | None,
+    Field(
+        description="When True, only return entities that are not nested under a parent entity"
+    ),
+]
+
+EntitySummaryParam = Annotated[
+    str | None,
+    Field(description="Entity name/title"),
+]
+
+EntityDescriptionParam = Annotated[
+    str | None,
+    Field(description="Entity description"),
+]
+
+EntityLeadParam = Annotated[
+    str | None,
+    Field(description="User ID or login of the entity lead"),
+]
+
+EntityTeamUsersParam = Annotated[
+    list[str] | None,
+    Field(description="User IDs or logins of team members"),
+]
+
+EntityClientsParam = Annotated[
+    list[str] | None,
+    Field(description="User IDs or logins of customers"),
+]
+
+EntityFollowersParam = Annotated[
+    list[str] | None,
+    Field(description="User IDs or logins of followers"),
+]
+
+EntityStartParam = Annotated[
+    datetime.date | datetime.datetime | None,
+    Field(description="Start date or date/time"),
+]
+
+EntityEndParam = Annotated[
+    datetime.date | datetime.datetime | None,
+    Field(description="Deadline date or date/time"),
+]
+
+EntityTagsParam = Annotated[
+    list[str] | None,
+    Field(description="Tags"),
+]
+
+EntityParentEntityParam = Annotated[
+    EntityParentEntityInput | None,
+    Field(
+        description="Parent entity reference (primary id and optional secondary ids)"
+    ),
+]
+
+EntityCommentParam = Annotated[
+    str | None,
+    Field(description="Optional comment describing the update"),
+]
+
+EntityVersionParam = Annotated[
+    int | None,
+    Field(
+        description="Expected current version of the entity, for optimistic concurrency control. "
+        "If provided and stale, the update is rejected."
+    ),
+]
+
+EntityWithBoardParam = Annotated[
+    bool,
+    Field(description="Whether to also delete the board associated with the entity"),
+]
+
+EntityTeamAccessParam = Annotated[
+    bool | None,
+    Field(description="Whether access is limited to entity participants"),
 ]
 
 

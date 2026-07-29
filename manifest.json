@@ -60,6 +60,66 @@
       "description": "Get detailed metadata about a specific queue"
     },
     {
+      "name": "project_get",
+      "description": "Get a project by its id or shortId"
+    },
+    {
+      "name": "project_find",
+      "description": "Search projects by name substring and/or field filters"
+    },
+    {
+      "name": "portfolio_get",
+      "description": "Get a portfolio by its id or shortId"
+    },
+    {
+      "name": "portfolio_find",
+      "description": "Search portfolios by name substring and/or field filters"
+    },
+    {
+      "name": "goal_get",
+      "description": "Get a goal by its id or shortId"
+    },
+    {
+      "name": "goal_find",
+      "description": "Search goals by name substring and/or field filters"
+    },
+    {
+      "name": "project_create",
+      "description": "Create a new project"
+    },
+    {
+      "name": "project_update",
+      "description": "Update fields of an existing project"
+    },
+    {
+      "name": "project_delete",
+      "description": "Delete a project"
+    },
+    {
+      "name": "portfolio_create",
+      "description": "Create a new portfolio"
+    },
+    {
+      "name": "portfolio_update",
+      "description": "Update fields of an existing portfolio"
+    },
+    {
+      "name": "portfolio_delete",
+      "description": "Delete a portfolio"
+    },
+    {
+      "name": "goal_create",
+      "description": "Create a new goal"
+    },
+    {
+      "name": "goal_update",
+      "description": "Update fields of an existing goal"
+    },
+    {
+      "name": "goal_delete",
+      "description": "Delete a goal"
+    },
+    {
       "name": "users_get_all",
       "description": "Get information about user accounts registered in the organization"
     },
