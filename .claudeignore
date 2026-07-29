@@ -1,0 +1,40 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache
+
+# Packaging / build artifacts
+build/
+dist/
+*.egg-info/
+mcp_tracker.build/
+mcp_tracker.dist/
+*.mcpb
+
+# Coverage
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# Environments and secrets
+.env
+.env.*
+.venv/
+venv/
+.mcpregistry_github_token
+.mcpregistry_registry_token
+
+# Local/scratch
+/local
+.serena
+.claude/worktrees/
+
+# OS / editor
+.DS_Store
+.idea
+.vscode
