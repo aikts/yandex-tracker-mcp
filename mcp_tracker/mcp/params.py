@@ -106,6 +106,7 @@ Use these tools to:
 - View issue details, comments, attachments, and worklogs
 - Get information about users, statuses, and issue types
 - Query issues using Yandex Query Language (YQL)
+- Create and delete entities — projects, portfolios and goals (group issues across queues)
 
 In russian Yandex Tracker is called "Яндекс Трекер", "Трекер".
 Queues may be called "Очереди".

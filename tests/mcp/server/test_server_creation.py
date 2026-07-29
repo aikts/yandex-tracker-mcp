@@ -9,12 +9,13 @@ READ_ONLY_TOOL_NAMES = [
     "queue_get_versions",
     "queue_get_fields",
     "queue_get_metadata",
-    # Field tools (6)
+    # Field tools (7)
     "get_global_fields",
     "get_statuses",
     "get_issue_types",
     "get_priorities",
     "get_resolutions",
+    "get_workflows",
     "issue_get_url",
     # Issue read tools (10)
     "issue_get",
@@ -27,16 +28,22 @@ READ_ONLY_TOOL_NAMES = [
     "issue_get_checklist",
     "issue_get_transitions",
     "issue_get_changelog",
+    "issue_delete",
     # User tools (4)
     "users_get_all",
     "users_search",
     "user_get",
     "user_get_current",
+    # Entity read tools (2)
+    "entity_get",
+    "entities_find",
 ]
 
 # Write tool names - only registered when not in read-only mode
 WRITE_TOOL_NAMES = [
     "queue_create_version",
+    "queue_create",
+    "queue_delete",
     "issue_execute_transition",
     "issue_close",
     "issue_create",
@@ -50,6 +57,10 @@ WRITE_TOOL_NAMES = [
     "issue_add_link",
     "issue_delete_link",
     "issue_move",
+    # Entity write tools (3)
+    "entity_create",
+    "entity_update",
+    "entity_delete",
 ]
 
 # All tool names that should be registered in normal mode

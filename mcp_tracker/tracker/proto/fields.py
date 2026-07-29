@@ -6,6 +6,7 @@ from .types.issue_types import IssueType
 from .types.priorities import Priority
 from .types.resolutions import Resolution
 from .types.statuses import Status
+from .types.workflows import Workflow
 
 
 @runtime_checkable
@@ -23,6 +24,9 @@ class GlobalDataProtocol(Protocol):
     async def get_resolutions(
         self, *, auth: YandexAuth | None = None
     ) -> list[Resolution]: ...
+    async def get_workflows(
+        self, *, auth: YandexAuth | None = None
+    ) -> list[Workflow]: ...
 
 
 class GlobalDataProtocolWrap(GlobalDataProtocol):

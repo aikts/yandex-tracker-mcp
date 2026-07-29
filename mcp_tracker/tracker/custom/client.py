@@ -17,9 +17,15 @@ from yarl import URL
 
 from mcp_tracker.tracker.custom.errors import IssueNotFound
 from mcp_tracker.tracker.proto.common import YandexAuth
+from mcp_tracker.tracker.proto.entities import EntitiesProtocol
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
+from mcp_tracker.tracker.proto.types.entities import (
+    Entity,
+    EntitySearchResult,
+    EntityType,
+)
 from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
 from mcp_tracker.tracker.proto.types.inputs import (
     IssueUpdateFollower,
@@ -51,6 +57,7 @@ from mcp_tracker.tracker.proto.types.queues import (
 from mcp_tracker.tracker.proto.types.resolutions import Resolution
 from mcp_tracker.tracker.proto.types.statuses import Status
 from mcp_tracker.tracker.proto.types.users import User
+from mcp_tracker.tracker.proto.types.workflows import Workflow
 from mcp_tracker.tracker.proto.users import UsersProtocol
 
 QueueList = RootModel[list[Queue]]
@@ -69,6 +76,7 @@ IssueTypeList = RootModel[list[IssueType]]
 PriorityList = RootModel[list[Priority]]
 ResolutionList = RootModel[list[Resolution]]
 UserList = RootModel[list[User]]
+WorkflowList = RootModel[list[Workflow]]
 IssueTransitionList = RootModel[list[IssueTransition]]
 ChangelogList = RootModel[list[ChangelogEntry]]
 
@@ -180,7 +188,13 @@ class ServiceAccountStore:
         return IAMTokenInfo(token=iam_token.iam_token)
 
 
-class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProtocol):
+class TrackerClient(
+    QueuesProtocol,
+    IssueProtocol,
+    GlobalDataProtocol,
+    UsersProtocol,
+    EntitiesProtocol,
+):
     def __init__(
         self,
         *,
@@ -324,6 +338,82 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
             response.raise_for_status()
             return QueueVersion.model_validate_json(await response.read())
 
+    async def queue_create(
+        self,
+        *,
+        key: str,
+        name: str,
+        lead: str,
+        default_type: str = "task",
+        default_priority: str = "normal",
+        issue_types_config: list[dict[str, Any]] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> Queue:
+        """Создать очередь Трекера.
+
+        Args:
+            key: Ключ очереди (латиница в верхнем регистре).
+            name: Название очереди.
+            lead: Логин или id владельца очереди.
+            default_type: Тип задач по умолчанию (ключ или id), напр. "task".
+            default_priority: Приоритет по умолчанию (ключ или id), напр. "normal".
+            issue_types_config: Настройки типов задач —
+                [{"issueType": "task", "workflow": "<id>", "resolutions": [...]}].
+                workflow обязателен и специфичен для организации.
+            auth: Опциональная auth-структура (OAuth/Org) поверх конфигурации клиента.
+        """
+        if issue_types_config is None:
+            # A queue requires an issueTypesConfig with an org-specific workflow id,
+            # which an agent can't easily discover — auto-pick the first workflow so
+            # that key+name+lead is enough to create a (e.g. throwaway) queue.
+            workflows = await self.get_workflows(auth=auth)
+            if not workflows:
+                raise ValueError(
+                    "No workflows available to auto-build issueTypesConfig; "
+                    "pass issue_types_config explicitly."
+                )
+            issue_types_config = [
+                {
+                    "issueType": default_type,
+                    "workflow": workflows[0].id,
+                    "resolutions": [],
+                }
+            ]
+
+        body: dict[str, Any] = {
+            "key": key,
+            "name": name,
+            "lead": lead,
+            "defaultType": default_type,
+            "defaultPriority": default_priority,
+            "issueTypesConfig": issue_types_config,
+        }
+
+        async with self._session.post(
+            "v3/queues/",
+            headers=await self._build_headers(auth),
+            json=body,
+        ) as response:
+            response.raise_for_status()
+            return Queue.model_validate_json(await response.read())
+
+    async def queue_delete(
+        self, queue_id: str, *, auth: YandexAuth | None = None
+    ) -> None:
+        """Удалить очередь Трекера вместе со всеми её задачами.
+
+        Удаление отложенное: очередь помечается deleted и вычищается позже
+        (восстановление — через API restore). Задачи уходят вместе с очередью —
+        это единственный способ удалить задачи, так как отдельную задачу Трекер
+        удалять не умеет (DELETE /issues → 405).
+        """
+        async with self._session.delete(
+            f"v3/queues/{queue_id}",
+            headers=await self._build_headers(auth),
+        ) as response:
+            response.raise_for_status()
+            return None
+
     async def queues_get_fields(
         self, queue_id: str, *, auth: YandexAuth | None = None
     ) -> list[GlobalField]:
@@ -392,6 +482,13 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         ) as response:
             response.raise_for_status()
             return ResolutionList.model_validate_json(await response.read()).root
+
+    async def get_workflows(self, *, auth: YandexAuth | None = None) -> list[Workflow]:
+        async with self._session.get(
+            "v3/workflows", headers=await self._build_headers(auth)
+        ) as response:
+            response.raise_for_status()
+            return WorkflowList.model_validate_json(await response.read()).root
 
     async def issue_get(
         self, issue_id: str, *, auth: YandexAuth | None = None
@@ -1010,3 +1107,192 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
                 raise IssueNotFound(issue_id)
             response.raise_for_status()
             return Issue.model_validate_json(await response.read())
+
+    async def entity_get(
+        self,
+        entity_type: EntityType,
+        entity_id: str,
+        *,
+        fields: str | None = None,
+        expand_attachments: bool = False,
+        auth: YandexAuth | None = None,
+    ) -> Entity:
+        """Получить сущность Трекера (проект, портфель или цель) по id или shortId.
+
+        Args:
+            entity_type: Тип сущности: "project", "portfolio" или "goal".
+            entity_id: Идентификатор сущности (длинный id или shortId).
+            fields: Доп. поля в ответе через запятую (например, "summary,description").
+            expand_attachments: Включить вложения в ответ.
+            auth: Опциональная auth-структура (OAuth/Org) поверх конфигурации клиента.
+        """
+        params: dict[str, str] = {}
+        if fields:
+            params["fields"] = fields
+        if expand_attachments:
+            params["expand"] = "attachments"
+
+        async with self._session.get(
+            f"v3/entities/{entity_type}/{entity_id}",
+            headers=await self._build_headers(auth),
+            params=params or None,
+        ) as response:
+            response.raise_for_status()
+            return Entity.model_validate_json(await response.read())
+
+    async def entities_find(
+        self,
+        entity_type: EntityType,
+        *,
+        input: str | None = None,
+        filter: dict[str, Any] | None = None,
+        order_by: str | None = None,
+        order_asc: bool | None = None,
+        root_only: bool | None = None,
+        fields: str | None = None,
+        per_page: int = 50,
+        page: int = 1,
+        auth: YandexAuth | None = None,
+    ) -> list[Entity]:
+        """Найти сущности заданного типа (POST /v3/entities/<type>/_search).
+
+        Args:
+            entity_type: Тип сущности: "project", "portfolio" или "goal".
+            input: Подстрока в названии сущности.
+            filter: Параметры фильтрации (ключ поля -> значение).
+            order_by: Ключ поля для сортировки.
+            order_asc: Направление сортировки (по возрастанию, если True).
+            root_only: Только не вложенные сущности.
+            fields: Доп. поля в ответе через запятую.
+            per_page: Число элементов на странице (по умолчанию 50).
+            page: Номер страницы (по умолчанию 1).
+            auth: Опциональная auth-структура (OAuth/Org) поверх конфигурации клиента.
+        """
+        params: dict[str, Any] = {"perPage": per_page, "page": page}
+        if fields:
+            params["fields"] = fields
+
+        body: dict[str, Any] = {}
+        if input is not None:
+            body["input"] = input
+        if filter is not None:
+            body["filter"] = filter
+        if order_by is not None:
+            body["orderBy"] = order_by
+        if order_asc is not None:
+            body["orderAsc"] = order_asc
+        if root_only is not None:
+            body["rootOnly"] = root_only
+
+        async with self._session.post(
+            f"v3/entities/{entity_type}/_search",
+            headers=await self._build_headers(auth),
+            json=body,
+            params=params,
+        ) as response:
+            response.raise_for_status()
+            return EntitySearchResult.model_validate_json(await response.read()).values
+
+    async def entity_create(
+        self,
+        entity_type: EntityType,
+        *,
+        summary: str,
+        fields: dict[str, Any] | None = None,
+        links: list[dict[str, Any]] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> Entity:
+        """Создать сущность Трекера — проект, портфель или цель.
+
+        Args:
+            entity_type: Тип сущности: "project", "portfolio" или "goal".
+            summary: Название сущности (обязательное поле).
+            fields: Дополнительные поля сущности (например, lead, description,
+                start, end). Объединяются с summary в объект ``fields`` запроса.
+                Связь с портфелем задаётся полем ``parentEntity``:
+                {"parentEntity": {"primary": "<portfolioId>"}}.
+            links: Связи с другими сущностями, например с целью:
+                [{"relationship": "works towards", "entity": "<goalId>"}].
+            auth: Опциональная auth-структура (OAuth/Org) поверх конфигурации клиента.
+        """
+        entity_fields: dict[str, Any] = {"summary": summary}
+        if fields:
+            for key, value in fields.items():
+                if key not in entity_fields:
+                    entity_fields[key] = value
+
+        body: dict[str, Any] = {"fields": entity_fields}
+        if links is not None:
+            body["links"] = links
+
+        async with self._session.post(
+            f"v3/entities/{entity_type}",
+            headers=await self._build_headers(auth),
+            json=body,
+        ) as response:
+            response.raise_for_status()
+            return Entity.model_validate_json(await response.read())
+
+    async def entity_update(
+        self,
+        entity_type: EntityType,
+        entity_id: str,
+        *,
+        fields: dict[str, Any] | None = None,
+        comment: str | None = None,
+        links: list[dict[str, Any]] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> Entity:
+        """Изменить сущность Трекера (проект, портфель или цель).
+
+        Args:
+            entity_type: Тип сущности: "project", "portfolio" или "goal".
+            entity_id: Идентификатор сущности (длинный id или shortId).
+            fields: Поля для изменения. Связь проекта/портфеля с портфелем —
+                через ``parentEntity``: {"parentEntity": {"primary": "<portfolioId>"}}
+                (``primary`` — основной портфель; ``secondary`` — список доп. портфелей).
+            comment: Комментарий к изменению.
+            links: Связи с другими сущностями (например, с целью):
+                [{"relationship": "works towards", "entity": "<goalId>"}].
+            auth: Опциональная auth-структура (OAuth/Org) поверх конфигурации клиента.
+        """
+        body: dict[str, Any] = {}
+        if fields is not None:
+            body["fields"] = fields
+        if comment is not None:
+            body["comment"] = comment
+        if links is not None:
+            body["links"] = links
+
+        async with self._session.patch(
+            f"v3/entities/{entity_type}/{entity_id}",
+            headers=await self._build_headers(auth),
+            json=body,
+        ) as response:
+            response.raise_for_status()
+            return Entity.model_validate_json(await response.read())
+
+    async def entity_delete(
+        self,
+        entity_type: EntityType,
+        entity_id: str,
+        *,
+        with_board: bool = False,
+        auth: YandexAuth | None = None,
+    ) -> None:
+        """Удалить сущность Трекера (проект, портфель или цель).
+
+        Args:
+            entity_type: Тип сущности: "project", "portfolio" или "goal".
+            entity_id: Идентификатор сущности (длинный id, не shortId).
+            with_board: Удалить также доску, связанную с сущностью.
+            auth: Опциональная auth-структура (OAuth/Org) поверх конфигурации клиента.
+        """
+        params = {"withBoard": "true"} if with_board else None
+        async with self._session.delete(
+            f"v3/entities/{entity_type}/{entity_id}",
+            headers=await self._build_headers(auth),
+            params=params,
+        ) as response:
+            response.raise_for_status()
+            return None
