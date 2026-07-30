@@ -1,8 +1,9 @@
 import datetime
-from typing import Annotated
+from typing import Annotated, get_args
 
 from pydantic import Field
 
+from mcp_tracker.tracker.proto.types.entities import GoalStatus, ProjectPortfolioStatus
 from mcp_tracker.tracker.proto.types.inputs import (
     EntityParentEntityInput,
     IssueComponentRef,
@@ -179,26 +180,49 @@ EntityID = Annotated[
     ),
 ]
 
-EntityFieldsParam = Annotated[
-    list[str] | None,
-    Field(
-        description="Additional entity fields to include in the response, e.g. "
-        "['summary', 'description', 'entityStatus', 'start', 'end', 'lead', 'author', 'tags']. "
-        "Not specifying this returns a reasonable default set of base fields. "
+
+def entity_fields_description(default_fields: list[str]) -> str:
+    """Shared wording for per-entity `fields` params (project/portfolio/goal).
+
+    Kept as a function (not a constant) so each entity tool can plug in its
+    own default field list while using identical phrasing everywhere.
+    """
+    return (
+        "Entity fields to include in the response, selected from the allowed enum values. "
+        "In order to not pollute the context window - select only the fields you actually need. "
+        f"Not specifying this returns a reasonable default subset: {default_fields}. "
         "Custom (organization-defined) attributes are not supported by this tool."
-    ),
-]
+    )
+
 
 EntityInputParam = Annotated[
     str | None,
     Field(description="Substring to search for in the entity name (summary)"),
 ]
 
+
+def entity_filter_description(status_values: tuple[str, ...]) -> str:
+    """Shared wording for per-entity `filter` params (project/portfolio/goal).
+
+    Takes the entity type's own `entityStatus` literal values so the description
+    can enumerate the actually-valid values instead of a generic example.
+    """
+    return (
+        "Exact-match field criteria to filter entities by, e.g. {'entityStatus': 'in_progress'}. "
+        f"Valid 'entityStatus' values for this entity type: {', '.join(status_values)}. "
+        "Other common keys: 'tags', 'lead', 'author'. A value may be a single string or a list of "
+        "strings (matches any of them). Omitting this returns all entities, unfiltered."
+    )
+
+
 EntityFilterParam = Annotated[
     dict[str, str | list[str]] | None,
-    Field(
-        description="Field criteria to filter entities by, e.g. {'entityStatus': 'in_progress'}"
-    ),
+    Field(description=entity_filter_description(get_args(ProjectPortfolioStatus))),
+]
+
+GoalFilterParam = Annotated[
+    dict[str, str | list[str]] | None,
+    Field(description=entity_filter_description(get_args(GoalStatus))),
 ]
 
 EntityOrderByParam = Annotated[
@@ -221,6 +245,27 @@ EntityRootOnlyParam = Annotated[
 EntitySummaryParam = Annotated[
     str | None,
     Field(description="Entity name/title"),
+]
+
+EntitySummaryRequiredParam = Annotated[
+    str,
+    Field(description="Entity name/title (required)"),
+]
+
+ProjectPortfolioStatusParam = Annotated[
+    ProjectPortfolioStatus | None,
+    Field(
+        description=f"Entity status. One of: {', '.join(get_args(ProjectPortfolioStatus))}. "
+        "Omitting this leaves the status unset/unchanged."
+    ),
+]
+
+GoalStatusParam = Annotated[
+    GoalStatus | None,
+    Field(
+        description=f"Goal status. One of: {', '.join(get_args(GoalStatus))}. "
+        "Omitting this leaves the status unset/unchanged."
+    ),
 ]
 
 EntityDescriptionParam = Annotated[

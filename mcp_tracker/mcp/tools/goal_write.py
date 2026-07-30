@@ -17,15 +17,22 @@ from mcp_tracker.mcp.params import (
     EntityLeadParam,
     EntityParentEntityParam,
     EntitySummaryParam,
+    EntitySummaryRequiredParam,
     EntityTagsParam,
     EntityTeamAccessParam,
     EntityTeamUsersParam,
     EntityVersionParam,
     EntityWithBoardParam,
+    GoalStatusParam,
 )
 from mcp_tracker.mcp.utils import get_yandex_auth
 from mcp_tracker.settings import Settings
-from mcp_tracker.tracker.proto.types.entities import GoalEntity, GoalStatus
+from mcp_tracker.tracker.proto.types.entities import GoalEntity
+
+_QUEUE_RESTRICTIONS_NOTE = (
+    " Not subject to TRACKER_LIMIT_QUEUES / TRACKER_READ_ONLY_QUEUES restrictions, "
+    "since an entity isn't reliably mappable to a single queue."
+)
 
 
 def register_goal_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
@@ -33,12 +40,12 @@ def register_goal_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Create Goal",
-        description="Create a new Yandex Tracker goal.",
+        description="Create a new Yandex Tracker goal." + _QUEUE_RESTRICTIONS_NOTE,
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def goal_create(
         ctx: Context[Any, AppContext],
-        summary: str,
+        summary: EntitySummaryRequiredParam,
         description: EntityDescriptionParam = None,
         lead: EntityLeadParam = None,
         team_users: EntityTeamUsersParam = None,
@@ -46,7 +53,7 @@ def register_goal_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
         followers: EntityFollowersParam = None,
         end: EntityEndParam = None,
         tags: EntityTagsParam = None,
-        entity_status: GoalStatus | None = None,
+        entity_status: GoalStatusParam = None,
         parent_entity: EntityParentEntityParam = None,
         team_access: EntityTeamAccessParam = None,
     ) -> GoalEntity:
@@ -67,7 +74,8 @@ def register_goal_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Update Goal",
-        description="Update fields of an existing Yandex Tracker goal.",
+        description="Update fields of an existing Yandex Tracker goal."
+        + _QUEUE_RESTRICTIONS_NOTE,
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def goal_update(
@@ -81,7 +89,7 @@ def register_goal_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
         followers: EntityFollowersParam = None,
         end: EntityEndParam = None,
         tags: EntityTagsParam = None,
-        entity_status: GoalStatus | None = None,
+        entity_status: GoalStatusParam = None,
         parent_entity: EntityParentEntityParam = None,
         team_access: EntityTeamAccessParam = None,
         comment: EntityCommentParam = None,
@@ -107,7 +115,7 @@ def register_goal_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Delete Goal",
-        description="Delete a Yandex Tracker goal.",
+        description="Delete a Yandex Tracker goal." + _QUEUE_RESTRICTIONS_NOTE,
         annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True),
     )
     async def goal_delete(

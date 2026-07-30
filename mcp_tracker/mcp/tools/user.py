@@ -12,9 +12,9 @@ from mcp_tracker.mcp.context import AppContext
 from mcp_tracker.mcp.errors import TrackerError
 from mcp_tracker.mcp.params import PageParam, PerPageParam, UserID
 from mcp_tracker.mcp.tools._pagination import iter_pages
-from mcp_tracker.mcp.utils import get_yandex_auth
+from mcp_tracker.mcp.utils import get_yandex_auth, set_non_needed_fields_null
 from mcp_tracker.settings import Settings
-from mcp_tracker.tracker.proto.types.users import User
+from mcp_tracker.tracker.proto.types.users import User, UserFieldsEnum
 
 
 def register_user_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
@@ -22,19 +22,34 @@ def register_user_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Get All Users",
-        description="Get information about user accounts registered in the organization",
+        description="Get information about user accounts registered in the organization. Paginated: "
+        "call again with `page` incremented (starting from 1) until an empty list is returned "
+        "to retrieve everyone.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def users_get_all(
         ctx: Context[Any, AppContext],
         page: PageParam = 1,
         per_page: PerPageParam = 50,
+        fields: Annotated[
+            list[UserFieldsEnum] | None,
+            Field(
+                description="Fields to include in each user. In order to not pollute the context "
+                "window - select only the fields you need. "
+                "Not specifying this returns all available fields.",
+            ),
+        ] = None,
     ) -> list[User]:
-        return await ctx.request_context.lifespan_context.users.users_list(
+        users = await ctx.request_context.lifespan_context.users.users_list(
             per_page=per_page,
             page=page,
             auth=get_yandex_auth(ctx),
         )
+
+        if fields is not None:
+            set_non_needed_fields_null(users, {f.name for f in fields})
+
+        return users
 
     @mcp.tool(
         title="Search Users",

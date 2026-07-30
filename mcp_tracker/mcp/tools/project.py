@@ -1,14 +1,14 @@
 """Project-related MCP tools (read-only)."""
 
-from typing import Any
+from typing import Annotated, Any
 
 from mcp.server import FastMCP
 from mcp.server.fastmcp import Context
 from mcp.types import ToolAnnotations
+from pydantic import Field
 
 from mcp_tracker.mcp.context import AppContext
 from mcp_tracker.mcp.params import (
-    EntityFieldsParam,
     EntityFilterParam,
     EntityID,
     EntityInputParam,
@@ -17,10 +17,21 @@ from mcp_tracker.mcp.params import (
     EntityRootOnlyParam,
     PageParam,
     PerPageParam,
+    entity_fields_description,
 )
 from mcp_tracker.mcp.utils import get_yandex_auth
 from mcp_tracker.settings import Settings
-from mcp_tracker.tracker.proto.types.entities import ProjectEntity, ProjectSearchResult
+from mcp_tracker.tracker.proto.types.entities import (
+    DEFAULT_ENTITY_FIELDS,
+    ProjectEntity,
+    ProjectFieldsEnum,
+    ProjectSearchResult,
+)
+
+ProjectFieldsParam = Annotated[
+    list[ProjectFieldsEnum] | None,
+    Field(description=entity_fields_description(DEFAULT_ENTITY_FIELDS)),
+]
 
 
 def register_project_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
@@ -35,17 +46,19 @@ def register_project_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
     async def project_get(
         ctx: Context[Any, AppContext],
         entity_id: EntityID,
-        fields: EntityFieldsParam = None,
+        fields: ProjectFieldsParam = None,
     ) -> ProjectEntity:
         return await ctx.request_context.lifespan_context.entities.project_get(
             entity_id,
-            fields=fields,
+            fields=[f.value for f in fields] if fields is not None else None,
             auth=get_yandex_auth(ctx),
         )
 
     @mcp.tool(
         title="Find Projects",
-        description="Search Yandex Tracker projects by name substring and/or field filters.",
+        description="Search Yandex Tracker projects by name substring and/or field filters. Paginated: "
+        "call again with `page` incremented (starting from 1) until an empty result is returned "
+        "to retrieve all matches.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def project_find(
@@ -57,7 +70,7 @@ def register_project_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
         root_only: EntityRootOnlyParam = None,
         page: PageParam = 1,
         per_page: PerPageParam = 50,
-        fields: EntityFieldsParam = None,
+        fields: ProjectFieldsParam = None,
     ) -> ProjectSearchResult:
         return await ctx.request_context.lifespan_context.entities.project_find(
             input=input,
@@ -67,6 +80,6 @@ def register_project_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
             root_only=root_only,
             per_page=per_page,
             page=page,
-            fields=fields,
+            fields=[f.value for f in fields] if fields is not None else None,
             auth=get_yandex_auth(ctx),
         )

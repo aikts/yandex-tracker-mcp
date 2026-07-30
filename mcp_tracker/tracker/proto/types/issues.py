@@ -96,6 +96,12 @@ class IssueComment(CreatedUpdatedMixin, BaseTrackerEntity):
     )
 
 
+CommentFieldsEnum = Enum(  # type: ignore[misc]
+    "CommentFieldsEnum",
+    {key: key for key in IssueComment.model_fields.keys()},
+)
+
+
 class LinkTypeReference(BaseReference):
     id: str
     inward: str | None = None
@@ -133,6 +139,12 @@ class Worklog(CreatedUpdatedMixin, BaseTrackerEntity):
     comment: str | None = None
 
 
+WorklogFieldsEnum = Enum(  # type: ignore[misc]
+    "WorklogFieldsEnum",
+    {key: key for key in Worklog.model_fields.keys()},
+)
+
+
 class IssueAttachment(CreatedMixin, BaseTrackerEntity):
     id: str
     name: str
@@ -144,6 +156,12 @@ class IssueAttachment(CreatedMixin, BaseTrackerEntity):
         serialization_alias="mimeType",
     )
     metadata: dict[str, str] | None = None
+
+
+AttachmentFieldsEnum = Enum(  # type: ignore[misc]
+    "AttachmentFieldsEnum",
+    {key: key for key in IssueAttachment.model_fields.keys()},
+)
 
 
 class ChecklistItemDeadline(BaseModel):

@@ -34,7 +34,9 @@ def register_queue_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Get All Queues",
-        description="Find all Yandex Tracker queues available to the user (queue is a project in some sense)",
+        description="Find all Yandex Tracker queues available to the user (queue is a project in some sense). "
+        "Unlike other list tools, `page` here defaults to None and fetches ALL pages automatically - "
+        "pass an explicit page number only if you hit the context size limit and want one page at a time.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def queues_get_all(
@@ -43,7 +45,8 @@ def register_queue_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             list[QueueFieldsEnum] | None,
             Field(
                 description="Fields to include in the response. In order to not pollute context window - "
-                "select appropriate fields beforehand. Not specifying fields will return all available. "
+                "select appropriate fields beforehand. Not specifying fields returns ALL available fields "
+                "(unlike project_find/portfolio_find/goal_find, which default to a small field subset). "
                 "Most of the time one needs key and name only.",
             ),
         ] = None,

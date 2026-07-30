@@ -44,6 +44,21 @@ class TestUsersGetAll:
         content = get_tool_result_content(result)
         assert len(content) == len(sample_users)
 
+    async def test_fields_filters_response(
+        self,
+        client_session: ClientSession,
+        mock_users_protocol: AsyncMock,
+        sample_users: list[User],
+    ) -> None:
+        mock_users_protocol.users_list.return_value = sample_users
+
+        result = await client_session.call_tool("users_get_all", {"fields": ["login"]})
+
+        assert not result.isError
+        content = get_tool_result_content(result)
+        assert content[0]["login"] == sample_users[0].login
+        assert content[0].get("display") is None
+
 
 class TestUsersSearch:
     async def test_finds_user_by_exact_login(

@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from enum import Enum
 from typing import Literal
 
 from pydantic import Field
@@ -90,6 +91,12 @@ class ProjectFields(BaseTrackerEntity):
     linkedGoalsCount: int | None = NoneExcludedField
 
 
+ProjectFieldsEnum = Enum(  # type: ignore[misc]
+    "ProjectFieldsEnum",
+    {key: key for key in ProjectFields.model_fields.keys()},
+)
+
+
 class PortfolioFields(BaseTrackerEntity):
     """Explicit (non-dynamic) field set for a Yandex Tracker portfolio."""
 
@@ -111,6 +118,12 @@ class PortfolioFields(BaseTrackerEntity):
     linkedGoalsCount: int | None = NoneExcludedField
 
 
+PortfolioFieldsEnum = Enum(  # type: ignore[misc]
+    "PortfolioFieldsEnum",
+    {key: key for key in PortfolioFields.model_fields.keys()},
+)
+
+
 class GoalFields(BaseTrackerEntity):
     """Explicit (non-dynamic) field set for a Yandex Tracker goal."""
 
@@ -129,6 +142,27 @@ class GoalFields(BaseTrackerEntity):
     progressPercentage: float | None = NoneExcludedField
     lastCommentUpdatedAt: date | datetime | None = NoneExcludedField
     linkedProjectsCount: int | None = NoneExcludedField
+
+
+GoalFieldsEnum = Enum(  # type: ignore[misc]
+    "GoalFieldsEnum",
+    {key: key for key in GoalFields.model_fields.keys()},
+)
+
+# Base (non-custom) entity fields requested by default when the caller does not
+# specify a `fields` list. Yandex Tracker only includes fields explicitly listed
+# in the `fields` query parameter in the response's `fields` object.
+DEFAULT_ENTITY_FIELDS = [
+    "summary",
+    "description",
+    "entityStatus",
+    "start",
+    "end",
+    "lead",
+    "author",
+    "tags",
+]
+DEFAULT_ENTITY_FIELDS_PARAM = ",".join(DEFAULT_ENTITY_FIELDS)
 
 
 class ProjectEntity(CreatedUpdatedMixin, BaseTrackerEntity):

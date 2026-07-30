@@ -577,8 +577,10 @@ Not yet supported: entity links (`links`/relationships), checklists, and bulk ch
   - Parameters:
     - `per_page` (optional): Number of users per page (default: 50)
     - `page` (optional): Page number to return (default: 1)
+    - `fields` (array of strings, optional): Fields to include per user. Not specifying this returns all available fields
   - Returns paginated list of users with login, email, license status, and organizational details
   - Includes user metadata such as external status, dismissal status, and notification preferences
+  - Paginated: call again with `page` incremented until an empty list is returned
 
 - **`user_get`**: Get information about a specific user by login or UID
   - Parameters: `user_id` (string, user login like "john.doe" or UID like "12345")
@@ -681,7 +683,9 @@ All four tools respect `TRACKER_LIMIT_QUEUES`: templates bound to a restricted q
   - Returns: `https://tracker.yandex.ru/{issue_id}`
 
 - **`issue_get_comments`**: Fetch all comments for an issue
-  - Parameters: `issue_id` (string)
+  - Parameters:
+    - `issue_id` (string)
+    - `fields` (array of strings, optional): Fields to include per comment (text/text_html can be large). Not specifying this returns all available fields
   - Returns chronological list of comments with metadata
 
 - **`issue_add_comment`**: Add a comment to an issue
@@ -728,7 +732,9 @@ All four tools respect `TRACKER_LIMIT_QUEUES`: templates bound to a restricted q
   - Returns links to related, blocked, or duplicate issues
 
 - **`issue_get_worklogs`**: Retrieve worklog entries
-  - Parameters: `issue_ids` (array of strings)
+  - Parameters:
+    - `issue_ids` (array of strings)
+    - `fields` (array of strings, optional): Fields to include per worklog entry. Not specifying this returns all available fields
   - Returns time tracking data for specified issues
 
 - **`issue_add_worklog`**: Add a worklog entry (log spent time) to an issue
@@ -755,7 +761,9 @@ All four tools respect `TRACKER_LIMIT_QUEUES`: templates bound to a restricted q
   - Returns: `null` (success)
 
 - **`issue_get_attachments`**: Get attachments for an issue
-  - Parameters: `issue_id` (string, format: "QUEUE-123")
+  - Parameters:
+    - `issue_id` (string, format: "QUEUE-123")
+    - `fields` (array of strings, optional): Fields to include per attachment (the `content` field can be large). Not specifying this returns all available fields
   - Returns list of attachments with metadata for the specified issue
 
 - **`issue_get_checklist`**: Get checklist items of an issue

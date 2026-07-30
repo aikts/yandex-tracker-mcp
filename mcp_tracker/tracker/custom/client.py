@@ -31,6 +31,7 @@ from mcp_tracker.tracker.proto.issues import IssueProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
 from mcp_tracker.tracker.proto.templates import TemplatesProtocol
 from mcp_tracker.tracker.proto.types.entities import (
+    DEFAULT_ENTITY_FIELDS_PARAM,
     GoalEntity,
     GoalSearchResult,
     GoalStatus,
@@ -101,21 +102,6 @@ ChangelogList = RootModel[list[ChangelogEntry]]
 
 
 logger = logging.getLogger(__name__)
-
-# Base (non-custom) entity fields requested by default when the caller does not
-# specify a `fields` list. Yandex Tracker only includes fields explicitly listed
-# in the `fields` query parameter in the response's `fields` object.
-DEFAULT_ENTITY_FIELDS = [
-    "summary",
-    "description",
-    "entityStatus",
-    "start",
-    "end",
-    "lead",
-    "author",
-    "tags",
-]
-DEFAULT_ENTITY_FIELDS_PARAM = ",".join(DEFAULT_ENTITY_FIELDS)
 
 
 def _ref_body(value: BaseModel | str | int) -> Any:

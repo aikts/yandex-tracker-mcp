@@ -18,17 +18,21 @@ from mcp_tracker.mcp.params import (
     EntityParentEntityParam,
     EntityStartParam,
     EntitySummaryParam,
+    EntitySummaryRequiredParam,
     EntityTagsParam,
     EntityTeamAccessParam,
     EntityTeamUsersParam,
     EntityVersionParam,
     EntityWithBoardParam,
+    ProjectPortfolioStatusParam,
 )
 from mcp_tracker.mcp.utils import get_yandex_auth
 from mcp_tracker.settings import Settings
-from mcp_tracker.tracker.proto.types.entities import (
-    ProjectEntity,
-    ProjectPortfolioStatus,
+from mcp_tracker.tracker.proto.types.entities import ProjectEntity
+
+_QUEUE_RESTRICTIONS_NOTE = (
+    " Not subject to TRACKER_LIMIT_QUEUES / TRACKER_READ_ONLY_QUEUES restrictions, "
+    "since an entity isn't reliably mappable to a single queue."
 )
 
 
@@ -37,12 +41,12 @@ def register_project_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None
 
     @mcp.tool(
         title="Create Project",
-        description="Create a new Yandex Tracker project.",
+        description="Create a new Yandex Tracker project." + _QUEUE_RESTRICTIONS_NOTE,
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def project_create(
         ctx: Context[Any, AppContext],
-        summary: str,
+        summary: EntitySummaryRequiredParam,
         description: EntityDescriptionParam = None,
         lead: EntityLeadParam = None,
         team_users: EntityTeamUsersParam = None,
@@ -51,7 +55,7 @@ def register_project_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None
         start: EntityStartParam = None,
         end: EntityEndParam = None,
         tags: EntityTagsParam = None,
-        entity_status: ProjectPortfolioStatus | None = None,
+        entity_status: ProjectPortfolioStatusParam = None,
         parent_entity: EntityParentEntityParam = None,
         team_access: EntityTeamAccessParam = None,
     ) -> ProjectEntity:
@@ -73,7 +77,8 @@ def register_project_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None
 
     @mcp.tool(
         title="Update Project",
-        description="Update fields of an existing Yandex Tracker project.",
+        description="Update fields of an existing Yandex Tracker project."
+        + _QUEUE_RESTRICTIONS_NOTE,
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def project_update(
@@ -88,7 +93,7 @@ def register_project_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None
         start: EntityStartParam = None,
         end: EntityEndParam = None,
         tags: EntityTagsParam = None,
-        entity_status: ProjectPortfolioStatus | None = None,
+        entity_status: ProjectPortfolioStatusParam = None,
         parent_entity: EntityParentEntityParam = None,
         team_access: EntityTeamAccessParam = None,
         comment: EntityCommentParam = None,
@@ -115,7 +120,7 @@ def register_project_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None
 
     @mcp.tool(
         title="Delete Project",
-        description="Delete a Yandex Tracker project.",
+        description="Delete a Yandex Tracker project." + _QUEUE_RESTRICTIONS_NOTE,
         annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True),
     )
     async def project_delete(

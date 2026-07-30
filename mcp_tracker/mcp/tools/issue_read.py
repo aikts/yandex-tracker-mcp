@@ -20,8 +20,10 @@ from mcp_tracker.mcp.tools._access import check_issue_access
 from mcp_tracker.mcp.utils import get_yandex_auth, set_non_needed_fields_null
 from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.proto.types.issues import (
+    AttachmentFieldsEnum,
     ChangelogPage,
     ChecklistItem,
+    CommentFieldsEnum,
     Issue,
     IssueAttachment,
     IssueComment,
@@ -29,6 +31,7 @@ from mcp_tracker.tracker.proto.types.issues import (
     IssueLink,
     IssueTransition,
     Worklog,
+    WorklogFieldsEnum,
 )
 
 
@@ -82,13 +85,26 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
     async def issue_get_comments(
         ctx: Context[Any, AppContext],
         issue_id: IssueID,
+        fields: Annotated[
+            list[CommentFieldsEnum] | None,
+            Field(
+                description="Fields to include in each comment. In order to not pollute the context "
+                "window - select only the fields you need (comment text/text_html can be large). "
+                "Not specifying this returns all available fields.",
+            ),
+        ] = None,
     ) -> list[IssueComment]:
         check_issue_access(settings, issue_id)
 
-        return await ctx.request_context.lifespan_context.issues.issue_get_comments(
+        comments = await ctx.request_context.lifespan_context.issues.issue_get_comments(
             issue_id,
             auth=get_yandex_auth(ctx),
         )
+
+        if fields is not None:
+            set_non_needed_fields_null(comments, {f.name for f in fields})
+
+        return comments
 
     @mcp.tool(
         title="Get Issue Links",
@@ -108,7 +124,10 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Find Issues",
-        description="Find Yandex Tracker issues by queue and/or created date",
+        description="Find Yandex Tracker issues matching a Yandex Tracker Query (YQL) - not limited to "
+        "queue/date, any indexed field can be used (assignee, status, tags, etc., see the `query` "
+        "parameter for the full syntax). Paginated: call again with `page` incremented (starting "
+        "from 1) until an empty list is returned to retrieve all matches.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def issues_find(
@@ -124,7 +143,9 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             list[IssueFieldsEnum] | None,
             Field(
                 description="Fields to include in the response. In order to not pollute context window - select "
-                "appropriate fields beforehand. Not specifying fields will return all available."
+                "appropriate fields beforehand. Not specifying fields returns ALL available fields "
+                "(unlike project_find/portfolio_find/goal_find, which default to a small field subset) "
+                "- specify fields explicitly to keep the response small."
             ),
         ] = None,
         page: PageParam = 1,
@@ -168,6 +189,14 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
     async def issue_get_worklogs(
         ctx: Context[Any, AppContext],
         issue_ids: IssueIDs,
+        fields: Annotated[
+            list[WorklogFieldsEnum] | None,
+            Field(
+                description="Fields to include in each worklog entry. In order to not pollute the "
+                "context window - select only the fields you need. "
+                "Not specifying this returns all available fields.",
+            ),
+        ] = None,
     ) -> dict[str, list[Worklog]]:
         for issue_id in issue_ids:
             check_issue_access(settings, issue_id)
@@ -180,6 +209,8 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
                     auth=get_yandex_auth(ctx),
                 )
             )
+            if fields is not None and worklogs:
+                set_non_needed_fields_null(worklogs, {f.name for f in fields})
             result[issue_id] = worklogs or []
 
         return result
@@ -192,13 +223,28 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
     async def issue_get_attachments(
         ctx: Context[Any, AppContext],
         issue_id: IssueID,
+        fields: Annotated[
+            list[AttachmentFieldsEnum] | None,
+            Field(
+                description="Fields to include in each attachment. In order to not pollute the "
+                "context window - select only the fields you need (the 'content' field can be large). "
+                "Not specifying this returns all available fields.",
+            ),
+        ] = None,
     ) -> list[IssueAttachment]:
         check_issue_access(settings, issue_id)
 
-        return await ctx.request_context.lifespan_context.issues.issue_get_attachments(
-            issue_id,
-            auth=get_yandex_auth(ctx),
+        attachments = (
+            await ctx.request_context.lifespan_context.issues.issue_get_attachments(
+                issue_id,
+                auth=get_yandex_auth(ctx),
+            )
         )
+
+        if fields is not None:
+            set_non_needed_fields_null(attachments, {f.name for f in fields})
+
+        return attachments
 
     @mcp.tool(
         title="Get Issue Checklist",
