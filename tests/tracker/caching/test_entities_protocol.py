@@ -172,6 +172,7 @@ class TestCachingEntitiesProtocol:
             parent_entity=None,
             team_access=None,
             links=None,
+            fields=None,
             auth=None,
         )
         assert result == mock_original.project_create.return_value
@@ -200,6 +201,7 @@ class TestCachingEntitiesProtocol:
             links=None,
             comment=None,
             version=2,
+            fields=None,
             auth=None,
         )
         assert result == mock_original.project_update.return_value
@@ -241,6 +243,7 @@ class TestCachingEntitiesProtocol:
             parent_entity=None,
             team_access=None,
             links=None,
+            fields=None,
             auth=None,
         )
         assert result == mock_original.portfolio_create.return_value
@@ -269,6 +272,7 @@ class TestCachingEntitiesProtocol:
             links=None,
             comment=None,
             version=None,
+            fields=None,
             auth=None,
         )
         assert result == mock_original.portfolio_update.return_value
@@ -305,6 +309,7 @@ class TestCachingEntitiesProtocol:
             parent_entity=None,
             team_access=None,
             links=None,
+            fields=None,
             auth=None,
         )
         assert result == mock_original.goal_create.return_value
@@ -332,6 +337,7 @@ class TestCachingEntitiesProtocol:
             links=None,
             comment="progress update",
             version=None,
+            fields=None,
             auth=None,
         )
         assert result == mock_original.goal_update.return_value

@@ -34,6 +34,8 @@ class TestPortfolioCreate:
             entity_status=None,
             parent_entity=None,
             team_access=None,
+            links=None,
+            fields=None,
             auth=YandexAuth(),
         )
         content = get_tool_result_content(result)
@@ -81,6 +83,8 @@ class TestPortfolioUpdate:
             team_access=None,
             comment=None,
             version=None,
+            links=None,
+            fields=None,
             auth=YandexAuth(),
         )
 

@@ -544,7 +544,7 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
 - **`project_get`**: Получить проект по id или shortId
   - Параметры:
     - `entity_id` (строка, обязательно): id или shortId проекта
-    - `fields` (массив строк, опционально): Дополнительные поля сущности для включения в ответ. По умолчанию используется базовый набор полей (`summary`, `description`, `entityStatus`, `start`, `end`, `lead`, `author`, `tags`)
+    - `fields` (массив строк, опционально): Поля сущности для включения в ответ, ограниченные допустимыми значениями для данного типа сущности. По умолчанию используется базовый набор полей (`summary`, `description`, `entityStatus`, `start`, `end`, `lead`, `author`, `tags`; у целей `start` не запрашивается — API его для них не определяет)
   - Возвращает метаданные проекта (id, shortId, version, createdBy/createdAt/updatedAt) и запрошенные поля
 
 - **`project_find`**: Поиск проектов по подстроке в названии и/или фильтрам полей
@@ -557,13 +557,15 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
 
 Инструменты записи (`project_create`/`project_update`/`project_delete` и аналогичные `portfolio_*` / `goal_*`) также доступны и регистрируются только если `TRACKER_READ_ONLY` не установлен:
 
-- **`project_create`**: Создать проект. Требуется `summary`. Также принимает `description`, `lead`, `team_users`, `clients`, `followers`, `start`, `end`, `tags`, `entity_status`, `parent_entity` и `team_access`
-- **`project_update`**: Изменить любое из перечисленных полей существующего проекта. Принимает опциональные `comment` и `version` (для обнаружения конфликтов через оптимистичную блокировку)
+- **`project_create`**: Создать проект. Требуется `summary`. Также принимает `description`, `lead`, `team_users`, `clients`, `followers`, `start`, `end`, `tags`, `entity_status`, `parent_entity`, `team_access` и `links`
+- **`project_update`**: Изменить любое из перечисленных полей существующего проекта. Принимает опциональные `comment` и `version` (для обнаружения конфликтов через оптимистичную блокировку). Переданный `links` заменяет текущие связи сущности
 - **`project_delete`**: Удалить проект. Принимает опциональный флаг `with_board` для удаления связанной доски
 - **`portfolio_create`** / **`portfolio_update`** / **`portfolio_delete`**: Аналогично инструментам записи для проектов
-- **`goal_create`** / **`goal_update`** / **`goal_delete`**: Аналогично инструментам записи для портфелей, но без `start` и с набором значений `entityStatus` для целей
+- **`goal_create`** / **`goal_update`** / **`goal_delete`**: Аналогично инструментам записи для портфелей, но без `start` и со своими наборами значений `entityStatus` и типов связей
 
-Пока не поддерживается: связи между сущностями (`links`/relationships), чек-листы и массовые изменения — это запланировано на будущее. Инструменты записи сущностей также пока не учитывают ограничения `TRACKER_LIMIT_QUEUES` / `TRACKER_READ_ONLY_QUEUES`, так как сущность нельзя однозначно сопоставить с одной очередью.
+Все инструменты создания/изменения принимают тот же селектор `fields`, что и инструменты чтения, и возвращают созданную/изменённую сущность с заполненными полями.
+
+Пока не поддерживается: чек-листы, метрики и ключевые результаты (`checklistItems`, `metricItems`, `keyResultItems`) и массовые изменения — это запланировано на будущее. Инструменты записи сущностей также пока не учитывают ограничения `TRACKER_LIMIT_QUEUES` / `TRACKER_READ_ONLY_QUEUES`, так как сущность нельзя однозначно сопоставить с одной очередью.
 
 </details>
 

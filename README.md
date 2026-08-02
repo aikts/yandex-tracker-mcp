@@ -547,7 +547,7 @@ Projects, portfolios and goals are separate Yandex Tracker entities (distinct fr
 - **`project_get`**: Get a project by its id or shortId
   - Parameters:
     - `entity_id` (string, required): Project id or shortId
-    - `fields` (array of strings, optional): Additional entity fields to include. Defaults to a base field set (`summary`, `description`, `entityStatus`, `start`, `end`, `lead`, `author`, `tags`)
+    - `fields` (array of strings, optional): Entity fields to include, constrained to the allowed values for this entity type. Defaults to a base field set (`summary`, `description`, `entityStatus`, `start`, `end`, `lead`, `author`, `tags`; goals omit `start`, which the API does not define for them)
   - Returns project metadata (id, shortId, version, createdBy/createdAt/updatedAt) and the requested fields
 
 - **`project_find`**: Search projects by name substring and/or field filters
@@ -560,13 +560,15 @@ Projects, portfolios and goals are separate Yandex Tracker entities (distinct fr
 
 Write tools (`project_create`/`project_update`/`project_delete` and the equivalent `portfolio_*` / `goal_*` tools) are also available and are only registered when `TRACKER_READ_ONLY` is not set:
 
-- **`project_create`**: Create a project. Requires `summary`. Accepts `description`, `lead`, `team_users`, `clients`, `followers`, `start`, `end`, `tags`, `entity_status`, `parent_entity`, and `team_access`
-- **`project_update`**: Update any of the above fields on an existing project. Accepts an optional `comment` and `version` (for optimistic-concurrency conflict detection)
+- **`project_create`**: Create a project. Requires `summary`. Accepts `description`, `lead`, `team_users`, `clients`, `followers`, `start`, `end`, `tags`, `entity_status`, `parent_entity`, `team_access`, and `links`
+- **`project_update`**: Update any of the above fields on an existing project. Accepts an optional `comment` and `version` (for optimistic-concurrency conflict detection). Passing `links` replaces the entity's existing links
 - **`project_delete`**: Delete a project. Accepts an optional `with_board` flag to also delete the associated board
 - **`portfolio_create`** / **`portfolio_update`** / **`portfolio_delete`**: Same shape as the project write tools
-- **`goal_create`** / **`goal_update`** / **`goal_delete`**: Same shape as the portfolio write tools, without `start`, and using the goal `entityStatus` value set
+- **`goal_create`** / **`goal_update`** / **`goal_delete`**: Same shape as the portfolio write tools, without `start`, and using the goal `entityStatus` and link-relationship value sets
 
-Not yet supported: entity links (`links`/relationships), checklists, and bulk changes — these are tracked for a future iteration. Entity write tools are also not currently subject to `TRACKER_LIMIT_QUEUES` / `TRACKER_READ_ONLY_QUEUES` restrictions, since an entity isn't reliably mappable to a single queue.
+All create/update tools accept the same `fields` selector as the read tools and return the created/updated entity with those fields populated.
+
+Not yet supported: checklists, metrics/key results (`checklistItems`, `metricItems`, `keyResultItems`), and bulk changes — these are tracked for a future iteration. Entity write tools are also not currently subject to `TRACKER_LIMIT_QUEUES` / `TRACKER_READ_ONLY_QUEUES` restrictions, since an entity isn't reliably mappable to a single queue.
 
 </details>
 

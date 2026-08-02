@@ -103,6 +103,7 @@ class EntitiesProtocol(Protocol):
         parent_entity: EntityParentEntityInput | None = None,
         team_access: bool | None = None,
         links: list[ProjectPortfolioLinkInput] | None = None,
+        fields: list[str] | None = None,
         auth: YandexAuth | None = None,
     ) -> ProjectEntity: ...
 
@@ -125,6 +126,7 @@ class EntitiesProtocol(Protocol):
         links: list[ProjectPortfolioLinkInput] | None = None,
         comment: str | None = None,
         version: int | None = None,
+        fields: list[str] | None = None,
         auth: YandexAuth | None = None,
     ) -> ProjectEntity: ...
 
@@ -152,6 +154,7 @@ class EntitiesProtocol(Protocol):
         parent_entity: EntityParentEntityInput | None = None,
         team_access: bool | None = None,
         links: list[ProjectPortfolioLinkInput] | None = None,
+        fields: list[str] | None = None,
         auth: YandexAuth | None = None,
     ) -> PortfolioEntity: ...
 
@@ -174,6 +177,7 @@ class EntitiesProtocol(Protocol):
         links: list[ProjectPortfolioLinkInput] | None = None,
         comment: str | None = None,
         version: int | None = None,
+        fields: list[str] | None = None,
         auth: YandexAuth | None = None,
     ) -> PortfolioEntity: ...
 
@@ -200,6 +204,7 @@ class EntitiesProtocol(Protocol):
         parent_entity: EntityParentEntityInput | None = None,
         team_access: bool | None = None,
         links: list[GoalLinkInput] | None = None,
+        fields: list[str] | None = None,
         auth: YandexAuth | None = None,
     ) -> GoalEntity: ...
 
@@ -221,6 +226,7 @@ class EntitiesProtocol(Protocol):
         links: list[GoalLinkInput] | None = None,
         comment: str | None = None,
         version: int | None = None,
+        fields: list[str] | None = None,
         auth: YandexAuth | None = None,
     ) -> GoalEntity: ...
 

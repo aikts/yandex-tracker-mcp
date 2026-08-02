@@ -152,7 +152,10 @@ GoalFieldsEnum = Enum(  # type: ignore[misc]
 # Base (non-custom) entity fields requested by default when the caller does not
 # specify a `fields` list. Yandex Tracker only includes fields explicitly listed
 # in the `fields` query parameter in the response's `fields` object.
-DEFAULT_ENTITY_FIELDS = [
+#
+# The sets differ per entity type: `start` exists only on projects and
+# portfolios, so requesting it for a goal is not valid per the API docs.
+DEFAULT_PROJECT_FIELDS = [
     "summary",
     "description",
     "entityStatus",
@@ -162,7 +165,26 @@ DEFAULT_ENTITY_FIELDS = [
     "author",
     "tags",
 ]
-DEFAULT_ENTITY_FIELDS_PARAM = ",".join(DEFAULT_ENTITY_FIELDS)
+DEFAULT_PORTFOLIO_FIELDS = DEFAULT_PROJECT_FIELDS
+DEFAULT_GOAL_FIELDS = [
+    "summary",
+    "description",
+    "entityStatus",
+    "end",
+    "lead",
+    "author",
+    "tags",
+]
+
+DEFAULT_ENTITY_FIELDS: dict[str, list[str]] = {
+    "project": DEFAULT_PROJECT_FIELDS,
+    "portfolio": DEFAULT_PORTFOLIO_FIELDS,
+    "goal": DEFAULT_GOAL_FIELDS,
+}
+DEFAULT_ENTITY_FIELDS_PARAM: dict[str, str] = {
+    entity_type: ",".join(entity_fields)
+    for entity_type, entity_fields in DEFAULT_ENTITY_FIELDS.items()
+}
 
 
 class ProjectEntity(CreatedUpdatedMixin, BaseTrackerEntity):

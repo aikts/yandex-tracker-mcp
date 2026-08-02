@@ -1194,6 +1194,22 @@ class TrackerClient(
             await self._raise_for_status(response)
             return Issue.model_validate_json(await response.read())
 
+    @staticmethod
+    def _entity_fields_param(
+        entity_type: Literal["project", "portfolio", "goal"],
+        fields: list[str] | None,
+    ) -> str:
+        """Build the `fields` query value for an entity request.
+
+        Yandex Tracker only populates the response's `fields` object with the
+        fields explicitly named here, so a per-entity default is applied when
+        the caller doesn't pass one. The default sets differ per entity type
+        (e.g. `start` is not a valid goal field).
+        """
+        if fields is not None:
+            return ",".join(fields)
+        return DEFAULT_ENTITY_FIELDS_PARAM[entity_type]
+
     async def _entity_get(
         self,
         entity_type: Literal["project", "portfolio", "goal"],
@@ -1202,11 +1218,7 @@ class TrackerClient(
         fields: list[str] | None,
         auth: YandexAuth | None,
     ) -> bytes:
-        params = {
-            "fields": ",".join(fields)
-            if fields is not None
-            else DEFAULT_ENTITY_FIELDS_PARAM
-        }
+        params = {"fields": self._entity_fields_param(entity_type, fields)}
         async with self._session.get(
             f"v3/entities/{entity_type}/{entity_id}",
             headers=await self._build_headers(auth),
@@ -1232,9 +1244,7 @@ class TrackerClient(
         params: dict[str, Any] = {
             "perPage": per_page,
             "page": page,
-            "fields": ",".join(fields)
-            if fields is not None
-            else DEFAULT_ENTITY_FIELDS_PARAM,
+            "fields": self._entity_fields_param(entity_type, fields),
         }
 
         body: dict[str, Any] = {}
@@ -1424,16 +1434,18 @@ class TrackerClient(
         *,
         fields_body: dict[str, Any],
         links: list[ProjectPortfolioLinkInput] | list[GoalLinkInput] | None,
+        fields: list[str] | None,
         auth: YandexAuth | None,
     ) -> bytes:
         body: dict[str, Any] = {"fields": fields_body}
         if links is not None:
-            body["links"] = [link.model_dump() for link in links]
+            body["links"] = [link.model_dump(exclude_none=True) for link in links]
 
         async with self._session.post(
             f"v3/entities/{entity_type}",
             headers=await self._build_headers(auth),
             json=body,
+            params={"fields": self._entity_fields_param(entity_type, fields)},
         ) as response:
             response.raise_for_status()
             return await response.read()
@@ -1447,15 +1459,18 @@ class TrackerClient(
         links: list[ProjectPortfolioLinkInput] | list[GoalLinkInput] | None,
         comment: str | None,
         version: int | None,
+        fields: list[str] | None,
         auth: YandexAuth | None,
     ) -> bytes:
         body: dict[str, Any] = {"fields": fields_body}
         if links is not None:
-            body["links"] = [link.model_dump() for link in links]
+            body["links"] = [link.model_dump(exclude_none=True) for link in links]
         if comment is not None:
             body["comment"] = comment
 
-        params: dict[str, int] = {}
+        params: dict[str, Any] = {
+            "fields": self._entity_fields_param(entity_type, fields)
+        }
         if version is not None:
             params["version"] = version
 
@@ -1463,7 +1478,7 @@ class TrackerClient(
             f"v3/entities/{entity_type}/{entity_id}",
             headers=await self._build_headers(auth),
             json=body,
-            params=params if params else None,
+            params=params,
         ) as response:
             response.raise_for_status()
             return await response.read()
@@ -1501,6 +1516,7 @@ class TrackerClient(
         parent_entity: EntityParentEntityInput | None = None,
         team_access: bool | None = None,
         links: list[ProjectPortfolioLinkInput] | None = None,
+        fields: list[str] | None = None,
         auth: YandexAuth | None = None,
     ) -> ProjectEntity:
         fields_body = self._build_entity_fields_body(
@@ -1519,7 +1535,11 @@ class TrackerClient(
         )
         return ProjectEntity.model_validate_json(
             await self._entity_create(
-                "project", fields_body=fields_body, links=links, auth=auth
+                "project",
+                fields_body=fields_body,
+                links=links,
+                fields=fields,
+                auth=auth,
             )
         )
 
@@ -1542,6 +1562,7 @@ class TrackerClient(
         links: list[ProjectPortfolioLinkInput] | None = None,
         comment: str | None = None,
         version: int | None = None,
+        fields: list[str] | None = None,
         auth: YandexAuth | None = None,
     ) -> ProjectEntity:
         fields_body = self._build_entity_fields_body(
@@ -1566,6 +1587,7 @@ class TrackerClient(
                 links=links,
                 comment=comment,
                 version=version,
+                fields=fields,
                 auth=auth,
             )
         )
@@ -1597,6 +1619,7 @@ class TrackerClient(
         parent_entity: EntityParentEntityInput | None = None,
         team_access: bool | None = None,
         links: list[ProjectPortfolioLinkInput] | None = None,
+        fields: list[str] | None = None,
         auth: YandexAuth | None = None,
     ) -> PortfolioEntity:
         fields_body = self._build_entity_fields_body(
@@ -1615,7 +1638,11 @@ class TrackerClient(
         )
         return PortfolioEntity.model_validate_json(
             await self._entity_create(
-                "portfolio", fields_body=fields_body, links=links, auth=auth
+                "portfolio",
+                fields_body=fields_body,
+                links=links,
+                fields=fields,
+                auth=auth,
             )
         )
 
@@ -1638,6 +1665,7 @@ class TrackerClient(
         links: list[ProjectPortfolioLinkInput] | None = None,
         comment: str | None = None,
         version: int | None = None,
+        fields: list[str] | None = None,
         auth: YandexAuth | None = None,
     ) -> PortfolioEntity:
         fields_body = self._build_entity_fields_body(
@@ -1662,6 +1690,7 @@ class TrackerClient(
                 links=links,
                 comment=comment,
                 version=version,
+                fields=fields,
                 auth=auth,
             )
         )
@@ -1692,6 +1721,7 @@ class TrackerClient(
         parent_entity: EntityParentEntityInput | None = None,
         team_access: bool | None = None,
         links: list[GoalLinkInput] | None = None,
+        fields: list[str] | None = None,
         auth: YandexAuth | None = None,
     ) -> GoalEntity:
         fields_body = self._build_entity_fields_body(
@@ -1710,7 +1740,7 @@ class TrackerClient(
         )
         return GoalEntity.model_validate_json(
             await self._entity_create(
-                "goal", fields_body=fields_body, links=links, auth=auth
+                "goal", fields_body=fields_body, links=links, fields=fields, auth=auth
             )
         )
 
@@ -1732,6 +1762,7 @@ class TrackerClient(
         links: list[GoalLinkInput] | None = None,
         comment: str | None = None,
         version: int | None = None,
+        fields: list[str] | None = None,
         auth: YandexAuth | None = None,
     ) -> GoalEntity:
         fields_body = self._build_entity_fields_body(
@@ -1756,6 +1787,7 @@ class TrackerClient(
                 links=links,
                 comment=comment,
                 version=version,
+                fields=fields,
                 auth=auth,
             )
         )

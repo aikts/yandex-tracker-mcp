@@ -6,6 +6,7 @@ from aioresponses import aioresponses
 
 from mcp_tracker.tracker.custom.client import TrackerClient
 from mcp_tracker.tracker.proto.types.entities import (
+    DEFAULT_ENTITY_FIELDS_PARAM,
     GoalEntity,
     PortfolioEntity,
     ProjectEntity,
@@ -60,7 +61,7 @@ class TestEntityGet:
 
         capture.assert_called_once()
         capture.last_request.assert_params(
-            {"fields": "summary,description,entityStatus,start,end,lead,author,tags"}
+            {"fields": DEFAULT_ENTITY_FIELDS_PARAM[entity_type]}
         )
 
     @pytest.mark.parametrize(

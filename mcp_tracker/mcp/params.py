@@ -3,14 +3,25 @@ from typing import Annotated, get_args
 
 from pydantic import Field
 
-from mcp_tracker.tracker.proto.types.entities import GoalStatus, ProjectPortfolioStatus
+from mcp_tracker.tracker.proto.types.entities import (
+    DEFAULT_ENTITY_FIELDS,
+    GoalFieldsEnum,
+    GoalLinkRelationship,
+    GoalStatus,
+    PortfolioFieldsEnum,
+    ProjectFieldsEnum,
+    ProjectPortfolioLinkRelationship,
+    ProjectPortfolioStatus,
+)
 from mcp_tracker.tracker.proto.types.inputs import (
     EntityParentEntityInput,
+    GoalLinkInput,
     IssueComponentRef,
     IssueFollowerRef,
     IssueParentRef,
     IssueProjectRef,
     IssueSprintRef,
+    ProjectPortfolioLinkInput,
 )
 
 PageParam = Annotated[
@@ -195,6 +206,22 @@ def entity_fields_description(default_fields: list[str]) -> str:
     )
 
 
+ProjectFieldsParam = Annotated[
+    list[ProjectFieldsEnum] | None,
+    Field(description=entity_fields_description(DEFAULT_ENTITY_FIELDS["project"])),
+]
+
+PortfolioFieldsParam = Annotated[
+    list[PortfolioFieldsEnum] | None,
+    Field(description=entity_fields_description(DEFAULT_ENTITY_FIELDS["portfolio"])),
+]
+
+GoalFieldsParam = Annotated[
+    list[GoalFieldsEnum] | None,
+    Field(description=entity_fields_description(DEFAULT_ENTITY_FIELDS["goal"])),
+]
+
+
 EntityInputParam = Annotated[
     str | None,
     Field(description="Substring to search for in the entity name (summary)"),
@@ -312,6 +339,34 @@ EntityParentEntityParam = Annotated[
     EntityParentEntityInput | None,
     Field(
         description="Parent entity reference (primary id and optional secondary ids)"
+    ),
+]
+
+_LINKS_DESCRIPTION = (
+    "Links from this entity to other entities. Each item is {{'relationship': ..., "
+    "'entity': <id of the other entity>}}. Valid relationship values: {relationships}. "
+    "On update this REPLACES the entity's existing links, so pass the full desired set."
+)
+
+ProjectPortfolioLinksParam = Annotated[
+    list[ProjectPortfolioLinkInput] | None,
+    Field(
+        description=_LINKS_DESCRIPTION.format(
+            relationships=", ".join(
+                f"'{value}'" for value in get_args(ProjectPortfolioLinkRelationship)
+            )
+        )
+    ),
+]
+
+GoalLinksParam = Annotated[
+    list[GoalLinkInput] | None,
+    Field(
+        description=_LINKS_DESCRIPTION.format(
+            relationships=", ".join(
+                f"'{value}'" for value in get_args(GoalLinkRelationship)
+            )
+        )
     ),
 ]
 

@@ -6,6 +6,7 @@ from aioresponses import aioresponses
 
 from mcp_tracker.tracker.custom.client import TrackerClient
 from mcp_tracker.tracker.proto.types.entities import (
+    DEFAULT_ENTITY_FIELDS_PARAM,
     GoalSearchResult,
     PortfolioSearchResult,
     ProjectSearchResult,
@@ -61,7 +62,7 @@ class TestEntitySearch:
             {
                 "page": 1,
                 "perPage": 50,
-                "fields": "summary,description,entityStatus,start,end,lead,author,tags",
+                "fields": DEFAULT_ENTITY_FIELDS_PARAM[entity_type],
             }
         )
 

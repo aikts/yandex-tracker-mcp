@@ -4,6 +4,7 @@ from mcp.client.session import ClientSession
 
 from mcp_tracker.tracker.proto.common import YandexAuth
 from mcp_tracker.tracker.proto.types.entities import ProjectEntity
+from mcp_tracker.tracker.proto.types.inputs import ProjectPortfolioLinkInput
 from tests.mcp.conftest import get_tool_result_content
 
 
@@ -35,10 +36,52 @@ class TestProjectCreate:
             entity_status=None,
             parent_entity=None,
             team_access=True,
+            links=None,
+            fields=None,
             auth=YandexAuth(),
         )
         content = get_tool_result_content(result)
         assert content["id"] == sample_project.id
+
+    async def test_passes_links_and_fields(
+        self,
+        client_session: ClientSession,
+        mock_entities_protocol: AsyncMock,
+        sample_project: ProjectEntity,
+    ) -> None:
+        mock_entities_protocol.project_create.return_value = sample_project
+
+        result = await client_session.call_tool(
+            "project_create",
+            {
+                "summary": "New Project",
+                "links": [{"relationship": "works towards", "entity": "goal-1"}],
+                "fields": ["summary", "entityStatus"],
+            },
+        )
+
+        assert not result.isError
+        call_kwargs = mock_entities_protocol.project_create.call_args.kwargs
+        assert call_kwargs["links"] == [
+            ProjectPortfolioLinkInput(relationship="works towards", entity="goal-1")
+        ]
+        assert call_kwargs["fields"] == ["summary", "entityStatus"]
+
+    async def test_rejects_unknown_link_relationship(
+        self,
+        client_session: ClientSession,
+        mock_entities_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session.call_tool(
+            "project_create",
+            {
+                "summary": "New Project",
+                "links": [{"relationship": "is supported by", "entity": "goal-1"}],
+            },
+        )
+
+        assert result.isError
+        mock_entities_protocol.project_create.assert_not_called()
 
     async def test_read_only_mode_tool_not_registered(
         self,
@@ -82,6 +125,8 @@ class TestProjectUpdate:
             team_access=None,
             comment=None,
             version=5,
+            links=None,
+            fields=None,
             auth=YandexAuth(),
         )
 

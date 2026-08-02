@@ -24,6 +24,8 @@ from mcp_tracker.mcp.params import (
     EntityTeamUsersParam,
     EntityVersionParam,
     EntityWithBoardParam,
+    ProjectFieldsParam,
+    ProjectPortfolioLinksParam,
     ProjectPortfolioStatusParam,
 )
 from mcp_tracker.mcp.utils import get_yandex_auth
@@ -58,6 +60,8 @@ def register_project_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None
         entity_status: ProjectPortfolioStatusParam = None,
         parent_entity: EntityParentEntityParam = None,
         team_access: EntityTeamAccessParam = None,
+        links: ProjectPortfolioLinksParam = None,
+        fields: ProjectFieldsParam = None,
     ) -> ProjectEntity:
         return await ctx.request_context.lifespan_context.entities.project_create(
             summary=summary,
@@ -72,6 +76,8 @@ def register_project_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None
             entity_status=entity_status,
             parent_entity=parent_entity,
             team_access=team_access,
+            links=links,
+            fields=[f.value for f in fields] if fields is not None else None,
             auth=get_yandex_auth(ctx),
         )
 
@@ -98,6 +104,8 @@ def register_project_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None
         team_access: EntityTeamAccessParam = None,
         comment: EntityCommentParam = None,
         version: EntityVersionParam = None,
+        links: ProjectPortfolioLinksParam = None,
+        fields: ProjectFieldsParam = None,
     ) -> ProjectEntity:
         return await ctx.request_context.lifespan_context.entities.project_update(
             entity_id,
@@ -115,6 +123,8 @@ def register_project_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None
             team_access=team_access,
             comment=comment,
             version=version,
+            links=links,
+            fields=[f.value for f in fields] if fields is not None else None,
             auth=get_yandex_auth(ctx),
         )
 

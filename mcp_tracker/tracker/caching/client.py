@@ -696,6 +696,7 @@ def make_cached_protocols(
             parent_entity: EntityParentEntityInput | None = None,
             team_access: bool | None = None,
             links: list[ProjectPortfolioLinkInput] | None = None,
+            fields: list[str] | None = None,
             auth: YandexAuth | None = None,
         ) -> ProjectEntity:
             return await self._original.project_create(
@@ -712,6 +713,7 @@ def make_cached_protocols(
                 parent_entity=parent_entity,
                 team_access=team_access,
                 links=links,
+                fields=fields,
                 auth=auth,
             )
 
@@ -734,6 +736,7 @@ def make_cached_protocols(
             links: list[ProjectPortfolioLinkInput] | None = None,
             comment: str | None = None,
             version: int | None = None,
+            fields: list[str] | None = None,
             auth: YandexAuth | None = None,
         ) -> ProjectEntity:
             return await self._original.project_update(
@@ -753,6 +756,7 @@ def make_cached_protocols(
                 links=links,
                 comment=comment,
                 version=version,
+                fields=fields,
                 auth=auth,
             )
 
@@ -783,6 +787,7 @@ def make_cached_protocols(
             parent_entity: EntityParentEntityInput | None = None,
             team_access: bool | None = None,
             links: list[ProjectPortfolioLinkInput] | None = None,
+            fields: list[str] | None = None,
             auth: YandexAuth | None = None,
         ) -> PortfolioEntity:
             return await self._original.portfolio_create(
@@ -799,6 +804,7 @@ def make_cached_protocols(
                 parent_entity=parent_entity,
                 team_access=team_access,
                 links=links,
+                fields=fields,
                 auth=auth,
             )
 
@@ -821,6 +827,7 @@ def make_cached_protocols(
             links: list[ProjectPortfolioLinkInput] | None = None,
             comment: str | None = None,
             version: int | None = None,
+            fields: list[str] | None = None,
             auth: YandexAuth | None = None,
         ) -> PortfolioEntity:
             return await self._original.portfolio_update(
@@ -840,6 +847,7 @@ def make_cached_protocols(
                 links=links,
                 comment=comment,
                 version=version,
+                fields=fields,
                 auth=auth,
             )
 
@@ -869,6 +877,7 @@ def make_cached_protocols(
             parent_entity: EntityParentEntityInput | None = None,
             team_access: bool | None = None,
             links: list[GoalLinkInput] | None = None,
+            fields: list[str] | None = None,
             auth: YandexAuth | None = None,
         ) -> GoalEntity:
             return await self._original.goal_create(
@@ -884,6 +893,7 @@ def make_cached_protocols(
                 parent_entity=parent_entity,
                 team_access=team_access,
                 links=links,
+                fields=fields,
                 auth=auth,
             )
 
@@ -905,6 +915,7 @@ def make_cached_protocols(
             links: list[GoalLinkInput] | None = None,
             comment: str | None = None,
             version: int | None = None,
+            fields: list[str] | None = None,
             auth: YandexAuth | None = None,
         ) -> GoalEntity:
             return await self._original.goal_update(
@@ -923,6 +934,7 @@ def make_cached_protocols(
                 links=links,
                 comment=comment,
                 version=version,
+                fields=fields,
                 auth=auth,
             )
 

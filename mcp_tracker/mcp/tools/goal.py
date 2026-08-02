@@ -1,11 +1,10 @@
 """Goal-related MCP tools (read-only)."""
 
-from typing import Annotated, Any
+from typing import Any
 
 from mcp.server import FastMCP
 from mcp.server.fastmcp import Context
 from mcp.types import ToolAnnotations
-from pydantic import Field
 
 from mcp_tracker.mcp.context import AppContext
 from mcp_tracker.mcp.params import (
@@ -14,24 +13,17 @@ from mcp_tracker.mcp.params import (
     EntityOrderAscParam,
     EntityOrderByParam,
     EntityRootOnlyParam,
+    GoalFieldsParam,
     GoalFilterParam,
     PageParam,
     PerPageParam,
-    entity_fields_description,
 )
 from mcp_tracker.mcp.utils import get_yandex_auth
 from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.proto.types.entities import (
-    DEFAULT_ENTITY_FIELDS,
     GoalEntity,
-    GoalFieldsEnum,
     GoalSearchResult,
 )
-
-GoalFieldsParam = Annotated[
-    list[GoalFieldsEnum] | None,
-    Field(description=entity_fields_description(DEFAULT_ENTITY_FIELDS)),
-]
 
 
 def register_goal_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:

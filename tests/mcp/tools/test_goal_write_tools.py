@@ -31,6 +31,8 @@ class TestGoalCreate:
             entity_status=None,
             parent_entity=None,
             team_access=None,
+            links=None,
+            fields=None,
             auth=YandexAuth(),
         )
         content = get_tool_result_content(result)
@@ -77,6 +79,8 @@ class TestGoalUpdate:
             team_access=None,
             comment="done",
             version=None,
+            links=None,
+            fields=None,
             auth=YandexAuth(),
         )
 
