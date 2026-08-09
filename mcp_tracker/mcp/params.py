@@ -338,13 +338,20 @@ EntityTagsParam = Annotated[
 EntityParentEntityParam = Annotated[
     EntityParentEntityInput | None,
     Field(
-        description="Parent entity reference (primary id and optional secondary ids)"
+        description="Containment: for a project/portfolio, the portfolio(s) it belongs to "
+        "('Included in portfolio'); for a goal, its parent goal. "
+        "`primary` is the main container id, `secondary` is additional portfolio ids "
+        "(projects/portfolios only). "
+        "Example: {'primary': 'portfolio_id_1', 'secondary': ['portfolio_id_2']}."
     ),
 ]
 
 _LINKS_DESCRIPTION = (
-    "Links from this entity to other entities. Each item is {{'relationship': ..., "
-    "'entity': <id of the other entity>}}. Valid relationship values: {relationships}. "
+    "Links from this entity to other entities (dependency/support relationships, not "
+    "containment - use parent_entity for 'included in portfolio' or 'parent goal'). "
+    "Each item is {{'relationship': ..., 'entity': <id of the other entity>}}. "
+    "Valid relationship values: {relationships}. "
+    "Example: [{{'relationship': '{example_relationship}', 'entity': '<other entity id>'}}]. "
     "On update this REPLACES the entity's existing links, so pass the full desired set."
 )
 
@@ -354,7 +361,8 @@ ProjectPortfolioLinksParam = Annotated[
         description=_LINKS_DESCRIPTION.format(
             relationships=", ".join(
                 f"'{value}'" for value in get_args(ProjectPortfolioLinkRelationship)
-            )
+            ),
+            example_relationship=get_args(ProjectPortfolioLinkRelationship)[0],
         )
     ),
 ]
@@ -365,7 +373,8 @@ GoalLinksParam = Annotated[
         description=_LINKS_DESCRIPTION.format(
             relationships=", ".join(
                 f"'{value}'" for value in get_args(GoalLinkRelationship)
-            )
+            ),
+            example_relationship=get_args(GoalLinkRelationship)[0],
         )
     ),
 ]
@@ -440,7 +449,8 @@ YTQuery = Annotated[
 
 instructions = """Tools for interacting with Yandex Tracker issue tracking system.
 Use these tools to:
-- Search and browse projects (queues) and issues
+- Search and browse queues and issues
+- Search and manage projects, portfolios, and goals (project-management entities, distinct from queues)
 - View issue details, comments, attachments, and worklogs
 - Get information about users, statuses, and issue types
 - Query issues using Yandex Query Language (YQL)
@@ -448,6 +458,34 @@ Use these tools to:
 In russian Yandex Tracker is called "Яндекс Трекер", "Трекер".
 Queues may be called "Очереди".
 Tasks may be called "Задачи", "Issues", "Таски", "ишью".
+Projects may be called "Проекты".
+Portfolios may be called "Портфели".
+Goals may be called "Цели".
+
+## Queues vs. projects/portfolios/goals
+
+A "queue" (e.g. `SOMEPROJECT` in an issue key like `SOMEPROJECT-1`) is where issues live and get
+numbered - use `queues_get_all`, `issues_find`, etc. A "project"/"portfolio"/"goal" (`project_*`,
+`portfolio_*`, `goal_*` tools) is a separate project-management entity used to group and track
+progress across issues from possibly many queues. Don't confuse a queue key with an entity id: entity
+ids come from `project_find`/`portfolio_find`/`goal_find`/`*_get` results, not from issue keys.
+
+## Linking issues, projects, portfolios, and goals together
+
+- Issue -> project: set the issue's `project` field (on `issue_create`/`issue_update`) to
+  `{"primary": <project shortId>, "secondary": [<other project shortIds>]}`. The project's `shortId`
+  comes from `project_get`/`project_find`. There is no direct issue-to-portfolio or issue-to-goal link;
+  portfolios/goals track progress via the projects (and, for goals, other goals) linked into them.
+- Project/portfolio -> portfolio (containment, "included in portfolio"): set `parent_entity` on
+  `project_create`/`project_update`/`portfolio_create`/`portfolio_update` to
+  `{"primary": <portfolio id>, "secondary": [<other portfolio ids>]}`.
+- Goal -> parent goal (containment): set `parent_entity.primary` on `goal_create`/`goal_update` to the
+  parent goal's id.
+- Cross-entity relationships that aren't containment (e.g. a project "depends on" another project, or
+  "works towards" a goal): use the `links` param on `project_create`/`portfolio_create`/`goal_create`/
+  `*_update`, e.g. `[{"relationship": "works towards", "entity": <goal id>}]`. `links` REPLACES the
+  entity's full link set on update, so re-send existing links you want to keep alongside new ones -
+  fetch them first with `*_get(fields=["links"])` if unsure what's already there.
 
 When using tools that accept `page` and/or `per_page` parameters and when the task is to find something in the result set (or to receive all available data) - always call the tool as many times as needed increasing the `page` parameter until the result set is exhausted. If you stumble with the context size limit — try to change the `per_page` parameter to a lower value and restart the search from the `page=1`.
 
