@@ -120,6 +120,30 @@
       "description": "Delete a comment from a project"
     },
     {
+      "name": "project_add_checklist_item",
+      "description": "Add a checklist item to a project"
+    },
+    {
+      "name": "project_update_checklist_item",
+      "description": "Update a checklist item on a project"
+    },
+    {
+      "name": "project_move_checklist_item",
+      "description": "Reorder a checklist item on a project"
+    },
+    {
+      "name": "project_delete_checklist_item",
+      "description": "Delete a checklist item from a project"
+    },
+    {
+      "name": "project_update_checklist",
+      "description": "Replace the entire checklist of a project"
+    },
+    {
+      "name": "project_delete_checklist",
+      "description": "Delete the entire checklist of a project"
+    },
+    {
       "name": "portfolio_create",
       "description": "Create a new portfolio"
     },
@@ -142,6 +166,30 @@
     {
       "name": "portfolio_delete_comment",
       "description": "Delete a comment from a portfolio"
+    },
+    {
+      "name": "portfolio_add_checklist_item",
+      "description": "Add a checklist item to a portfolio"
+    },
+    {
+      "name": "portfolio_update_checklist_item",
+      "description": "Update a checklist item on a portfolio"
+    },
+    {
+      "name": "portfolio_move_checklist_item",
+      "description": "Reorder a checklist item on a portfolio"
+    },
+    {
+      "name": "portfolio_delete_checklist_item",
+      "description": "Delete a checklist item from a portfolio"
+    },
+    {
+      "name": "portfolio_update_checklist",
+      "description": "Replace the entire checklist of a portfolio"
+    },
+    {
+      "name": "portfolio_delete_checklist",
+      "description": "Delete the entire checklist of a portfolio"
     },
     {
       "name": "goal_create",

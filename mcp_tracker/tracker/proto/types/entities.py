@@ -5,6 +5,7 @@ from typing import Literal
 from pydantic import Field
 
 from mcp_tracker.tracker.proto.types.base import BaseTrackerEntity, NoneExcludedField
+from mcp_tracker.tracker.proto.types.issues import ChecklistItem
 from mcp_tracker.tracker.proto.types.mixins import CreatedUpdatedMixin
 from mcp_tracker.tracker.proto.types.refs import QueueReference, UserReference
 
@@ -89,6 +90,7 @@ class ProjectFields(BaseTrackerEntity):
     issueQueues: list[QueueReference] | None = NoneExcludedField
     lastCommentUpdatedAt: date | datetime | None = NoneExcludedField
     linkedGoalsCount: int | None = NoneExcludedField
+    checklistItems: list[ChecklistItem] | None = NoneExcludedField
 
 
 ProjectFieldsEnum = Enum(  # type: ignore[misc]
@@ -116,6 +118,7 @@ class PortfolioFields(BaseTrackerEntity):
     teamAccess: bool | None = NoneExcludedField
     lastCommentUpdatedAt: date | datetime | None = NoneExcludedField
     linkedGoalsCount: int | None = NoneExcludedField
+    checklistItems: list[ChecklistItem] | None = NoneExcludedField
 
 
 PortfolioFieldsEnum = Enum(  # type: ignore[misc]

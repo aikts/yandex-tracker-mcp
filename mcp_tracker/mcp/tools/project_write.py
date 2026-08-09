@@ -8,6 +8,14 @@ from mcp.types import ToolAnnotations
 
 from mcp_tracker.mcp.context import AppContext
 from mcp_tracker.mcp.params import (
+    EntityChecklistItemAssigneeParam,
+    EntityChecklistItemBeforeParam,
+    EntityChecklistItemCheckedParam,
+    EntityChecklistItemDeadlineParam,
+    EntityChecklistItemIDParam,
+    EntityChecklistItemsParam,
+    EntityChecklistItemTextOptionalParam,
+    EntityChecklistItemTextParam,
     EntityClientsParam,
     EntityCommentIDParam,
     EntityCommentMaillistSummoneesParam,
@@ -215,4 +223,134 @@ def register_project_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None
                 comment_id,
                 auth=get_yandex_auth(ctx),
             )
+        )
+
+    @mcp.tool(
+        title="Add Project Checklist Item",
+        description="Add a checklist item to a Yandex Tracker project, e.g. "
+        "entity_id='abc123'. Returns the full updated entity; request "
+        "`checklistItems` via `fields` to see the new item." + _QUEUE_RESTRICTIONS_NOTE,
+        annotations=ToolAnnotations(readOnlyHint=False),
+    )
+    async def project_add_checklist_item(
+        ctx: Context[Any, AppContext],
+        entity_id: EntityID,
+        text: EntityChecklistItemTextParam,
+        checked: EntityChecklistItemCheckedParam = None,
+        assignee: EntityChecklistItemAssigneeParam = None,
+        deadline: EntityChecklistItemDeadlineParam = None,
+        fields: ProjectFieldsParam = None,
+    ) -> ProjectEntity:
+        return await ctx.request_context.lifespan_context.entities.project_add_checklist_item(
+            entity_id,
+            text=text,
+            checked=checked,
+            assignee=assignee,
+            deadline=deadline,
+            fields=[f.value for f in fields] if fields is not None else None,
+            auth=get_yandex_auth(ctx),
+        )
+
+    @mcp.tool(
+        title="Update Project Checklist Item",
+        description="Update (partial) a checklist item on a Yandex Tracker project."
+        + _QUEUE_RESTRICTIONS_NOTE,
+        annotations=ToolAnnotations(readOnlyHint=False),
+    )
+    async def project_update_checklist_item(
+        ctx: Context[Any, AppContext],
+        entity_id: EntityID,
+        checklist_item_id: EntityChecklistItemIDParam,
+        text: EntityChecklistItemTextOptionalParam = None,
+        checked: EntityChecklistItemCheckedParam = None,
+        assignee: EntityChecklistItemAssigneeParam = None,
+        deadline: EntityChecklistItemDeadlineParam = None,
+        fields: ProjectFieldsParam = None,
+    ) -> ProjectEntity:
+        return await ctx.request_context.lifespan_context.entities.project_update_checklist_item(
+            entity_id,
+            checklist_item_id,
+            text=text,
+            checked=checked,
+            assignee=assignee,
+            deadline=deadline,
+            fields=[f.value for f in fields] if fields is not None else None,
+            auth=get_yandex_auth(ctx),
+        )
+
+    @mcp.tool(
+        title="Move Project Checklist Item",
+        description="Reorder a checklist item on a Yandex Tracker project by moving it "
+        "before another item." + _QUEUE_RESTRICTIONS_NOTE,
+        annotations=ToolAnnotations(readOnlyHint=False),
+    )
+    async def project_move_checklist_item(
+        ctx: Context[Any, AppContext],
+        entity_id: EntityID,
+        checklist_item_id: EntityChecklistItemIDParam,
+        before: EntityChecklistItemBeforeParam,
+        fields: ProjectFieldsParam = None,
+    ) -> ProjectEntity:
+        return await ctx.request_context.lifespan_context.entities.project_move_checklist_item(
+            entity_id,
+            checklist_item_id,
+            before=before,
+            fields=[f.value for f in fields] if fields is not None else None,
+            auth=get_yandex_auth(ctx),
+        )
+
+    @mcp.tool(
+        title="Delete Project Checklist Item",
+        description="Delete a single checklist item from a Yandex Tracker project."
+        + _QUEUE_RESTRICTIONS_NOTE,
+        annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True),
+    )
+    async def project_delete_checklist_item(
+        ctx: Context[Any, AppContext],
+        entity_id: EntityID,
+        checklist_item_id: EntityChecklistItemIDParam,
+        fields: ProjectFieldsParam = None,
+    ) -> ProjectEntity:
+        return await ctx.request_context.lifespan_context.entities.project_delete_checklist_item(
+            entity_id,
+            checklist_item_id,
+            fields=[f.value for f in fields] if fields is not None else None,
+            auth=get_yandex_auth(ctx),
+        )
+
+    @mcp.tool(
+        title="Update Project Checklist",
+        description="Replace the whole checklist of a Yandex Tracker project with the "
+        "given list of items (each referencing an existing item `id`)."
+        + _QUEUE_RESTRICTIONS_NOTE,
+        annotations=ToolAnnotations(readOnlyHint=False),
+    )
+    async def project_update_checklist(
+        ctx: Context[Any, AppContext],
+        entity_id: EntityID,
+        items: EntityChecklistItemsParam,
+        fields: ProjectFieldsParam = None,
+    ) -> ProjectEntity:
+        return await ctx.request_context.lifespan_context.entities.project_update_checklist(
+            entity_id,
+            items=items,
+            fields=[f.value for f in fields] if fields is not None else None,
+            auth=get_yandex_auth(ctx),
+        )
+
+    @mcp.tool(
+        title="Delete Project Checklist",
+        description="Delete the entire checklist from a Yandex Tracker project."
+        + _QUEUE_RESTRICTIONS_NOTE,
+        annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True),
+    )
+    async def project_delete_checklist(
+        ctx: Context[Any, AppContext],
+        entity_id: EntityID,
+        fields: ProjectFieldsParam = None,
+    ) -> ProjectEntity:
+        return await ctx.request_context.lifespan_context.entities.project_delete_checklist(
+            entity_id,
+            fields=[f.value for f in fields] if fields is not None else None,
+            auth=get_yandex_auth(ctx),
         )

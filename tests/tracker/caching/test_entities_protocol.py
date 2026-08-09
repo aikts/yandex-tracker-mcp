@@ -13,9 +13,11 @@ from mcp_tracker.tracker.proto.types.entities import (
     ProjectEntity,
     ProjectSearchResult,
 )
+from mcp_tracker.tracker.proto.types.inputs import EntityChecklistItemUpdateInput
 from mcp_tracker.tracker.proto.types.issues import IssueComment
 
 ENTITY_COMMENT_METHOD_PREFIXES = ["project", "portfolio", "goal"]
+ENTITY_CHECKLIST_METHOD_PREFIXES = ["project", "portfolio"]
 
 
 class TestCachingEntitiesProtocol:
@@ -441,3 +443,137 @@ class TestCachingEntitiesProtocol:
             "e1", 2, auth=None
         )
         assert result is None
+
+    @pytest.mark.parametrize("prefix", ENTITY_CHECKLIST_METHOD_PREFIXES)
+    async def test_add_checklist_item_calls_original(
+        self,
+        prefix: str,
+        caching_entities_protocol: Any,
+        mock_original: AsyncMock,
+        yandex_auth: YandexAuth,
+    ) -> None:
+        entity = ProjectEntity(id="e1", entityType="project")
+        getattr(mock_original, f"{prefix}_add_checklist_item").return_value = entity
+
+        method = getattr(caching_entities_protocol, f"{prefix}_add_checklist_item")
+        deadline = {"date": "2026-08-20T00:00:00.000+0000", "deadlineType": "date"}
+        result = await method(
+            "e1",
+            text="Do it",
+            checked=True,
+            assignee="u1",
+            deadline=deadline,
+            fields=["summary"],
+            auth=yandex_auth,
+        )
+
+        getattr(mock_original, f"{prefix}_add_checklist_item").assert_called_once_with(
+            "e1",
+            text="Do it",
+            checked=True,
+            assignee="u1",
+            deadline=deadline,
+            fields=["summary"],
+            auth=yandex_auth,
+        )
+        assert result == entity
+
+    @pytest.mark.parametrize("prefix", ENTITY_CHECKLIST_METHOD_PREFIXES)
+    async def test_update_checklist_item_calls_original(
+        self,
+        prefix: str,
+        caching_entities_protocol: Any,
+        mock_original: AsyncMock,
+    ) -> None:
+        entity = ProjectEntity(id="e1", entityType="project")
+        getattr(mock_original, f"{prefix}_update_checklist_item").return_value = entity
+
+        method = getattr(caching_entities_protocol, f"{prefix}_update_checklist_item")
+        result = await method("e1", "item1", checked=True)
+
+        getattr(
+            mock_original, f"{prefix}_update_checklist_item"
+        ).assert_called_once_with(
+            "e1",
+            "item1",
+            text=None,
+            checked=True,
+            assignee=None,
+            deadline=None,
+            fields=None,
+            auth=None,
+        )
+        assert result == entity
+
+    @pytest.mark.parametrize("prefix", ENTITY_CHECKLIST_METHOD_PREFIXES)
+    async def test_move_checklist_item_calls_original(
+        self,
+        prefix: str,
+        caching_entities_protocol: Any,
+        mock_original: AsyncMock,
+    ) -> None:
+        entity = ProjectEntity(id="e1", entityType="project")
+        getattr(mock_original, f"{prefix}_move_checklist_item").return_value = entity
+
+        method = getattr(caching_entities_protocol, f"{prefix}_move_checklist_item")
+        result = await method("e1", "item1", before="item0")
+
+        getattr(mock_original, f"{prefix}_move_checklist_item").assert_called_once_with(
+            "e1", "item1", before="item0", fields=None, auth=None
+        )
+        assert result == entity
+
+    @pytest.mark.parametrize("prefix", ENTITY_CHECKLIST_METHOD_PREFIXES)
+    async def test_delete_checklist_item_calls_original(
+        self,
+        prefix: str,
+        caching_entities_protocol: Any,
+        mock_original: AsyncMock,
+    ) -> None:
+        entity = ProjectEntity(id="e1", entityType="project")
+        getattr(mock_original, f"{prefix}_delete_checklist_item").return_value = entity
+
+        method = getattr(caching_entities_protocol, f"{prefix}_delete_checklist_item")
+        result = await method("e1", "item1")
+
+        getattr(
+            mock_original, f"{prefix}_delete_checklist_item"
+        ).assert_called_once_with("e1", "item1", fields=None, auth=None)
+        assert result == entity
+
+    @pytest.mark.parametrize("prefix", ENTITY_CHECKLIST_METHOD_PREFIXES)
+    async def test_update_checklist_calls_original(
+        self,
+        prefix: str,
+        caching_entities_protocol: Any,
+        mock_original: AsyncMock,
+    ) -> None:
+        entity = ProjectEntity(id="e1", entityType="project")
+        getattr(mock_original, f"{prefix}_update_checklist").return_value = entity
+        items = [EntityChecklistItemUpdateInput(id="item1", text="Do it")]
+
+        method = getattr(caching_entities_protocol, f"{prefix}_update_checklist")
+        result = await method("e1", items=items)
+
+        getattr(mock_original, f"{prefix}_update_checklist").assert_called_once_with(
+            "e1", items=items, fields=None, auth=None
+        )
+        assert result == entity
+
+    @pytest.mark.parametrize("prefix", ENTITY_CHECKLIST_METHOD_PREFIXES)
+    async def test_delete_checklist_calls_original(
+        self,
+        prefix: str,
+        caching_entities_protocol: Any,
+        mock_original: AsyncMock,
+    ) -> None:
+        entity = ProjectEntity(id="e1", entityType="project")
+        getattr(mock_original, f"{prefix}_delete_checklist").return_value = entity
+
+        method = getattr(caching_entities_protocol, f"{prefix}_delete_checklist")
+        result = await method("e1")
+
+        getattr(mock_original, f"{prefix}_delete_checklist").assert_called_once_with(
+            "e1", fields=None, auth=None
+        )
+        assert result == entity

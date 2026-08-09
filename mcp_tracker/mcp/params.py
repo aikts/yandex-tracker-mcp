@@ -1,5 +1,5 @@
 import datetime
-from typing import Annotated, get_args
+from typing import Annotated, Any, get_args
 
 from pydantic import Field
 
@@ -14,6 +14,7 @@ from mcp_tracker.tracker.proto.types.entities import (
     ProjectPortfolioStatus,
 )
 from mcp_tracker.tracker.proto.types.inputs import (
+    EntityChecklistItemUpdateInput,
     EntityParentEntityInput,
     GoalLinkInput,
     IssueComponentRef,
@@ -434,6 +435,71 @@ EntityCommentMaillistSummoneesParam = Annotated[
     Field(
         description="Optional list of mailing list emails to summon. "
         "Example: ['team@example.com']."
+    ),
+]
+
+
+EntityChecklistItemIDParam = Annotated[
+    str,
+    Field(
+        description="Checklist item ID, as returned in the `id` field of an item under "
+        "`fields.checklistItems`. Example: '5f8b2c1e4c3a2d001a7e9b1c'."
+    ),
+]
+
+EntityChecklistItemTextParam = Annotated[
+    str,
+    Field(
+        description="Checklist item text (Markdown/YFM supported). "
+        "Example: 'Get sign-off from legal.'"
+    ),
+]
+
+EntityChecklistItemTextOptionalParam = Annotated[
+    str | None,
+    Field(
+        description="New checklist item text (Markdown/YFM supported). Omit to leave "
+        "unchanged. Example: 'Get sign-off from legal.'"
+    ),
+]
+
+EntityChecklistItemCheckedParam = Annotated[
+    bool | None,
+    Field(description="Whether the checklist item is checked off. Example: true"),
+]
+
+EntityChecklistItemAssigneeParam = Annotated[
+    str | None,
+    Field(
+        description="User ID or login to assign the checklist item to. Example: 'i.ivanov'"
+    ),
+]
+
+EntityChecklistItemDeadlineParam = Annotated[
+    dict[str, Any] | None,
+    Field(
+        description="Deadline for the checklist item. Example: "
+        "{'date': '2026-08-20T00:00:00.000+0000', 'deadlineType': 'date'}."
+    ),
+]
+
+EntityChecklistItemBeforeParam = Annotated[
+    str,
+    Field(
+        description="ID of the checklist item to move this item before (i.e. this item "
+        "will be placed immediately above it). Example: '5f8b2c1e4c3a2d001a7e9b1c'."
+    ),
+]
+
+EntityChecklistItemsParam = Annotated[
+    list[EntityChecklistItemUpdateInput],
+    Field(
+        description="Full replacement list of checklist items. Each item requires `id` "
+        "(existing checklist item ID) and `text`, and may optionally include `checked`, "
+        "`assignee`, `deadline`. This REPLACES the entity's whole checklist, so pass the "
+        "full desired set of items. "
+        "Example: [{'id': '5f8b2c1e4c3a2d001a7e9b1c', 'text': 'Get sign-off', "
+        "'checked': false}]."
     ),
 ]
 

@@ -43,6 +43,7 @@ from mcp_tracker.tracker.proto.types.entities import (
 )
 from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
 from mcp_tracker.tracker.proto.types.inputs import (
+    EntityChecklistItemUpdateInput,
     EntityParentEntityInput,
     GoalLinkInput,
     IssueComponentRef,
@@ -2043,3 +2044,380 @@ class TrackerClient(
         auth: YandexAuth | None = None,
     ) -> None:
         await self._entity_delete_comment("goal", entity_id, comment_id, auth=auth)
+
+    @staticmethod
+    def _build_checklist_item_body(
+        *,
+        text: str | None,
+        checked: bool | None,
+        assignee: str | None,
+        deadline: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        body: dict[str, Any] = {}
+        if text is not None:
+            body["text"] = text
+        if checked is not None:
+            body["checked"] = checked
+        if assignee is not None:
+            body["assignee"] = assignee
+        if deadline is not None:
+            body["deadline"] = deadline
+        return body
+
+    async def _entity_add_checklist_item(
+        self,
+        entity_type: Literal["project", "portfolio"],
+        entity_id: str,
+        *,
+        text: str,
+        checked: bool | None,
+        assignee: str | None,
+        deadline: dict[str, Any] | None,
+        fields: list[str] | None,
+        auth: YandexAuth | None,
+    ) -> bytes:
+        body = self._build_checklist_item_body(
+            text=text, checked=checked, assignee=assignee, deadline=deadline
+        )
+        async with self._session.post(
+            f"v3/entities/{entity_type}/{entity_id}/checklistItems",
+            headers=await self._build_headers(auth),
+            json=body,
+            params={"fields": self._entity_fields_param(entity_type, fields)},
+        ) as response:
+            response.raise_for_status()
+            return await response.read()
+
+    async def _entity_update_checklist_item(
+        self,
+        entity_type: Literal["project", "portfolio"],
+        entity_id: str,
+        checklist_item_id: str,
+        *,
+        text: str | None,
+        checked: bool | None,
+        assignee: str | None,
+        deadline: dict[str, Any] | None,
+        fields: list[str] | None,
+        auth: YandexAuth | None,
+    ) -> bytes:
+        body = self._build_checklist_item_body(
+            text=text, checked=checked, assignee=assignee, deadline=deadline
+        )
+        async with self._session.patch(
+            f"v3/entities/{entity_type}/{entity_id}/checklistItems/{checklist_item_id}",
+            headers=await self._build_headers(auth),
+            json=body,
+            params={"fields": self._entity_fields_param(entity_type, fields)},
+        ) as response:
+            response.raise_for_status()
+            return await response.read()
+
+    async def _entity_move_checklist_item(
+        self,
+        entity_type: Literal["project", "portfolio"],
+        entity_id: str,
+        checklist_item_id: str,
+        *,
+        before: str,
+        fields: list[str] | None,
+        auth: YandexAuth | None,
+    ) -> bytes:
+        async with self._session.post(
+            f"v3/entities/{entity_type}/{entity_id}/checklistItems/{checklist_item_id}/_move",
+            headers=await self._build_headers(auth),
+            json={"before": before},
+            params={"fields": self._entity_fields_param(entity_type, fields)},
+        ) as response:
+            response.raise_for_status()
+            return await response.read()
+
+    async def _entity_delete_checklist_item(
+        self,
+        entity_type: Literal["project", "portfolio"],
+        entity_id: str,
+        checklist_item_id: str,
+        *,
+        fields: list[str] | None,
+        auth: YandexAuth | None,
+    ) -> bytes:
+        async with self._session.delete(
+            f"v3/entities/{entity_type}/{entity_id}/checklistItems/{checklist_item_id}",
+            headers=await self._build_headers(auth),
+            params={"fields": self._entity_fields_param(entity_type, fields)},
+        ) as response:
+            response.raise_for_status()
+            return await response.read()
+
+    async def _entity_update_checklist(
+        self,
+        entity_type: Literal["project", "portfolio"],
+        entity_id: str,
+        *,
+        items: list[EntityChecklistItemUpdateInput],
+        fields: list[str] | None,
+        auth: YandexAuth | None,
+    ) -> bytes:
+        body = [item.model_dump(exclude_none=True) for item in items]
+        async with self._session.patch(
+            f"v3/entities/{entity_type}/{entity_id}/checklistItems",
+            headers=await self._build_headers(auth),
+            json=body,
+            params={"fields": self._entity_fields_param(entity_type, fields)},
+        ) as response:
+            response.raise_for_status()
+            return await response.read()
+
+    async def _entity_delete_checklist(
+        self,
+        entity_type: Literal["project", "portfolio"],
+        entity_id: str,
+        *,
+        fields: list[str] | None,
+        auth: YandexAuth | None,
+    ) -> bytes:
+        async with self._session.delete(
+            f"v3/entities/{entity_type}/{entity_id}/checklistItems",
+            headers=await self._build_headers(auth),
+            params={"fields": self._entity_fields_param(entity_type, fields)},
+        ) as response:
+            response.raise_for_status()
+            return await response.read()
+
+    async def project_add_checklist_item(
+        self,
+        entity_id: str,
+        *,
+        text: str,
+        checked: bool | None = None,
+        assignee: str | None = None,
+        deadline: dict[str, Any] | None = None,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> ProjectEntity:
+        return ProjectEntity.model_validate_json(
+            await self._entity_add_checklist_item(
+                "project",
+                entity_id,
+                text=text,
+                checked=checked,
+                assignee=assignee,
+                deadline=deadline,
+                fields=fields,
+                auth=auth,
+            )
+        )
+
+    async def project_update_checklist_item(
+        self,
+        entity_id: str,
+        checklist_item_id: str,
+        *,
+        text: str | None = None,
+        checked: bool | None = None,
+        assignee: str | None = None,
+        deadline: dict[str, Any] | None = None,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> ProjectEntity:
+        return ProjectEntity.model_validate_json(
+            await self._entity_update_checklist_item(
+                "project",
+                entity_id,
+                checklist_item_id,
+                text=text,
+                checked=checked,
+                assignee=assignee,
+                deadline=deadline,
+                fields=fields,
+                auth=auth,
+            )
+        )
+
+    async def project_move_checklist_item(
+        self,
+        entity_id: str,
+        checklist_item_id: str,
+        *,
+        before: str,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> ProjectEntity:
+        return ProjectEntity.model_validate_json(
+            await self._entity_move_checklist_item(
+                "project",
+                entity_id,
+                checklist_item_id,
+                before=before,
+                fields=fields,
+                auth=auth,
+            )
+        )
+
+    async def project_delete_checklist_item(
+        self,
+        entity_id: str,
+        checklist_item_id: str,
+        *,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> ProjectEntity:
+        return ProjectEntity.model_validate_json(
+            await self._entity_delete_checklist_item(
+                "project",
+                entity_id,
+                checklist_item_id,
+                fields=fields,
+                auth=auth,
+            )
+        )
+
+    async def project_update_checklist(
+        self,
+        entity_id: str,
+        *,
+        items: list[EntityChecklistItemUpdateInput],
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> ProjectEntity:
+        return ProjectEntity.model_validate_json(
+            await self._entity_update_checklist(
+                "project",
+                entity_id,
+                items=items,
+                fields=fields,
+                auth=auth,
+            )
+        )
+
+    async def project_delete_checklist(
+        self,
+        entity_id: str,
+        *,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> ProjectEntity:
+        return ProjectEntity.model_validate_json(
+            await self._entity_delete_checklist(
+                "project", entity_id, fields=fields, auth=auth
+            )
+        )
+
+    async def portfolio_add_checklist_item(
+        self,
+        entity_id: str,
+        *,
+        text: str,
+        checked: bool | None = None,
+        assignee: str | None = None,
+        deadline: dict[str, Any] | None = None,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> PortfolioEntity:
+        return PortfolioEntity.model_validate_json(
+            await self._entity_add_checklist_item(
+                "portfolio",
+                entity_id,
+                text=text,
+                checked=checked,
+                assignee=assignee,
+                deadline=deadline,
+                fields=fields,
+                auth=auth,
+            )
+        )
+
+    async def portfolio_update_checklist_item(
+        self,
+        entity_id: str,
+        checklist_item_id: str,
+        *,
+        text: str | None = None,
+        checked: bool | None = None,
+        assignee: str | None = None,
+        deadline: dict[str, Any] | None = None,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> PortfolioEntity:
+        return PortfolioEntity.model_validate_json(
+            await self._entity_update_checklist_item(
+                "portfolio",
+                entity_id,
+                checklist_item_id,
+                text=text,
+                checked=checked,
+                assignee=assignee,
+                deadline=deadline,
+                fields=fields,
+                auth=auth,
+            )
+        )
+
+    async def portfolio_move_checklist_item(
+        self,
+        entity_id: str,
+        checklist_item_id: str,
+        *,
+        before: str,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> PortfolioEntity:
+        return PortfolioEntity.model_validate_json(
+            await self._entity_move_checklist_item(
+                "portfolio",
+                entity_id,
+                checklist_item_id,
+                before=before,
+                fields=fields,
+                auth=auth,
+            )
+        )
+
+    async def portfolio_delete_checklist_item(
+        self,
+        entity_id: str,
+        checklist_item_id: str,
+        *,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> PortfolioEntity:
+        return PortfolioEntity.model_validate_json(
+            await self._entity_delete_checklist_item(
+                "portfolio",
+                entity_id,
+                checklist_item_id,
+                fields=fields,
+                auth=auth,
+            )
+        )
+
+    async def portfolio_update_checklist(
+        self,
+        entity_id: str,
+        *,
+        items: list[EntityChecklistItemUpdateInput],
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> PortfolioEntity:
+        return PortfolioEntity.model_validate_json(
+            await self._entity_update_checklist(
+                "portfolio",
+                entity_id,
+                items=items,
+                fields=fields,
+                auth=auth,
+            )
+        )
+
+    async def portfolio_delete_checklist(
+        self,
+        entity_id: str,
+        *,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> PortfolioEntity:
+        return PortfolioEntity.model_validate_json(
+            await self._entity_delete_checklist(
+                "portfolio", entity_id, fields=fields, auth=auth
+            )
+        )

@@ -575,7 +575,17 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
 - **`project_delete_comment`**: Удалить комментарий. Требуется `entity_id` и `comment_id`
 - **`portfolio_add_comment`** / **`portfolio_update_comment`** / **`portfolio_delete_comment`** и **`goal_add_comment`** / **`goal_update_comment`** / **`goal_delete_comment`**: Аналогично инструментам записи комментариев для проектов, но для портфелей и целей
 
-Пока не поддерживается: чек-листы, метрики и ключевые результаты (`checklistItems`, `metricItems`, `keyResultItems`) и массовые изменения — это запланировано на будущее. Инструменты записи сущностей (включая работу с комментариями) также пока не учитывают ограничения `TRACKER_LIMIT_QUEUES` / `TRACKER_READ_ONLY_QUEUES`, так как сущность нельзя однозначно сопоставить с одной очередью.
+Для проектов и портфелей (но не целей — API Яндекс Трекера не поддерживает чек-листы для целей) также доступны инструменты записи чек-листов. Все они возвращают полную обновлённую сущность (запросите `checklistItems` через `fields`, чтобы увидеть текущие элементы):
+
+- **`project_add_checklist_item`**: Добавить элемент чек-листа. Требуется `entity_id` и `text`. Принимает опциональные `checked`, `assignee` (ID/логин пользователя) и `deadline` (например, `{'date': '2026-08-20T00:00:00.000+0000', 'deadlineType': 'date'}`)
+- **`project_update_checklist_item`**: Частично изменить элемент чек-листа. Требуется `entity_id` и `checklist_item_id`; остальные поля (`text`, `checked`, `assignee`, `deadline`) опциональны и меняют только то, что передано
+- **`project_move_checklist_item`**: Переместить элемент чек-листа. Требуется `entity_id`, `checklist_item_id` и `before` (id элемента, перед которым нужно вставить)
+- **`project_delete_checklist_item`**: Удалить один элемент чек-листа. Требуется `entity_id` и `checklist_item_id`
+- **`project_update_checklist`**: Полностью заменить чек-лист. Требуется `entity_id` и `items` (полный список объектов `{id, text, checked?, assignee?, deadline?}`) — это ЗАМЕНЯЕТ весь чек-лист, поэтому передавайте полный желаемый набор
+- **`project_delete_checklist`**: Удалить весь чек-лист. Требуется `entity_id`
+- **`portfolio_add_checklist_item`** / **`portfolio_update_checklist_item`** / **`portfolio_move_checklist_item`** / **`portfolio_delete_checklist_item`** / **`portfolio_update_checklist`** / **`portfolio_delete_checklist`**: Аналогично инструментам записи чек-листов для проектов, но для портфелей
+
+Пока не поддерживается: метрики и ключевые результаты (`metricItems`, `keyResultItems`) и массовые изменения — это запланировано на будущее. Инструменты записи сущностей (включая работу с комментариями и чек-листами) также пока не учитывают ограничения `TRACKER_LIMIT_QUEUES` / `TRACKER_READ_ONLY_QUEUES`, так как сущность нельзя однозначно сопоставить с одной очередью.
 
 </details>
 

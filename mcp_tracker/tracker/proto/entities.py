@@ -1,5 +1,5 @@
 import datetime
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from mcp_tracker.tracker.proto.common import YandexAuth
 from mcp_tracker.tracker.proto.types.entities import (
@@ -13,6 +13,7 @@ from mcp_tracker.tracker.proto.types.entities import (
     ProjectSearchResult,
 )
 from mcp_tracker.tracker.proto.types.inputs import (
+    EntityChecklistItemUpdateInput,
     EntityParentEntityInput,
     GoalLinkInput,
     ProjectPortfolioLinkInput,
@@ -346,6 +347,128 @@ class EntitiesProtocol(Protocol):
         *,
         auth: YandexAuth | None = None,
     ) -> None: ...
+
+    async def project_add_checklist_item(
+        self,
+        entity_id: str,
+        *,
+        text: str,
+        checked: bool | None = None,
+        assignee: str | None = None,
+        deadline: dict[str, Any] | None = None,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> ProjectEntity: ...
+
+    async def project_update_checklist_item(
+        self,
+        entity_id: str,
+        checklist_item_id: str,
+        *,
+        text: str | None = None,
+        checked: bool | None = None,
+        assignee: str | None = None,
+        deadline: dict[str, Any] | None = None,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> ProjectEntity: ...
+
+    async def project_move_checklist_item(
+        self,
+        entity_id: str,
+        checklist_item_id: str,
+        *,
+        before: str,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> ProjectEntity: ...
+
+    async def project_delete_checklist_item(
+        self,
+        entity_id: str,
+        checklist_item_id: str,
+        *,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> ProjectEntity: ...
+
+    async def project_update_checklist(
+        self,
+        entity_id: str,
+        *,
+        items: list[EntityChecklistItemUpdateInput],
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> ProjectEntity: ...
+
+    async def project_delete_checklist(
+        self,
+        entity_id: str,
+        *,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> ProjectEntity: ...
+
+    async def portfolio_add_checklist_item(
+        self,
+        entity_id: str,
+        *,
+        text: str,
+        checked: bool | None = None,
+        assignee: str | None = None,
+        deadline: dict[str, Any] | None = None,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> PortfolioEntity: ...
+
+    async def portfolio_update_checklist_item(
+        self,
+        entity_id: str,
+        checklist_item_id: str,
+        *,
+        text: str | None = None,
+        checked: bool | None = None,
+        assignee: str | None = None,
+        deadline: dict[str, Any] | None = None,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> PortfolioEntity: ...
+
+    async def portfolio_move_checklist_item(
+        self,
+        entity_id: str,
+        checklist_item_id: str,
+        *,
+        before: str,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> PortfolioEntity: ...
+
+    async def portfolio_delete_checklist_item(
+        self,
+        entity_id: str,
+        checklist_item_id: str,
+        *,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> PortfolioEntity: ...
+
+    async def portfolio_update_checklist(
+        self,
+        entity_id: str,
+        *,
+        items: list[EntityChecklistItemUpdateInput],
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> PortfolioEntity: ...
+
+    async def portfolio_delete_checklist(
+        self,
+        entity_id: str,
+        *,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> PortfolioEntity: ...
 
 
 class EntitiesProtocolWrap(EntitiesProtocol):

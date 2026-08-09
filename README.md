@@ -578,7 +578,17 @@ All create/update tools accept the same `fields` selector as the read tools and 
 - **`project_delete_comment`**: Delete a comment. Requires `entity_id` and `comment_id`
 - **`portfolio_add_comment`** / **`portfolio_update_comment`** / **`portfolio_delete_comment`** and **`goal_add_comment`** / **`goal_update_comment`** / **`goal_delete_comment`**: Same shape as the project comment write tools, for portfolios and goals
 
-Not yet supported: checklists, metrics/key results (`checklistItems`, `metricItems`, `keyResultItems`), and bulk changes — these are tracked for a future iteration. Entity write tools (including comment tools) are also not currently subject to `TRACKER_LIMIT_QUEUES` / `TRACKER_READ_ONLY_QUEUES` restrictions, since an entity isn't reliably mappable to a single queue.
+Projects and portfolios (not goals — the Yandex Tracker API does not support checklists on goals) also expose checklist write tools. All of them return the full updated entity (request `checklistItems` via `fields` to see the current items):
+
+- **`project_add_checklist_item`**: Add a checklist item. Requires `entity_id` and `text`. Accepts optional `checked`, `assignee` (user ID/login), and `deadline` (e.g. `{'date': '2026-08-20T00:00:00.000+0000', 'deadlineType': 'date'}`)
+- **`project_update_checklist_item`**: Partially update a checklist item. Requires `entity_id` and `checklist_item_id`; all other fields (`text`, `checked`, `assignee`, `deadline`) are optional and only change what's passed
+- **`project_move_checklist_item`**: Reorder a checklist item. Requires `entity_id`, `checklist_item_id`, and `before` (the id of the item to insert immediately above)
+- **`project_delete_checklist_item`**: Delete a single checklist item. Requires `entity_id` and `checklist_item_id`
+- **`project_update_checklist`**: Replace the entire checklist. Requires `entity_id` and `items` (a full list of `{id, text, checked?, assignee?, deadline?}` objects) — this REPLACES the whole checklist, so pass the full desired set
+- **`project_delete_checklist`**: Delete the entire checklist. Requires `entity_id`
+- **`portfolio_add_checklist_item`** / **`portfolio_update_checklist_item`** / **`portfolio_move_checklist_item`** / **`portfolio_delete_checklist_item`** / **`portfolio_update_checklist`** / **`portfolio_delete_checklist`**: Same shape as the project checklist write tools, for portfolios
+
+Not yet supported: metrics/key results (`metricItems`, `keyResultItems`), and bulk changes — these are tracked for a future iteration. Entity write tools (including comment and checklist tools) are also not currently subject to `TRACKER_LIMIT_QUEUES` / `TRACKER_READ_ONLY_QUEUES` restrictions, since an entity isn't reliably mappable to a single queue.
 
 </details>
 
