@@ -4,6 +4,7 @@ from mcp.client.session import ClientSession
 
 from mcp_tracker.tracker.proto.common import YandexAuth
 from mcp_tracker.tracker.proto.types.entities import GoalEntity, GoalSearchResult
+from mcp_tracker.tracker.proto.types.issues import IssueComment
 from tests.mcp.conftest import get_tool_result_content
 
 
@@ -122,3 +123,26 @@ class TestGoalFind:
         assert call_kwargs["order_by"] is None
         assert call_kwargs["order_asc"] is None
         assert call_kwargs["root_only"] is None
+
+
+class TestGoalGetComments:
+    async def test_returns_comments(
+        self,
+        client_session: ClientSession,
+        mock_entities_protocol: AsyncMock,
+        sample_comments: list[IssueComment],
+    ) -> None:
+        mock_entities_protocol.goal_get_comments.return_value = sample_comments
+
+        result = await client_session.call_tool(
+            "goal_get_comments", {"entity_id": "ghi789"}
+        )
+
+        assert not result.isError
+        mock_entities_protocol.goal_get_comments.assert_called_once_with(
+            "ghi789", auth=YandexAuth()
+        )
+        content = get_tool_result_content(result)
+        assert isinstance(content, list)
+        assert len(content) == len(sample_comments)
+        assert content[0]["text"] == sample_comments[0].text

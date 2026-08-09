@@ -1800,3 +1800,246 @@ class TrackerClient(
         auth: YandexAuth | None = None,
     ) -> None:
         await self._entity_delete("goal", entity_id, with_board=with_board, auth=auth)
+
+    async def _entity_get_comments(
+        self,
+        entity_type: Literal["project", "portfolio", "goal"],
+        entity_id: str,
+        *,
+        auth: YandexAuth | None,
+    ) -> list[IssueComment]:
+        async with self._session.get(
+            f"v3/entities/{entity_type}/{entity_id}/comments",
+            headers=await self._build_headers(auth),
+        ) as response:
+            response.raise_for_status()
+            return IssueCommentList.model_validate_json(await response.read()).root
+
+    async def _entity_add_comment(
+        self,
+        entity_type: Literal["project", "portfolio", "goal"],
+        entity_id: str,
+        *,
+        text: str,
+        summonees: list[str] | None,
+        maillist_summonees: list[str] | None,
+        auth: YandexAuth | None,
+    ) -> IssueComment:
+        body: dict[str, Any] = {"text": text}
+        if summonees is not None:
+            body["summonees"] = summonees
+        if maillist_summonees is not None:
+            body["maillistSummonees"] = maillist_summonees
+
+        async with self._session.post(
+            f"v3/entities/{entity_type}/{entity_id}/comments",
+            headers=await self._build_headers(auth),
+            json=body,
+        ) as response:
+            response.raise_for_status()
+            return IssueComment.model_validate_json(await response.read())
+
+    async def _entity_update_comment(
+        self,
+        entity_type: Literal["project", "portfolio", "goal"],
+        entity_id: str,
+        comment_id: int,
+        *,
+        text: str,
+        summonees: list[str] | None,
+        maillist_summonees: list[str] | None,
+        auth: YandexAuth | None,
+    ) -> IssueComment:
+        body: dict[str, Any] = {"text": text}
+        if summonees is not None:
+            body["summonees"] = summonees
+        if maillist_summonees is not None:
+            body["maillistSummonees"] = maillist_summonees
+
+        async with self._session.patch(
+            f"v3/entities/{entity_type}/{entity_id}/comments/{comment_id}",
+            headers=await self._build_headers(auth),
+            json=body,
+        ) as response:
+            response.raise_for_status()
+            return IssueComment.model_validate_json(await response.read())
+
+    async def _entity_delete_comment(
+        self,
+        entity_type: Literal["project", "portfolio", "goal"],
+        entity_id: str,
+        comment_id: int,
+        *,
+        auth: YandexAuth | None,
+    ) -> None:
+        async with self._session.delete(
+            f"v3/entities/{entity_type}/{entity_id}/comments/{comment_id}",
+            headers=await self._build_headers(auth),
+        ) as response:
+            response.raise_for_status()
+            return None
+
+    async def project_get_comments(
+        self,
+        entity_id: str,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> list[IssueComment]:
+        return await self._entity_get_comments("project", entity_id, auth=auth)
+
+    async def project_add_comment(
+        self,
+        entity_id: str,
+        *,
+        text: str,
+        summonees: list[str] | None = None,
+        maillist_summonees: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> IssueComment:
+        return await self._entity_add_comment(
+            "project",
+            entity_id,
+            text=text,
+            summonees=summonees,
+            maillist_summonees=maillist_summonees,
+            auth=auth,
+        )
+
+    async def project_update_comment(
+        self,
+        entity_id: str,
+        comment_id: int,
+        *,
+        text: str,
+        summonees: list[str] | None = None,
+        maillist_summonees: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> IssueComment:
+        return await self._entity_update_comment(
+            "project",
+            entity_id,
+            comment_id,
+            text=text,
+            summonees=summonees,
+            maillist_summonees=maillist_summonees,
+            auth=auth,
+        )
+
+    async def project_delete_comment(
+        self,
+        entity_id: str,
+        comment_id: int,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> None:
+        await self._entity_delete_comment("project", entity_id, comment_id, auth=auth)
+
+    async def portfolio_get_comments(
+        self,
+        entity_id: str,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> list[IssueComment]:
+        return await self._entity_get_comments("portfolio", entity_id, auth=auth)
+
+    async def portfolio_add_comment(
+        self,
+        entity_id: str,
+        *,
+        text: str,
+        summonees: list[str] | None = None,
+        maillist_summonees: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> IssueComment:
+        return await self._entity_add_comment(
+            "portfolio",
+            entity_id,
+            text=text,
+            summonees=summonees,
+            maillist_summonees=maillist_summonees,
+            auth=auth,
+        )
+
+    async def portfolio_update_comment(
+        self,
+        entity_id: str,
+        comment_id: int,
+        *,
+        text: str,
+        summonees: list[str] | None = None,
+        maillist_summonees: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> IssueComment:
+        return await self._entity_update_comment(
+            "portfolio",
+            entity_id,
+            comment_id,
+            text=text,
+            summonees=summonees,
+            maillist_summonees=maillist_summonees,
+            auth=auth,
+        )
+
+    async def portfolio_delete_comment(
+        self,
+        entity_id: str,
+        comment_id: int,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> None:
+        await self._entity_delete_comment("portfolio", entity_id, comment_id, auth=auth)
+
+    async def goal_get_comments(
+        self,
+        entity_id: str,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> list[IssueComment]:
+        return await self._entity_get_comments("goal", entity_id, auth=auth)
+
+    async def goal_add_comment(
+        self,
+        entity_id: str,
+        *,
+        text: str,
+        summonees: list[str] | None = None,
+        maillist_summonees: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> IssueComment:
+        return await self._entity_add_comment(
+            "goal",
+            entity_id,
+            text=text,
+            summonees=summonees,
+            maillist_summonees=maillist_summonees,
+            auth=auth,
+        )
+
+    async def goal_update_comment(
+        self,
+        entity_id: str,
+        comment_id: int,
+        *,
+        text: str,
+        summonees: list[str] | None = None,
+        maillist_summonees: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> IssueComment:
+        return await self._entity_update_comment(
+            "goal",
+            entity_id,
+            comment_id,
+            text=text,
+            summonees=summonees,
+            maillist_summonees=maillist_summonees,
+            auth=auth,
+        )
+
+    async def goal_delete_comment(
+        self,
+        entity_id: str,
+        comment_id: int,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> None:
+        await self._entity_delete_comment("goal", entity_id, comment_id, auth=auth)

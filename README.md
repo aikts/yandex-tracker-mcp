@@ -558,6 +558,11 @@ Projects, portfolios and goals are separate Yandex Tracker entities (distinct fr
 
 - **`goal_get`** / **`goal_find`**: Same shape as `project_get` / `project_find`, for goals. Goals use a different `entityStatus` value set (`draft`, `according_to_plan`, `at_risk`, `blocked`, `achieved`, `partially_achieved`, `not_achieved`, `exceeded`, `cancelled`)
 
+- **`project_get_comments`**: Get comments of a project by its id or shortId
+  - Parameters: `entity_id` (required); `fields` (optional, array of comment field names — text/text_html can be large, so select only what you need; omit to get all fields)
+  - Returns the list of comments (same shape as issue comments)
+- **`portfolio_get_comments`** / **`goal_get_comments`**: Same shape as `project_get_comments`, for portfolios and goals
+
 Write tools (`project_create`/`project_update`/`project_delete` and the equivalent `portfolio_*` / `goal_*` tools) are also available and are only registered when `TRACKER_READ_ONLY` is not set:
 
 - **`project_create`**: Create a project. Requires `summary`. Accepts `description`, `lead`, `team_users`, `clients`, `followers`, `start`, `end`, `tags`, `entity_status`, `parent_entity`, `team_access`, and `links`
@@ -568,7 +573,12 @@ Write tools (`project_create`/`project_update`/`project_delete` and the equivale
 
 All create/update tools accept the same `fields` selector as the read tools and return the created/updated entity with those fields populated.
 
-Not yet supported: checklists, metrics/key results (`checklistItems`, `metricItems`, `keyResultItems`), and bulk changes — these are tracked for a future iteration. Entity write tools are also not currently subject to `TRACKER_LIMIT_QUEUES` / `TRACKER_READ_ONLY_QUEUES` restrictions, since an entity isn't reliably mappable to a single queue.
+- **`project_add_comment`**: Add a comment to a project. Requires `entity_id` and `text` (Markdown/YFM supported). Accepts optional `summonees` (user logins/IDs to notify — use this instead of `@login` in the text) and `maillist_summonees` (mailing list emails)
+- **`project_update_comment`**: Update an existing comment. Requires `entity_id`, `comment_id`, and `text`. Accepts the same optional `summonees` / `maillist_summonees`
+- **`project_delete_comment`**: Delete a comment. Requires `entity_id` and `comment_id`
+- **`portfolio_add_comment`** / **`portfolio_update_comment`** / **`portfolio_delete_comment`** and **`goal_add_comment`** / **`goal_update_comment`** / **`goal_delete_comment`**: Same shape as the project comment write tools, for portfolios and goals
+
+Not yet supported: checklists, metrics/key results (`checklistItems`, `metricItems`, `keyResultItems`), and bulk changes — these are tracked for a future iteration. Entity write tools (including comment tools) are also not currently subject to `TRACKER_LIMIT_QUEUES` / `TRACKER_READ_ONLY_QUEUES` restrictions, since an entity isn't reliably mappable to a single queue.
 
 </details>
 

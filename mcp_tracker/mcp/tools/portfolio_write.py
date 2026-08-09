@@ -9,7 +9,11 @@ from mcp.types import ToolAnnotations
 from mcp_tracker.mcp.context import AppContext
 from mcp_tracker.mcp.params import (
     EntityClientsParam,
+    EntityCommentIDParam,
+    EntityCommentMaillistSummoneesParam,
     EntityCommentParam,
+    EntityCommentSummoneesParam,
+    EntityCommentTextParam,
     EntityDescriptionParam,
     EntityEndParam,
     EntityFollowersParam,
@@ -31,6 +35,7 @@ from mcp_tracker.mcp.params import (
 from mcp_tracker.mcp.utils import get_yandex_auth
 from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.proto.types.entities import PortfolioEntity
+from mcp_tracker.tracker.proto.types.issues import IssueComment
 
 _QUEUE_RESTRICTIONS_NOTE = (
     " Not subject to TRACKER_LIMIT_QUEUES / TRACKER_READ_ONLY_QUEUES restrictions, "
@@ -141,5 +146,71 @@ def register_portfolio_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> No
         await ctx.request_context.lifespan_context.entities.portfolio_delete(
             entity_id,
             with_board=with_board,
+            auth=get_yandex_auth(ctx),
+        )
+
+    @mcp.tool(
+        title="Add Portfolio Comment",
+        description="Add a comment to a Yandex Tracker portfolio, e.g. entity_id='def456'. "
+        "IMPORTANT: If you need to mention/call people to the discussion (so they get "
+        "notifications), do NOT rely on '@login' in the text — use the `summonees` "
+        "parameter instead." + _QUEUE_RESTRICTIONS_NOTE,
+        annotations=ToolAnnotations(readOnlyHint=False),
+    )
+    async def portfolio_add_comment(
+        ctx: Context[Any, AppContext],
+        entity_id: EntityID,
+        text: EntityCommentTextParam,
+        summonees: EntityCommentSummoneesParam = None,
+        maillist_summonees: EntityCommentMaillistSummoneesParam = None,
+    ) -> IssueComment:
+        return (
+            await ctx.request_context.lifespan_context.entities.portfolio_add_comment(
+                entity_id,
+                text=text,
+                summonees=summonees,
+                maillist_summonees=maillist_summonees,
+                auth=get_yandex_auth(ctx),
+            )
+        )
+
+    @mcp.tool(
+        title="Update Portfolio Comment",
+        description="Update an existing comment on a Yandex Tracker portfolio. "
+        "IMPORTANT: If you need to mention/call people (notifications), use the "
+        "`summonees` parameter." + _QUEUE_RESTRICTIONS_NOTE,
+        annotations=ToolAnnotations(readOnlyHint=False),
+    )
+    async def portfolio_update_comment(
+        ctx: Context[Any, AppContext],
+        entity_id: EntityID,
+        comment_id: EntityCommentIDParam,
+        text: EntityCommentTextParam,
+        summonees: EntityCommentSummoneesParam = None,
+        maillist_summonees: EntityCommentMaillistSummoneesParam = None,
+    ) -> IssueComment:
+        return await ctx.request_context.lifespan_context.entities.portfolio_update_comment(
+            entity_id,
+            comment_id,
+            text=text,
+            summonees=summonees,
+            maillist_summonees=maillist_summonees,
+            auth=get_yandex_auth(ctx),
+        )
+
+    @mcp.tool(
+        title="Delete Portfolio Comment",
+        description="Delete a comment from a Yandex Tracker portfolio."
+        + _QUEUE_RESTRICTIONS_NOTE,
+        annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True),
+    )
+    async def portfolio_delete_comment(
+        ctx: Context[Any, AppContext],
+        entity_id: EntityID,
+        comment_id: EntityCommentIDParam,
+    ) -> None:
+        return await ctx.request_context.lifespan_context.entities.portfolio_delete_comment(
+            entity_id,
+            comment_id,
             auth=get_yandex_auth(ctx),
         )

@@ -13,6 +13,9 @@ from mcp_tracker.tracker.proto.types.entities import (
     ProjectEntity,
     ProjectSearchResult,
 )
+from mcp_tracker.tracker.proto.types.issues import IssueComment
+
+ENTITY_COMMENT_METHOD_PREFIXES = ["project", "portfolio", "goal"]
 
 
 class TestCachingEntitiesProtocol:
@@ -351,5 +354,90 @@ class TestCachingEntitiesProtocol:
 
         mock_original.goal_delete.assert_called_once_with(
             "g1", with_board=False, auth=None
+        )
+        assert result is None
+
+    @pytest.mark.parametrize("prefix", ENTITY_COMMENT_METHOD_PREFIXES)
+    async def test_get_comments_is_not_cached(
+        self,
+        prefix: str,
+        caching_entities_protocol: Any,
+        mock_original: AsyncMock,
+    ) -> None:
+        comment = IssueComment.model_construct(id=1, text="hello")
+        getattr(mock_original, f"{prefix}_get_comments").return_value = [comment]
+
+        method = getattr(caching_entities_protocol, f"{prefix}_get_comments")
+        await method("e1")
+        await method("e1")
+
+        assert getattr(mock_original, f"{prefix}_get_comments").call_count == 2
+
+    @pytest.mark.parametrize("prefix", ENTITY_COMMENT_METHOD_PREFIXES)
+    async def test_add_comment_calls_original(
+        self,
+        prefix: str,
+        caching_entities_protocol: Any,
+        mock_original: AsyncMock,
+        yandex_auth: YandexAuth,
+    ) -> None:
+        comment = IssueComment.model_construct(id=2, text="hi")
+        getattr(mock_original, f"{prefix}_add_comment").return_value = comment
+
+        method = getattr(caching_entities_protocol, f"{prefix}_add_comment")
+        result = await method(
+            "e1",
+            text="hi",
+            summonees=["u1"],
+            maillist_summonees=["team@example.com"],
+            auth=yandex_auth,
+        )
+
+        getattr(mock_original, f"{prefix}_add_comment").assert_called_once_with(
+            "e1",
+            text="hi",
+            summonees=["u1"],
+            maillist_summonees=["team@example.com"],
+            auth=yandex_auth,
+        )
+        assert result == comment
+
+    @pytest.mark.parametrize("prefix", ENTITY_COMMENT_METHOD_PREFIXES)
+    async def test_update_comment_calls_original(
+        self,
+        prefix: str,
+        caching_entities_protocol: Any,
+        mock_original: AsyncMock,
+    ) -> None:
+        comment = IssueComment.model_construct(id=2, text="updated")
+        getattr(mock_original, f"{prefix}_update_comment").return_value = comment
+
+        method = getattr(caching_entities_protocol, f"{prefix}_update_comment")
+        result = await method("e1", 2, text="updated")
+
+        getattr(mock_original, f"{prefix}_update_comment").assert_called_once_with(
+            "e1",
+            2,
+            text="updated",
+            summonees=None,
+            maillist_summonees=None,
+            auth=None,
+        )
+        assert result == comment
+
+    @pytest.mark.parametrize("prefix", ENTITY_COMMENT_METHOD_PREFIXES)
+    async def test_delete_comment_calls_original(
+        self,
+        prefix: str,
+        caching_entities_protocol: Any,
+        mock_original: AsyncMock,
+    ) -> None:
+        getattr(mock_original, f"{prefix}_delete_comment").return_value = None
+
+        method = getattr(caching_entities_protocol, f"{prefix}_delete_comment")
+        result = await method("e1", 2)
+
+        getattr(mock_original, f"{prefix}_delete_comment").assert_called_once_with(
+            "e1", 2, auth=None
         )
         assert result is None

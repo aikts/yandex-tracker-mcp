@@ -1,10 +1,11 @@
 """Project-related MCP tools (read-only)."""
 
-from typing import Any
+from typing import Annotated, Any
 
 from mcp.server import FastMCP
 from mcp.server.fastmcp import Context
 from mcp.types import ToolAnnotations
+from pydantic import Field
 
 from mcp_tracker.mcp.context import AppContext
 from mcp_tracker.mcp.params import (
@@ -18,12 +19,13 @@ from mcp_tracker.mcp.params import (
     PerPageParam,
     ProjectFieldsParam,
 )
-from mcp_tracker.mcp.utils import get_yandex_auth
+from mcp_tracker.mcp.utils import get_yandex_auth, set_non_needed_fields_null
 from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.proto.types.entities import (
     ProjectEntity,
     ProjectSearchResult,
 )
+from mcp_tracker.tracker.proto.types.issues import CommentFieldsEnum, IssueComment
 
 
 def register_project_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
@@ -75,3 +77,33 @@ def register_project_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
             fields=[f.value for f in fields] if fields is not None else None,
             auth=get_yandex_auth(ctx),
         )
+
+    @mcp.tool(
+        title="Get Project Comments",
+        description="Get comments of a Yandex Tracker project by its id or shortId, "
+        "e.g. 'abc123'.",
+        annotations=ToolAnnotations(readOnlyHint=True),
+    )
+    async def project_get_comments(
+        ctx: Context[Any, AppContext],
+        entity_id: EntityID,
+        fields: Annotated[
+            list[CommentFieldsEnum] | None,
+            Field(
+                description="Fields to include in each comment. In order to not pollute the context "
+                "window - select only the fields you need (comment text/text_html can be large). "
+                "Not specifying this returns all available fields.",
+            ),
+        ] = None,
+    ) -> list[IssueComment]:
+        comments = (
+            await ctx.request_context.lifespan_context.entities.project_get_comments(
+                entity_id,
+                auth=get_yandex_auth(ctx),
+            )
+        )
+
+        if fields is not None:
+            set_non_needed_fields_null(comments, {f.name for f in fields})
+
+        return comments

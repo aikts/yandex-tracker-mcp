@@ -5,6 +5,7 @@ from mcp.client.session import ClientSession
 from mcp_tracker.tracker.proto.common import YandexAuth
 from mcp_tracker.tracker.proto.types.entities import ProjectEntity
 from mcp_tracker.tracker.proto.types.inputs import ProjectPortfolioLinkInput
+from mcp_tracker.tracker.proto.types.issues import IssueComment
 from tests.mcp.conftest import get_tool_result_content
 
 
@@ -164,6 +165,108 @@ class TestProjectDelete:
     ) -> None:
         result = await client_session_read_only.call_tool(
             "project_delete", {"entity_id": "abc123"}
+        )
+
+        assert result.isError
+
+
+class TestProjectAddComment:
+    async def test_adds_comment(
+        self,
+        client_session: ClientSession,
+        mock_entities_protocol: AsyncMock,
+        sample_comment: IssueComment,
+    ) -> None:
+        mock_entities_protocol.project_add_comment.return_value = sample_comment
+
+        result = await client_session.call_tool(
+            "project_add_comment",
+            {"entity_id": "abc123", "text": "Hello", "summonees": ["user123"]},
+        )
+
+        assert not result.isError
+        mock_entities_protocol.project_add_comment.assert_called_once_with(
+            "abc123",
+            text="Hello",
+            summonees=["user123"],
+            maillist_summonees=None,
+            auth=YandexAuth(),
+        )
+        content = get_tool_result_content(result)
+        assert content["id"] == sample_comment.id
+
+    async def test_read_only_mode_tool_not_registered(
+        self,
+        client_session_read_only: ClientSession,
+    ) -> None:
+        result = await client_session_read_only.call_tool(
+            "project_add_comment", {"entity_id": "abc123", "text": "Hello"}
+        )
+
+        assert result.isError
+
+
+class TestProjectUpdateComment:
+    async def test_updates_comment(
+        self,
+        client_session: ClientSession,
+        mock_entities_protocol: AsyncMock,
+        sample_comment: IssueComment,
+    ) -> None:
+        mock_entities_protocol.project_update_comment.return_value = sample_comment
+
+        result = await client_session.call_tool(
+            "project_update_comment",
+            {"entity_id": "abc123", "comment_id": 1, "text": "Updated"},
+        )
+
+        assert not result.isError
+        mock_entities_protocol.project_update_comment.assert_called_once_with(
+            "abc123",
+            1,
+            text="Updated",
+            summonees=None,
+            maillist_summonees=None,
+            auth=YandexAuth(),
+        )
+        content = get_tool_result_content(result)
+        assert content["id"] == sample_comment.id
+
+    async def test_read_only_mode_tool_not_registered(
+        self,
+        client_session_read_only: ClientSession,
+    ) -> None:
+        result = await client_session_read_only.call_tool(
+            "project_update_comment",
+            {"entity_id": "abc123", "comment_id": 1, "text": "Updated"},
+        )
+
+        assert result.isError
+
+
+class TestProjectDeleteComment:
+    async def test_deletes_comment(
+        self,
+        client_session: ClientSession,
+        mock_entities_protocol: AsyncMock,
+    ) -> None:
+        mock_entities_protocol.project_delete_comment.return_value = None
+
+        result = await client_session.call_tool(
+            "project_delete_comment", {"entity_id": "abc123", "comment_id": 1}
+        )
+
+        assert not result.isError
+        mock_entities_protocol.project_delete_comment.assert_called_once_with(
+            "abc123", 1, auth=YandexAuth()
+        )
+
+    async def test_read_only_mode_tool_not_registered(
+        self,
+        client_session_read_only: ClientSession,
+    ) -> None:
+        result = await client_session_read_only.call_tool(
+            "project_delete_comment", {"entity_id": "abc123", "comment_id": 1}
         )
 
         assert result.isError

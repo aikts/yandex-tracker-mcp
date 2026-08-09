@@ -949,6 +949,164 @@ def make_cached_protocols(
                 entity_id, with_board=with_board, auth=auth
             )
 
+        # Comments are never cached: they mutate frequently and caching would
+        # risk serving stale conversation state.
+        async def project_get_comments(
+            self, entity_id: str, *, auth: YandexAuth | None = None
+        ) -> list[IssueComment]:
+            return await self._original.project_get_comments(entity_id, auth=auth)
+
+        async def project_add_comment(
+            self,
+            entity_id: str,
+            *,
+            text: str,
+            summonees: list[str] | None = None,
+            maillist_summonees: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> IssueComment:
+            return await self._original.project_add_comment(
+                entity_id,
+                text=text,
+                summonees=summonees,
+                maillist_summonees=maillist_summonees,
+                auth=auth,
+            )
+
+        async def project_update_comment(
+            self,
+            entity_id: str,
+            comment_id: int,
+            *,
+            text: str,
+            summonees: list[str] | None = None,
+            maillist_summonees: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> IssueComment:
+            return await self._original.project_update_comment(
+                entity_id,
+                comment_id,
+                text=text,
+                summonees=summonees,
+                maillist_summonees=maillist_summonees,
+                auth=auth,
+            )
+
+        async def project_delete_comment(
+            self,
+            entity_id: str,
+            comment_id: int,
+            *,
+            auth: YandexAuth | None = None,
+        ) -> None:
+            return await self._original.project_delete_comment(
+                entity_id, comment_id, auth=auth
+            )
+
+        async def portfolio_get_comments(
+            self, entity_id: str, *, auth: YandexAuth | None = None
+        ) -> list[IssueComment]:
+            return await self._original.portfolio_get_comments(entity_id, auth=auth)
+
+        async def portfolio_add_comment(
+            self,
+            entity_id: str,
+            *,
+            text: str,
+            summonees: list[str] | None = None,
+            maillist_summonees: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> IssueComment:
+            return await self._original.portfolio_add_comment(
+                entity_id,
+                text=text,
+                summonees=summonees,
+                maillist_summonees=maillist_summonees,
+                auth=auth,
+            )
+
+        async def portfolio_update_comment(
+            self,
+            entity_id: str,
+            comment_id: int,
+            *,
+            text: str,
+            summonees: list[str] | None = None,
+            maillist_summonees: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> IssueComment:
+            return await self._original.portfolio_update_comment(
+                entity_id,
+                comment_id,
+                text=text,
+                summonees=summonees,
+                maillist_summonees=maillist_summonees,
+                auth=auth,
+            )
+
+        async def portfolio_delete_comment(
+            self,
+            entity_id: str,
+            comment_id: int,
+            *,
+            auth: YandexAuth | None = None,
+        ) -> None:
+            return await self._original.portfolio_delete_comment(
+                entity_id, comment_id, auth=auth
+            )
+
+        async def goal_get_comments(
+            self, entity_id: str, *, auth: YandexAuth | None = None
+        ) -> list[IssueComment]:
+            return await self._original.goal_get_comments(entity_id, auth=auth)
+
+        async def goal_add_comment(
+            self,
+            entity_id: str,
+            *,
+            text: str,
+            summonees: list[str] | None = None,
+            maillist_summonees: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> IssueComment:
+            return await self._original.goal_add_comment(
+                entity_id,
+                text=text,
+                summonees=summonees,
+                maillist_summonees=maillist_summonees,
+                auth=auth,
+            )
+
+        async def goal_update_comment(
+            self,
+            entity_id: str,
+            comment_id: int,
+            *,
+            text: str,
+            summonees: list[str] | None = None,
+            maillist_summonees: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> IssueComment:
+            return await self._original.goal_update_comment(
+                entity_id,
+                comment_id,
+                text=text,
+                summonees=summonees,
+                maillist_summonees=maillist_summonees,
+                auth=auth,
+            )
+
+        async def goal_delete_comment(
+            self,
+            entity_id: str,
+            comment_id: int,
+            *,
+            auth: YandexAuth | None = None,
+        ) -> None:
+            return await self._original.goal_delete_comment(
+                entity_id, comment_id, auth=auth
+            )
+
     return CacheCollection(
         queues=CachingQueuesProtocol,
         issues=CachingIssuesProtocol,

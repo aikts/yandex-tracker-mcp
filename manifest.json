@@ -68,6 +68,10 @@
       "description": "Search projects by name substring and/or field filters"
     },
     {
+      "name": "project_get_comments",
+      "description": "Get comments of a project by its id or shortId"
+    },
+    {
       "name": "portfolio_get",
       "description": "Get a portfolio by its id or shortId"
     },
@@ -76,12 +80,20 @@
       "description": "Search portfolios by name substring and/or field filters"
     },
     {
+      "name": "portfolio_get_comments",
+      "description": "Get comments of a portfolio by its id or shortId"
+    },
+    {
       "name": "goal_get",
       "description": "Get a goal by its id or shortId"
     },
     {
       "name": "goal_find",
       "description": "Search goals by name substring and/or field filters"
+    },
+    {
+      "name": "goal_get_comments",
+      "description": "Get comments of a goal by its id or shortId"
     },
     {
       "name": "project_create",
@@ -96,6 +108,18 @@
       "description": "Delete a project"
     },
     {
+      "name": "project_add_comment",
+      "description": "Add a comment to a project"
+    },
+    {
+      "name": "project_update_comment",
+      "description": "Update an existing comment on a project"
+    },
+    {
+      "name": "project_delete_comment",
+      "description": "Delete a comment from a project"
+    },
+    {
       "name": "portfolio_create",
       "description": "Create a new portfolio"
     },
@@ -108,6 +132,18 @@
       "description": "Delete a portfolio"
     },
     {
+      "name": "portfolio_add_comment",
+      "description": "Add a comment to a portfolio"
+    },
+    {
+      "name": "portfolio_update_comment",
+      "description": "Update an existing comment on a portfolio"
+    },
+    {
+      "name": "portfolio_delete_comment",
+      "description": "Delete a comment from a portfolio"
+    },
+    {
       "name": "goal_create",
       "description": "Create a new goal"
     },
@@ -118,6 +154,18 @@
     {
       "name": "goal_delete",
       "description": "Delete a goal"
+    },
+    {
+      "name": "goal_add_comment",
+      "description": "Add a comment to a goal"
+    },
+    {
+      "name": "goal_update_comment",
+      "description": "Update an existing comment on a goal"
+    },
+    {
+      "name": "goal_delete_comment",
+      "description": "Delete a comment from a goal"
     },
     {
       "name": "users_get_all",

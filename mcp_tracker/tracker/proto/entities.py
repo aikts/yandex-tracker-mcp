@@ -17,6 +17,7 @@ from mcp_tracker.tracker.proto.types.inputs import (
     GoalLinkInput,
     ProjectPortfolioLinkInput,
 )
+from mcp_tracker.tracker.proto.types.issues import IssueComment
 
 
 @runtime_checkable
@@ -235,6 +236,114 @@ class EntitiesProtocol(Protocol):
         entity_id: str,
         *,
         with_board: bool = False,
+        auth: YandexAuth | None = None,
+    ) -> None: ...
+
+    async def project_get_comments(
+        self,
+        entity_id: str,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> list[IssueComment]: ...
+
+    async def project_add_comment(
+        self,
+        entity_id: str,
+        *,
+        text: str,
+        summonees: list[str] | None = None,
+        maillist_summonees: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> IssueComment: ...
+
+    async def project_update_comment(
+        self,
+        entity_id: str,
+        comment_id: int,
+        *,
+        text: str,
+        summonees: list[str] | None = None,
+        maillist_summonees: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> IssueComment: ...
+
+    async def project_delete_comment(
+        self,
+        entity_id: str,
+        comment_id: int,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> None: ...
+
+    async def portfolio_get_comments(
+        self,
+        entity_id: str,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> list[IssueComment]: ...
+
+    async def portfolio_add_comment(
+        self,
+        entity_id: str,
+        *,
+        text: str,
+        summonees: list[str] | None = None,
+        maillist_summonees: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> IssueComment: ...
+
+    async def portfolio_update_comment(
+        self,
+        entity_id: str,
+        comment_id: int,
+        *,
+        text: str,
+        summonees: list[str] | None = None,
+        maillist_summonees: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> IssueComment: ...
+
+    async def portfolio_delete_comment(
+        self,
+        entity_id: str,
+        comment_id: int,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> None: ...
+
+    async def goal_get_comments(
+        self,
+        entity_id: str,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> list[IssueComment]: ...
+
+    async def goal_add_comment(
+        self,
+        entity_id: str,
+        *,
+        text: str,
+        summonees: list[str] | None = None,
+        maillist_summonees: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> IssueComment: ...
+
+    async def goal_update_comment(
+        self,
+        entity_id: str,
+        comment_id: int,
+        *,
+        text: str,
+        summonees: list[str] | None = None,
+        maillist_summonees: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> IssueComment: ...
+
+    async def goal_delete_comment(
+        self,
+        entity_id: str,
+        comment_id: int,
+        *,
         auth: YandexAuth | None = None,
     ) -> None: ...
 

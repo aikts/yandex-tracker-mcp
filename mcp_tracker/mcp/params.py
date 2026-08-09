@@ -403,6 +403,41 @@ EntityTeamAccessParam = Annotated[
 ]
 
 
+EntityCommentIDParam = Annotated[
+    int,
+    Field(
+        description="Comment ID (integer), as returned in the `id` field by "
+        "*_get_comments or *_add_comment, e.g. 12345."
+    ),
+]
+
+EntityCommentTextParam = Annotated[
+    str,
+    Field(
+        description="Comment text (Markdown/YFM supported). "
+        "Example: 'Looks good, approving the plan.'"
+    ),
+]
+
+EntityCommentSummoneesParam = Annotated[
+    list[str] | None,
+    Field(
+        description="Optional list of user logins or IDs to summon into the discussion "
+        "so they get notified. Example: ['i.ivanov', 'j.doe']. "
+        "IMPORTANT: do NOT rely on '@login' inside the comment text for this — use this "
+        "parameter instead."
+    ),
+]
+
+EntityCommentMaillistSummoneesParam = Annotated[
+    list[str] | None,
+    Field(
+        description="Optional list of mailing list emails to summon. "
+        "Example: ['team@example.com']."
+    ),
+]
+
+
 YTQuery = Annotated[
     str,
     Field(

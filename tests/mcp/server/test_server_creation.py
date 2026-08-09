@@ -36,15 +36,18 @@ READ_ONLY_TOOL_NAMES = [
     "users_search",
     "user_get",
     "user_get_current",
-    # Project entity tools (2)
+    # Project entity tools (3)
     "project_get",
     "project_find",
-    # Portfolio entity tools (2)
+    "project_get_comments",
+    # Portfolio entity tools (3)
     "portfolio_get",
     "portfolio_find",
-    # Goal entity tools (2)
+    "portfolio_get_comments",
+    # Goal entity tools (3)
     "goal_get",
     "goal_find",
+    "goal_get_comments",
 ]
 
 # Write tool names - only registered when not in read-only mode
@@ -66,12 +69,21 @@ WRITE_TOOL_NAMES = [
     "project_create",
     "project_update",
     "project_delete",
+    "project_add_comment",
+    "project_update_comment",
+    "project_delete_comment",
     "portfolio_create",
     "portfolio_update",
     "portfolio_delete",
+    "portfolio_add_comment",
+    "portfolio_update_comment",
+    "portfolio_delete_comment",
     "goal_create",
     "goal_update",
     "goal_delete",
+    "goal_add_comment",
+    "goal_update_comment",
+    "goal_delete_comment",
 ]
 
 # All tool names that should be registered in normal mode

@@ -555,6 +555,11 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
 
 - **`goal_get`** / **`goal_find`**: Аналогично `project_get` / `project_find`, но для целей. У целей другой набор значений `entityStatus` (`draft`, `according_to_plan`, `at_risk`, `blocked`, `achieved`, `partially_achieved`, `not_achieved`, `exceeded`, `cancelled`)
 
+- **`project_get_comments`**: Получить комментарии проекта по его id или shortId
+  - Параметры: `entity_id` (обязательно); `fields` (опционально, массив имён полей комментария — text/text_html могут быть большими, выбирайте только нужные; по умолчанию возвращаются все поля)
+  - Возвращает список комментариев (та же структура, что и у комментариев задач)
+- **`portfolio_get_comments`** / **`goal_get_comments`**: Аналогично `project_get_comments`, но для портфелей и целей
+
 Инструменты записи (`project_create`/`project_update`/`project_delete` и аналогичные `portfolio_*` / `goal_*`) также доступны и регистрируются только если `TRACKER_READ_ONLY` не установлен:
 
 - **`project_create`**: Создать проект. Требуется `summary`. Также принимает `description`, `lead`, `team_users`, `clients`, `followers`, `start`, `end`, `tags`, `entity_status`, `parent_entity`, `team_access` и `links`
@@ -565,7 +570,12 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
 
 Все инструменты создания/изменения принимают тот же селектор `fields`, что и инструменты чтения, и возвращают созданную/изменённую сущность с заполненными полями.
 
-Пока не поддерживается: чек-листы, метрики и ключевые результаты (`checklistItems`, `metricItems`, `keyResultItems`) и массовые изменения — это запланировано на будущее. Инструменты записи сущностей также пока не учитывают ограничения `TRACKER_LIMIT_QUEUES` / `TRACKER_READ_ONLY_QUEUES`, так как сущность нельзя однозначно сопоставить с одной очередью.
+- **`project_add_comment`**: Добавить комментарий к проекту. Требуется `entity_id` и `text` (поддерживается Markdown/YFM). Принимает опциональные `summonees` (логины/ID пользователей для уведомления — используйте вместо '@login' в тексте) и `maillist_summonees` (email рассылок)
+- **`project_update_comment`**: Изменить существующий комментарий. Требуется `entity_id`, `comment_id` и `text`. Принимает те же опциональные `summonees` / `maillist_summonees`
+- **`project_delete_comment`**: Удалить комментарий. Требуется `entity_id` и `comment_id`
+- **`portfolio_add_comment`** / **`portfolio_update_comment`** / **`portfolio_delete_comment`** и **`goal_add_comment`** / **`goal_update_comment`** / **`goal_delete_comment`**: Аналогично инструментам записи комментариев для проектов, но для портфелей и целей
+
+Пока не поддерживается: чек-листы, метрики и ключевые результаты (`checklistItems`, `metricItems`, `keyResultItems`) и массовые изменения — это запланировано на будущее. Инструменты записи сущностей (включая работу с комментариями) также пока не учитывают ограничения `TRACKER_LIMIT_QUEUES` / `TRACKER_READ_ONLY_QUEUES`, так как сущность нельзя однозначно сопоставить с одной очередью.
 
 </details>
 
