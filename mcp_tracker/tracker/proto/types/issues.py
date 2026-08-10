@@ -278,6 +278,17 @@ class ChangelogEntry(CreatedUpdatedMixin, BaseTrackerEntity):
     )
 
 
+class CommentsPage(BaseTrackerEntity):
+    """A page of comments plus the cursor to fetch the next page.
+
+    `next_cursor` is parsed from the `Link: rel="next"` response header; it is `None`
+    when there are no more pages. Pass it back as the `cursor` argument to continue.
+    """
+
+    comments: list[IssueComment]
+    next_cursor: str | None = None
+
+
 class ChangelogPage(BaseTrackerEntity):
     """A page of issue changelog entries plus the cursor to fetch the next page.
 

@@ -60,6 +60,7 @@ from mcp_tracker.tracker.proto.types.issues import (
     ChangelogEntry,
     ChangelogPage,
     ChecklistItem,
+    CommentsPage,
     Issue,
     IssueAttachment,
     IssueComment,
@@ -1000,8 +1001,9 @@ class TrackerClient(
     def _parse_next_cursor(response: ClientResponse) -> str | None:
         """Extract the next-page cursor from the `Link: rel="next"` response header.
 
-        Yandex Tracker paginates the changelog with an opaque cursor delivered as the
-        `id` query parameter of the `next` link, not via the last entry's id.
+        Yandex Tracker paginates the changelog and comment endpoints with an opaque
+        cursor delivered as the `id` query parameter of the `next` link, not via the
+        last entry's id.
         """
         next_link = response.links.get("next")
         if next_link is None:
@@ -1438,7 +1440,9 @@ class TrackerClient(
         fields: list[str] | None,
         auth: YandexAuth | None,
     ) -> bytes:
-        body: dict[str, Any] = {"fields": fields_body}
+        body: dict[str, Any] = {}
+        if fields_body:
+            body["fields"] = fields_body
         if links is not None:
             body["links"] = [link.model_dump(exclude_none=True) for link in links]
 
@@ -1463,7 +1467,10 @@ class TrackerClient(
         fields: list[str] | None,
         auth: YandexAuth | None,
     ) -> bytes:
-        body: dict[str, Any] = {"fields": fields_body}
+        # An update may touch only links and/or add a comment - don't send an empty `fields`.
+        body: dict[str, Any] = {}
+        if fields_body:
+            body["fields"] = fields_body
         if links is not None:
             body["links"] = [link.model_dump(exclude_none=True) for link in links]
         if comment is not None:
@@ -1797,24 +1804,35 @@ class TrackerClient(
         self,
         entity_id: str,
         *,
-        with_board: bool = False,
         auth: YandexAuth | None = None,
     ) -> None:
-        await self._entity_delete("goal", entity_id, with_board=with_board, auth=auth)
+        # Goals have no board, so `withBoard` is not applicable here.
+        await self._entity_delete("goal", entity_id, with_board=False, auth=auth)
 
     async def _entity_get_comments(
         self,
         entity_type: Literal["project", "portfolio", "goal"],
         entity_id: str,
         *,
+        per_page: int,
+        cursor: str | None,
         auth: YandexAuth | None,
-    ) -> list[IssueComment]:
+    ) -> CommentsPage:
+        params: dict[str, Any] = {"perPage": per_page}
+        if cursor is not None:
+            params["id"] = cursor
+
         async with self._session.get(
             f"v3/entities/{entity_type}/{entity_id}/comments",
             headers=await self._build_headers(auth),
+            params=params,
         ) as response:
             response.raise_for_status()
-            return IssueCommentList.model_validate_json(await response.read()).root
+            comments = IssueCommentList.model_validate_json(await response.read()).root
+            return CommentsPage(
+                comments=comments,
+                next_cursor=self._parse_next_cursor(response),
+            )
 
     async def _entity_add_comment(
         self,
@@ -1884,9 +1902,13 @@ class TrackerClient(
         self,
         entity_id: str,
         *,
+        per_page: int = 50,
+        cursor: str | None = None,
         auth: YandexAuth | None = None,
-    ) -> list[IssueComment]:
-        return await self._entity_get_comments("project", entity_id, auth=auth)
+    ) -> CommentsPage:
+        return await self._entity_get_comments(
+            "project", entity_id, per_page=per_page, cursor=cursor, auth=auth
+        )
 
     async def project_add_comment(
         self,
@@ -1939,9 +1961,13 @@ class TrackerClient(
         self,
         entity_id: str,
         *,
+        per_page: int = 50,
+        cursor: str | None = None,
         auth: YandexAuth | None = None,
-    ) -> list[IssueComment]:
-        return await self._entity_get_comments("portfolio", entity_id, auth=auth)
+    ) -> CommentsPage:
+        return await self._entity_get_comments(
+            "portfolio", entity_id, per_page=per_page, cursor=cursor, auth=auth
+        )
 
     async def portfolio_add_comment(
         self,
@@ -1994,9 +2020,13 @@ class TrackerClient(
         self,
         entity_id: str,
         *,
+        per_page: int = 50,
+        cursor: str | None = None,
         auth: YandexAuth | None = None,
-    ) -> list[IssueComment]:
-        return await self._entity_get_comments("goal", entity_id, auth=auth)
+    ) -> CommentsPage:
+        return await self._entity_get_comments(
+            "goal", entity_id, per_page=per_page, cursor=cursor, auth=auth
+        )
 
     async def goal_add_comment(
         self,

@@ -14,7 +14,7 @@ from mcp_tracker.tracker.proto.types.entities import (
     ProjectSearchResult,
 )
 from mcp_tracker.tracker.proto.types.inputs import EntityChecklistItemUpdateInput
-from mcp_tracker.tracker.proto.types.issues import IssueComment
+from mcp_tracker.tracker.proto.types.issues import CommentsPage, IssueComment
 
 ENTITY_COMMENT_METHOD_PREFIXES = ["project", "portfolio", "goal"]
 ENTITY_CHECKLIST_METHOD_PREFIXES = ["project", "portfolio"]
@@ -354,9 +354,7 @@ class TestCachingEntitiesProtocol:
 
         result = await caching_entities_protocol.goal_delete("g1")
 
-        mock_original.goal_delete.assert_called_once_with(
-            "g1", with_board=False, auth=None
-        )
+        mock_original.goal_delete.assert_called_once_with("g1", auth=None)
         assert result is None
 
     @pytest.mark.parametrize("prefix", ENTITY_COMMENT_METHOD_PREFIXES)
@@ -367,13 +365,17 @@ class TestCachingEntitiesProtocol:
         mock_original: AsyncMock,
     ) -> None:
         comment = IssueComment.model_construct(id=1, text="hello")
-        getattr(mock_original, f"{prefix}_get_comments").return_value = [comment]
+        getattr(mock_original, f"{prefix}_get_comments").return_value = CommentsPage(
+            comments=[comment]
+        )
 
         method = getattr(caching_entities_protocol, f"{prefix}_get_comments")
         await method("e1")
         await method("e1")
 
-        assert getattr(mock_original, f"{prefix}_get_comments").call_count == 2
+        original = getattr(mock_original, f"{prefix}_get_comments")
+        assert original.call_count == 2
+        original.assert_called_with("e1", per_page=50, cursor=None, auth=None)
 
     @pytest.mark.parametrize("prefix", ENTITY_COMMENT_METHOD_PREFIXES)
     async def test_add_comment_calls_original(

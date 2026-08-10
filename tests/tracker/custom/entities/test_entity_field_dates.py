@@ -50,7 +50,7 @@ def test_documented_entity_references_and_counts() -> None:
             "issueQueues": [{"id": "1", "key": "TEST", "display": "Test"}],
             "quarter": ["2026 Q1", "2026 Q4"],
             "linkedGoalsCount": 2,
-            "lastCommentUpdatedAt": "2026-07-29",
+            "lastCommentUpdatedAt": "2026-07-29T12:30:00.000+0000",
         }
     )
 
@@ -61,4 +61,21 @@ def test_documented_entity_references_and_counts() -> None:
     assert fields.issueQueues == [QueueReference(id="1", key="TEST", display="Test")]
     assert fields.quarter == ["2026 Q1", "2026 Q4"]
     assert fields.linkedGoalsCount == 2
-    assert fields.lastCommentUpdatedAt == date(2026, 7, 29)
+    assert fields.lastCommentUpdatedAt == datetime.fromisoformat(
+        "2026-07-29T12:30:00+00:00"
+    )
+
+
+@pytest.mark.parametrize("fields_model", [ProjectFields, PortfolioFields, GoalFields])
+def test_last_comment_updated_at_stays_a_timestamp_at_midnight(
+    fields_model: type[ProjectFields] | type[PortfolioFields] | type[GoalFields],
+) -> None:
+    """A timestamp landing exactly on midnight must not collapse to a bare date."""
+    fields = fields_model.model_validate(
+        {"lastCommentUpdatedAt": "2026-01-01T00:00:00.000+0000"}
+    )
+
+    assert fields.lastCommentUpdatedAt == datetime.fromisoformat(
+        "2026-01-01T00:00:00+00:00"
+    )
+    assert '"2026-01-01T00:00:00Z"' in fields.model_dump_json()

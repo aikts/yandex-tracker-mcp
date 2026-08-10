@@ -45,8 +45,10 @@ class TestEntityDelete:
         capture.assert_called_once()
         assert "withBoard" not in (capture.last_request.params or {})
 
+    # Goals have no board, so `goal_delete` intentionally has no `with_board`.
     @pytest.mark.parametrize(
-        "entity_type,method_name,fixture_name", ENTITY_DELETE_CASES
+        "entity_type,method_name,fixture_name",
+        [case for case in ENTITY_DELETE_CASES if case[0] != "goal"],
     )
     async def test_with_board(
         self,

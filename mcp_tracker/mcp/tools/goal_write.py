@@ -26,20 +26,15 @@ from mcp_tracker.mcp.params import (
     EntityTeamAccessParam,
     EntityTeamUsersParam,
     EntityVersionParam,
-    EntityWithBoardParam,
     GoalFieldsParam,
     GoalLinksParam,
     GoalStatusParam,
 )
+from mcp_tracker.mcp.tools._access import ENTITY_QUEUE_RESTRICTIONS_NOTE
 from mcp_tracker.mcp.utils import get_yandex_auth
 from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.proto.types.entities import GoalEntity
 from mcp_tracker.tracker.proto.types.issues import IssueComment
-
-_QUEUE_RESTRICTIONS_NOTE = (
-    " Not subject to TRACKER_LIMIT_QUEUES / TRACKER_READ_ONLY_QUEUES restrictions, "
-    "since an entity isn't reliably mappable to a single queue."
-)
 
 
 def register_goal_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
@@ -47,7 +42,8 @@ def register_goal_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Create Goal",
-        description="Create a new Yandex Tracker goal." + _QUEUE_RESTRICTIONS_NOTE,
+        description="Create a new Yandex Tracker goal."
+        + ENTITY_QUEUE_RESTRICTIONS_NOTE,
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def goal_create(
@@ -86,7 +82,7 @@ def register_goal_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
     @mcp.tool(
         title="Update Goal",
         description="Update fields of an existing Yandex Tracker goal."
-        + _QUEUE_RESTRICTIONS_NOTE,
+        + ENTITY_QUEUE_RESTRICTIONS_NOTE,
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def goal_update(
@@ -130,17 +126,15 @@ def register_goal_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Delete Goal",
-        description="Delete a Yandex Tracker goal." + _QUEUE_RESTRICTIONS_NOTE,
+        description="Delete a Yandex Tracker goal." + ENTITY_QUEUE_RESTRICTIONS_NOTE,
         annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True),
     )
     async def goal_delete(
         ctx: Context[Any, AppContext],
         entity_id: EntityID,
-        with_board: EntityWithBoardParam = False,
     ) -> None:
         await ctx.request_context.lifespan_context.entities.goal_delete(
             entity_id,
-            with_board=with_board,
             auth=get_yandex_auth(ctx),
         )
 
@@ -149,7 +143,7 @@ def register_goal_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
         description="Add a comment to a Yandex Tracker goal, e.g. entity_id='ghi789'. "
         "IMPORTANT: If you need to mention/call people to the discussion (so they get "
         "notifications), do NOT rely on '@login' in the text — use the `summonees` "
-        "parameter instead." + _QUEUE_RESTRICTIONS_NOTE,
+        "parameter instead." + ENTITY_QUEUE_RESTRICTIONS_NOTE,
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def goal_add_comment(
@@ -171,7 +165,7 @@ def register_goal_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
         title="Update Goal Comment",
         description="Update an existing comment on a Yandex Tracker goal. "
         "IMPORTANT: If you need to mention/call people (notifications), use the "
-        "`summonees` parameter." + _QUEUE_RESTRICTIONS_NOTE,
+        "`summonees` parameter." + ENTITY_QUEUE_RESTRICTIONS_NOTE,
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def goal_update_comment(
@@ -194,7 +188,7 @@ def register_goal_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
     @mcp.tool(
         title="Delete Goal Comment",
         description="Delete a comment from a Yandex Tracker goal."
-        + _QUEUE_RESTRICTIONS_NOTE,
+        + ENTITY_QUEUE_RESTRICTIONS_NOTE,
         annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True),
     )
     async def goal_delete_comment(

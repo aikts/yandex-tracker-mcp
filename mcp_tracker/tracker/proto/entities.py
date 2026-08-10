@@ -18,7 +18,7 @@ from mcp_tracker.tracker.proto.types.inputs import (
     GoalLinkInput,
     ProjectPortfolioLinkInput,
 )
-from mcp_tracker.tracker.proto.types.issues import IssueComment
+from mcp_tracker.tracker.proto.types.issues import CommentsPage, IssueComment
 
 
 @runtime_checkable
@@ -236,7 +236,6 @@ class EntitiesProtocol(Protocol):
         self,
         entity_id: str,
         *,
-        with_board: bool = False,
         auth: YandexAuth | None = None,
     ) -> None: ...
 
@@ -244,8 +243,10 @@ class EntitiesProtocol(Protocol):
         self,
         entity_id: str,
         *,
+        per_page: int = 50,
+        cursor: str | None = None,
         auth: YandexAuth | None = None,
-    ) -> list[IssueComment]: ...
+    ) -> CommentsPage: ...
 
     async def project_add_comment(
         self,
@@ -280,8 +281,10 @@ class EntitiesProtocol(Protocol):
         self,
         entity_id: str,
         *,
+        per_page: int = 50,
+        cursor: str | None = None,
         auth: YandexAuth | None = None,
-    ) -> list[IssueComment]: ...
+    ) -> CommentsPage: ...
 
     async def portfolio_add_comment(
         self,
@@ -316,8 +319,10 @@ class EntitiesProtocol(Protocol):
         self,
         entity_id: str,
         *,
+        per_page: int = 50,
+        cursor: str | None = None,
         auth: YandexAuth | None = None,
-    ) -> list[IssueComment]: ...
+    ) -> CommentsPage: ...
 
     async def goal_add_comment(
         self,

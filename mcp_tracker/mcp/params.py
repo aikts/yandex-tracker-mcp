@@ -296,14 +296,19 @@ GoalStatusParam = Annotated[
     ),
 ]
 
+_CANNOT_CLEAR_NOTE = (
+    " Omitting it leaves the current value unchanged; there is no way to clear an "
+    "already-set value through this server - passing null is a no-op, not a reset."
+)
+
 EntityDescriptionParam = Annotated[
     str | None,
-    Field(description="Entity description"),
+    Field(description="Entity description." + _CANNOT_CLEAR_NOTE),
 ]
 
 EntityLeadParam = Annotated[
     str | None,
-    Field(description="User ID or login of the entity lead"),
+    Field(description="User ID or login of the entity lead." + _CANNOT_CLEAR_NOTE),
 ]
 
 EntityTeamUsersParam = Annotated[
@@ -344,6 +349,7 @@ EntityParentEntityParam = Annotated[
         "`primary` is the main container id, `secondary` is additional portfolio ids "
         "(projects/portfolios only). "
         "Example: {'primary': 'portfolio_id_1', 'secondary': ['portfolio_id_2']}."
+        + _CANNOT_CLEAR_NOTE
     ),
 ]
 
@@ -353,7 +359,9 @@ _LINKS_DESCRIPTION = (
     "Each item is {{'relationship': ..., 'entity': <id of the other entity>}}. "
     "Valid relationship values: {relationships}. "
     "Example: [{{'relationship': '{example_relationship}', 'entity': '<other entity id>'}}]. "
-    "On update this REPLACES the entity's existing links, so pass the full desired set."
+    "WARNING: links are write-only in the Tracker API - the current set cannot be read back by "
+    "any tool. On update this REPLACES the entire set, so omitted links are lost irrecoverably. "
+    "Pass this on update only when you know the full desired set."
 )
 
 ProjectPortfolioLinksParam = Annotated[
@@ -401,6 +409,15 @@ EntityWithBoardParam = Annotated[
 EntityTeamAccessParam = Annotated[
     bool | None,
     Field(description="Whether access is limited to entity participants"),
+]
+
+
+EntityCommentsCursorParam = Annotated[
+    str | None,
+    Field(
+        description="Cursor for the next page of comments: the 'next_cursor' value returned "
+        "by the previous call. Leave empty for the first page.",
+    ),
 ]
 
 
@@ -584,11 +601,14 @@ ids come from `project_find`/`portfolio_find`/`goal_find`/`*_get` results, not f
   parent goal's id.
 - Cross-entity relationships that aren't containment (e.g. a project "depends on" another project, or
   "works towards" a goal): use the `links` param on `project_create`/`portfolio_create`/`goal_create`/
-  `*_update`, e.g. `[{"relationship": "works towards", "entity": <goal id>}]`. `links` REPLACES the
-  entity's full link set on update, so re-send existing links you want to keep alongside new ones -
-  fetch them first with `*_get(fields=["links"])` if unsure what's already there.
+  `*_update`, e.g. `[{"relationship": "works towards", "entity": <goal id>}]`. WARNING: `links` is
+  write-only in the Tracker API - no tool can read an entity's current links, and there is no `links`
+  value for the `fields` selector. On update it REPLACES the entity's entire link set, so links you
+  don't re-send are lost irrecoverably. Only pass `links` on `*_update` when you already know the full
+  desired set (e.g. you created those links yourself in this session); otherwise ask the user to
+  confirm the complete list, and warn them that unlisted links will be removed.
 
 When using tools that accept `page` and/or `per_page` parameters and when the task is to find something in the result set (or to receive all available data) - always call the tool as many times as needed increasing the `page` parameter until the result set is exhausted. If you stumble with the context size limit — try to change the `per_page` parameter to a lower value and restart the search from the `page=1`.
 
-Some tools use cursor pagination instead of `page` (e.g. `issue_get_changelog`): they accept a `cursor` argument and return a `next_cursor` value. To get all data, keep calling the tool passing the previous `next_cursor` as `cursor` until `next_cursor` is null. Do not change `per_page` mid-pagination; if you must, restart with `cursor` empty.
+Some tools use cursor pagination instead of `page` (e.g. `issue_get_changelog`, `project_get_comments`/`portfolio_get_comments`/`goal_get_comments`): they accept a `cursor` argument and return a `next_cursor` value. To get all data, keep calling the tool passing the previous `next_cursor` as `cursor` until `next_cursor` is null. Do not change `per_page` mid-pagination; if you must, restart with `cursor` empty.
 """

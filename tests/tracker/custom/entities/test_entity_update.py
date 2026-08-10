@@ -11,12 +11,27 @@ from mcp_tracker.tracker.proto.types.entities import (
     PortfolioEntity,
     ProjectEntity,
 )
+from mcp_tracker.tracker.proto.types.inputs import (
+    GoalLinkInput,
+    ProjectPortfolioLinkInput,
+)
 from tests.aioresponses_utils import RequestCapture
 
 ENTITY_UPDATE_CASES = [
     ("project", "project_update", "sample_project_data", ProjectEntity),
     ("portfolio", "portfolio_update", "sample_portfolio_data", PortfolioEntity),
     ("goal", "goal_update", "sample_goal_data", GoalEntity),
+]
+
+ENTITY_UPDATE_LINK_CASES = [
+    ("project", "project_update", "sample_project_data", ProjectPortfolioLinkInput),
+    (
+        "portfolio",
+        "portfolio_update",
+        "sample_portfolio_data",
+        ProjectPortfolioLinkInput,
+    ),
+    ("goal", "goal_update", "sample_goal_data", GoalLinkInput),
 ]
 
 
@@ -128,5 +143,70 @@ class TestEntityUpdate:
             await method(entity_data["id"])
 
         capture.assert_called_once()
-        capture.last_request.assert_json_body({"fields": {}})
+        capture.last_request.assert_json_body({})
         assert "version" not in (capture.last_request.params or {})
+
+    @pytest.mark.parametrize(
+        "entity_type,method_name,fixture_name,link_cls", ENTITY_UPDATE_LINK_CASES
+    )
+    async def test_links_only_update_omits_fields(
+        self,
+        tracker_client: TrackerClient,
+        entity_type: str,
+        method_name: str,
+        fixture_name: str,
+        link_cls: type[ProjectPortfolioLinkInput] | type[GoalLinkInput],
+        request: pytest.FixtureRequest,
+    ) -> None:
+        entity_data: dict[str, Any] = request.getfixturevalue(fixture_name)
+        capture = RequestCapture(payload=entity_data)
+
+        with aioresponses() as m:
+            m.patch(
+                re.compile(
+                    rf"^https://api\.tracker\.yandex\.net/v3/entities/{entity_type}/"
+                    rf"{entity_data['id']}(\?.*)?$"
+                ),
+                callback=capture.callback,
+            )
+
+            method = getattr(tracker_client, method_name)
+            await method(
+                entity_data["id"],
+                links=[link_cls(relationship="depends on", entity="other-id")],
+            )
+
+        capture.assert_called_once()
+        capture.last_request.assert_json_body(
+            {"links": [{"relationship": "depends on", "entity": "other-id"}]}
+        )
+
+    @pytest.mark.parametrize(
+        "entity_type,method_name,fixture_name,model_cls", ENTITY_UPDATE_CASES
+    )
+    async def test_comment_only_update_omits_fields(
+        self,
+        tracker_client: TrackerClient,
+        entity_type: str,
+        method_name: str,
+        fixture_name: str,
+        model_cls: type,
+        request: pytest.FixtureRequest,
+    ) -> None:
+        entity_data: dict[str, Any] = request.getfixturevalue(fixture_name)
+        capture = RequestCapture(payload=entity_data)
+
+        with aioresponses() as m:
+            m.patch(
+                re.compile(
+                    rf"^https://api\.tracker\.yandex\.net/v3/entities/{entity_type}/"
+                    rf"{entity_data['id']}(\?.*)?$"
+                ),
+                callback=capture.callback,
+            )
+
+            method = getattr(tracker_client, method_name)
+            await method(entity_data["id"], comment="just a note")
+
+        capture.assert_called_once()
+        capture.last_request.assert_json_body({"comment": "just a note"})

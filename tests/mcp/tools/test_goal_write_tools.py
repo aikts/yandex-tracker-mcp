@@ -108,7 +108,7 @@ class TestGoalDelete:
 
         assert not result.isError
         mock_entities_protocol.goal_delete.assert_called_once_with(
-            "ghi789", with_board=False, auth=YandexAuth()
+            "ghi789", auth=YandexAuth()
         )
 
     async def test_read_only_mode_tool_not_registered(

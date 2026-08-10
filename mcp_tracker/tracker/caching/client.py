@@ -39,6 +39,7 @@ from mcp_tracker.tracker.proto.types.issue_types import IssueType
 from mcp_tracker.tracker.proto.types.issues import (
     ChangelogPage,
     ChecklistItem,
+    CommentsPage,
     Issue,
     IssueAttachment,
     IssueComment,
@@ -943,19 +944,23 @@ def make_cached_protocols(
             self,
             entity_id: str,
             *,
-            with_board: bool = False,
             auth: YandexAuth | None = None,
         ) -> None:
-            return await self._original.goal_delete(
-                entity_id, with_board=with_board, auth=auth
-            )
+            return await self._original.goal_delete(entity_id, auth=auth)
 
         # Comments are never cached: they mutate frequently and caching would
         # risk serving stale conversation state.
         async def project_get_comments(
-            self, entity_id: str, *, auth: YandexAuth | None = None
-        ) -> list[IssueComment]:
-            return await self._original.project_get_comments(entity_id, auth=auth)
+            self,
+            entity_id: str,
+            *,
+            per_page: int = 50,
+            cursor: str | None = None,
+            auth: YandexAuth | None = None,
+        ) -> CommentsPage:
+            return await self._original.project_get_comments(
+                entity_id, per_page=per_page, cursor=cursor, auth=auth
+            )
 
         async def project_add_comment(
             self,
@@ -1005,9 +1010,16 @@ def make_cached_protocols(
             )
 
         async def portfolio_get_comments(
-            self, entity_id: str, *, auth: YandexAuth | None = None
-        ) -> list[IssueComment]:
-            return await self._original.portfolio_get_comments(entity_id, auth=auth)
+            self,
+            entity_id: str,
+            *,
+            per_page: int = 50,
+            cursor: str | None = None,
+            auth: YandexAuth | None = None,
+        ) -> CommentsPage:
+            return await self._original.portfolio_get_comments(
+                entity_id, per_page=per_page, cursor=cursor, auth=auth
+            )
 
         async def portfolio_add_comment(
             self,
@@ -1057,9 +1069,16 @@ def make_cached_protocols(
             )
 
         async def goal_get_comments(
-            self, entity_id: str, *, auth: YandexAuth | None = None
-        ) -> list[IssueComment]:
-            return await self._original.goal_get_comments(entity_id, auth=auth)
+            self,
+            entity_id: str,
+            *,
+            per_page: int = 50,
+            cursor: str | None = None,
+            auth: YandexAuth | None = None,
+        ) -> CommentsPage:
+            return await self._original.goal_get_comments(
+                entity_id, per_page=per_page, cursor=cursor, auth=auth
+            )
 
         async def goal_add_comment(
             self,

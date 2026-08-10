@@ -36,6 +36,10 @@ READ_ONLY_TOOL_NAMES = [
     "users_search",
     "user_get",
     "user_get_current",
+]
+
+# Entity read tools - registered only when TRACKER_ENTITIES_ENABLED is set
+ENTITY_READ_ONLY_TOOL_NAMES = [
     # Project entity tools (3)
     "project_get",
     "project_find",
@@ -66,6 +70,10 @@ WRITE_TOOL_NAMES = [
     "issue_add_link",
     "issue_delete_link",
     "issue_move",
+]
+
+# Entity write tools - require both write mode and TRACKER_ENTITIES_ENABLED
+ENTITY_WRITE_TOOL_NAMES = [
     "project_create",
     "project_update",
     "project_delete",
@@ -98,8 +106,11 @@ WRITE_TOOL_NAMES = [
     "goal_delete_comment",
 ]
 
-# All tool names that should be registered in normal mode
-EXPECTED_TOOL_NAMES = READ_ONLY_TOOL_NAMES + WRITE_TOOL_NAMES
+ALL_READ_ONLY_TOOL_NAMES = READ_ONLY_TOOL_NAMES + ENTITY_READ_ONLY_TOOL_NAMES
+ALL_WRITE_TOOL_NAMES = WRITE_TOOL_NAMES + ENTITY_WRITE_TOOL_NAMES
+
+# All tool names that should be registered in normal mode (entity tools enabled)
+EXPECTED_TOOL_NAMES = ALL_READ_ONLY_TOOL_NAMES + ALL_WRITE_TOOL_NAMES
 
 
 class TestToolRegistration:
@@ -118,7 +129,7 @@ class TestToolRegistration:
 class TestReadOnlyModeToolRegistration:
     """Test tool registration in read-only mode."""
 
-    @pytest.mark.parametrize("tool_name", READ_ONLY_TOOL_NAMES)
+    @pytest.mark.parametrize("tool_name", ALL_READ_ONLY_TOOL_NAMES)
     async def test_read_only_tools_are_registered(
         self,
         client_session_read_only: ClientSession,
@@ -132,7 +143,7 @@ class TestReadOnlyModeToolRegistration:
             f"Read-only tool '{tool_name}' should be registered in read-only mode"
         )
 
-    @pytest.mark.parametrize("tool_name", WRITE_TOOL_NAMES)
+    @pytest.mark.parametrize("tool_name", ALL_WRITE_TOOL_NAMES)
     async def test_write_tools_are_not_registered(
         self,
         client_session_read_only: ClientSession,
@@ -153,8 +164,8 @@ class TestReadOnlyModeToolRegistration:
         """Read-only mode should have only read-only tools."""
         result = await client_session_read_only.list_tools()
 
-        assert len(result.tools) == len(READ_ONLY_TOOL_NAMES), (
-            f"Expected {len(READ_ONLY_TOOL_NAMES)} tools in read-only mode, "
+        assert len(result.tools) == len(ALL_READ_ONLY_TOOL_NAMES), (
+            f"Expected {len(ALL_READ_ONLY_TOOL_NAMES)} tools in read-only mode, "
             f"got {len(result.tools)}"
         )
 
@@ -167,6 +178,49 @@ class TestReadOnlyModeToolRegistration:
 
         assert len(result.tools) == len(EXPECTED_TOOL_NAMES), (
             f"Expected {len(EXPECTED_TOOL_NAMES)} tools in normal mode, "
+            f"got {len(result.tools)}"
+        )
+
+
+class TestEntityToolRegistration:
+    """Entity tools are opt-in via TRACKER_ENTITIES_ENABLED (default off)."""
+
+    @pytest.mark.parametrize(
+        "tool_name", ENTITY_READ_ONLY_TOOL_NAMES + ENTITY_WRITE_TOOL_NAMES
+    )
+    async def test_entity_tools_are_not_registered_by_default(
+        self,
+        client_session_entities_disabled: ClientSession,
+        tool_name: str,
+    ) -> None:
+        result = await client_session_entities_disabled.list_tools()
+
+        tool_names = [tool.name for tool in result.tools]
+        assert tool_name not in tool_names, (
+            f"Entity tool '{tool_name}' should NOT be registered when "
+            f"tracker_entities_enabled is False"
+        )
+
+    @pytest.mark.parametrize("tool_name", READ_ONLY_TOOL_NAMES + WRITE_TOOL_NAMES)
+    async def test_non_entity_tools_stay_registered(
+        self,
+        client_session_entities_disabled: ClientSession,
+        tool_name: str,
+    ) -> None:
+        result = await client_session_entities_disabled.list_tools()
+
+        tool_names = [tool.name for tool in result.tools]
+        assert tool_name in tool_names
+
+    async def test_correct_tool_count_with_entities_disabled(
+        self,
+        client_session_entities_disabled: ClientSession,
+    ) -> None:
+        result = await client_session_entities_disabled.list_tools()
+
+        expected = len(READ_ONLY_TOOL_NAMES) + len(WRITE_TOOL_NAMES)
+        assert len(result.tools) == expected, (
+            f"Expected {expected} tools with entity tools disabled, "
             f"got {len(result.tools)}"
         )
 

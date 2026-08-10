@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     tracker_limit_queues: Annotated[list[str] | None, NoDecode] = None
     tracker_read_only: bool = False
     tracker_read_only_queues: Annotated[list[str] | None, NoDecode] = None
+    # Project/portfolio/goal tools are opt-in: they add a large tool manifest and
+    # are not subject to the queue restrictions (an entity has no single queue).
+    tracker_entities_enabled: bool = False
 
     tracker_sa_key_id: str | None = None
     tracker_sa_service_account_id: str | None = None

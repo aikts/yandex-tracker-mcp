@@ -66,6 +66,14 @@ class ParentEntityRef(BaseTrackerEntity):
     secondary: list[EntityReference] | None = NoneExcludedField
 
 
+# There is deliberately no `links` field below: per api-ref/entities/about-entities
+# it is not among the values `fields` accepts, and neither get-entity nor
+# update-entity returns links, so links are write-only through the API.
+#
+# `date | datetime` below is only for API date fields (`start`/`end`): pydantic tries
+# `date` first, so Tracker's `...T00:00:00.000+0000` collapses to a bare date.
+# `lastCommentUpdatedAt` stays a plain `datetime` even though the docs call it a date:
+# it accepts both forms, so the serialized type never depends on the data.
 class ProjectFields(BaseTrackerEntity):
     """Explicit (non-dynamic) field set for a Yandex Tracker project.
 
@@ -88,7 +96,7 @@ class ProjectFields(BaseTrackerEntity):
     parentEntity: ParentEntityRef | None = NoneExcludedField
     teamAccess: bool | None = NoneExcludedField
     issueQueues: list[QueueReference] | None = NoneExcludedField
-    lastCommentUpdatedAt: date | datetime | None = NoneExcludedField
+    lastCommentUpdatedAt: datetime | None = NoneExcludedField
     linkedGoalsCount: int | None = NoneExcludedField
     checklistItems: list[ChecklistItem] | None = NoneExcludedField
 
@@ -116,7 +124,7 @@ class PortfolioFields(BaseTrackerEntity):
     entityStatus: ProjectPortfolioStatus | None = NoneExcludedField
     parentEntity: ParentEntityRef | None = NoneExcludedField
     teamAccess: bool | None = NoneExcludedField
-    lastCommentUpdatedAt: date | datetime | None = NoneExcludedField
+    lastCommentUpdatedAt: datetime | None = NoneExcludedField
     linkedGoalsCount: int | None = NoneExcludedField
     checklistItems: list[ChecklistItem] | None = NoneExcludedField
 
@@ -143,7 +151,7 @@ class GoalFields(BaseTrackerEntity):
     parentEntity: ParentEntityRef | None = NoneExcludedField
     teamAccess: bool | None = NoneExcludedField
     progressPercentage: float | None = NoneExcludedField
-    lastCommentUpdatedAt: date | datetime | None = NoneExcludedField
+    lastCommentUpdatedAt: datetime | None = NoneExcludedField
     linkedProjectsCount: int | None = NoneExcludedField
 
 

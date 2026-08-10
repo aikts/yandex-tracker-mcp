@@ -9,6 +9,8 @@ from pydantic import Field
 
 from mcp_tracker.mcp.context import AppContext
 from mcp_tracker.mcp.params import (
+    CursorPerPageParam,
+    EntityCommentsCursorParam,
     EntityFilterParam,
     EntityID,
     EntityInputParam,
@@ -19,13 +21,14 @@ from mcp_tracker.mcp.params import (
     PerPageParam,
     PortfolioFieldsParam,
 )
+from mcp_tracker.mcp.tools._access import ENTITY_QUEUE_RESTRICTIONS_NOTE
 from mcp_tracker.mcp.utils import get_yandex_auth, set_non_needed_fields_null
 from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.proto.types.entities import (
     PortfolioEntity,
     PortfolioSearchResult,
 )
-from mcp_tracker.tracker.proto.types.issues import CommentFieldsEnum, IssueComment
+from mcp_tracker.tracker.proto.types.issues import CommentFieldsEnum, CommentsPage
 
 
 def register_portfolio_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
@@ -34,7 +37,8 @@ def register_portfolio_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
     @mcp.tool(
         title="Get Portfolio",
         description="Get a Yandex Tracker portfolio by its id or shortId. "
-        "A portfolio groups projects and/or other portfolios.",
+        "A portfolio groups projects and/or other portfolios."
+        + ENTITY_QUEUE_RESTRICTIONS_NOTE,
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def portfolio_get(
@@ -52,7 +56,7 @@ def register_portfolio_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
         title="Find Portfolios",
         description="Search Yandex Tracker portfolios by name substring and/or field filters. Paginated: "
         "call again with `page` incremented (starting from 1) until an empty result is returned "
-        "to retrieve all matches.",
+        "to retrieve all matches." + ENTITY_QUEUE_RESTRICTIONS_NOTE,
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def portfolio_find(
@@ -80,13 +84,18 @@ def register_portfolio_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Get Portfolio Comments",
-        description="Get comments of a Yandex Tracker portfolio by its id or shortId, "
-        "e.g. 'def456'.",
+        description="Get a page of comments of a Yandex Tracker portfolio by its id or shortId, "
+        "e.g. 'def456'. Returns the comments plus 'next_cursor'. To fetch the next "
+        "page, pass 'next_cursor' from the previous result as the 'cursor' argument; when "
+        "'next_cursor' is null there are no more comments."
+        + ENTITY_QUEUE_RESTRICTIONS_NOTE,
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def portfolio_get_comments(
         ctx: Context[Any, AppContext],
         entity_id: EntityID,
+        per_page: CursorPerPageParam = 50,
+        cursor: EntityCommentsCursorParam = None,
         fields: Annotated[
             list[CommentFieldsEnum] | None,
             Field(
@@ -95,15 +104,17 @@ def register_portfolio_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
                 "Not specifying this returns all available fields.",
             ),
         ] = None,
-    ) -> list[IssueComment]:
-        comments = (
+    ) -> CommentsPage:
+        page = (
             await ctx.request_context.lifespan_context.entities.portfolio_get_comments(
                 entity_id,
+                per_page=per_page,
+                cursor=cursor,
                 auth=get_yandex_auth(ctx),
             )
         )
 
         if fields is not None:
-            set_non_needed_fields_null(comments, {f.name for f in fields})
+            set_non_needed_fields_null(page.comments, {f.name for f in fields})
 
-        return comments
+        return page

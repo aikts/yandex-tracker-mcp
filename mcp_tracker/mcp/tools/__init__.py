@@ -41,7 +41,8 @@ def register_all_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
 
     Args:
         settings: Application settings. If tracker_read_only is True,
-            write tools will not be registered.
+            write tools will not be registered. Project/portfolio/goal tools
+            are registered only if tracker_entities_enabled is True.
         mcp: FastMCP server instance.
     """
     # Always register read-only tools
@@ -50,17 +51,21 @@ def register_all_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
     register_template_tools(settings, mcp)
     register_issue_read_tools(settings, mcp)
     register_user_tools(settings, mcp)
-    register_project_tools(settings, mcp)
-    register_portfolio_tools(settings, mcp)
-    register_goal_tools(settings, mcp)
+
+    if settings.tracker_entities_enabled:
+        register_project_tools(settings, mcp)
+        register_portfolio_tools(settings, mcp)
+        register_goal_tools(settings, mcp)
 
     # Only register write tools if not in read-only mode
     if not settings.tracker_read_only:
         register_queue_write_tools(settings, mcp)
         register_issue_write_tools(settings, mcp)
-        register_project_write_tools(settings, mcp)
-        register_portfolio_write_tools(settings, mcp)
-        register_goal_write_tools(settings, mcp)
+
+        if settings.tracker_entities_enabled:
+            register_project_write_tools(settings, mcp)
+            register_portfolio_write_tools(settings, mcp)
+            register_goal_write_tools(settings, mcp)
 
 
 __all__ = ["register_all_tools"]
