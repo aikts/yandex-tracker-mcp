@@ -15,6 +15,7 @@ from .types.inputs import (
 from .types.issues import (
     ChangelogPage,
     ChecklistItem,
+    CommentsPage,
     Issue,
     IssueAttachment,
     IssueComment,
@@ -31,8 +32,13 @@ class IssueProtocol(Protocol):
         self, issue_id: str, *, auth: YandexAuth | None = None
     ) -> Issue: ...
     async def issue_get_comments(
-        self, issue_id: str, *, auth: YandexAuth | None = None
-    ) -> list[IssueComment]: ...
+        self,
+        issue_id: str,
+        *,
+        per_page: int = 50,
+        cursor: str | None = None,
+        auth: YandexAuth | None = None,
+    ) -> CommentsPage: ...
     async def issue_add_comment(
         self,
         issue_id: str,

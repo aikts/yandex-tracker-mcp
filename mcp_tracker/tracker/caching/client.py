@@ -175,9 +175,16 @@ def make_cached_protocols(
 
         @cached(**cache_config)
         async def issue_get_comments(
-            self, issue_id: str, *, auth: YandexAuth | None = None
-        ) -> list[IssueComment]:
-            return await self._original.issue_get_comments(issue_id, auth=auth)
+            self,
+            issue_id: str,
+            *,
+            per_page: int = 50,
+            cursor: str | None = None,
+            auth: YandexAuth | None = None,
+        ) -> CommentsPage:
+            return await self._original.issue_get_comments(
+                issue_id, per_page=per_page, cursor=cursor, auth=auth
+            )
 
         async def issue_add_comment(
             self,

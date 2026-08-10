@@ -706,11 +706,12 @@ All four tools respect `TRACKER_LIMIT_QUEUES`: templates bound to a restricted q
   - Parameters: `issue_id` (string)
   - Returns: `https://tracker.yandex.ru/{issue_id}`
 
-- **`issue_get_comments`**: Fetch all comments for an issue
+- **`issue_get_comments`**: Fetch a page of comments for an issue
   - Parameters:
     - `issue_id` (string)
+    - `per_page` (optional, default 50), `cursor` (optional, the `next_cursor` from the previous call)
     - `fields` (array of strings, optional): Fields to include per comment (text/text_html can be large). Not specifying this returns all available fields
-  - Returns chronological list of comments with metadata
+  - Returns `{comments, next_cursor}` — comments in chronological order with metadata. Cursor-paginated: keep passing `next_cursor` back as `cursor` until it is null
 
 - **`issue_add_comment`**: Add a comment to an issue
   - Parameters:

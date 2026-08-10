@@ -11,7 +11,7 @@ from typing import Any, Literal
 import jwt
 import yandexcloud
 from aiohttp import ClientResponse, ClientSession, ClientTimeout
-from pydantic import BaseModel, RootModel
+from pydantic import BaseModel, Field, RootModel
 from yandex.cloud.iam.v1.iam_token_service_pb2 import CreateIamTokenRequest
 from yandex.cloud.iam.v1.iam_token_service_pb2_grpc import IamTokenServiceStub
 from yarl import URL
@@ -91,6 +91,21 @@ IssueCommentList = RootModel[list[IssueComment]]
 WorklogList = RootModel[list[Worklog]]
 IssueAttachmentList = RootModel[list[IssueAttachment]]
 ChecklistItemList = RootModel[list[ChecklistItem]]
+
+
+class EntityCommentsRelativePage(BaseModel):
+    """Raw response of `GET /v3/entities/<type>/<id>/comments/_relative`.
+
+    Unlike the issue comment endpoint, entity comments paginate through a
+    dedicated `_relative` endpoint that answers with an object and signals more
+    pages via `hasNext` rather than a `Link` header.
+    """
+
+    comments: list[IssueComment] = Field(default_factory=list)
+    hasNext: bool = False
+    hasPrev: bool = False
+
+
 GlobalFieldList = RootModel[list[GlobalField]]
 StatusList = RootModel[list[Status]]
 IssueTypeList = RootModel[list[IssueType]]
@@ -614,15 +629,36 @@ class TrackerClient(
             return None
 
     async def issue_get_comments(
-        self, issue_id: str, *, auth: YandexAuth | None = None
-    ) -> list[IssueComment]:
+        self,
+        issue_id: str,
+        *,
+        per_page: int = 50,
+        cursor: str | None = None,
+        auth: YandexAuth | None = None,
+    ) -> CommentsPage:
+        params: dict[str, Any] = {"perPage": per_page}
+        if cursor is not None:
+            # `id` is exclusive: the page starts after that comment.
+            params["id"] = cursor
+
         async with self._session.get(
-            f"v3/issues/{issue_id}/comments", headers=await self._build_headers(auth)
+            f"v3/issues/{issue_id}/comments",
+            headers=await self._build_headers(auth),
+            params=params,
         ) as response:
             if response.status == 404:
                 raise IssueNotFound(issue_id)
+<<<<<<< HEAD
             await self._raise_for_status(response)
             return IssueCommentList.model_validate_json(await response.read()).root
+=======
+            response.raise_for_status()
+            comments = IssueCommentList.model_validate_json(await response.read()).root
+            return CommentsPage(
+                comments=comments,
+                next_cursor=self._parse_next_cursor(response),
+            )
+>>>>>>> 438fdf6 (fix: paginate entity comments through _relative, paginate issue comments)
 
     async def issue_add_comment(
         self,
@@ -1001,9 +1037,8 @@ class TrackerClient(
     def _parse_next_cursor(response: ClientResponse) -> str | None:
         """Extract the next-page cursor from the `Link: rel="next"` response header.
 
-        Yandex Tracker paginates the changelog and comment endpoints with an opaque
-        cursor delivered as the `id` query parameter of the `next` link, not via the
-        last entry's id.
+        Yandex Tracker paginates the changelog with an opaque cursor delivered as the
+        `id` query parameter of the `next` link, not via the last entry's id.
         """
         next_link = response.links.get("next")
         if next_link is None:
@@ -1820,19 +1855,20 @@ class TrackerClient(
     ) -> CommentsPage:
         params: dict[str, Any] = {"perPage": per_page}
         if cursor is not None:
-            params["id"] = cursor
+            # `from` is exclusive: the page starts after that comment.
+            params["from"] = cursor
 
         async with self._session.get(
-            f"v3/entities/{entity_type}/{entity_id}/comments",
+            f"v3/entities/{entity_type}/{entity_id}/comments/_relative",
             headers=await self._build_headers(auth),
             params=params,
         ) as response:
             response.raise_for_status()
-            comments = IssueCommentList.model_validate_json(await response.read()).root
-            return CommentsPage(
-                comments=comments,
-                next_cursor=self._parse_next_cursor(response),
-            )
+            page = EntityCommentsRelativePage.model_validate_json(await response.read())
+            next_cursor: str | None = None
+            if page.hasNext and page.comments:
+                next_cursor = str(page.comments[-1].id)
+            return CommentsPage(comments=page.comments, next_cursor=next_cursor)
 
     async def _entity_add_comment(
         self,

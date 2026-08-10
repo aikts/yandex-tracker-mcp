@@ -9,8 +9,8 @@ from pydantic import Field
 
 from mcp_tracker.mcp.context import AppContext
 from mcp_tracker.mcp.params import (
+    CommentsCursorParam,
     CursorPerPageParam,
-    EntityCommentsCursorParam,
     EntityFilterParam,
     EntityID,
     EntityInputParam,
@@ -95,7 +95,7 @@ def register_project_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
         ctx: Context[Any, AppContext],
         entity_id: EntityID,
         per_page: CursorPerPageParam = 50,
-        cursor: EntityCommentsCursorParam = None,
+        cursor: CommentsCursorParam = None,
         fields: Annotated[
             list[CommentFieldsEnum] | None,
             Field(

@@ -30,18 +30,24 @@ def _comment_data(entity_type: str, entity_id: str) -> dict[str, Any]:
 
 
 class TestEntityGetComments:
+    """Entity comments paginate through the dedicated `_relative` endpoint, which
+    answers with an object and signals more pages via `hasNext` (unlike the issue
+    comment endpoint, which uses `id` + a `Link` header)."""
+
     @pytest.mark.parametrize("entity_type,entity_id", ENTITY_TYPES)
     async def test_success(
         self, tracker_client: TrackerClient, entity_type: str, entity_id: str
     ) -> None:
         comment_data = _comment_data(entity_type, entity_id)
-        capture = RequestCapture(payload=[comment_data])
+        capture = RequestCapture(
+            payload={"comments": [comment_data], "hasNext": False, "hasPrev": False}
+        )
 
         with aioresponses() as m:
             m.get(
                 re.compile(
                     rf"^https://api\.tracker\.yandex\.net/v3/entities/{entity_type}/"
-                    rf"{entity_id}/comments(\?.*)?$"
+                    rf"{entity_id}/comments/_relative(\?.*)?$"
                 ),
                 callback=capture.callback,
             )
@@ -57,19 +63,21 @@ class TestEntityGetComments:
 
         capture.assert_called_once()
         capture.last_request.assert_params({"perPage": 50})
-        assert "id" not in (capture.last_request.params or {})
+        assert "from" not in (capture.last_request.params or {})
 
     @pytest.mark.parametrize("entity_type,entity_id", ENTITY_TYPES)
     async def test_passes_per_page_and_cursor(
         self, tracker_client: TrackerClient, entity_type: str, entity_id: str
     ) -> None:
-        capture = RequestCapture(payload=[])
+        capture = RequestCapture(
+            payload={"comments": [], "hasNext": False, "hasPrev": False}
+        )
 
         with aioresponses() as m:
             m.get(
                 re.compile(
                     rf"^https://api\.tracker\.yandex\.net/v3/entities/{entity_type}/"
-                    rf"{entity_id}/comments(\?.*)?$"
+                    rf"{entity_id}/comments/_relative(\?.*)?$"
                 ),
                 callback=capture.callback,
             )
@@ -78,28 +86,48 @@ class TestEntityGetComments:
             await method(entity_id, per_page=10, cursor="42")
 
         capture.assert_called_once()
-        capture.last_request.assert_params({"perPage": 10, "id": "42"})
+        capture.last_request.assert_params({"perPage": 10, "from": "42"})
 
     @pytest.mark.parametrize("entity_type,entity_id", ENTITY_TYPES)
-    async def test_next_cursor_parsed_from_link_header(
+    async def test_next_cursor_is_last_comment_id_when_has_next(
         self, tracker_client: TrackerClient, entity_type: str, entity_id: str
     ) -> None:
-        comments_url = (
-            f"https://api.tracker.yandex.net/v3/entities/{entity_type}/"
-            f"{entity_id}/comments"
-        )
+        first = _comment_data(entity_type, entity_id)
+        second = {**_comment_data(entity_type, entity_id), "id": 2}
 
         with aioresponses() as m:
             m.get(
-                f"{comments_url}?perPage=50",
-                payload=[_comment_data(entity_type, entity_id)],
-                headers={"Link": f'<{comments_url}?id=100&perPage=50>; rel="next"'},
+                re.compile(
+                    rf"^https://api\.tracker\.yandex\.net/v3/entities/{entity_type}/"
+                    rf"{entity_id}/comments/_relative(\?.*)?$"
+                ),
+                payload={"comments": [first, second], "hasNext": True},
             )
 
             method = getattr(tracker_client, f"{entity_type}_get_comments")
             result = await method(entity_id)
 
-        assert result.next_cursor == "100"
+        assert result.next_cursor == "2"
+
+    @pytest.mark.parametrize("entity_type,entity_id", ENTITY_TYPES)
+    async def test_no_next_cursor_on_empty_last_page(
+        self, tracker_client: TrackerClient, entity_type: str, entity_id: str
+    ) -> None:
+        """`hasNext` with no comments must not produce a bogus cursor."""
+        with aioresponses() as m:
+            m.get(
+                re.compile(
+                    rf"^https://api\.tracker\.yandex\.net/v3/entities/{entity_type}/"
+                    rf"{entity_id}/comments/_relative(\?.*)?$"
+                ),
+                payload={"comments": [], "hasNext": True},
+            )
+
+            method = getattr(tracker_client, f"{entity_type}_get_comments")
+            result = await method(entity_id)
+
+        assert result.comments == []
+        assert result.next_cursor is None
 
 
 class TestEntityAddComment:

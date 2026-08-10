@@ -278,7 +278,7 @@
     },
     {
       "name": "issue_get_comments",
-      "description": "Fetch all comments for an issue"
+      "description": "Fetch a page of comments for an issue (cursor-paginated)"
     },
     {
       "name": "issue_add_comment",

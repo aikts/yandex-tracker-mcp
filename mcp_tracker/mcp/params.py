@@ -412,7 +412,7 @@ EntityTeamAccessParam = Annotated[
 ]
 
 
-EntityCommentsCursorParam = Annotated[
+CommentsCursorParam = Annotated[
     str | None,
     Field(
         description="Cursor for the next page of comments: the 'next_cursor' value returned "
@@ -610,5 +610,5 @@ ids come from `project_find`/`portfolio_find`/`goal_find`/`*_get` results, not f
 
 When using tools that accept `page` and/or `per_page` parameters and when the task is to find something in the result set (or to receive all available data) - always call the tool as many times as needed increasing the `page` parameter until the result set is exhausted. If you stumble with the context size limit — try to change the `per_page` parameter to a lower value and restart the search from the `page=1`.
 
-Some tools use cursor pagination instead of `page` (e.g. `issue_get_changelog`, `project_get_comments`/`portfolio_get_comments`/`goal_get_comments`): they accept a `cursor` argument and return a `next_cursor` value. To get all data, keep calling the tool passing the previous `next_cursor` as `cursor` until `next_cursor` is null. Do not change `per_page` mid-pagination; if you must, restart with `cursor` empty.
+Some tools use cursor pagination instead of `page` (e.g. `issue_get_changelog` and every `*_get_comments` tool): they accept a `cursor` argument and return a `next_cursor` value. To get all data, keep calling the tool passing the previous `next_cursor` as `cursor` until `next_cursor` is null. Do not change `per_page` mid-pagination; if you must, restart with `cursor` empty.
 """

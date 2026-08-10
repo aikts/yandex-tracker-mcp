@@ -9,6 +9,7 @@ from pydantic import Field
 
 from mcp_tracker.mcp.context import AppContext
 from mcp_tracker.mcp.params import (
+    CommentsCursorParam,
     CursorPerPageParam,
     IssueID,
     IssueIDs,
@@ -24,9 +25,9 @@ from mcp_tracker.tracker.proto.types.issues import (
     ChangelogPage,
     ChecklistItem,
     CommentFieldsEnum,
+    CommentsPage,
     Issue,
     IssueAttachment,
-    IssueComment,
     IssueFieldsEnum,
     IssueLink,
     IssueTransition,
@@ -79,12 +80,17 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Get Issue Comments",
-        description="Get comments of a Yandex Tracker issue by its id",
+        description="Get a page of comments of a Yandex Tracker issue by its id. "
+        "Returns the comments plus 'next_cursor'. To fetch the next page, pass "
+        "'next_cursor' from the previous result as the 'cursor' argument; when "
+        "'next_cursor' is null there are no more comments.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def issue_get_comments(
         ctx: Context[Any, AppContext],
         issue_id: IssueID,
+        per_page: CursorPerPageParam = 50,
+        cursor: CommentsCursorParam = None,
         fields: Annotated[
             list[CommentFieldsEnum] | None,
             Field(
@@ -93,18 +99,20 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
                 "Not specifying this returns all available fields.",
             ),
         ] = None,
-    ) -> list[IssueComment]:
+    ) -> CommentsPage:
         check_issue_access(settings, issue_id)
 
-        comments = await ctx.request_context.lifespan_context.issues.issue_get_comments(
+        page = await ctx.request_context.lifespan_context.issues.issue_get_comments(
             issue_id,
+            per_page=per_page,
+            cursor=cursor,
             auth=get_yandex_auth(ctx),
         )
 
         if fields is not None:
-            set_non_needed_fields_null(comments, {f.name for f in fields})
+            set_non_needed_fields_null(page.comments, {f.name for f in fields})
 
-        return comments
+        return page
 
     @mcp.tool(
         title="Get Issue Links",
