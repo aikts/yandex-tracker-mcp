@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.0-dev] - unreleased
+
+### Features
+
+- **Checklist write tools** — `issue_add_checklist_items`, `issue_update_checklist_item`, `issue_delete_checklist_item` ([#44](https://github.com/aikts/yandex-tracker-mcp/issues/44))
+  - Checklists were the last part of an issue that could only be read, while comments, worklogs and links already had full CRUD
+  - Tracker takes one checklist item per request, so `issue_add_checklist_items` accepts a list and posts the items in order
+  - `text` is required in every checklist request, so an update that only flips `checked` reuses the item's current text instead of answering 400
+  - All three return the issue's checklist, like `issue_get_checklist`, and are covered by `TRACKER_LIMIT_QUEUES`, `TRACKER_READ_ONLY_QUEUES` and `TRACKER_READ_ONLY`
+
 ## [0.8.0] - 2026-08-19
 
 ### Features

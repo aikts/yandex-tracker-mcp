@@ -771,6 +771,34 @@ All four tools respect `TRACKER_LIMIT_QUEUES`: templates bound to a restricted q
   - Parameters: `issue_id` (string, format: "QUEUE-123")
   - Returns list of checklist items including text, status, assignee, and deadline information
 
+- **`issue_add_checklist_items`**: Add items to the checklist of an issue
+  - Parameters:
+    - `issue_id` (string, required, format: "QUEUE-123")
+    - `items` (array, required, at least one item): Checklist items to add, each with:
+      - `text` (string, required): Checklist item text
+      - `checked` (boolean, optional): Whether the item is marked as completed
+      - `assignee` (string, optional): Login or ID of the user assigned to the item
+      - `deadline` (object, optional): `date` (datetime, UTC assumed when no timezone is given) and `deadline_type` (`date` or `quarter`)
+  - Creates the checklist if the issue does not have one yet, otherwise appends the items in the given order
+  - Returns the issue's checklist after the items were added
+
+- **`issue_update_checklist_item`**: Update a single checklist item of an issue
+  - Parameters:
+    - `issue_id` (string, required, format: "QUEUE-123")
+    - `item_id` (string, required): Checklist item ID as returned by `issue_get_checklist`
+    - `text` (string, optional): New checklist item text
+    - `checked` (boolean, optional): Mark the item as done (`true`) or undone (`false`)
+    - `assignee` (string, optional): Login or ID of the user assigned to the item
+    - `deadline` (object, optional): `date` (datetime, UTC assumed when no timezone is given) and `deadline_type` (`date` or `quarter`)
+  - Only the provided parameters are changed; when `text` is omitted the item's current text is reused (Tracker requires it in every request)
+  - Returns the issue's checklist after the update
+
+- **`issue_delete_checklist_item`**: Delete a single item from the checklist of an issue
+  - Parameters:
+    - `issue_id` (string, required, format: "QUEUE-123")
+    - `item_id` (string, required): Checklist item ID as returned by `issue_get_checklist`
+  - Returns the issue's remaining checklist items
+
 - **`issue_get_transitions`**: Get possible status transitions for an issue
   - Parameters: `issue_id` (string, format: "QUEUE-123")
   - Returns list of available transitions that can be performed on the issue
@@ -1283,7 +1311,7 @@ Access to queues can be scoped at three levels, from coarse to fine-grained:
 - **`TRACKER_READ_ONLY`** — when `true`, all write tools are unregistered, so the
   whole instance is read-only.
 - **`TRACKER_READ_ONLY_QUEUES`** — per-queue read-only allow-list. Write tools stay
-  registered, but any mutating call (create/update/move/comment/worklog/link,
+  registered, but any mutating call (create/update/move/comment/worklog/link/checklist,
   queue version creation) targeting a listed queue is rejected, while reads keep
   working. Queues not listed here remain read-write.
 

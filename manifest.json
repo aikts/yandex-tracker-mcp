@@ -329,6 +329,18 @@
       "description": "Get checklist items of a Yandex Tracker issue by its id"
     },
     {
+      "name": "issue_add_checklist_items",
+      "description": "Add items to the checklist of a Yandex Tracker issue (creates the checklist if there is none yet)"
+    },
+    {
+      "name": "issue_update_checklist_item",
+      "description": "Update a single checklist item of a Yandex Tracker issue: text, checked flag, assignee or deadline"
+    },
+    {
+      "name": "issue_delete_checklist_item",
+      "description": "Delete a single item from the checklist of a Yandex Tracker issue"
+    },
+    {
       "name": "issue_get_transitions",
       "description": "Get possible status transitions for a Yandex Tracker issue"
     },

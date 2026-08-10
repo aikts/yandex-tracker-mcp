@@ -11,7 +11,8 @@ When both `id` and `key` are given, Tracker resolves by `id` and ignores the
 `key`, which makes it safe to pass a reference copied straight out of an issue.
 """
 
-from typing import Any, Self
+import datetime
+from typing import Any, Literal, Self
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -166,4 +167,32 @@ class EntityChecklistItemUpdateInput(BaseModel):
         None,
         description="Deadline object. Example: "
         "{'date': '2026-08-20T00:00:00.000+0000', 'deadlineType': 'date'}",
+    )
+
+
+class ChecklistItemDeadlineInput(BaseModel):
+    """Deadline of a checklist item."""
+
+    date: datetime.datetime = Field(
+        ...,
+        description="Deadline date and time. UTC is assumed when no timezone is provided.",
+    )
+    deadline_type: Literal["date", "quarter"] = Field(
+        "date", description="Deadline type: 'date' or 'quarter'"
+    )
+
+
+class ChecklistItemInput(BaseModel):
+    """Checklist item to add to an issue."""
+
+    text: str = Field(..., description="Checklist item text")
+    checked: bool | None = Field(
+        None, description="Whether the item is marked as completed"
+    )
+    assignee: str | None = Field(
+        None,
+        description="Login or ID of the user assigned to the checklist item",
+    )
+    deadline: ChecklistItemDeadlineInput | None = Field(
+        None, description="Checklist item deadline"
     )

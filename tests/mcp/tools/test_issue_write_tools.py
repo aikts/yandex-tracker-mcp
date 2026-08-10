@@ -14,6 +14,7 @@ from mcp_tracker.tracker.proto.types.inputs import (
     IssueFollowerRef,
 )
 from mcp_tracker.tracker.proto.types.issues import (
+    ChecklistItem,
     Issue,
     IssueComment,
     IssueLink,
@@ -782,6 +783,275 @@ class TestIssueDeleteLink:
         result = await client_session_read_only.call_tool(
             "issue_delete_link",
             {"issue_id": "TEST-123", "link_id": 10},
+        )
+
+        assert result.isError
+
+
+class TestIssueAddChecklistItems:
+    async def test_adds_checklist_items(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_checklist: list[ChecklistItem],
+    ) -> None:
+        mock_issues_protocol.issue_add_checklist_items.return_value = sample_checklist
+
+        result = await client_session.call_tool(
+            "issue_add_checklist_items",
+            {
+                "issue_id": "TEST-123",
+                "items": [{"text": "Complete the implementation"}],
+            },
+        )
+
+        assert not result.isError
+        mock_issues_protocol.issue_add_checklist_items.assert_called_once()
+        call_args = mock_issues_protocol.issue_add_checklist_items.call_args
+        assert call_args.args[0] == "TEST-123"
+        items = call_args.kwargs["items"]
+        assert [item.text for item in items] == ["Complete the implementation"]
+        assert items[0].checked is None
+        assert items[0].assignee is None
+        assert items[0].deadline is None
+        content = get_tool_result_content(result)
+        assert isinstance(content, list)
+        assert len(content) == len(sample_checklist)
+        assert content[0]["text"] == sample_checklist[0].text
+
+    async def test_forwards_optional_item_fields(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_checklist: list[ChecklistItem],
+    ) -> None:
+        mock_issues_protocol.issue_add_checklist_items.return_value = sample_checklist
+
+        result = await client_session.call_tool(
+            "issue_add_checklist_items",
+            {
+                "issue_id": "TEST-123",
+                "items": [
+                    {"text": "First item"},
+                    {
+                        "text": "Second item",
+                        "checked": True,
+                        "assignee": "user123",
+                        "deadline": {
+                            "date": "2021-05-25T00:00:00Z",
+                            "deadline_type": "quarter",
+                        },
+                    },
+                ],
+            },
+        )
+
+        assert not result.isError
+        items = mock_issues_protocol.issue_add_checklist_items.call_args.kwargs["items"]
+        assert len(items) == 2
+        assert items[1].text == "Second item"
+        assert items[1].checked is True
+        assert items[1].assignee == "user123"
+        assert items[1].deadline is not None
+        assert items[1].deadline.deadline_type == "quarter"
+
+    async def test_empty_items_raises_error(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session.call_tool(
+            "issue_add_checklist_items",
+            {"issue_id": "TEST-123", "items": []},
+        )
+
+        assert result.isError
+        mock_issues_protocol.issue_add_checklist_items.assert_not_called()
+
+    async def test_restricted_queue_raises_error(
+        self,
+        client_session_with_limits: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session_with_limits.call_tool(
+            "issue_add_checklist_items",
+            {"issue_id": "RESTRICTED-123", "items": [{"text": "First item"}]},
+        )
+
+        assert result.isError
+        mock_issues_protocol.issue_add_checklist_items.assert_not_called()
+
+    async def test_read_only_mode_tool_not_registered(
+        self,
+        client_session_read_only: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session_read_only.call_tool(
+            "issue_add_checklist_items",
+            {"issue_id": "TEST-123", "items": [{"text": "First item"}]},
+        )
+
+        assert result.isError
+
+
+class TestIssueUpdateChecklistItem:
+    async def test_updates_checklist_item(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_checklist: list[ChecklistItem],
+    ) -> None:
+        mock_issues_protocol.issue_update_checklist_item.return_value = sample_checklist
+
+        result = await client_session.call_tool(
+            "issue_update_checklist_item",
+            {
+                "issue_id": "TEST-123",
+                "item_id": "checklist-1",
+                "text": "Updated item",
+                "checked": True,
+                "assignee": "user123",
+            },
+        )
+
+        assert not result.isError
+        mock_issues_protocol.issue_update_checklist_item.assert_called_once()
+        call_args = mock_issues_protocol.issue_update_checklist_item.call_args
+        assert call_args.args[0] == "TEST-123"
+        assert call_args.args[1] == "checklist-1"
+        assert call_args.kwargs["text"] == "Updated item"
+        assert call_args.kwargs["checked"] is True
+        assert call_args.kwargs["assignee"] == "user123"
+        assert call_args.kwargs["deadline"] is None
+        content = get_tool_result_content(result)
+        assert isinstance(content, list)
+        assert content[0]["text"] == sample_checklist[0].text
+
+    async def test_omitted_parameters_are_passed_as_none(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_checklist: list[ChecklistItem],
+    ) -> None:
+        mock_issues_protocol.issue_update_checklist_item.return_value = sample_checklist
+
+        result = await client_session.call_tool(
+            "issue_update_checklist_item",
+            {
+                "issue_id": "TEST-123",
+                "item_id": "checklist-1",
+                "checked": True,
+            },
+        )
+
+        assert not result.isError
+        call_args = mock_issues_protocol.issue_update_checklist_item.call_args
+        assert call_args.kwargs["text"] is None
+        assert call_args.kwargs["checked"] is True
+        assert call_args.kwargs["assignee"] is None
+        assert call_args.kwargs["deadline"] is None
+
+    async def test_forwards_deadline(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_checklist: list[ChecklistItem],
+    ) -> None:
+        mock_issues_protocol.issue_update_checklist_item.return_value = sample_checklist
+
+        result = await client_session.call_tool(
+            "issue_update_checklist_item",
+            {
+                "issue_id": "TEST-123",
+                "item_id": "checklist-1",
+                "deadline": {"date": "2021-05-25T00:00:00Z"},
+            },
+        )
+
+        assert not result.isError
+        deadline = mock_issues_protocol.issue_update_checklist_item.call_args.kwargs[
+            "deadline"
+        ]
+        assert deadline is not None
+        assert deadline.deadline_type == "date"
+
+    async def test_restricted_queue_raises_error(
+        self,
+        client_session_with_limits: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session_with_limits.call_tool(
+            "issue_update_checklist_item",
+            {
+                "issue_id": "RESTRICTED-123",
+                "item_id": "checklist-1",
+                "checked": True,
+            },
+        )
+
+        assert result.isError
+        mock_issues_protocol.issue_update_checklist_item.assert_not_called()
+
+    async def test_read_only_mode_tool_not_registered(
+        self,
+        client_session_read_only: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session_read_only.call_tool(
+            "issue_update_checklist_item",
+            {"issue_id": "TEST-123", "item_id": "checklist-1", "checked": True},
+        )
+
+        assert result.isError
+
+
+class TestIssueDeleteChecklistItem:
+    async def test_deletes_checklist_item(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_checklist_item: ChecklistItem,
+    ) -> None:
+        mock_issues_protocol.issue_delete_checklist_item.return_value = [
+            sample_checklist_item
+        ]
+
+        result = await client_session.call_tool(
+            "issue_delete_checklist_item",
+            {"issue_id": "TEST-123", "item_id": "checklist-2"},
+        )
+
+        assert not result.isError
+        mock_issues_protocol.issue_delete_checklist_item.assert_called_once()
+        call_args = mock_issues_protocol.issue_delete_checklist_item.call_args
+        assert call_args.args[0] == "TEST-123"
+        assert call_args.args[1] == "checklist-2"
+        content = get_tool_result_content(result)
+        assert isinstance(content, list)
+        assert len(content) == 1
+        assert content[0]["id"] == sample_checklist_item.id
+
+    async def test_restricted_queue_raises_error(
+        self,
+        client_session_with_limits: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session_with_limits.call_tool(
+            "issue_delete_checklist_item",
+            {"issue_id": "RESTRICTED-123", "item_id": "checklist-1"},
+        )
+
+        assert result.isError
+        mock_issues_protocol.issue_delete_checklist_item.assert_not_called()
+
+    async def test_read_only_mode_tool_not_registered(
+        self,
+        client_session_read_only: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session_read_only.call_tool(
+            "issue_delete_checklist_item",
+            {"issue_id": "TEST-123", "item_id": "checklist-1"},
         )
 
         assert result.isError
