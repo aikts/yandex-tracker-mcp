@@ -28,6 +28,7 @@ uv run mcp-tracker # Run the server
   - `queue.py` / `queue_write.py`: Queue read-only / write tools
   - `field.py`: Global field and metadata tools (read-only)
   - `template.py`: Issue and comment template tools (read-only)
+  - `board.py`: Board and sprint tools (read-only)
   - `issue_read.py` / `issue_write.py`: Issue read-only / write tools
   - `user.py`: User tools (read-only)
   - `__init__.py`: Exports `register_all_tools()` which orchestrates tool registration
@@ -114,6 +115,7 @@ For paginated methods, use `side_effect` for sequential returns: `mock.method.si
    - Queue write tools → `queue_write.py`
    - Global field/metadata tools → `field.py`
    - Issue/comment template tools → `template.py`
+   - Board/sprint tools → `board.py`
    - Issue read-only tools → `issue_read.py`
    - Issue write tools → `issue_write.py`
    - User tools → `user.py`
@@ -131,6 +133,7 @@ For paginated methods, use `side_effect` for sequential returns: `mock.method.si
 | Queue Write | `queue_write.py` | No |
 | Field | `field.py` | Yes |
 | Template | `template.py` | Yes |
+| Board | `board.py` | Yes |
 | Issue Read | `issue_read.py` | Yes |
 | Issue Write | `issue_write.py` | No |
 | User | `user.py` | Yes |

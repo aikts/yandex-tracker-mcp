@@ -5,12 +5,14 @@ from typing import Any
 
 from aiocache import cached
 
+from mcp_tracker.tracker.proto.boards import BoardsProtocolWrap
 from mcp_tracker.tracker.proto.common import YandexAuth
 from mcp_tracker.tracker.proto.entities import EntitiesProtocolWrap
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocolWrap
 from mcp_tracker.tracker.proto.issues import IssueProtocolWrap
 from mcp_tracker.tracker.proto.queues import QueuesProtocolWrap
 from mcp_tracker.tracker.proto.templates import TemplatesProtocolWrap
+from mcp_tracker.tracker.proto.types.boards import Board, Sprint
 from mcp_tracker.tracker.proto.types.entities import (
     GoalEntity,
     GoalSearchResult,
@@ -70,6 +72,7 @@ class CacheCollection:
     templates: type[TemplatesProtocolWrap]
     users: type[UsersProtocolWrap]
     entities: type[EntitiesProtocolWrap]
+    boards: type[BoardsProtocolWrap]
 
 
 def make_cached_protocols(
@@ -1341,6 +1344,17 @@ def make_cached_protocols(
                 entity_id, fields=fields, auth=auth
             )
 
+    class CachingBoardsProtocol(BoardsProtocolWrap):
+        @cached(**cache_config)
+        async def boards_list(self, *, auth: YandexAuth | None = None) -> list[Board]:
+            return await self._original.boards_list(auth=auth)
+
+        @cached(**cache_config)
+        async def board_get_sprints(
+            self, board_id: int, *, auth: YandexAuth | None = None
+        ) -> list[Sprint]:
+            return await self._original.board_get_sprints(board_id, auth=auth)
+
     return CacheCollection(
         queues=CachingQueuesProtocol,
         issues=CachingIssuesProtocol,
@@ -1348,4 +1362,5 @@ def make_cached_protocols(
         templates=CachingTemplatesProtocol,
         users=CachingUsersProtocol,
         entities=CachingEntitiesProtocol,
+        boards=CachingBoardsProtocol,
     )

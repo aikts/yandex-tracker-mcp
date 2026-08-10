@@ -33,6 +33,10 @@ class SprintReference(BaseReference):
     display: str | None = None
 
 
+class BoardReference(BaseReference):
+    display: str | None = None
+
+
 class UserReference(BaseReference):
     display: str | None = None
     cloud_uid: str | None = Field(

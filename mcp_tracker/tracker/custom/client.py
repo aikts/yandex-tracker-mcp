@@ -26,12 +26,14 @@ from mcp_tracker.tracker.custom.errors import (
     QueueNotFound,
     TrackerAPIError,
 )
+from mcp_tracker.tracker.proto.boards import BoardsProtocol
 from mcp_tracker.tracker.proto.common import YandexAuth
 from mcp_tracker.tracker.proto.entities import EntitiesProtocol
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
 from mcp_tracker.tracker.proto.templates import TemplatesProtocol
+from mcp_tracker.tracker.proto.types.boards import Board, Sprint
 from mcp_tracker.tracker.proto.types.entities import (
     DEFAULT_ENTITY_FIELDS_PARAM,
     GoalEntity,
@@ -132,6 +134,8 @@ CommentTemplateList = RootModel[list[CommentTemplate]]
 UserList = RootModel[list[User]]
 IssueTransitionList = RootModel[list[IssueTransition]]
 ChangelogList = RootModel[list[ChangelogEntry]]
+BoardList = RootModel[list[Board]]
+SprintList = RootModel[list[Sprint]]
 
 
 logger = logging.getLogger(__name__)
@@ -260,6 +264,7 @@ class TrackerClient(
     TemplatesProtocol,
     UsersProtocol,
     EntitiesProtocol,
+    BoardsProtocol,
 ):
     def __init__(
         self,
@@ -2639,3 +2644,19 @@ class TrackerClient(
                 "portfolio", entity_id, fields=fields, auth=auth
             )
         )
+
+    async def boards_list(self, *, auth: YandexAuth | None = None) -> list[Board]:
+        async with self._session.get(
+            "v3/boards", headers=await self._build_headers(auth)
+        ) as response:
+            response.raise_for_status()
+            return BoardList.model_validate_json(await response.read()).root
+
+    async def board_get_sprints(
+        self, board_id: int, *, auth: YandexAuth | None = None
+    ) -> list[Sprint]:
+        async with self._session.get(
+            f"v3/boards/{board_id}/sprints", headers=await self._build_headers(auth)
+        ) as response:
+            response.raise_for_status()
+            return SprintList.model_validate_json(await response.read()).root

@@ -269,6 +269,14 @@
       "description": "Get a single Yandex Tracker comment template by its id"
     },
     {
+      "name": "boards_get_all",
+      "description": "Get all agile boards available in the organization"
+    },
+    {
+      "name": "board_get_sprints",
+      "description": "Get all sprints of a specific agile board"
+    },
+    {
       "name": "issue_get",
       "description": "Read one issue (task, ticket, bug) by its key/ID and return its full record"
     },

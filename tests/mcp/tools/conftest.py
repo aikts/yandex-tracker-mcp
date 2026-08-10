@@ -1,5 +1,8 @@
+import datetime
+
 import pytest
 
+from mcp_tracker.tracker.proto.types.boards import Board, BoardColumn, Sprint
 from mcp_tracker.tracker.proto.types.entities import (
     GoalEntity,
     GoalFields,
@@ -31,6 +34,7 @@ from mcp_tracker.tracker.proto.types.issues import (
 from mcp_tracker.tracker.proto.types.priorities import Priority
 from mcp_tracker.tracker.proto.types.queues import Queue, QueueVersion
 from mcp_tracker.tracker.proto.types.refs import (
+    BoardReference,
     IssueReference,
     IssueTypeReference,
     PriorityReference,
@@ -590,6 +594,78 @@ def sample_user() -> User:
         external=False,
         dismissed=False,
     )
+
+
+# Board fixtures
+@pytest.fixture
+def sample_board() -> Board:
+    """Sample agile board for testing."""
+    return Board.model_construct(
+        id=1,
+        version=1,
+        name="Development board",
+        createdBy=UserReference.model_construct(
+            id="user123",
+            display="Test User",
+        ),
+        columns=[
+            BoardColumn.model_construct(id="1", display="Open"),
+            BoardColumn.model_construct(id="2", display="In Progress"),
+        ],
+    )
+
+
+@pytest.fixture
+def sample_boards(sample_board: Board) -> list[Board]:
+    """Sample list of agile boards for testing."""
+    return [
+        sample_board,
+        Board.model_construct(
+            id=2,
+            version=1,
+            name="Support board",
+        ),
+    ]
+
+
+# Sprint fixtures
+@pytest.fixture
+def sample_sprint() -> Sprint:
+    """Sample sprint (currently running) for testing."""
+    return Sprint.model_construct(
+        id=44,
+        version=1,
+        name="Sprint 1",
+        board=BoardReference.model_construct(id="1", display="Development board"),
+        status="in_progress",
+        archived=False,
+        startDate=datetime.date(2015, 6, 1),
+        endDate=datetime.date(2015, 6, 14),
+    )
+
+
+@pytest.fixture
+def sample_sprints(sample_sprint: Sprint) -> list[Sprint]:
+    """Sample list of sprints for testing."""
+    return [
+        Sprint.model_construct(
+            id=43,
+            version=1,
+            name="Sprint 0",
+            board=BoardReference.model_construct(id="1", display="Development board"),
+            status="released",
+            archived=False,
+        ),
+        sample_sprint,
+        Sprint.model_construct(
+            id=45,
+            version=1,
+            name="Sprint 2",
+            board=BoardReference.model_construct(id="1", display="Development board"),
+            status="draft",
+            archived=False,
+        ),
+    ]
 
 
 @pytest.fixture

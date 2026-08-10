@@ -22,6 +22,7 @@ Documentation in Russian is available [here](README_ru.md) / Документа�
 - **Full Issue Lifecycle**: Create, read, update, and manage issues with support for custom fields, attachments, and workflow transitions
 - **Status Workflow Management**: Execute status transitions, close issues with resolutions, and navigate complex workflows
 - **Field Management**: Access global fields, queue-specific local fields, statuses, issue types, priorities, and resolutions
+- **Boards and Sprints**: List agile boards and their sprints to find sprint IDs for issue planning
 - **Advanced Query Language**: Full Yandex Tracker Query Language support with complex filtering, sorting, and date functions
 - **Performance Caching**: Optional Redis caching layer for improved response times
 - **Security Controls**: Configurable queue access restrictions and secure token handling
@@ -664,6 +665,23 @@ Both listings paginate (the API returns 50 templates per page), so by default th
 Templates are read-only helpers: the Tracker API has no way to create an issue or a comment *from* a template, so `issue_create` and `issue_add_comment` take no `template_id`. Read the template first and pass its values as the tool's arguments.
 
 All four tools respect `TRACKER_LIMIT_QUEUES`: templates bound to a restricted queue are omitted from the listings and rejected on direct access, while templates without a queue remain visible. Passing a restricted queue as `queue` is rejected as well.
+
+</details>
+
+<details>
+<summary><strong>Boards and Sprints</strong></summary>
+
+- **`boards_get_all`**: Get all agile boards available in the organization
+  - No parameters required
+  - Returns list of boards with id, name, version, columns, and creation metadata
+  - Use the returned board `id` with the `board_get_sprints` tool
+  - Boards are organization-wide, so they are not filtered by `TRACKER_LIMIT_QUEUES`
+
+- **`board_get_sprints`**: Get all sprints of a specific agile board
+  - Parameters: `board_id` (integer, board identifier as returned by `boards_get_all`)
+  - Returns list of sprints with id, name, status, archived flag, planned dates (`startDate`, `endDate`) and actual dates (`startDateTime`, `endDateTime`)
+  - Sprint status is one of `draft`, `in_progress`, `released` or `archived` — the currently running sprint is the one with status `in_progress`
+  - Use the returned sprint `id` to place an issue into a sprint with `issue_create` or `issue_update`
 
 </details>
 

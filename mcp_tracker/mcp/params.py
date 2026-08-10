@@ -525,6 +525,13 @@ EntityChecklistItemsParam = Annotated[
     ),
 ]
 
+BoardID = Annotated[
+    int,
+    Field(
+        description="Agile board identifier, as returned by the `boards_get_all` tool"
+    ),
+]
+
 
 YTQuery = Annotated[
     str,
