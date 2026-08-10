@@ -5,7 +5,7 @@ from typing import Literal
 from pydantic import Field
 
 from mcp_tracker.tracker.proto.types.base import BaseTrackerEntity, NoneExcludedField
-from mcp_tracker.tracker.proto.types.issues import ChecklistItem
+from mcp_tracker.tracker.proto.types.issues import ChecklistItem, ChecklistItemDeadline
 from mcp_tracker.tracker.proto.types.mixins import CreatedUpdatedMixin
 from mcp_tracker.tracker.proto.types.refs import QueueReference, UserReference
 
@@ -66,6 +66,42 @@ class ParentEntityRef(BaseTrackerEntity):
     secondary: list[EntityReference] | None = NoneExcludedField
 
 
+class EntityMetricItem(BaseTrackerEntity):
+    """Metric widget shown on an entity (`metricItems`).
+
+    Readable through the `fields` selector; this server does not write metrics.
+    """
+
+    id: str | None = NoneExcludedField
+    text: str | None = NoneExcludedField
+    url: str | None = NoneExcludedField
+
+
+class GoalKeyResultProgress(BaseTrackerEntity):
+    """Quantitative progress of a key result."""
+
+    start: float | None = NoneExcludedField
+    end: float | None = NoneExcludedField
+    current: float | None = NoneExcludedField
+
+
+class GoalKeyResultItem(BaseTrackerEntity):
+    """Key result of a goal (`keyResultItems`).
+
+    Readable through the `fields` selector; this server does not write key
+    results. `progressPercentage` on the goal is derived from these.
+    """
+
+    id: str | None = NoneExcludedField
+    text: str | None = NoneExcludedField
+    # How the result is measured: "value" (quantitative) or "binary" (done/not done).
+    type: str | None = NoneExcludedField
+    deadline: ChecklistItemDeadline | None = NoneExcludedField
+    progress: GoalKeyResultProgress | None = NoneExcludedField
+    achieved: bool | None = NoneExcludedField
+    assignee: UserReference | None = NoneExcludedField
+
+
 # There is deliberately no `links` field below: per api-ref/entities/about-entities
 # it is not among the values `fields` accepts, and neither get-entity nor
 # update-entity returns links, so links are write-only through the API.
@@ -96,6 +132,7 @@ class ProjectFields(BaseTrackerEntity):
     parentEntity: ParentEntityRef | None = NoneExcludedField
     teamAccess: bool | None = NoneExcludedField
     issueQueues: list[QueueReference] | None = NoneExcludedField
+    metricItems: list[EntityMetricItem] | None = NoneExcludedField
     lastCommentUpdatedAt: datetime | None = NoneExcludedField
     linkedGoalsCount: int | None = NoneExcludedField
     checklistItems: list[ChecklistItem] | None = NoneExcludedField
@@ -124,6 +161,7 @@ class PortfolioFields(BaseTrackerEntity):
     entityStatus: ProjectPortfolioStatus | None = NoneExcludedField
     parentEntity: ParentEntityRef | None = NoneExcludedField
     teamAccess: bool | None = NoneExcludedField
+    metricItems: list[EntityMetricItem] | None = NoneExcludedField
     lastCommentUpdatedAt: datetime | None = NoneExcludedField
     linkedGoalsCount: int | None = NoneExcludedField
     checklistItems: list[ChecklistItem] | None = NoneExcludedField
@@ -151,6 +189,8 @@ class GoalFields(BaseTrackerEntity):
     parentEntity: ParentEntityRef | None = NoneExcludedField
     teamAccess: bool | None = NoneExcludedField
     progressPercentage: float | None = NoneExcludedField
+    keyResultItems: list[GoalKeyResultItem] | None = NoneExcludedField
+    metricItems: list[EntityMetricItem] | None = NoneExcludedField
     lastCommentUpdatedAt: datetime | None = NoneExcludedField
     linkedProjectsCount: int | None = NoneExcludedField
 

@@ -587,7 +587,9 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
 - **`project_delete_checklist`**: Удалить весь чек-лист. Требуется `entity_id`
 - **`portfolio_add_checklist_item`** / **`portfolio_update_checklist_item`** / **`portfolio_move_checklist_item`** / **`portfolio_delete_checklist_item`** / **`portfolio_update_checklist`** / **`portfolio_delete_checklist`**: Аналогично инструментам записи чек-листов для проектов, но для портфелей
 
-Пока не поддерживается: метрики и ключевые результаты (`metricItems`, `keyResultItems`) и массовые изменения — это запланировано на будущее.
+Метрики (`metricItems`, есть у всех трёх типов сущностей) и ключевые результаты цели (`keyResultItems`) доступны на чтение через селектор `fields` — их нужно запрашивать явно, в набор по умолчанию они не входят. Запись не поддерживается: в справочнике API не описано, заменяет ли обновление эти коллекции целиком или дополняет их.
+
+Пока не поддерживается: запись метрик и ключевых результатов, а также массовые изменения — это запланировано на будущее.
 
 </details>
 

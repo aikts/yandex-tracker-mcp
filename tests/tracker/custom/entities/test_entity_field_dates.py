@@ -79,3 +79,61 @@ def test_last_comment_updated_at_stays_a_timestamp_at_midnight(
         "2026-01-01T00:00:00+00:00"
     )
     assert '"2026-01-01T00:00:00Z"' in fields.model_dump_json()
+
+
+def test_goal_key_results_and_metrics_are_parsed() -> None:
+    """`keyResultItems` explains a goal's progressPercentage, so it must survive
+    parsing rather than being dropped by the model's extra="ignore"."""
+    fields = GoalFields.model_validate(
+        {
+            "progressPercentage": 40.0,
+            "keyResultItems": [
+                {
+                    "id": "kr-1",
+                    "text": "Ship the thing",
+                    "type": "value",
+                    "achieved": False,
+                    "progress": {"start": 0, "end": 100, "current": 40},
+                    "deadline": {
+                        "date": "2026-12-31T00:00:00.000+0000",
+                        "deadlineType": "date",
+                        "isExceeded": False,
+                    },
+                    "assignee": {"id": "user123", "display": "Test User"},
+                }
+            ],
+            "metricItems": [
+                {"id": "m-1", "text": "Conversion", "url": "https://example.com/w/1"}
+            ],
+        }
+    )
+
+    assert fields.keyResultItems is not None
+    key_result = fields.keyResultItems[0]
+    assert key_result.type == "value"
+    assert key_result.progress is not None
+    assert key_result.progress.current == 40
+    assert key_result.deadline is not None
+    assert key_result.deadline.is_exceeded is False
+    assert key_result.assignee is not None
+    assert key_result.assignee.display == "Test User"
+    assert fields.metricItems is not None
+    assert fields.metricItems[0].url == "https://example.com/w/1"
+
+
+@pytest.mark.parametrize(
+    "fields_model,expected",
+    [
+        (ProjectFields, {"metricItems"}),
+        (PortfolioFields, {"metricItems"}),
+        (GoalFields, {"metricItems", "keyResultItems"}),
+    ],
+)
+def test_metric_and_key_result_fields_are_selectable(
+    fields_model: type[ProjectFields] | type[PortfolioFields] | type[GoalFields],
+    expected: set[str],
+) -> None:
+    """Per the API docs metrics exist on all three types, key results only on goals."""
+    assert expected <= set(fields_model.model_fields)
+    if fields_model is not GoalFields:
+        assert "keyResultItems" not in fields_model.model_fields

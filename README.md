@@ -590,7 +590,9 @@ Projects and portfolios (not goals — the Yandex Tracker API does not support c
 - **`project_delete_checklist`**: Delete the entire checklist. Requires `entity_id`
 - **`portfolio_add_checklist_item`** / **`portfolio_update_checklist_item`** / **`portfolio_move_checklist_item`** / **`portfolio_delete_checklist_item`** / **`portfolio_update_checklist`** / **`portfolio_delete_checklist`**: Same shape as the project checklist write tools, for portfolios
 
-Not yet supported: metrics/key results (`metricItems`, `keyResultItems`), and bulk changes — these are tracked for a future iteration.
+Metrics (`metricItems`, on all three entity types) and a goal's key results (`keyResultItems`) are readable through the `fields` selector — request them explicitly, they are not in the default field set. Writing them is not supported: the API reference doesn't define whether an update replaces or merges these collections.
+
+Not yet supported: writing metrics/key results, and bulk changes — these are tracked for a future iteration.
 
 </details>
 
