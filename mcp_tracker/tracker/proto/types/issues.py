@@ -26,7 +26,8 @@ class Issue(CreatedUpdatedMixin, BaseTrackerEntity):
     model_config = ConfigDict(
         extra="allow",
     )
-    version: int | None = NoneExcludedField
+    # Named (non-numeric) Tracker versions return this as a string, e.g. "MVP-0".
+    version: int | str | None = NoneExcludedField
     unique: str | None = NoneExcludedField
     key: str | None = NoneExcludedField
     summary: str | None = NoneExcludedField

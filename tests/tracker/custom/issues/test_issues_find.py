@@ -48,3 +48,21 @@ class TestIssuesFind:
         capture.assert_called_once()
         capture.last_request.assert_params({"perPage": 50, "page": 2})
         capture.last_request.assert_json_field("query", "Queue: TEST")
+
+    async def test_with_text_based_version(
+        self, tracker_client: TrackerClient, sample_issue_data: dict[str, Any]
+    ) -> None:
+        """Queues with named versions (e.g. "MVP-0") return version as a string."""
+        sample_issue_data["version"] = "MVP-0"
+        search_response = [sample_issue_data]
+
+        with aioresponses() as m:
+            m.post(
+                "https://api.tracker.yandex.net/v3/issues/_search?page=1&perPage=15",
+                payload=search_response,
+            )
+
+            result = await tracker_client.issues_find("Queue: TEST")
+
+            assert len(result) == 1
+            assert result[0].version == "MVP-0"
