@@ -648,17 +648,12 @@ class TrackerClient(
         ) as response:
             if response.status == 404:
                 raise IssueNotFound(issue_id)
-<<<<<<< HEAD
             await self._raise_for_status(response)
-            return IssueCommentList.model_validate_json(await response.read()).root
-=======
-            response.raise_for_status()
             comments = IssueCommentList.model_validate_json(await response.read()).root
             return CommentsPage(
                 comments=comments,
                 next_cursor=self._parse_next_cursor(response),
             )
->>>>>>> 438fdf6 (fix: paginate entity comments through _relative, paginate issue comments)
 
     async def issue_add_comment(
         self,

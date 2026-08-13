@@ -23,6 +23,9 @@ All notable changes to this project will be documented in this file.
 
 ### Breaking Changes
 - Entity responses now use Tracker's own field names instead of the Python ones: `storyPoints`, `createdAt`, `updatedBy`, `textHtml`, `executedTriggers`, `maillistSummonees` and the rest, matching what the same fields are called on input. A response can now be fed straight back into a `fields` map; callers that read `story_points` or `created_at` from tool output need updating
+- Change the `issue_get_comments` result from `list[IssueComment]` to the cursor-paginated `{comments, next_cursor}` object
+  - Calls without pagination parameters now return the first 50 comments instead of all comments
+  - Consumers that previously iterated over the top-level result must iterate over `comments` and pass `next_cursor` as `cursor` to fetch subsequent pages
 
 ### Bug Fixes
 - `IssueComment` is a complete model again: `MaillistReference` was declared after the forward reference that used it, leaving the model unbuilt

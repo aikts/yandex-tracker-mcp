@@ -281,8 +281,9 @@ class ChangelogEntry(CreatedUpdatedMixin, BaseTrackerEntity):
 class CommentsPage(BaseTrackerEntity):
     """A page of comments plus the cursor to fetch the next page.
 
-    `next_cursor` is parsed from the `Link: rel="next"` response header; it is `None`
-    when there are no more pages. Pass it back as the `cursor` argument to continue.
+    `next_cursor` is the cursor for the next page, or `None` when there are no more
+    pages; how it is obtained depends on the endpoint. Pass it back as the `cursor`
+    argument to continue.
     """
 
     comments: list[IssueComment]

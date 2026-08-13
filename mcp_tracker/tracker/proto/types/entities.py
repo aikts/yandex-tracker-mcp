@@ -2,10 +2,13 @@ from datetime import date, datetime
 from enum import Enum
 from typing import Literal
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 
-from mcp_tracker.tracker.proto.types.base import BaseTrackerEntity, NoneExcludedField
-from mcp_tracker.tracker.proto.types.issues import ChecklistItem, ChecklistItemDeadline
+from mcp_tracker.tracker.proto.types.base import (
+    BaseTrackerEntity,
+    NoneExcludedField,
+    none_excluder,
+)
 from mcp_tracker.tracker.proto.types.mixins import CreatedUpdatedMixin
 from mcp_tracker.tracker.proto.types.refs import QueueReference, UserReference
 
@@ -85,6 +88,40 @@ class GoalKeyResultProgress(BaseTrackerEntity):
     current: float | None = NoneExcludedField
 
 
+class EntityDeadline(BaseTrackerEntity):
+    """Deadline returned for an entity checklist item or goal key result."""
+
+    date: datetime
+    deadline_type: str | None = Field(
+        None,
+        validation_alias=AliasChoices("deadlineType", "deadline_type"),
+        exclude_if=none_excluder,
+    )
+    is_exceeded: bool | None = Field(
+        None,
+        validation_alias=AliasChoices("isExceeded", "is_exceeded"),
+        exclude_if=none_excluder,
+    )
+
+
+class EntityChecklistItem(BaseTrackerEntity):
+    """Checklist item returned by the entity API."""
+
+    id: str
+    text: str
+    text_html: str | None = Field(
+        None,
+        validation_alias=AliasChoices("textHtml", "text_html"),
+    )
+    checked: bool = False
+    assignee: UserReference | None = None
+    deadline: EntityDeadline | None = None
+    checklist_item_type: str | None = Field(
+        None,
+        validation_alias=AliasChoices("checklistItemType", "checklist_item_type"),
+    )
+
+
 class GoalKeyResultItem(BaseTrackerEntity):
     """Key result of a goal (`keyResultItems`).
 
@@ -96,7 +133,7 @@ class GoalKeyResultItem(BaseTrackerEntity):
     text: str | None = NoneExcludedField
     # How the result is measured: "value" (quantitative) or "binary" (done/not done).
     type: str | None = NoneExcludedField
-    deadline: ChecklistItemDeadline | None = NoneExcludedField
+    deadline: EntityDeadline | None = NoneExcludedField
     progress: GoalKeyResultProgress | None = NoneExcludedField
     achieved: bool | None = NoneExcludedField
     assignee: UserReference | None = NoneExcludedField
@@ -135,7 +172,7 @@ class ProjectFields(BaseTrackerEntity):
     metricItems: list[EntityMetricItem] | None = NoneExcludedField
     lastCommentUpdatedAt: datetime | None = NoneExcludedField
     linkedGoalsCount: int | None = NoneExcludedField
-    checklistItems: list[ChecklistItem] | None = NoneExcludedField
+    checklistItems: list[EntityChecklistItem] | None = NoneExcludedField
 
 
 ProjectFieldsEnum = Enum(  # type: ignore[misc]
@@ -164,7 +201,7 @@ class PortfolioFields(BaseTrackerEntity):
     metricItems: list[EntityMetricItem] | None = NoneExcludedField
     lastCommentUpdatedAt: datetime | None = NoneExcludedField
     linkedGoalsCount: int | None = NoneExcludedField
-    checklistItems: list[ChecklistItem] | None = NoneExcludedField
+    checklistItems: list[EntityChecklistItem] | None = NoneExcludedField
 
 
 PortfolioFieldsEnum = Enum(  # type: ignore[misc]

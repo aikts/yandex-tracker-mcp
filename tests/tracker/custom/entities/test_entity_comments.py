@@ -19,6 +19,7 @@ def _comment_data(entity_type: str, entity_id: str) -> dict[str, Any]:
     return {
         "self": f"https://api.tracker.yandex.net/v3/entities/{entity_type}/{entity_id}/comments/1",
         "id": 1,
+        "longId": "65a156a29d5d200000000001",
         "text": f"Comment on {entity_type}",
         "createdBy": {
             "self": "https://api.tracker.yandex.net/v3/users/1234567890",
@@ -89,11 +90,15 @@ class TestEntityGetComments:
         capture.last_request.assert_params({"perPage": 10, "from": "42"})
 
     @pytest.mark.parametrize("entity_type,entity_id", ENTITY_TYPES)
-    async def test_next_cursor_is_last_comment_id_when_has_next(
+    async def test_next_cursor_is_last_comment_long_id_when_has_next(
         self, tracker_client: TrackerClient, entity_type: str, entity_id: str
     ) -> None:
         first = _comment_data(entity_type, entity_id)
-        second = {**_comment_data(entity_type, entity_id), "id": 2}
+        second = {
+            **_comment_data(entity_type, entity_id),
+            "id": 2,
+            "longId": "65a156a29d5d200000000002",
+        }
 
         with aioresponses() as m:
             m.get(
@@ -107,7 +112,7 @@ class TestEntityGetComments:
             method = getattr(tracker_client, f"{entity_type}_get_comments")
             result = await method(entity_id)
 
-        assert result.next_cursor == "2"
+        assert result.next_cursor == "65a156a29d5d200000000002"
 
     @pytest.mark.parametrize("entity_type,entity_id", ENTITY_TYPES)
     async def test_no_next_cursor_on_empty_last_page(

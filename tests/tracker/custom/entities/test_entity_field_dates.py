@@ -121,6 +121,56 @@ def test_goal_key_results_and_metrics_are_parsed() -> None:
     assert fields.metricItems[0].url == "https://example.com/w/1"
 
 
+def test_goal_key_result_deadline_allows_missing_is_exceeded() -> None:
+    fields = GoalFields.model_validate(
+        {
+            "keyResultItems": [
+                {
+                    "id": "kr-1",
+                    "text": "Ship the thing",
+                    "type": "value",
+                    "deadline": {
+                        "date": "2026-08-20T00:00:00.000+0000",
+                        "deadlineType": "date",
+                    },
+                }
+            ]
+        }
+    )
+
+    assert fields.keyResultItems is not None
+    deadline = fields.keyResultItems[0].deadline
+    assert deadline is not None
+    assert deadline.deadline_type == "date"
+    assert deadline.is_exceeded is None
+
+
+@pytest.mark.parametrize("fields_model", [ProjectFields, PortfolioFields])
+def test_entity_checklist_deadline_allows_missing_is_exceeded(
+    fields_model: type[ProjectFields] | type[PortfolioFields],
+) -> None:
+    fields = fields_model.model_validate(
+        {
+            "checklistItems": [
+                {
+                    "id": "item-1",
+                    "text": "Ship the thing",
+                    "deadline": {
+                        "date": "2026-08-20T00:00:00.000+0000",
+                        "deadlineType": "date",
+                    },
+                }
+            ]
+        }
+    )
+
+    assert fields.checklistItems is not None
+    deadline = fields.checklistItems[0].deadline
+    assert deadline is not None
+    assert deadline.deadline_type == "date"
+    assert deadline.is_exceeded is None
+
+
 @pytest.mark.parametrize(
     "fields_model,expected",
     [
