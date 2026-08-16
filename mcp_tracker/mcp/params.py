@@ -358,6 +358,7 @@ _LINKS_DESCRIPTION = (
     "containment - use parent_entity for 'included in portfolio' or 'parent goal'). "
     "Each item is {{'relationship': ..., 'entity': <id of the other entity>}}. "
     "Valid relationship values: {relationships}. "
+    "{target_rules}"
     "Example: [{{'relationship': '{example_relationship}', 'entity': '<other entity id>'}}]. "
     "Links are ADDED, not replaced: pass only the new links, never re-send existing ones - "
     "linking an already-linked pair fails with an error. They are also write-only in the "
@@ -367,6 +368,19 @@ _LINKS_DESCRIPTION = (
     "`comment` - Tracker ignores a links-only update, so this server rejects one."
 )
 
+# The target's entity type matters on top of the relationship name, and the API
+# only answers 422 when the combination is wrong. Verified against the live API.
+_PROJECT_PORTFOLIO_LINK_TARGETS = (
+    "The target type matters: 'works towards' must point at a GOAL, while "
+    "'depends on'/'is dependent by' must point at another project or portfolio. "
+    "The API rejects the wrong combination with an unhelpful 422. "
+)
+_GOAL_LINK_TARGETS = (
+    "The target type matters: 'is supported by' must point at a PROJECT or portfolio, "
+    "while 'parent entity'/'child entity'/'depends on'/'is dependent by' point at another "
+    "goal. The API rejects the wrong combination with an unhelpful 422. "
+)
+
 ProjectPortfolioLinksParam = Annotated[
     list[ProjectPortfolioLinkInput] | None,
     Field(
@@ -374,6 +388,7 @@ ProjectPortfolioLinksParam = Annotated[
             relationships=", ".join(
                 f"'{value}'" for value in get_args(ProjectPortfolioLinkRelationship)
             ),
+            target_rules=_PROJECT_PORTFOLIO_LINK_TARGETS,
             example_relationship=get_args(ProjectPortfolioLinkRelationship)[0],
         )
     ),
@@ -386,6 +401,7 @@ GoalLinksParam = Annotated[
             relationships=", ".join(
                 f"'{value}'" for value in get_args(GoalLinkRelationship)
             ),
+            target_rules=_GOAL_LINK_TARGETS,
             example_relationship=get_args(GoalLinkRelationship)[0],
         )
     ),
