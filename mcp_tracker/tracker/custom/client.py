@@ -1239,7 +1239,9 @@ class TrackerClient(
         the caller doesn't pass one. The default sets differ per entity type
         (e.g. `start` is not a valid goal field).
         """
-        if fields is not None:
+        # An empty list means "nothing selected", which would send `fields=` and
+        # come back with an empty `fields` object - fall back to the default.
+        if fields:
             return ",".join(fields)
         return DEFAULT_ENTITY_FIELDS_PARAM[entity_type]
 
@@ -1862,7 +1864,15 @@ class TrackerClient(
             page = EntityCommentsRelativePage.model_validate_json(await response.read())
             next_cursor: str | None = None
             if page.hasNext and page.comments:
+<<<<<<< HEAD
                 next_cursor = str(page.comments[-1].id)
+=======
+                # `longId` is optional on the comment model; fall back to the
+                # numeric id (the API accepts either) so a truncated page is
+                # never reported as the complete list.
+                last = page.comments[-1]
+                next_cursor = last.long_id or str(last.id)
+>>>>>>> abfb1df (fix: guard entity comment cursor and empty fields selection)
             return CommentsPage(comments=page.comments, next_cursor=next_cursor)
 
     async def _entity_add_comment(

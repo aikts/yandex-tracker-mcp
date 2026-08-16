@@ -115,6 +115,29 @@ class TestEntityGetComments:
         assert result.next_cursor == "65a156a29d5d200000000002"
 
     @pytest.mark.parametrize("entity_type,entity_id", ENTITY_TYPES)
+    async def test_next_cursor_falls_back_to_numeric_id(
+        self, tracker_client: TrackerClient, entity_type: str, entity_id: str
+    ) -> None:
+        """`longId` is optional; without a fallback a truncated page would be
+        reported as the complete comment list."""
+        comment = {**_comment_data(entity_type, entity_id), "id": 7}
+        del comment["longId"]
+
+        with aioresponses() as m:
+            m.get(
+                re.compile(
+                    rf"^https://api\.tracker\.yandex\.net/v3/entities/{entity_type}/"
+                    rf"{entity_id}/comments/_relative(\?.*)?$"
+                ),
+                payload={"comments": [comment], "hasNext": True},
+            )
+
+            method = getattr(tracker_client, f"{entity_type}_get_comments")
+            result = await method(entity_id)
+
+        assert result.next_cursor == "7"
+
+    @pytest.mark.parametrize("entity_type,entity_id", ENTITY_TYPES)
     async def test_no_next_cursor_on_empty_last_page(
         self, tracker_client: TrackerClient, entity_type: str, entity_id: str
     ) -> None:

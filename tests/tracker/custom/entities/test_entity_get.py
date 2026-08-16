@@ -95,3 +95,37 @@ class TestEntityGet:
 
         capture.assert_called_once()
         capture.last_request.assert_params({"fields": "summary"})
+
+    @pytest.mark.parametrize(
+        "entity_type,method_name,fixture_name,model_cls", ENTITY_GET_CASES
+    )
+    async def test_empty_fields_list_falls_back_to_defaults(
+        self,
+        tracker_client: TrackerClient,
+        entity_type: str,
+        method_name: str,
+        fixture_name: str,
+        model_cls: type,
+        request: pytest.FixtureRequest,
+    ) -> None:
+        """An empty selection would send `fields=` and return an empty `fields`
+        object, so it must be treated like no selection at all."""
+        entity_data: dict[str, Any] = request.getfixturevalue(fixture_name)
+        capture = RequestCapture(payload=entity_data)
+
+        with aioresponses() as m:
+            m.get(
+                re.compile(
+                    rf"^https://api\.tracker\.yandex\.net/v3/entities/{entity_type}/"
+                    rf"{entity_data['id']}(\?.*)?$"
+                ),
+                callback=capture.callback,
+            )
+
+            method = getattr(tracker_client, method_name)
+            await method(entity_data["id"], fields=[])
+
+        capture.assert_called_once()
+        capture.last_request.assert_params(
+            {"fields": DEFAULT_ENTITY_FIELDS_PARAM[entity_type]}
+        )
