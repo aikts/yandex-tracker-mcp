@@ -586,7 +586,7 @@ Projects and portfolios (not goals — the Yandex Tracker API does not support c
 - **`project_update_checklist_item`**: Partially update a checklist item. Requires `entity_id` and `checklist_item_id`; all other fields (`text`, `checked`, `assignee`, `deadline`) are optional and only change what's passed
 - **`project_move_checklist_item`**: Reorder a checklist item. Requires `entity_id`, `checklist_item_id`, and `before` (the id of the item to insert immediately above)
 - **`project_delete_checklist_item`**: Delete a single checklist item. Requires `entity_id` and `checklist_item_id`
-- **`project_update_checklist`**: Replace the entire checklist. Requires `entity_id` and `items` (a full list of `{id, text, checked?, assignee?, deadline?}` objects) — this REPLACES the whole checklist, so pass the full desired set
+- **`project_update_checklist`**: Bulk-edit the existing checklist items. Requires `entity_id` and `items` (`{id, text, checked?, assignee?, deadline?}` objects). Every item the checklist currently has must be present — a partial list is rejected by the API with a 500, and the item count cannot change here (verified against the live API). Use the add/delete item tools to change the set
 - **`project_delete_checklist`**: Delete the entire checklist. Requires `entity_id`
 - **`portfolio_add_checklist_item`** / **`portfolio_update_checklist_item`** / **`portfolio_move_checklist_item`** / **`portfolio_delete_checklist_item`** / **`portfolio_update_checklist`** / **`portfolio_delete_checklist`**: Same shape as the project checklist write tools, for portfolios
 

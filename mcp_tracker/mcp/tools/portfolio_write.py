@@ -317,9 +317,11 @@ def register_portfolio_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> No
 
     @mcp.tool(
         title="Update Portfolio Checklist",
-        description="Replace the whole checklist of a Yandex Tracker portfolio with the "
-        "given list of items (each referencing an existing item `id`)."
-        + ENTITY_QUEUE_RESTRICTIONS_NOTE,
+        description="Bulk-edit the existing checklist items of a Yandex Tracker portfolio. "
+        "Pass every item the checklist currently has, each referencing an existing item "
+        "`id`: a partial list is rejected by the API with a 500 error, and the item count "
+        "cannot change. Use *_add_checklist_item / *_delete_checklist_item to add or "
+        "remove items." + ENTITY_QUEUE_RESTRICTIONS_NOTE,
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def portfolio_update_checklist(

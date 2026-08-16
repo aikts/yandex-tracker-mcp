@@ -138,7 +138,7 @@
     },
     {
       "name": "project_update_checklist",
-      "description": "Replace the entire checklist of a project (requires TRACKER_ENTITIES_ENABLED)"
+      "description": "Bulk-edit all existing checklist items of a project (requires TRACKER_ENTITIES_ENABLED)"
     },
     {
       "name": "project_delete_checklist",
@@ -186,7 +186,7 @@
     },
     {
       "name": "portfolio_update_checklist",
-      "description": "Replace the entire checklist of a portfolio (requires TRACKER_ENTITIES_ENABLED)"
+      "description": "Bulk-edit all existing checklist items of a portfolio (requires TRACKER_ENTITIES_ENABLED)"
     },
     {
       "name": "portfolio_delete_checklist",
