@@ -359,9 +359,12 @@ _LINKS_DESCRIPTION = (
     "Each item is {{'relationship': ..., 'entity': <id of the other entity>}}. "
     "Valid relationship values: {relationships}. "
     "Example: [{{'relationship': '{example_relationship}', 'entity': '<other entity id>'}}]. "
-    "WARNING: links are write-only in the Tracker API - the current set cannot be read back by "
-    "any tool. On update this REPLACES the entire set, so omitted links are lost irrecoverably. "
-    "Pass this on update only when you know the full desired set."
+    "Links are ADDED, not replaced: pass only the new links, never re-send existing ones - "
+    "linking an already-linked pair fails with an error. They are also write-only in the "
+    "Tracker API, so no tool can read the current links back, and this server cannot remove "
+    "a link once created (do that in the Tracker UI). "
+    "On update, `links` is only applied when the same call also changes a field or passes a "
+    "`comment` - Tracker ignores a links-only update, so this server rejects one."
 )
 
 ProjectPortfolioLinksParam = Annotated[
@@ -605,12 +608,13 @@ ids come from `project_find`/`portfolio_find`/`goal_find`/`*_get` results, not f
   parent goal's id.
 - Cross-entity relationships that aren't containment (e.g. a project "depends on" another project, or
   "works towards" a goal): use the `links` param on `project_create`/`portfolio_create`/`goal_create`/
-  `*_update`, e.g. `[{"relationship": "works towards", "entity": <goal id>}]`. WARNING: `links` is
-  write-only in the Tracker API - no tool can read an entity's current links, and there is no `links`
-  value for the `fields` selector. On update it REPLACES the entity's entire link set, so links you
-  don't re-send are lost irrecoverably. Only pass `links` on `*_update` when you already know the full
-  desired set (e.g. you created those links yourself in this session); otherwise ask the user to
-  confirm the complete list, and warn them that unlisted links will be removed.
+  `*_update`, e.g. `[{"relationship": "works towards", "entity": <goal id>}]`. `links` ADDS links and
+  never replaces them: pass only the new ones, since linking an already-linked pair fails. Links are
+  write-only in the Tracker API - no tool can read an entity's current links (there is no `links` value
+  for the `fields` selector), and this server cannot delete a link; removing one is a manual step in
+  the Tracker UI. On `*_update`, links are applied only when the same call also changes a field or
+  carries a `comment`: Tracker ignores a links-only update, so this server rejects it with an error
+  rather than reporting a success that did nothing.
 
 When using tools that accept `page` and/or `per_page` parameters and when the task is to find something in the result set (or to receive all available data) - always call the tool as many times as needed increasing the `page` parameter until the result set is exhausted. If you stumble with the context size limit — try to change the `per_page` parameter to a lower value and restart the search from the `page=1`.
 

@@ -18,6 +18,7 @@ from yarl import URL
 
 from mcp_tracker.tracker.custom.errors import (
     CommentTemplateNotFound,
+    EntityLinksOnlyUpdate,
     IssueNotFound,
     IssueTemplateNotFound,
     IssueVersionConflict,
@@ -1499,6 +1500,11 @@ class TrackerClient(
         fields: list[str] | None,
         auth: YandexAuth | None,
     ) -> bytes:
+        # Tracker silently ignores `links` unless the request changes the entity
+        # itself, so a links-only update would return 200 having done nothing.
+        if links is not None and not fields_body and comment is None:
+            raise EntityLinksOnlyUpdate()
+
         # An update may touch only links and/or add a comment - don't send an empty `fields`.
         body: dict[str, Any] = {}
         if fields_body:

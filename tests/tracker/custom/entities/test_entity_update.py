@@ -5,6 +5,7 @@ import pytest
 from aioresponses import aioresponses
 
 from mcp_tracker.tracker.custom.client import TrackerClient
+from mcp_tracker.tracker.custom.errors import EntityLinksOnlyUpdate
 from mcp_tracker.tracker.proto.types.entities import (
     DEFAULT_ENTITY_FIELDS_PARAM,
     GoalEntity,
@@ -149,7 +150,7 @@ class TestEntityUpdate:
     @pytest.mark.parametrize(
         "entity_type,method_name,fixture_name,link_cls", ENTITY_UPDATE_LINK_CASES
     )
-    async def test_links_only_update_omits_fields(
+    async def test_links_only_update_is_rejected(
         self,
         tracker_client: TrackerClient,
         entity_type: str,
@@ -158,6 +159,42 @@ class TestEntityUpdate:
         link_cls: type[ProjectPortfolioLinkInput] | type[GoalLinkInput],
         request: pytest.FixtureRequest,
     ) -> None:
+        """Tracker answers 200 but ignores `links` when nothing else changes,
+        so the client refuses to send a request that would do nothing."""
+        entity_data: dict[str, Any] = request.getfixturevalue(fixture_name)
+        capture = RequestCapture(payload=entity_data)
+
+        with aioresponses() as m:
+            m.patch(
+                re.compile(
+                    rf"^https://api\.tracker\.yandex\.net/v3/entities/{entity_type}/"
+                    rf"{entity_data['id']}(\?.*)?$"
+                ),
+                callback=capture.callback,
+            )
+
+            method = getattr(tracker_client, method_name)
+            with pytest.raises(EntityLinksOnlyUpdate):
+                await method(
+                    entity_data["id"],
+                    links=[link_cls(relationship="depends on", entity="other-id")],
+                )
+
+        capture.assert_request_count(0)
+
+    @pytest.mark.parametrize(
+        "entity_type,method_name,fixture_name,link_cls", ENTITY_UPDATE_LINK_CASES
+    )
+    async def test_links_with_comment_are_sent(
+        self,
+        tracker_client: TrackerClient,
+        entity_type: str,
+        method_name: str,
+        fixture_name: str,
+        link_cls: type[ProjectPortfolioLinkInput] | type[GoalLinkInput],
+        request: pytest.FixtureRequest,
+    ) -> None:
+        """A comment is enough of a change for Tracker to apply the links."""
         entity_data: dict[str, Any] = request.getfixturevalue(fixture_name)
         capture = RequestCapture(payload=entity_data)
 
@@ -174,11 +211,15 @@ class TestEntityUpdate:
             await method(
                 entity_data["id"],
                 links=[link_cls(relationship="depends on", entity="other-id")],
+                comment="linking",
             )
 
         capture.assert_called_once()
         capture.last_request.assert_json_body(
-            {"links": [{"relationship": "depends on", "entity": "other-id"}]}
+            {
+                "links": [{"relationship": "depends on", "entity": "other-id"}],
+                "comment": "linking",
+            }
         )
 
     @pytest.mark.parametrize(
