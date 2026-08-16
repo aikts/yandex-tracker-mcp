@@ -21,6 +21,18 @@ All notable changes to this project will be documented in this file.
 - `queue_get_metadata` actually returns what `expand` asked for, and answers a requested but empty section with an empty list instead of leaving it out
 - `get_priorities` returns the priority `id` and `description`
 
+### Features
+- Add MCP tools for Yandex Tracker projects, portfolios and goals — the entities API, distinct from queues and issues
+  - Read: `project_get`/`project_find`, `portfolio_get`/`portfolio_find`, `goal_get`/`goal_find`, each with an explicit per-entity `fields` selector defaulting to a small base field set
+  - Write: create/update/delete per entity type, with optimistic concurrency via `version`
+  - Comments: add/update/delete plus cursor-paginated `*_get_comments`
+  - Checklists (projects and portfolios only — the API does not define them for goals): add, edit, move, delete a single item, bulk-edit all items, delete the whole checklist
+  - Goal progress is readable through `progressPercentage` and `keyResultItems`; `metricItems` is readable on all three entity types. Both must be requested explicitly via `fields`
+- Add `TRACKER_ENTITIES_ENABLED` (default `false`) to gate registration of the entity tools
+  - They are not covered by `TRACKER_LIMIT_QUEUES` / `TRACKER_READ_ONLY_QUEUES`, since an entity is not reliably mappable to a single queue, so enabling them widens what the server exposes
+  - Keeping them off by default also keeps the tool manifest at its previous size (39 tools); enabling adds 39 more
+  - `TRACKER_READ_ONLY` still applies and unregisters the entity write tools
+
 ### Breaking Changes
 - Entity responses now use Tracker's own field names instead of the Python ones: `storyPoints`, `createdAt`, `updatedBy`, `textHtml`, `executedTriggers`, `maillistSummonees` and the rest, matching what the same fields are called on input. A response can now be fed straight back into a `fields` map; callers that read `story_points` or `created_at` from tool output need updating
 - Change the `issue_get_comments` result from `list[IssueComment]` to the cursor-paginated `{comments, next_cursor}` object
@@ -39,6 +51,16 @@ All notable changes to this project will be documented in this file.
 - `queue_get_fields` is described as what it is - the fields configured on the queue - and points at `get_global_fields` for the rest; system fields such as `parent` or `estimation` are settable without appearing in the queue listing
 - `get_priorities` is findable by tool search: its description now names the priority levels and the parameter it feeds
 - Issue templates expose a single, normalized `description`; the issue body a template prefills stays in `fieldTemplates.description`
+- Reject an entity update that would only change `links` instead of reporting a no-op as success
+  - Yandex Tracker answers 200 but ignores `links` unless the same request also changes a field or carries a `comment`; the entity's `version` does not even advance
+  - `links` are added rather than replaced: re-sending an existing link fails, links cannot be read back or removed through the server, and each relationship is only valid against a particular target entity type. All of this is now stated in the tool descriptions
+- Paginate entity comments through the dedicated `/comments/_relative` endpoint (`perPage` + an exclusive `from` cursor, `hasNext`), instead of returning only the first page
+- Fall back to the per-entity default field set when `fields` is an empty list, which previously sent `fields=` and returned an entity with no fields populated
+- Describe `*_update_checklist` as the bulk edit of existing items that it is: a partial list, or one that changes the item count, is rejected by the API with a 500
+- Drop `with_board` from `goal_delete`: goals have no board
+
+### Internal
+- `lastCommentUpdatedAt` is typed as `datetime` rather than `date | datetime`, which made the serialized type depend on whether the timestamp landed exactly on midnight
 
 ## [0.7.3] - 2026-07-28
 
