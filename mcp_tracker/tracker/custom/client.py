@@ -4,6 +4,7 @@ import logging
 import random
 import time
 from asyncio import CancelledError
+from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Literal
 
@@ -15,19 +16,24 @@ from yandex.cloud.iam.v1.iam_token_service_pb2 import CreateIamTokenRequest
 from yandex.cloud.iam.v1.iam_token_service_pb2_grpc import IamTokenServiceStub
 from yarl import URL
 
-from mcp_tracker.tracker.custom.errors import IssueNotFound
+from mcp_tracker.tracker.custom.errors import (
+    IssueNotFound,
+    IssueVersionConflict,
+    TrackerAPIError,
+)
 from mcp_tracker.tracker.proto.common import YandexAuth
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
 from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
 from mcp_tracker.tracker.proto.types.inputs import (
-    IssueUpdateFollower,
-    IssueUpdateParent,
-    IssueUpdatePriority,
-    IssueUpdateProject,
-    IssueUpdateSprint,
-    IssueUpdateType,
+    IssueComponentRef,
+    IssueFollowerRef,
+    IssueParentRef,
+    IssuePriorityRef,
+    IssueProjectRef,
+    IssueSprintRef,
+    IssueTypeRef,
 )
 from mcp_tracker.tracker.proto.types.issue_types import IssueType
 from mcp_tracker.tracker.proto.types.issues import (
@@ -74,6 +80,18 @@ ChangelogList = RootModel[list[ChangelogEntry]]
 
 
 logger = logging.getLogger(__name__)
+
+
+def _ref_body(value: BaseModel | str | int) -> Any:
+    """Serialize a reference field value for an issue create/update body.
+
+    Reference models are sent as `{"id": ...}` / `{"key": ...}` objects, which
+    Tracker resolves by identifier; bare scalars are passed through untouched
+    and are resolved by Tracker as a key/login (string) or id (number).
+    """
+    if isinstance(value, BaseModel):
+        return value.model_dump(exclude_none=True)
+    return value
 
 
 class ServiceAccountSettings(BaseModel):
@@ -258,6 +276,30 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
 
         return headers
 
+    @staticmethod
+    async def _raise_for_status(response: ClientResponse) -> None:
+        """Raise `TrackerAPIError` carrying the API's own explanation of the failure.
+
+        `ClientResponse.raise_for_status()` discards the response body, which is
+        where Tracker says *what* it did not like (e.g. which field of an
+        issue_create call was rejected with 422), leaving the caller with a bare
+        "Unprocessable Entity".
+        """
+        if response.status < 400:
+            return
+
+        try:
+            body = await response.text()
+        except Exception:  # pragma: no cover - body already consumed/aborted
+            body = ""
+
+        raise TrackerAPIError(
+            status=response.status,
+            method=response.method,
+            url=str(response.url),
+            body=body,
+        )
+
     async def queues_list(
         self, per_page: int = 100, page: int = 1, *, auth: YandexAuth | None = None
     ) -> list[Queue]:
@@ -268,7 +310,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         async with self._session.get(
             "v3/queues", headers=await self._build_headers(auth), params=params
         ) as response:
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return QueueList.model_validate_json(await response.read()).root
 
     async def queues_get_local_fields(
@@ -277,7 +319,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         async with self._session.get(
             f"v3/queues/{queue_id}/localFields", headers=await self._build_headers(auth)
         ) as response:
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return LocalFieldList.model_validate_json(await response.read()).root
 
     async def queues_get_tags(
@@ -286,7 +328,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         async with self._session.get(
             f"v3/queues/{queue_id}/tags", headers=await self._build_headers(auth)
         ) as response:
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return QueueTagList.model_validate_json(await response.read()).root
 
     async def queues_get_versions(
@@ -295,7 +337,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         async with self._session.get(
             f"v3/queues/{queue_id}/versions", headers=await self._build_headers(auth)
         ) as response:
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return VersionList.model_validate_json(await response.read()).root
 
     async def queue_create_version(
@@ -321,7 +363,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
             headers=await self._build_headers(auth),
             json=body,
         ) as response:
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return QueueVersion.model_validate_json(await response.read())
 
     async def queues_get_fields(
@@ -330,7 +372,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         async with self._session.get(
             f"v3/queues/{queue_id}/fields", headers=await self._build_headers(auth)
         ) as response:
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return GlobalFieldList.model_validate_json(await response.read()).root
 
     async def queue_get(
@@ -349,7 +391,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
             headers=await self._build_headers(auth),
             params=params if params else None,
         ) as response:
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return Queue.model_validate_json(await response.read())
 
     async def get_global_fields(
@@ -358,14 +400,14 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         async with self._session.get(
             "v3/fields", headers=await self._build_headers(auth)
         ) as response:
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return GlobalFieldList.model_validate_json(await response.read()).root
 
     async def get_statuses(self, *, auth: YandexAuth | None = None) -> list[Status]:
         async with self._session.get(
             "v3/statuses", headers=await self._build_headers(auth)
         ) as response:
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return StatusList.model_validate_json(await response.read()).root
 
     async def get_issue_types(
@@ -374,14 +416,14 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         async with self._session.get(
             "v3/issuetypes", headers=await self._build_headers(auth)
         ) as response:
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return IssueTypeList.model_validate_json(await response.read()).root
 
     async def get_priorities(self, *, auth: YandexAuth | None = None) -> list[Priority]:
         async with self._session.get(
             "v3/priorities", headers=await self._build_headers(auth)
         ) as response:
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return PriorityList.model_validate_json(await response.read()).root
 
     async def get_resolutions(
@@ -390,7 +432,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         async with self._session.get(
             "v3/resolutions", headers=await self._build_headers(auth)
         ) as response:
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return ResolutionList.model_validate_json(await response.read()).root
 
     async def issue_get(
@@ -401,7 +443,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         ) as response:
             if response.status == 404:
                 raise IssueNotFound(issue_id)
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return Issue.model_validate_json(await response.read())
 
     async def issues_get_links(
@@ -412,7 +454,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         ) as response:
             if response.status == 404:
                 raise IssueNotFound(issue_id)
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return IssueLinkList.model_validate_json(await response.read()).root
 
     async def issue_add_link(
@@ -433,7 +475,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         ) as response:
             if response.status == 404:
                 raise IssueNotFound(issue_id)
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return IssueLink.model_validate_json(await response.read())
 
     async def issue_delete_link(
@@ -450,7 +492,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         ) as response:
             if response.status == 404:
                 raise IssueNotFound(issue_id)
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return None
 
     async def issue_get_comments(
@@ -461,7 +503,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         ) as response:
             if response.status == 404:
                 raise IssueNotFound(issue_id)
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return IssueCommentList.model_validate_json(await response.read()).root
 
     async def issue_add_comment(
@@ -496,7 +538,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         ) as response:
             if response.status == 404:
                 raise IssueNotFound(issue_id)
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return IssueComment.model_validate_json(await response.read())
 
     async def issue_update_comment(
@@ -526,7 +568,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         ) as response:
             if response.status == 404:
                 raise IssueNotFound(issue_id)
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return IssueComment.model_validate_json(await response.read())
 
     async def issue_delete_comment(
@@ -543,7 +585,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         ) as response:
             if response.status == 404:
                 raise IssueNotFound(issue_id)
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return None
 
     async def issues_find(
@@ -569,7 +611,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
             json=body,
             params=params,
         ) as response:
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return IssueList.model_validate_json(await response.read()).root
 
     async def issue_get_worklogs(
@@ -580,7 +622,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         ) as response:
             if response.status == 404:
                 raise IssueNotFound(issue_id)
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return WorklogList.model_validate_json(await response.read()).root
 
     async def issue_add_worklog(
@@ -619,7 +661,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         ) as response:
             if response.status == 404:
                 raise IssueNotFound(issue_id)
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return Worklog.model_validate_json(await response.read())
 
     async def issue_update_worklog(
@@ -651,7 +693,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         ) as response:
             if response.status == 404:
                 raise IssueNotFound(issue_id)
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return Worklog.model_validate_json(await response.read())
 
     async def issue_delete_worklog(
@@ -668,7 +710,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         ) as response:
             if response.status == 404:
                 raise IssueNotFound(issue_id)
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return None
 
     async def issue_get_attachments(
@@ -679,7 +721,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         ) as response:
             if response.status == 404:
                 raise IssueNotFound(issue_id)
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return IssueAttachmentList.model_validate_json(await response.read()).root
 
     async def users_list(
@@ -692,7 +734,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         async with self._session.get(
             "v3/users", headers=await self._build_headers(auth), params=params
         ) as response:
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return UserList.model_validate_json(await response.read()).root
 
     async def user_get(
@@ -703,14 +745,14 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         ) as response:
             if response.status == 404:
                 return None
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return User.model_validate_json(await response.read())
 
     async def user_get_current(self, *, auth: YandexAuth | None = None) -> User:
         async with self._session.get(
             "v3/myself", headers=await self._build_headers(auth)
         ) as response:
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return User.model_validate_json(await response.read())
 
     async def issue_get_checklist(
@@ -722,7 +764,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         ) as response:
             if response.status == 404:
                 raise IssueNotFound(issue_id)
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return ChecklistItemList.model_validate_json(await response.read()).root
 
     async def issues_count(self, query: str, *, auth: YandexAuth | None = None) -> int:
@@ -733,7 +775,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         async with self._session.post(
             "v3/issues/_count", headers=await self._build_headers(auth), json=body
         ) as response:
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return int(await response.text())
 
     async def issue_create(
@@ -741,14 +783,19 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         queue: str,
         summary: str,
         *,
-        type: int | None = None,
+        type: IssueTypeRef | str | int | None = None,
         description: str | None = None,
+        markup_type: str | None = None,
         assignee: str | int | None = None,
-        priority: str | int | None = None,
-        parent: str | None = None,
-        sprint: list[str] | None = None,
+        priority: IssuePriorityRef | str | int | None = None,
+        parent: IssueParentRef | str | None = None,
+        sprint: Sequence[IssueSprintRef | str | int] | None = None,
+        followers: list[IssueFollowerRef] | None = None,
+        components: list[IssueComponentRef] | None = None,
+        tags: list[str] | None = None,
+        project: IssueProjectRef | None = None,
         auth: YandexAuth | None = None,
-        **kwargs: dict[str, Any],
+        fields: dict[str, Any] | None = None,
     ) -> Issue:
         body: dict[str, Any] = {
             "queue": queue,
@@ -756,26 +803,37 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         }
 
         if type is not None:
-            body["type"] = type
+            body["type"] = _ref_body(type)
         if description is not None:
             body["description"] = description
+        if markup_type is not None:
+            body["markupType"] = markup_type
         if assignee is not None:
             body["assignee"] = assignee
         if priority is not None:
-            body["priority"] = priority
+            body["priority"] = _ref_body(priority)
         if parent is not None:
-            body["parent"] = parent
+            body["parent"] = _ref_body(parent)
         if sprint is not None:
-            body["sprint"] = sprint
+            body["sprint"] = [_ref_body(s) for s in sprint]
+        if followers is not None:
+            body["followers"] = [_ref_body(f) for f in followers]
+        if components is not None:
+            body["components"] = [c.to_api_value() for c in components]
+        if tags is not None:
+            body["tags"] = tags
+        if project is not None:
+            body["project"] = _ref_body(project)
 
-        for k, v in kwargs.items():
-            if k not in body:
-                body[k] = v
+        # Applied last on purpose: an entry here overrides the dedicated
+        # parameter of the same name, and an explicit null clears the field.
+        if fields:
+            body.update(fields)
 
         async with self._session.post(
             "v3/issues", headers=await self._build_headers(auth), json=body
         ) as response:
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return Issue.model_validate_json(await response.read())
 
     async def issue_get_transitions(
@@ -786,7 +844,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         ) as response:
             if response.status == 404:
                 raise IssueNotFound(issue_id)
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return IssueTransitionList.model_validate_json(await response.read()).root
 
     async def issue_get_changelog(
@@ -814,7 +872,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         ) as response:
             if response.status == 404:
                 raise IssueNotFound(issue_id)
-            response.raise_for_status()
+            await self._raise_for_status(response)
             entries = ChangelogList.model_validate_json(await response.read()).root
             return ChangelogPage(
                 entries=entries,
@@ -859,7 +917,7 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         ) as response:
             if response.status == 404:
                 raise IssueNotFound(issue_id)
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return IssueTransitionList.model_validate_json(await response.read()).root
 
     async def issue_close(
@@ -921,18 +979,20 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         summary: str | None = None,
         description: str | None = None,
         markup_type: str | None = None,
-        parent: IssueUpdateParent | None = None,
-        sprint: list[IssueUpdateSprint] | None = None,
-        type: IssueUpdateType | None = None,
-        priority: IssueUpdatePriority | None = None,
-        followers: list[IssueUpdateFollower] | None = None,
-        project: IssueUpdateProject | None = None,
+        parent: IssueParentRef | str | None = None,
+        sprint: Sequence[IssueSprintRef | str | int] | None = None,
+        type: IssueTypeRef | str | int | None = None,
+        priority: IssuePriorityRef | str | int | None = None,
+        assignee: str | int | None = None,
+        followers: list[IssueFollowerRef] | None = None,
+        components: list[IssueComponentRef] | None = None,
+        project: IssueProjectRef | None = None,
         attachment_ids: list[str] | None = None,
         description_attachment_ids: list[str] | None = None,
         tags: list[str] | None = None,
         version: int | None = None,
         auth: YandexAuth | None = None,
-        **kwargs: Any,
+        fields: dict[str, Any] | None = None,
     ) -> Issue:
         body: dict[str, Any] = {}
 
@@ -943,17 +1003,21 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         if markup_type is not None:
             body["markupType"] = markup_type
         if parent is not None:
-            body["parent"] = parent.model_dump(exclude_none=True)
+            body["parent"] = _ref_body(parent)
         if sprint is not None:
-            body["sprint"] = [s.model_dump(exclude_none=True) for s in sprint]
+            body["sprint"] = [_ref_body(s) for s in sprint]
         if type is not None:
-            body["type"] = type.model_dump(exclude_none=True)
+            body["type"] = _ref_body(type)
         if priority is not None:
-            body["priority"] = priority.model_dump(exclude_none=True)
+            body["priority"] = _ref_body(priority)
+        if assignee is not None:
+            body["assignee"] = assignee
         if followers is not None:
-            body["followers"] = [f.model_dump(exclude_none=True) for f in followers]
+            body["followers"] = [_ref_body(f) for f in followers]
+        if components is not None:
+            body["components"] = [c.to_api_value() for c in components]
         if project is not None:
-            body["project"] = project.model_dump(exclude_none=True)
+            body["project"] = _ref_body(project)
         if attachment_ids is not None:
             body["attachmentIds"] = attachment_ids
         if description_attachment_ids is not None:
@@ -961,9 +1025,10 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         if tags is not None:
             body["tags"] = tags
 
-        for k, v in kwargs.items():
-            if k not in body:
-                body[k] = v
+        # Applied last on purpose: an entry here overrides the dedicated
+        # parameter of the same name, and an explicit null clears the field.
+        if fields:
+            body.update(fields)
 
         params: dict[str, int] = {}
         if version is not None:
@@ -977,7 +1042,9 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         ) as response:
             if response.status == 404:
                 raise IssueNotFound(issue_id)
-            response.raise_for_status()
+            if response.status == 409:
+                raise IssueVersionConflict(issue_id, version)
+            await self._raise_for_status(response)
             return Issue.model_validate_json(await response.read())
 
     async def issue_move(
@@ -1008,5 +1075,5 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         ) as response:
             if response.status == 404:
                 raise IssueNotFound(issue_id)
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return Issue.model_validate_json(await response.read())

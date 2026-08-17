@@ -3,11 +3,10 @@ import re
 from typing import Any
 
 import pytest
-from aiohttp import ClientResponseError
 from aioresponses import aioresponses
 
 from mcp_tracker.tracker.custom.client import TrackerClient
-from mcp_tracker.tracker.custom.errors import IssueNotFound
+from mcp_tracker.tracker.custom.errors import IssueNotFound, TrackerAPIError
 from mcp_tracker.tracker.proto.common import YandexAuth
 from mcp_tracker.tracker.proto.types.issues import ChangelogPage
 from tests.aioresponses_utils import RequestCapture
@@ -304,7 +303,7 @@ class TestIssueGetChangelog:
         with aioresponses() as m:
             m.get(f"{CHANGELOG_URL}?perPage=50", status=400)
 
-            with pytest.raises(ClientResponseError) as exc_info:
+            with pytest.raises(TrackerAPIError) as exc_info:
                 await tracker_client.issue_get_changelog("TEST-123")
 
             assert exc_info.value.status == 400
