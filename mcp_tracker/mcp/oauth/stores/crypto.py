@@ -1,5 +1,4 @@
 import base64
-import hashlib
 
 from cryptography.fernet import Fernet, MultiFernet
 
@@ -23,8 +22,3 @@ class FieldEncryptor:
     def decrypt(self, value: str) -> str:
         """Decrypt a string value with any available key."""
         return self._multi_fernet.decrypt(value.encode()).decode()
-
-
-def hash_token(token: str) -> str:
-    """SHA-256 hash a token for use as a Redis key."""
-    return hashlib.sha256(token.encode()).hexdigest()

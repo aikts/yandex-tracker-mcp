@@ -3,10 +3,9 @@ import time
 from mcp.server.auth.provider import AccessToken, RefreshToken
 from mcp.shared.auth import OAuthClientInformationFull, OAuthToken
 
+from mcp_tracker.crypto import hash_token
 from mcp_tracker.mcp.oauth.store import OAuthStore
 from mcp_tracker.mcp.oauth.types import YandexOauthAuthorizationCode, YandexOAuthState
-
-from .crypto import hash_token
 
 
 class InMemoryOAuthStore(OAuthStore):

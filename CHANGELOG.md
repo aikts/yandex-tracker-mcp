@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.1-dev] - unreleased
+
+### Bug Fixes
+
+- With `TOOLS_CACHE_ENABLED=true`, the caller's raw OAuth/IAM token no longer ends up in the Redis cache key. aiocache builds keys by stringifying the cached method's arguments, so `YandexAuth`'s repr wrote the token verbatim into a namespace visible to `KEYS`/`SCAN`/`MONITOR`, RDB dumps and per-key metrics; secret fields now render as a SHA-256 fingerprint, which keeps entries distinct per caller and stops the token leaking into logs and tracebacks too
+  - Cache entries written by earlier versions become misses and expire by TTL
+
 ## [0.8.0] - 2026-08-19
 
 ### Features
