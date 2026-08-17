@@ -2,8 +2,8 @@
   "cli_version": "0.8.42",
   "checkpoint_id": "664a3116873f",
   "strategy": "manual-commit",
-  "branch": "amend-write",
-  "checkpoints_count": 3,
+  "branch": "amend3",
+  "checkpoints_count": 4,
   "files_touched": null,
   "sessions": [
     {
@@ -15,10 +15,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 4503,
-    "cache_creation_tokens": 1162908,
-    "cache_read_tokens": 47417241,
-    "output_tokens": 185448,
-    "api_call_count": 208
+    "input_tokens": 4567,
+    "cache_creation_tokens": 1635803,
+    "cache_read_tokens": 62059571,
+    "output_tokens": 215479,
+    "api_call_count": 242
   }
 }
