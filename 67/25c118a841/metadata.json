@@ -2,8 +2,8 @@
   "cli_version": "0.8.42",
   "checkpoint_id": "6725c118a841",
   "strategy": "manual-commit",
-  "branch": "recompose",
-  "checkpoints_count": 1,
+  "branch": "amend3",
+  "checkpoints_count": 4,
   "files_touched": null,
   "sessions": [
     {
@@ -15,10 +15,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 4475,
-    "cache_creation_tokens": 736182,
-    "cache_read_tokens": 41645118,
-    "output_tokens": 168650,
-    "api_call_count": 193
+    "input_tokens": 4570,
+    "cache_creation_tokens": 1638098,
+    "cache_read_tokens": 62987975,
+    "output_tokens": 217249,
+    "api_call_count": 244
   }
 }
