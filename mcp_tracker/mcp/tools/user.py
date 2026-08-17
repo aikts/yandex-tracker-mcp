@@ -11,6 +11,7 @@ from thefuzz import process
 from mcp_tracker.mcp.context import AppContext
 from mcp_tracker.mcp.errors import TrackerError
 from mcp_tracker.mcp.params import PageParam, PerPageParam, UserID
+from mcp_tracker.mcp.tools._pagination import iter_pages
 from mcp_tracker.mcp.utils import get_yandex_auth
 from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.proto.types.users import User
@@ -49,22 +50,20 @@ def register_user_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
         ],
     ) -> list[User]:
         per_page = 100
-        page = 1
 
         login_or_email_or_name = login_or_email_or_name.strip().lower()
 
         all_users: list[User] = []
 
-        while True:
-            batch = await ctx.request_context.lifespan_context.users.users_list(
+        async for batch in iter_pages(
+            lambda current_page: ctx.request_context.lifespan_context.users.users_list(
                 per_page=per_page,
-                page=page,
+                page=current_page,
                 auth=get_yandex_auth(ctx),
-            )
-
-            if not batch:
-                break
-
+            ),
+            page=None,
+            per_page=per_page,
+        ):
             for user in batch:
                 if user.login and login_or_email_or_name == user.login.strip().lower():
                     return [user]
@@ -73,7 +72,6 @@ def register_user_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
                     return [user]
 
             all_users.extend(batch)
-            page += 1
 
         names = {
             idx: f"{u.first_name} {u.last_name}" for idx, u in enumerate(all_users)

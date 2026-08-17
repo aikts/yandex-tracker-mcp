@@ -96,6 +96,22 @@
       "description": "Get all available issue resolutions"
     },
     {
+      "name": "issue_templates_get_all",
+      "description": "Get all issue templates configured in Yandex Tracker, including the field values they prefill, optionally scoped to a single queue"
+    },
+    {
+      "name": "issue_template_get",
+      "description": "Get a single Yandex Tracker issue template by its id"
+    },
+    {
+      "name": "comment_templates_get_all",
+      "description": "Get all comment templates configured in Yandex Tracker, including the comment text and summonees they insert, optionally scoped to a single queue"
+    },
+    {
+      "name": "comment_template_get",
+      "description": "Get a single Yandex Tracker comment template by its id"
+    },
+    {
       "name": "issue_get",
       "description": "Read one issue (task, ticket, bug) by its key/ID and return its full record"
     },

@@ -10,8 +10,9 @@ from pydantic import Field
 from starlette.requests import Request
 
 from mcp_tracker.mcp.context import AppContext
-from mcp_tracker.mcp.params import PerPageParam, QueueID
-from mcp_tracker.mcp.tools._access import check_queue_access
+from mcp_tracker.mcp.params import PageOrAllParam, PerPageParam, QueueID
+from mcp_tracker.mcp.tools._access import check_queue_access, is_queue_allowed
+from mcp_tracker.mcp.tools._pagination import iter_pages
 from mcp_tracker.mcp.utils import get_yandex_auth, set_non_needed_fields_null
 from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.proto.types.fields import GlobalField
@@ -41,45 +42,30 @@ def register_queue_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
                 "Most of the time one needs key and name only.",
             ),
         ] = None,
-        page: Annotated[
-            int | None,
-            Field(
-                description="Page number to return, default is None which means to retrieve all pages. "
-                "Specify page number to retrieve a specific page when context limit is reached.",
-            ),
-        ] = None,
+        page: PageOrAllParam = None,
         per_page: PerPageParam = 100,
     ) -> list[Queue]:
         result: list[Queue] = []
 
-        fetch_all_pages = page is None
-        if fetch_all_pages:
-            page = 1
-
-        # At this point page is always an int
-        assert page is not None
-
-        while True:
-            queues = await ctx.request_context.lifespan_context.queues.queues_list(
-                per_page=per_page,
-                page=page,
-                auth=get_yandex_auth(ctx),
-            )
-            if len(queues) == 0:
-                break
-
+        async for queues in iter_pages(
+            lambda current_page: (
+                ctx.request_context.lifespan_context.queues.queues_list(
+                    per_page=per_page,
+                    page=current_page,
+                    auth=get_yandex_auth(ctx),
+                )
+            ),
+            page=page,
+            per_page=per_page,
+        ):
             if settings.tracker_limit_queues:
                 queues = [
                     queue
                     for queue in queues
-                    if queue.key in set(settings.tracker_limit_queues)
+                    if queue.key is not None and is_queue_allowed(settings, queue.key)
                 ]
 
             result.extend(queues)
-
-            if not fetch_all_pages:
-                break  # Only fetch the requested page
-            page += 1
 
         if fields is not None:
             set_non_needed_fields_null(result, {f.name for f in fields})

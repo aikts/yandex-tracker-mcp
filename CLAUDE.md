@@ -19,7 +19,7 @@ uv run mcp-tracker # Run the server
 
 ## Architecture
 
-- **Protocols** (`mcp_tracker/tracker/proto/`): Define API contracts (`IssueProtocol`, `QueuesProtocol`, etc.)
+- **Protocols** (`mcp_tracker/tracker/proto/`): Define API contracts (`QueuesProtocol`, `IssueProtocol`, `GlobalDataProtocol`, `TemplatesProtocol`, `UsersProtocol`), each exposed on `AppContext` as `queues` / `issues` / `fields` / `templates` / `users`
 - **Client** (`mcp_tracker/tracker/custom/client.py`): Implements protocols, handles HTTP requests
 - **Caching** (`mcp_tracker/tracker/caching/client.py`): Wraps protocols with Redis caching
 - **MCP Server** (`mcp_tracker/mcp/server.py`): Server creation and configuration
@@ -27,6 +27,7 @@ uv run mcp-tracker # Run the server
   - `_access.py`: Access control helpers (`check_issue_access`, `check_queue_access`)
   - `queue.py` / `queue_write.py`: Queue read-only / write tools
   - `field.py`: Global field and metadata tools (read-only)
+  - `template.py`: Issue and comment template tools (read-only)
   - `issue_read.py` / `issue_write.py`: Issue read-only / write tools
   - `user.py`: User tools (read-only)
   - `__init__.py`: Exports `register_all_tools()` which orchestrates tool registration
@@ -42,6 +43,7 @@ uv run mcp-tracker # Run the server
 - **`fields` maps**: `issue_create` / `issue_update` take the free-form map as an explicit `fields` parameter, never as `**kwargs` - a key naming a dedicated parameter used to raise `TypeError: got multiple values`. The client merges it into the body last, so an entry overrides the dedicated parameter and an explicit `null` clears the field (a dedicated parameter left as `None` is simply not sent).
 - **Reference inputs**: every `Issue*Ref` validates that it carries something to resolve (`IssueComponentRef` wants exactly one of `id` / `name`, the others at least one of `id` / `key`); Tracker answers an empty object with an unhelpful 400/422, and when both `id` and `key` are set it resolves by `id`.
 - **Issue `version`**: it is bumped by every change, including queue triggers and automation that fire right after creation, so the version returned by `issue_create` is routinely stale. Tools that accept `version` must say so and point at `issue_get` for a fresh read.
+- **Templates are not applied on write** (decided 2026-08-17, not yet implemented): `POST /v3/issues` has no `templateId` parameter, so `issue_create` cannot take one without expanding the template client-side. Callers read `issue_template_get` and fill the arguments themselves. Adding a `template_id` parameter later means merging `fieldTemplates` under the explicit arguments (which win) and mapping its reference values onto the `Issue*Ref` models - the template returns them as objects like `{"id": "1", "key": "bug"}`, and `components` in particular need the id-or-name form (see the reference-fields note above). `checklistItems` / `metricItems` cannot be sent at creation at all and would need a follow-up request.
 
 ## Testing
 
@@ -102,13 +104,14 @@ For paginated methods, use `side_effect` for sequential returns: `mock.method.si
 
 ### Implementation Checklist
 
-1. **Protocol**: Add method signature to `mcp_tracker/tracker/proto/*.py`
+1. **Protocol**: Add method signature to the matching `mcp_tracker/tracker/proto/*.py` (a new protocol also needs a `*ProtocolWrap` base, a `CacheCollection` slot, an `AppContext` field and wiring in `make_tracker_lifespan`)
 2. **Client**: Implement in `mcp_tracker/tracker/custom/client.py`
 3. **Caching**: Add wrapper in `mcp_tracker/tracker/caching/client.py`
 4. **Tool**: Add function to appropriate module in `mcp_tracker/mcp/tools/`:
    - Queue read-only tools → `queue.py`
    - Queue write tools → `queue_write.py`
    - Global field/metadata tools → `field.py`
+   - Issue/comment template tools → `template.py`
    - Issue read-only tools → `issue_read.py`
    - Issue write tools → `issue_write.py`
    - User tools → `user.py`
@@ -122,6 +125,7 @@ For paginated methods, use `side_effect` for sequential returns: `mock.method.si
 | Queue | `queue.py` | Yes |
 | Queue Write | `queue_write.py` | No |
 | Field | `field.py` | Yes |
+| Template | `template.py` | Yes |
 | Issue Read | `issue_read.py` | Yes |
 | Issue Write | `issue_write.py` | No |
 | User | `user.py` | Yes |

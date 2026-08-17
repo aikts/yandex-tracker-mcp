@@ -17,14 +17,18 @@ from yandex.cloud.iam.v1.iam_token_service_pb2_grpc import IamTokenServiceStub
 from yarl import URL
 
 from mcp_tracker.tracker.custom.errors import (
+    CommentTemplateNotFound,
     IssueNotFound,
+    IssueTemplateNotFound,
     IssueVersionConflict,
+    QueueNotFound,
     TrackerAPIError,
 )
 from mcp_tracker.tracker.proto.common import YandexAuth
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
+from mcp_tracker.tracker.proto.templates import TemplatesProtocol
 from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
 from mcp_tracker.tracker.proto.types.inputs import (
     IssueComponentRef,
@@ -56,6 +60,7 @@ from mcp_tracker.tracker.proto.types.queues import (
 )
 from mcp_tracker.tracker.proto.types.resolutions import Resolution
 from mcp_tracker.tracker.proto.types.statuses import Status
+from mcp_tracker.tracker.proto.types.templates import CommentTemplate, IssueTemplate
 from mcp_tracker.tracker.proto.types.users import User
 from mcp_tracker.tracker.proto.users import UsersProtocol
 
@@ -74,6 +79,8 @@ StatusList = RootModel[list[Status]]
 IssueTypeList = RootModel[list[IssueType]]
 PriorityList = RootModel[list[Priority]]
 ResolutionList = RootModel[list[Resolution]]
+IssueTemplateList = RootModel[list[IssueTemplate]]
+CommentTemplateList = RootModel[list[CommentTemplate]]
 UserList = RootModel[list[User]]
 IssueTransitionList = RootModel[list[IssueTransition]]
 ChangelogList = RootModel[list[ChangelogEntry]]
@@ -198,7 +205,9 @@ class ServiceAccountStore:
         return IAMTokenInfo(token=iam_token.iam_token)
 
 
-class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProtocol):
+class TrackerClient(
+    QueuesProtocol, IssueProtocol, GlobalDataProtocol, TemplatesProtocol, UsersProtocol
+):
     def __init__(
         self,
         *,
@@ -434,6 +443,83 @@ class TrackerClient(QueuesProtocol, IssueProtocol, GlobalDataProtocol, UsersProt
         ) as response:
             await self._raise_for_status(response)
             return ResolutionList.model_validate_json(await response.read()).root
+
+    async def get_issue_templates(
+        self,
+        *,
+        queue: str | None = None,
+        per_page: int = 50,
+        page: int = 1,
+        auth: YandexAuth | None = None,
+    ) -> list[IssueTemplate]:
+        # The queue-scoped endpoint returns the templates of that queue plus the
+        # ones not bound to any queue, which are usable in every queue.
+        path = (
+            "v3/issueTemplates"
+            if queue is None
+            else f"v3/queues/{queue}/issueTemplates"
+        )
+        params = {
+            "perPage": per_page,
+            "page": page,
+        }
+        async with self._session.get(
+            path, headers=await self._build_headers(auth), params=params
+        ) as response:
+            if queue is not None and response.status == 404:
+                raise QueueNotFound(queue)
+            await self._raise_for_status(response)
+            return IssueTemplateList.model_validate_json(await response.read()).root
+
+    async def get_issue_template(
+        self, template_id: str, *, auth: YandexAuth | None = None
+    ) -> IssueTemplate:
+        async with self._session.get(
+            f"v3/issueTemplates/{template_id}", headers=await self._build_headers(auth)
+        ) as response:
+            if response.status == 404:
+                raise IssueTemplateNotFound(template_id)
+            await self._raise_for_status(response)
+            return IssueTemplate.model_validate_json(await response.read())
+
+    async def get_comment_templates(
+        self,
+        *,
+        queue: str | None = None,
+        per_page: int = 50,
+        page: int = 1,
+        auth: YandexAuth | None = None,
+    ) -> list[CommentTemplate]:
+        # The queue-scoped endpoint returns the templates of that queue plus the
+        # ones not bound to any queue, which are usable in every queue.
+        path = (
+            "v3/commentTemplates"
+            if queue is None
+            else f"v3/queues/{queue}/commentTemplates"
+        )
+        params = {
+            "perPage": per_page,
+            "page": page,
+        }
+        async with self._session.get(
+            path, headers=await self._build_headers(auth), params=params
+        ) as response:
+            if queue is not None and response.status == 404:
+                raise QueueNotFound(queue)
+            await self._raise_for_status(response)
+            return CommentTemplateList.model_validate_json(await response.read()).root
+
+    async def get_comment_template(
+        self, template_id: str, *, auth: YandexAuth | None = None
+    ) -> CommentTemplate:
+        async with self._session.get(
+            f"v3/commentTemplates/{template_id}",
+            headers=await self._build_headers(auth),
+        ) as response:
+            if response.status == 404:
+                raise CommentTemplateNotFound(template_id)
+            await self._raise_for_status(response)
+            return CommentTemplate.model_validate_json(await response.read())
 
     async def issue_get(
         self, issue_id: str, *, auth: YandexAuth | None = None
