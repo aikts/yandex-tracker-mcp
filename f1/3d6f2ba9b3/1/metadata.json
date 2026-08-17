@@ -1,0 +1,122 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "f13d6f2ba9b3",
+  "session_id": "b3dd960c-2292-4d44-9aed-50d0350e8e07",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-17T09:47:51.679865Z",
+  "branch": "claude/issue-43-implementation-40zi79",
+  "checkpoints_count": 6,
+  "save_step_count": 6,
+  "files_touched": [
+    "CLAUDE.md",
+    "README.md",
+    "README_ru.md",
+    "manifest.json",
+    "mcp_tracker/mcp/tools/issue_read.py",
+    "mcp_tracker/mcp/tools/issue_write.py",
+    "mcp_tracker/tracker/caching/client.py",
+    "mcp_tracker/tracker/custom/client.py",
+    "mcp_tracker/tracker/custom/errors.py",
+    "mcp_tracker/tracker/proto/issues.py",
+    "mcp_tracker/tracker/proto/types/inputs.py",
+    "tests/mcp/tools/test_issue_write_tools.py",
+    "tests/tracker/caching/test_issues_protocol.py",
+    "tests/tracker/custom/issues/test_issue_changelog.py",
+    "tests/tracker/custom/issues/test_issue_create.py",
+    "tests/tracker/custom/issues/test_issue_update.py"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5[1m]",
+  "turn_id": "d8c5cd372992",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 4348,
+    "cache_creation_tokens": 333134,
+    "cache_read_tokens": 19102311,
+    "output_tokens": 97592,
+    "api_call_count": 125
+  },
+  "session_metrics": {
+    "turn_count": 6
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-17T09:47:51.593429Z",
+    "agent_lines": 823,
+    "agent_removed": 193,
+    "human_added": 0,
+    "human_modified": 19,
+    "human_removed": 100,
+    "total_committed": 842,
+    "total_lines_changed": 1135,
+    "agent_percentage": 89.51541850220265,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 60,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 60
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 60,
+      "user_lines_removed": 0,
+      "agent_lines_added": 449,
+      "agent_lines_removed": 422,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 60
+      }
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 124,
+      "user_lines_removed": 46,
+      "agent_lines_added": 609,
+      "agent_lines_removed": 521,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 60,
+        "mcp_tracker/mcp/tools/template.py": 8,
+        "tests/mcp/tools/test_template_tools.py": 56
+      },
+      "user_removed_per_file": {
+        "mcp_tracker/mcp/tools/template.py": 6,
+        "tests/mcp/tools/test_template_tools.py": 40
+      }
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 60,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1987,
+      "agent_lines_removed": 733,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 60
+      }
+    },
+    {
+      "checkpoint_number": 5,
+      "user_lines_added": 60,
+      "user_lines_removed": 0,
+      "agent_lines_added": 2013,
+      "agent_lines_removed": 739,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 60
+      }
+    },
+    {
+      "checkpoint_number": 6,
+      "user_lines_added": 60,
+      "user_lines_removed": 0,
+      "agent_lines_added": 2013,
+      "agent_lines_removed": 739,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 60
+      }
+    }
+  ]
+}
