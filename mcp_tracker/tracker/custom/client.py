@@ -328,6 +328,8 @@ class TrackerClient(
         async with self._session.get(
             f"v3/queues/{queue_id}/localFields", headers=await self._build_headers(auth)
         ) as response:
+            if response.status == 404:
+                raise QueueNotFound(queue_id)
             await self._raise_for_status(response)
             return LocalFieldList.model_validate_json(await response.read()).root
 
@@ -337,6 +339,8 @@ class TrackerClient(
         async with self._session.get(
             f"v3/queues/{queue_id}/tags", headers=await self._build_headers(auth)
         ) as response:
+            if response.status == 404:
+                raise QueueNotFound(queue_id)
             await self._raise_for_status(response)
             return QueueTagList.model_validate_json(await response.read()).root
 
@@ -346,6 +350,8 @@ class TrackerClient(
         async with self._session.get(
             f"v3/queues/{queue_id}/versions", headers=await self._build_headers(auth)
         ) as response:
+            if response.status == 404:
+                raise QueueNotFound(queue_id)
             await self._raise_for_status(response)
             return VersionList.model_validate_json(await response.read()).root
 
@@ -381,6 +387,8 @@ class TrackerClient(
         async with self._session.get(
             f"v3/queues/{queue_id}/fields", headers=await self._build_headers(auth)
         ) as response:
+            if response.status == 404:
+                raise QueueNotFound(queue_id)
             await self._raise_for_status(response)
             return GlobalFieldList.model_validate_json(await response.read()).root
 
@@ -400,6 +408,8 @@ class TrackerClient(
             headers=await self._build_headers(auth),
             params=params if params else None,
         ) as response:
+            if response.status == 404:
+                raise QueueNotFound(queue_id)
             await self._raise_for_status(response)
             return Queue.model_validate_json(await response.read())
 
