@@ -22,6 +22,7 @@ from mcp_tracker.tracker.custom.client import ServiceAccountSettings, TrackerCli
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
+from mcp_tracker.tracker.proto.templates import TemplatesProtocol
 from mcp_tracker.tracker.proto.users import UsersProtocol
 
 # Type alias for lifespan
@@ -80,12 +81,14 @@ def make_tracker_lifespan(settings: Settings) -> Lifespan:
         queues: QueuesProtocol = tracker
         issues: IssueProtocol = tracker
         global_data: GlobalDataProtocol = tracker
+        templates: TemplatesProtocol = tracker
         users: UsersProtocol = tracker
         if settings.tools_cache_enabled:
             cache_collection = make_cached_protocols(settings.cache_kwargs())
             queues = cache_collection.queues(queues)
             issues = cache_collection.issues(issues)
             global_data = cache_collection.global_data(global_data)
+            templates = cache_collection.templates(templates)
             users = cache_collection.users(users)
 
         try:
@@ -95,6 +98,7 @@ def make_tracker_lifespan(settings: Settings) -> Lifespan:
                 queues=queues,
                 issues=issues,
                 fields=global_data,
+                templates=templates,
                 users=users,
             )
         finally:

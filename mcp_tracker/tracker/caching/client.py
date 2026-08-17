@@ -9,6 +9,7 @@ from mcp_tracker.tracker.proto.common import YandexAuth
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocolWrap
 from mcp_tracker.tracker.proto.issues import IssueProtocolWrap
 from mcp_tracker.tracker.proto.queues import QueuesProtocolWrap
+from mcp_tracker.tracker.proto.templates import TemplatesProtocolWrap
 from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
 from mcp_tracker.tracker.proto.types.inputs import (
     IssueComponentRef,
@@ -39,6 +40,7 @@ from mcp_tracker.tracker.proto.types.queues import (
 )
 from mcp_tracker.tracker.proto.types.resolutions import Resolution
 from mcp_tracker.tracker.proto.types.statuses import Status
+from mcp_tracker.tracker.proto.types.templates import CommentTemplate, IssueTemplate
 from mcp_tracker.tracker.proto.types.users import User
 from mcp_tracker.tracker.proto.users import UsersProtocolWrap
 
@@ -48,6 +50,7 @@ class CacheCollection:
     queues: type[QueuesProtocolWrap]
     issues: type[IssueProtocolWrap]
     global_data: type[GlobalDataProtocolWrap]
+    templates: type[TemplatesProtocolWrap]
     users: type[UsersProtocolWrap]
 
 
@@ -493,6 +496,45 @@ def make_cached_protocols(
         ) -> list[Resolution]:
             return await self._original.get_resolutions(auth=auth)
 
+    class CachingTemplatesProtocol(TemplatesProtocolWrap):
+        @cached(**cache_config)
+        async def get_issue_templates(
+            self,
+            *,
+            queue: str | None = None,
+            per_page: int = 50,
+            page: int = 1,
+            auth: YandexAuth | None = None,
+        ) -> list[IssueTemplate]:
+            return await self._original.get_issue_templates(
+                queue=queue, per_page=per_page, page=page, auth=auth
+            )
+
+        @cached(**cache_config)
+        async def get_issue_template(
+            self, template_id: str, *, auth: YandexAuth | None = None
+        ) -> IssueTemplate:
+            return await self._original.get_issue_template(template_id, auth=auth)
+
+        @cached(**cache_config)
+        async def get_comment_templates(
+            self,
+            *,
+            queue: str | None = None,
+            per_page: int = 50,
+            page: int = 1,
+            auth: YandexAuth | None = None,
+        ) -> list[CommentTemplate]:
+            return await self._original.get_comment_templates(
+                queue=queue, per_page=per_page, page=page, auth=auth
+            )
+
+        @cached(**cache_config)
+        async def get_comment_template(
+            self, template_id: str, *, auth: YandexAuth | None = None
+        ) -> CommentTemplate:
+            return await self._original.get_comment_template(template_id, auth=auth)
+
     class CachingUsersProtocol(UsersProtocolWrap):
         @cached(**cache_config)
         async def users_list(
@@ -516,5 +558,6 @@ def make_cached_protocols(
         queues=CachingQueuesProtocol,
         issues=CachingIssuesProtocol,
         global_data=CachingGlobalDataProtocol,
+        templates=CachingTemplatesProtocol,
         users=CachingUsersProtocol,
     )

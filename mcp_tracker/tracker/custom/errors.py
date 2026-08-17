@@ -14,6 +14,24 @@ class IssueNotFound(YandexTrackerError):
         self.issue_id = issue_id
 
 
+class QueueNotFound(YandexTrackerError):
+    def __init__(self, queue_id: str):
+        super().__init__(f"Queue with ID '{queue_id}' not found.")
+        self.queue_id = queue_id
+
+
+class IssueTemplateNotFound(YandexTrackerError):
+    def __init__(self, template_id: str):
+        super().__init__(f"Issue template with ID '{template_id}' not found.")
+        self.template_id = template_id
+
+
+class CommentTemplateNotFound(YandexTrackerError):
+    def __init__(self, template_id: str):
+        super().__init__(f"Comment template with ID '{template_id}' not found.")
+        self.template_id = template_id
+
+
 class IssueVersionConflict(YandexTrackerError):
     """Raised when an update is rejected because `version` is not current.
 

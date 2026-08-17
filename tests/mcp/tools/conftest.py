@@ -14,6 +14,7 @@ from mcp_tracker.tracker.proto.types.issues import (
     IssueLink,
     IssueTransition,
     LinkTypeReference,
+    MaillistReference,
     Worklog,
 )
 from mcp_tracker.tracker.proto.types.priorities import Priority
@@ -22,11 +23,13 @@ from mcp_tracker.tracker.proto.types.refs import (
     IssueReference,
     IssueTypeReference,
     PriorityReference,
+    QueueReference,
     StatusReference,
     UserReference,
 )
 from mcp_tracker.tracker.proto.types.resolutions import Resolution
 from mcp_tracker.tracker.proto.types.statuses import Status
+from mcp_tracker.tracker.proto.types.templates import CommentTemplate, IssueTemplate
 from mcp_tracker.tracker.proto.types.users import User
 
 
@@ -599,5 +602,89 @@ def sample_users(sample_user: User) -> list[User]:
             email="manager@example.com",
             external=False,
             dismissed=False,
+        ),
+    ]
+
+
+# Issue template fixtures
+@pytest.fixture
+def sample_issue_template() -> IssueTemplate:
+    """Sample issue template bound to the TEST queue."""
+    return IssueTemplate.model_construct(
+        id="1",
+        version=2,
+        name="Bug report",
+        queue=QueueReference.model_construct(id="1", key="TEST", display="Test Queue"),
+        fieldTemplates={
+            "summary": "Bug: ",
+            "description": "## Steps to reproduce\n\n## Expected\n\n## Actual",
+        },
+    )
+
+
+@pytest.fixture
+def sample_issue_templates(sample_issue_template: IssueTemplate) -> list[IssueTemplate]:
+    """Issue templates spanning an allowed queue, a restricted queue and no queue."""
+    return [
+        sample_issue_template,
+        IssueTemplate.model_construct(
+            id="2",
+            version=1,
+            name="Incident",
+            queue=QueueReference.model_construct(
+                id="2", key="ALLOWED", display="Allowed Queue"
+            ),
+            fieldTemplates={"summary": "Incident: "},
+        ),
+        IssueTemplate.model_construct(
+            id="3",
+            version=1,
+            name="Personal template",
+            queue=None,
+            fieldTemplates={"summary": "Note: "},
+        ),
+    ]
+
+
+# Comment template fixtures
+@pytest.fixture
+def sample_comment_template() -> CommentTemplate:
+    """Sample comment template bound to the TEST queue."""
+    return CommentTemplate.model_construct(
+        id="1",
+        version=2,
+        name="Incident acknowledged",
+        description="First reply on an incident",
+        template="We received your report and started the investigation.",
+        summonees=[UserReference.model_construct(id="1", display="Ivan Ivanov")],
+        maillistSummonees=[
+            MaillistReference.model_construct(id="duty@example.com", display="Duty")
+        ],
+        queue=QueueReference.model_construct(id="1", key="TEST", display="Test Queue"),
+    )
+
+
+@pytest.fixture
+def sample_comment_templates(
+    sample_comment_template: CommentTemplate,
+) -> list[CommentTemplate]:
+    """Comment templates spanning an allowed queue, a restricted queue and no queue."""
+    return [
+        sample_comment_template,
+        CommentTemplate.model_construct(
+            id="2",
+            version=1,
+            name="Escalation",
+            template="Escalating to the duty engineer.",
+            queue=QueueReference.model_construct(
+                id="2", key="ALLOWED", display="Allowed Queue"
+            ),
+        ),
+        CommentTemplate.model_construct(
+            id="3",
+            version=1,
+            name="Personal reply",
+            template="Thanks, taking a look.",
+            queue=None,
         ),
     ]

@@ -8,6 +8,7 @@ from mcp_tracker.tracker.caching.client import make_cached_protocols
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
+from mcp_tracker.tracker.proto.templates import TemplatesProtocol
 from mcp_tracker.tracker.proto.users import UsersProtocol
 
 
@@ -43,6 +44,14 @@ class TestCachingProtocolConformance:
         instance = cache_collection.global_data(mock_original)
 
         assert isinstance(instance, GlobalDataProtocol)
+
+    def test_caching_templates_implements_protocol(
+        self, cache_config: dict[str, int], mock_original: TemplatesProtocol
+    ) -> None:
+        cache_collection = make_cached_protocols(cache_config)
+        instance = cache_collection.templates(mock_original)
+
+        assert isinstance(instance, TemplatesProtocol)
 
     def test_caching_users_implements_protocol(
         self, cache_config: dict[str, int], mock_original: UsersProtocol
