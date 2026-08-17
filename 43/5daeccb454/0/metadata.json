@@ -1,0 +1,67 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "435daeccb454",
+  "session_id": "09093c97-5ceb-4b69-8dd1-7834cd0aaf68",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-17T09:51:01.388633Z",
+  "branch": "claude/issue-43-implementation-40zi79",
+  "checkpoints_count": 1,
+  "save_step_count": 2,
+  "files_touched": [
+    "CLAUDE.md",
+    "README.md",
+    "README_ru.md",
+    "manifest.json",
+    "mcp_tracker/mcp/context.py",
+    "mcp_tracker/mcp/params.py",
+    "mcp_tracker/mcp/server.py",
+    "mcp_tracker/mcp/tools/__init__.py",
+    "mcp_tracker/mcp/tools/field.py",
+    "mcp_tracker/mcp/tools/issue_write.py",
+    "mcp_tracker/tracker/caching/client.py",
+    "mcp_tracker/tracker/custom/client.py",
+    "mcp_tracker/tracker/custom/errors.py",
+    "mcp_tracker/tracker/proto/fields.py",
+    "tests/mcp/conftest.py",
+    "tests/mcp/tools/test_field_tools.py",
+    "tests/tracker/caching/test_global_data_protocol.py",
+    "tests/tracker/caching/test_protocol_conformance.py",
+    "tests/tracker/custom/test_comment_templates.py",
+    "tests/tracker/custom/test_issue_templates.py"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5[1m]",
+  "turn_id": "868bdfa516b7",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 286,
+    "cache_creation_tokens": 289546,
+    "cache_read_tokens": 23725952,
+    "output_tokens": 110813,
+    "api_call_count": 143
+  },
+  "session_metrics": {
+    "turn_count": 3
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-17T09:51:01.296844Z",
+    "agent_lines": 273,
+    "agent_removed": 546,
+    "human_added": 925,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1198,
+    "total_lines_changed": 1744,
+    "agent_percentage": 46.961009174311926,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
