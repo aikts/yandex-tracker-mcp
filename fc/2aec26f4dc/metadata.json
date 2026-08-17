@@ -2,17 +2,9 @@
   "cli_version": "0.8.42",
   "checkpoint_id": "fc2aec26f4dc",
   "strategy": "manual-commit",
-  "branch": "recompose",
-  "checkpoints_count": 1,
-  "files_touched": [
-    "README.md",
-    "README_ru.md",
-    "manifest.json",
-    "mcp_tracker/mcp/context.py",
-    "mcp_tracker/mcp/tools/__init__.py",
-    "mcp_tracker/tracker/custom/errors.py",
-    "mcp_tracker/tracker/proto/templates.py"
-  ],
+  "branch": "amend4",
+  "checkpoints_count": 4,
+  "files_touched": null,
   "sessions": [
     {
       "metadata": "/fc/2aec26f4dc/0/metadata.json",
@@ -23,10 +15,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 4473,
-    "cache_creation_tokens": 734098,
-    "cache_read_tokens": 41244673,
-    "output_tokens": 167952,
-    "api_call_count": 192
+    "input_tokens": 4572,
+    "cache_creation_tokens": 1640308,
+    "cache_read_tokens": 63454166,
+    "output_tokens": 217939,
+    "api_call_count": 245
   }
 }
