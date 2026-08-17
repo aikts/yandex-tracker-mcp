@@ -3,11 +3,16 @@ from contextlib import asynccontextmanager
 from typing import Any
 from unittest.mock import AsyncMock
 
+import pytest
 from mcp.client.session import ClientSession
 from mcp.server import FastMCP
 from mcp.shared.context import RequestContext
 from mcp.types import ElicitRequestParams, ElicitResult
 
+from mcp_tracker.tracker.proto.types.inputs import (
+    IssueComponentRef,
+    IssueFollowerRef,
+)
 from mcp_tracker.tracker.proto.types.issues import (
     Issue,
     IssueComment,
@@ -234,6 +239,49 @@ class TestIssueCreate:
         content = get_tool_result_content(result)
         assert content["key"] == sample_issue.key
 
+    async def test_passes_reference_fields_as_models(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_issue: Issue,
+    ) -> None:
+        """Followers and components reach the client in the same shape as in issue_update."""
+        mock_issues_protocol.issue_create.return_value = sample_issue
+
+        result = await client_session.call_tool(
+            "issue_create",
+            {
+                "queue": "TEST",
+                "summary": "New test issue",
+                "followers": [{"id": "8000000000000034"}],
+                "components": [{"id": 694}],
+                "tags": ["tag1"],
+            },
+        )
+
+        assert not result.isError
+        call_kwargs = mock_issues_protocol.issue_create.call_args.kwargs
+        assert call_kwargs["followers"] == [IssueFollowerRef(id="8000000000000034")]
+        assert call_kwargs["components"] == [IssueComponentRef(id=694)]
+        assert call_kwargs["tags"] == ["tag1"]
+
+    async def test_rejects_ambiguous_component_reference(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session.call_tool(
+            "issue_create",
+            {
+                "queue": "TEST",
+                "summary": "New test issue",
+                "components": [{"id": 694, "name": "Backend"}],
+            },
+        )
+
+        assert result.isError
+        mock_issues_protocol.issue_create.assert_not_called()
+
     async def test_with_custom_fields(
         self,
         client_session: ClientSession,
@@ -350,6 +398,30 @@ class TestIssueUpdate:
         assert call_kwargs["version"] == 5
         content = get_tool_result_content(result)
         assert content["key"] == sample_issue.key
+
+    async def test_passes_reference_fields_as_models(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_issue: Issue,
+    ) -> None:
+        mock_issues_protocol.issue_update.return_value = sample_issue
+
+        result = await client_session.call_tool(
+            "issue_update",
+            {
+                "issue_id": "TEST-123",
+                "assignee": "user123",
+                "followers": [{"id": "8000000000000034"}],
+                "components": [{"id": 694}],
+            },
+        )
+
+        assert not result.isError
+        call_kwargs = mock_issues_protocol.issue_update.call_args.kwargs
+        assert call_kwargs["assignee"] == "user123"
+        assert call_kwargs["followers"] == [IssueFollowerRef(id="8000000000000034")]
+        assert call_kwargs["components"] == [IssueComponentRef(id=694)]
 
     async def test_restricted_queue_raises_error(
         self,
@@ -996,3 +1068,85 @@ class TestPerQueueReadOnlyAccess:
 
         assert result.isError
         mock_issues_protocol.issue_move.assert_not_called()
+
+
+class TestWriteFieldsMap:
+    """A key in `fields` that names a dedicated parameter used to crash the call
+    with a raw TypeError from the client; it now reaches Tracker as an override."""
+
+    async def test_fields_key_colliding_with_a_parameter_is_accepted(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_issue: Issue,
+    ) -> None:
+        mock_issues_protocol.issue_update.return_value = sample_issue
+
+        result = await client_session.call_tool(
+            "issue_update",
+            {
+                "issue_id": "TEST-1",
+                "parent": {"key": "TEST-2"},
+                "fields": {"parent": None},
+            },
+        )
+
+        assert not result.isError
+        call_args = mock_issues_protocol.issue_update.call_args
+        assert call_args.kwargs["fields"] == {"parent": None}
+        assert call_args.kwargs["parent"].key == "TEST-2"
+
+    async def test_create_forwards_fields_untouched(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_issue: Issue,
+    ) -> None:
+        mock_issues_protocol.issue_create.return_value = sample_issue
+
+        result = await client_session.call_tool(
+            "issue_create",
+            {
+                "queue": "TEST",
+                "summary": "Summary",
+                "fields": {"assignee": "jdoe", "storyPoints": 3},
+            },
+        )
+
+        assert not result.isError
+        call_args = mock_issues_protocol.issue_create.call_args
+        assert call_args.kwargs["fields"] == {"assignee": "jdoe", "storyPoints": 3}
+
+
+class TestCreateUpdateSymmetry:
+    """A value accepted by issue_create must be accepted by issue_update: the
+    API takes a bare key or id on both, and an agent that creates an issue with
+    a scalar then updates it the same way used to hit a schema error."""
+
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("type", "bug"),
+            ("type", 2),
+            ("priority", "critical"),
+            ("priority", 4),
+            ("parent", "TEST-2"),
+        ],
+        ids=["type-key", "type-id", "priority-key", "priority-id", "parent-key"],
+    )
+    async def test_update_takes_the_same_bare_values_as_create(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_issue: Issue,
+        field: str,
+        value: str | int,
+    ) -> None:
+        mock_issues_protocol.issue_update.return_value = sample_issue
+
+        result = await client_session.call_tool(
+            "issue_update", {"issue_id": "TEST-1", field: value}
+        )
+
+        assert not result.isError
+        assert mock_issues_protocol.issue_update.call_args.kwargs[field] == value

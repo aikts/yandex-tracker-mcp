@@ -597,13 +597,52 @@ The server exposes the following tools through the MCP protocol:
 </details>
 
 <details>
+<summary><strong>Templates</strong></summary>
+
+- **`issue_templates_get_all`**: Get all issue templates configured in Yandex Tracker
+  - Parameters:
+    - `queue` (string, optional): Return only the templates usable in that queue - its own templates plus the ones bound to no queue
+    - `page` (integer, optional): Page number, default is all pages
+    - `per_page` (integer, optional): Items per page (default: 50)
+  - Returns the templates teams use for bugs, incidents and other recurring work
+  - Includes template id, name, owning queue and the `fieldTemplates` values the template prefills
+
+- **`issue_template_get`**: Get a single issue template by its id
+  - Parameters:
+    - `template_id` (string): Template identifier, as returned by `issue_templates_get_all`
+  - Use this before `issue_create` so the new issue follows the team's current template instead of an invented structure
+
+- **`comment_templates_get_all`**: Get all comment templates configured in Yandex Tracker
+  - Parameters:
+    - `queue` (string, optional): Return only the templates usable in that queue - its own templates plus the ones bound to no queue
+    - `page` (integer, optional): Page number, default is all pages
+    - `per_page` (integer, optional): Items per page (default: 50)
+  - Returns the wording teams reuse when replying on issues
+  - Includes template id, name, description, owning queue, the `template` comment text and the `summonees` / `maillistSummonees` such a comment summons
+
+- **`comment_template_get`**: Get a single comment template by its id
+  - Parameters:
+    - `template_id` (string): Template identifier, as returned by `comment_templates_get_all`
+  - Use this before `issue_add_comment` so the comment follows the team's current template
+
+Both listings paginate (the API returns 50 templates per page), so by default they walk every page and return the full set; pass `page` to fetch a single page when the context window is tight.
+
+Templates are read-only helpers: the Tracker API has no way to create an issue or a comment *from* a template, so `issue_create` and `issue_add_comment` take no `template_id`. Read the template first and pass its values as the tool's arguments.
+
+All four tools respect `TRACKER_LIMIT_QUEUES`: templates bound to a restricted queue are omitted from the listings and rejected on direct access, while templates without a queue remain visible. Passing a restricted queue as `queue` is rejected as well.
+
+</details>
+
+<details>
 <summary><strong>Issue Operations</strong></summary>
 
-- **`issue_get`**: Retrieve detailed issue information by ID
+- **`issue_get`**: Read one issue (task, ticket, bug) by its key/ID
   - Parameters:
     - `issue_id` (string, format: "QUEUE-123")
     - `include_description` (boolean, optional, default: true): Whether to include issue description in the result. Can be large, so use only when needed.
-  - Returns complete issue data including status, assignee, description, etc.
+  - Returns the full issue record: summary, description, status, type, priority, assignee, author, tags, components, sprint, epic, parent, deadline, start date, story points, estimation, spent time, votes, created/updated timestamps and users, the current `version`, and any queue-local or custom fields
+  - Call it right before `issue_update` to read a fresh `version` for optimistic locking; use `issues_find` when the key is unknown
+  - Comments, links, attachments, worklogs, checklist, changelog and transitions are **not** part of the response - use the dedicated `issue_get_*` tools for those
 
 - **`issue_get_url`**: Generate web URL for an issue
   - Parameters: `issue_id` (string)
@@ -730,12 +769,21 @@ The server exposes the following tools through the MCP protocol:
   - Parameters:
     - `queue` (string, required): Queue key where to create the issue (e.g., 'MYQUEUE')
     - `summary` (string, required): Issue title/summary
-    - `type` (int, optional): Issue type ID (from `get_issue_types` tool)
-    - `description` (string, optional): Issue description
+    - `type` (IssueTypeRef or string or int, optional): Issue type with `id` and/or `key`, or the bare key/ID (from `get_issue_types` tool)
+    - `description` (string, optional): Issue description (use markdown formatting)
+    - `markup_type` (string, optional, default `md`): Markup type for description text (use 'md' for YFM markup)
     - `assignee` (string or int, optional): Assignee login or UID
-    - `priority` (string, optional): Priority key (from `get_priorities` tool)
-    - `fields` (object, optional): Additional fields to set during issue creation. **IMPORTANT**: Before creating an issue, you MUST call `queue_get_fields` to get available fields (it returns both global and local fields by default). Fields with `schema.required=true` are mandatory. Use the field's `id` property as the key in this map (e.g., `{"fieldId": "value"}`)
+    - `priority` (IssuePriorityRef or string or int, optional): Priority with `id` and/or `key`, or the bare key/ID (from `get_priorities` tool)
+    - `parent` (IssueParentRef or string, optional): Parent issue reference with `id` and/or `key` (e.g., 'QUEUE-123'), or the bare key
+    - `sprint` (array of IssueSprintRef, optional): Sprint assignments - array of objects with `id` (int) field
+    - `followers` (array of IssueFollowerRef, optional): Followers - array of objects with `id` (user ID/uid or login)
+    - `components` (array of IssueComponentRef, optional): Queue components - array of objects with either `id` (numeric component ID) or `name` (component name)
+    - `tags` (array of strings, optional): Issue tags
+    - `project` (IssueProjectRef, optional): Project with `primary` (int, main project shortId) and optional `secondary` (array of ints)
+    - `fields` (object, optional): Additional fields without a dedicated parameter. **IMPORTANT**: Before creating an issue, you MUST call `queue_get_fields` to get available fields (it returns both global and local fields by default). Fields with `schema.required=true` are mandatory. Use the field's `id` property as the key in this map (e.g., `{"fieldId": "value"}`). Values are passed to Tracker as-is
   - Returns the newly created issue object with all standard issue fields
+  - Accepts the same value formats as `issue_update`, so a reference value that works there works here too
+  - **Version note**: the returned `version` can already be outdated - queue triggers and automation run right after creation and bump it. Do not feed it into a follow-up `issue_update`; re-read the issue with `issue_get` or omit `version`
   - Respects `TRACKER_LIMIT_QUEUES` restrictions
 
 - **`issue_update`**: Update an existing issue
@@ -744,17 +792,20 @@ The server exposes the following tools through the MCP protocol:
     - `summary` (string, optional): New issue title/summary
     - `description` (string, optional): New issue description
     - `markup_type` (string, optional): Markup type for description text (use 'md' for YFM markup)
-    - `parent` (IssueUpdateParent, optional): Parent issue reference with `id` (string) and/or `key` (string, e.g., 'QUEUE-123')
-    - `sprint` (array of IssueUpdateSprint, optional): Sprint assignments - array of objects with `id` (int) field
-    - `type` (IssueUpdateType, optional): Issue type with `id` (string) and/or `key` (string, e.g., 'bug', 'task')
-    - `priority` (IssueUpdatePriority, optional): Priority with `id` (string) and/or `key` (string, e.g., 'critical', 'normal')
-    - `followers` (array of IssueUpdateFollower, optional): Followers - array of objects with `id` (string, user ID or login)
-    - `project` (IssueUpdateProject, optional): Project with `primary` (int, main project shortId) and optional `secondary` (array of ints)
+    - `parent` (IssueParentRef or string, optional): Parent issue reference with `id` (string) and/or `key` (string, e.g., 'QUEUE-123'), or the bare key
+    - `sprint` (array of IssueSprintRef, optional): Sprint assignments - array of objects with `id` (int) field
+    - `type` (IssueTypeRef or string or int, optional): Issue type with `id` (string) and/or `key` (string, e.g., 'bug', 'task'), or the bare key/ID
+    - `priority` (IssuePriorityRef or string or int, optional): Priority with `id` (string) and/or `key` (string, e.g., 'critical', 'normal'), or the bare key/ID
+    - `assignee` (string or int, optional): New assignee login or UID
+    - `followers` (array of IssueFollowerRef, optional): Followers - array of objects with `id` (user ID/uid or login); replaces the current list
+    - `components` (array of IssueComponentRef, optional): Queue components - array of objects with either `id` (numeric component ID) or `name` (component name); replaces the current list
+    - `project` (IssueProjectRef, optional): Project with `primary` (int, main project shortId) and optional `secondary` (array of ints)
     - `tags` (array of strings, optional): Issue tags
-    - `version` (int, optional): Issue version for optimistic locking - changes only made to current version
-    - `fields` (object, optional): Additional fields to update. Use `queue_get_fields` to discover available fields.
+    - `version` (int, optional): Issue version for optimistic locking - changes are only applied when it is the issue's current version
+    - `fields` (object, optional): Additional fields without a dedicated parameter. Use `queue_get_fields` to discover available fields. Values are passed to Tracker as-is
   - Returns the updated issue object with all standard issue fields
   - Only provided fields are updated; omitted fields remain unchanged
+  - **Version note**: read `version` with `issue_get` immediately before updating, or omit it to update whatever the latest version is. A stale version fails with an editing conflict, which is easy to hit with the version returned by `issue_create` because queue triggers bump it
   - Respects `TRACKER_LIMIT_QUEUES` restrictions
 
 - **`issue_move`**: Move an issue to a different queue

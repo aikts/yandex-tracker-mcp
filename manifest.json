@@ -97,7 +97,7 @@
     },
     {
       "name": "issue_get",
-      "description": "Retrieve detailed issue information by ID"
+      "description": "Read one issue (task, ticket, bug) by its key/ID and return its full record"
     },
     {
       "name": "issue_get_url",

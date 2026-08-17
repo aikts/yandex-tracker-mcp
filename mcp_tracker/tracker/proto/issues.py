@@ -1,14 +1,16 @@
 import datetime
+from collections.abc import Sequence
 from typing import Any, Protocol, runtime_checkable
 
 from .common import YandexAuth
 from .types.inputs import (
-    IssueUpdateFollower,
-    IssueUpdateParent,
-    IssueUpdatePriority,
-    IssueUpdateProject,
-    IssueUpdateSprint,
-    IssueUpdateType,
+    IssueComponentRef,
+    IssueFollowerRef,
+    IssueParentRef,
+    IssuePriorityRef,
+    IssueProjectRef,
+    IssueSprintRef,
+    IssueTypeRef,
 )
 from .types.issues import (
     ChangelogPage,
@@ -129,14 +131,19 @@ class IssueProtocol(Protocol):
         queue: str,
         summary: str,
         *,
-        type: int | None = None,
+        type: IssueTypeRef | str | int | None = None,
         description: str | None = None,
+        markup_type: str | None = None,
         assignee: str | int | None = None,
-        priority: str | None = None,
-        parent: str | None = None,
-        sprint: list[str] | None = None,
+        priority: IssuePriorityRef | str | int | None = None,
+        parent: IssueParentRef | str | None = None,
+        sprint: Sequence[IssueSprintRef | str | int] | None = None,
+        followers: list[IssueFollowerRef] | None = None,
+        components: list[IssueComponentRef] | None = None,
+        tags: list[str] | None = None,
+        project: IssueProjectRef | None = None,
         auth: YandexAuth | None = None,
-        **kwargs: dict[str, Any],
+        fields: dict[str, Any] | None = None,
     ) -> Issue: ...
     async def issue_get_transitions(
         self, issue_id: str, *, auth: YandexAuth | None = None
@@ -178,18 +185,20 @@ class IssueProtocol(Protocol):
         summary: str | None = None,
         description: str | None = None,
         markup_type: str | None = None,
-        parent: IssueUpdateParent | None = None,
-        sprint: list[IssueUpdateSprint] | None = None,
-        type: IssueUpdateType | None = None,
-        priority: IssueUpdatePriority | None = None,
-        followers: list[IssueUpdateFollower] | None = None,
-        project: IssueUpdateProject | None = None,
+        parent: IssueParentRef | str | None = None,
+        sprint: Sequence[IssueSprintRef | str | int] | None = None,
+        type: IssueTypeRef | str | int | None = None,
+        priority: IssuePriorityRef | str | int | None = None,
+        assignee: str | int | None = None,
+        followers: list[IssueFollowerRef] | None = None,
+        components: list[IssueComponentRef] | None = None,
+        project: IssueProjectRef | None = None,
         attachment_ids: list[str] | None = None,
         description_attachment_ids: list[str] | None = None,
         tags: list[str] | None = None,
         version: int | None = None,
         auth: YandexAuth | None = None,
-        **kwargs: Any,
+        fields: dict[str, Any] | None = None,
     ) -> Issue: ...
 
     async def issue_move(

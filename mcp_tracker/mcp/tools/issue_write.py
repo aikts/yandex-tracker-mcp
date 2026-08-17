@@ -10,17 +10,24 @@ from pydantic import BaseModel, Field, create_model
 
 from mcp_tracker.mcp.context import AppContext
 from mcp_tracker.mcp.errors import TrackerError
-from mcp_tracker.mcp.params import IssueID
+from mcp_tracker.mcp.params import (
+    IssueComponentsParam,
+    IssueComponentsUpdateParam,
+    IssueFollowersParam,
+    IssueFollowersUpdateParam,
+    IssueID,
+    IssueParentParam,
+    IssueProjectParam,
+    IssueSprintParam,
+    IssueTagsParam,
+    MarkupTypeParam,
+)
 from mcp_tracker.mcp.tools._access import check_issue_access, check_queue_access
 from mcp_tracker.mcp.utils import get_yandex_auth
 from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.proto.types.inputs import (
-    IssueUpdateFollower,
-    IssueUpdateParent,
-    IssueUpdatePriority,
-    IssueUpdateProject,
-    IssueUpdateSprint,
-    IssueUpdateType,
+    IssuePriorityRef,
+    IssueTypeRef,
 )
 from mcp_tracker.tracker.proto.types.issues import (
     Issue,
@@ -173,7 +180,18 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Create Issue",
-        description="Create a new issue in a Yandex Tracker queue",
+        description="Create a new issue in a Yandex Tracker queue. "
+        "Check the queue's issue templates first (`issue_templates_get_all` with `queue` set): "
+        "there is no `template_id` parameter, so a template is applied by copying its "
+        "`fieldTemplates` values and description into the parameters below instead of inventing "
+        "a structure of your own. Copy them field by field rather than wholesale: `assignee` comes "
+        "as a user object, while this tool takes a login or uid, and Tracker does not expand the "
+        "UI macros a template may contain (`{{today}}` and friends arrive literally). "
+        "Prefer the dedicated parameters below over the `fields` map: they are sent in the "
+        "same format issue_update uses, so a value that works here works there too. "
+        "Note that the returned issue's `version` can be outdated as soon as it is returned - "
+        "queue triggers and automation run right after creation and bump it - so do not reuse it "
+        "for a follow-up issue_update; re-read the issue with issue_get or omit `version`.",
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def issue_create(
@@ -184,27 +202,46 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         ],
         summary: Annotated[str, Field(description="Issue title/summary")],
         type: Annotated[
-            int | None,
-            Field(description="Issue type id (from get_issue_types tool)"),
+            IssueTypeRef | str | int | None,
+            Field(
+                description="Issue type: an object with 'id' (type ID) and/or 'key' "
+                "(e.g., 'bug', 'task'), or the bare key/ID (from get_issue_types tool)."
+            ),
         ] = None,
         description: Annotated[
-            str | None, Field(description="Issue description")
+            str | None, Field(description="Issue description (use markdown formatting)")
         ] = None,
+        markup_type: MarkupTypeParam = "md",
         assignee: Annotated[
             str | int | None, Field(description="Assignee login or UID")
         ] = None,
         priority: Annotated[
-            str | None,
-            Field(description="Priority key (from get_priorities tool,)"),
+            IssuePriorityRef | str | int | None,
+            Field(
+                description="Issue priority: an object with 'id' (priority ID) and/or 'key' "
+                "(e.g., 'critical', 'normal'), or the bare key/ID (from get_priorities tool)."
+            ),
         ] = None,
+        parent: IssueParentParam = None,
+        sprint: IssueSprintParam = None,
+        followers: IssueFollowersParam = None,
+        components: IssueComponentsParam = None,
+        tags: IssueTagsParam = None,
+        project: IssueProjectParam = None,
         fields: Annotated[
             dict[str, Any] | None,
             Field(
-                description="Additional fields to set during issue creation. "
-                "IMPORTANT: Before creating an issue, you MUST call `queue_get_fields` to get available fields "
-                "(it returns both global and local fields by default). "
-                "Fields with schema.required=true are mandatory and must be provided. "
-                "Use the field's `id` property as the key in this map (e.g., {'fieldId': 'value'})."
+                description="Additional fields to set during issue creation, for fields without a "
+                "dedicated parameter above. "
+                "Call `queue_get_fields` for the fields configured on the queue (schema.required=true "
+                "marks the mandatory ones) and `get_global_fields` for the whole registry - system "
+                "fields such as `parent` or `estimation` are settable but may be missing from the "
+                "queue listing. "
+                "Keys are Tracker field ids as those tools return them (camelCase, e.g. 'storyPoints'), "
+                "which is also how they come back in issue responses. "
+                "An entry here overrides the dedicated parameter of the same name. "
+                "Values are sent to Tracker as-is: reference fields expect numeric IDs as numbers "
+                "(or {'id': ...} objects), because a bare string may be resolved as a name."
             ),
         ] = None,
     ) -> Issue:
@@ -214,17 +251,28 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             summary=summary,
             type=type,
             description=description,
+            markup_type=markup_type,
             assignee=assignee,
             priority=priority,
+            parent=parent,
+            sprint=sprint,
+            followers=followers,
+            components=components,
+            tags=tags,
+            project=project,
             auth=get_yandex_auth(ctx),
-            **(fields or {}),
+            fields=fields,
         )
 
     @mcp.tool(
         title="Update Issue",
         description="Update an existing Yandex Tracker issue. "
         "Only fields that are provided will be updated; omitted fields remain unchanged. "
-        "Use queue_get_fields to discover available fields before updating.",
+        "Use queue_get_fields to discover available fields before updating. "
+        "The `version` parameter is optional optimistic locking: pass it only when you have a "
+        "version read moments ago (issue_get), and never the one returned by issue_create - "
+        "queue triggers and automation bump the version right after creation, which makes the "
+        "update fail with an editing conflict.",
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def issue_update(
@@ -238,71 +286,57 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             str | None,
             Field(description="New issue description (use markdown formatting)"),
         ] = None,
-        markup_type: Annotated[
-            str,
-            Field(
-                description="Markup type for description text. Use 'md' for YFM (markdown) markup."
-            ),
-        ] = "md",
-        parent: Annotated[
-            IssueUpdateParent | None,
-            Field(
-                description="Parent issue reference. Object with 'id' (parent issue ID) "
-                "and/or 'key' (parent issue key like 'QUEUE-123')."
-            ),
-        ] = None,
-        sprint: Annotated[
-            list[IssueUpdateSprint] | None,
-            Field(
-                description="Sprint assignments. Array of objects, each with 'id' field "
-                "containing the sprint ID (integer)."
-            ),
-        ] = None,
+        markup_type: MarkupTypeParam = "md",
+        parent: IssueParentParam = None,
+        sprint: IssueSprintParam = None,
         type: Annotated[
-            IssueUpdateType | None,
+            IssueTypeRef | str | int | None,
             Field(
-                description="Issue type. Object with 'id' (type ID) and/or 'key' (type key like 'bug', 'task'). "
+                description="Issue type. Object with 'id' (type ID) and/or 'key' (type key like 'bug', 'task'), "
+                "or the bare key/ID. "
                 "Use `queue_get_metadata` tool with expand=['issueTypesConfig'] to get available issue types in this queue."
             ),
         ] = None,
         priority: Annotated[
-            IssueUpdatePriority | None,
+            IssuePriorityRef | str | int | None,
             Field(
                 description="Issue priority. Object with 'id' (priority ID) and/or 'key' "
-                "(priority key like 'critical', 'normal'). Use get_priorities to find available priorities."
+                "(priority key like 'critical', 'normal'), or the bare key/ID. "
+                "Use get_priorities to find available priorities."
             ),
         ] = None,
-        followers: Annotated[
-            list[IssueUpdateFollower] | None,
-            Field(
-                description="Issue followers/watchers. Array of objects, each with 'id' field "
-                "containing the user ID or login."
-            ),
+        assignee: Annotated[
+            str | int | None,
+            Field(description="New assignee login or UID"),
         ] = None,
-        project: Annotated[
-            IssueUpdateProject | None,
-            Field(
-                description="Project assignment. Object with 'primary' (int, main project shortId) "
-                "and optional 'secondary' (list of ints, additional project shortIds)."
-            ),
-        ] = None,
-        tags: Annotated[
-            list[str] | None,
-            Field(description="Issue tags as array of strings."),
-        ] = None,
+        followers: IssueFollowersUpdateParam = None,
+        components: IssueComponentsUpdateParam = None,
+        project: IssueProjectParam = None,
+        tags: IssueTagsParam = None,
         version: Annotated[
             int | None,
             Field(
-                description="Issue version for optimistic locking. "
-                "Changes are only made to the current version of the issue. Always try to receive issue's version using issue_get tool first."
+                description="Issue version for optimistic locking; changes are only applied when it is "
+                "the issue's current version, otherwise the call fails with an editing conflict. "
+                "Read it with issue_get immediately before updating, and omit it when you just want the "
+                "update to land on whatever the latest version is. The version returned by issue_create "
+                "is not safe to use here: queue triggers and automation bump it right after creation."
             ),
         ] = None,
         fields: Annotated[
             dict[str, Any] | None,
             Field(
-                description="Additional fields to update. "
-                "Use queue_get_fields to discover available fields. "
-                "Use the field's 'id' property as the key (e.g., {'fieldId': 'value'})."
+                description="Additional fields to update, for fields without a dedicated parameter above. "
+                "Call `queue_get_fields` for the fields configured on the queue and `get_global_fields` "
+                "for the whole registry - system fields such as `parent` or `estimation` are settable "
+                "but may be missing from the queue listing. "
+                "Keys are Tracker field ids as those tools return them (camelCase, e.g. 'storyPoints'), "
+                "which is also how they come back in issue responses. "
+                "An entry here overrides the dedicated parameter of the same name, which is how a field "
+                "is cleared: pass null (e.g. {'assignee': null, 'parent': null}), since a dedicated "
+                "parameter left unset simply is not sent. "
+                "Values are sent to Tracker as-is: reference fields expect numeric IDs as numbers "
+                "(or {'id': ...} objects), because a bare string may be resolved as a name."
             ),
         ] = None,
     ) -> Issue:
@@ -317,12 +351,14 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             sprint=sprint,
             type=type,
             priority=priority,
+            assignee=assignee,
             followers=followers,
+            components=components,
             project=project,
             tags=tags,
             version=version,
             auth=get_yandex_auth(ctx),
-            **(fields or {}),
+            fields=fields,
         )
 
     @mcp.tool(
@@ -426,6 +462,10 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
     @mcp.tool(
         title="Add Issue Comment",
         description="Add a comment to a Yandex Tracker issue. "
+        "Check the queue's comment templates first (`comment_templates_get_all` with `queue` set): "
+        "there is no `template_id` parameter, so a template is applied by copying its `template` "
+        "text into `text` and its `summonees` / `maillistSummonees` into the parameters below "
+        "instead of inventing wording of your own. "
         "IMPORTANT: If you need to mention/call people to the discussion (so they get notifications), "
         "do NOT rely on '@login' in the text — use the `summonees` parameter instead.",
         annotations=ToolAnnotations(readOnlyHint=False),

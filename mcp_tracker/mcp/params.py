@@ -2,10 +2,27 @@ from typing import Annotated
 
 from pydantic import Field
 
+from mcp_tracker.tracker.proto.types.inputs import (
+    IssueComponentRef,
+    IssueFollowerRef,
+    IssueParentRef,
+    IssueProjectRef,
+    IssueSprintRef,
+)
+
 PageParam = Annotated[
     int,
     Field(
         description="Page number to return, default is 1",
+        ge=1,
+    ),
+]
+
+PageOrAllParam = Annotated[
+    int | None,
+    Field(
+        description="Page number to return, default is None which means to retrieve all pages. "
+        "Specify page number to retrieve a specific page when context limit is reached.",
         ge=1,
     ),
 ]
@@ -38,6 +55,104 @@ QueueID = Annotated[
     str,
     Field(
         description="Queue (Project ID) to search in, like 'SOMEPROJECT'",
+    ),
+]
+
+QueueIDFilter = Annotated[
+    str | None,
+    Field(
+        description="Optional queue (Project ID) to scope the result to, like 'SOMEPROJECT'. "
+        "Templates that are not bound to any queue are usable everywhere and are returned as well.",
+    ),
+]
+
+IssueTemplateID = Annotated[
+    str,
+    Field(
+        description="Issue template identifier, as returned by the `issue_templates_get_all` tool",
+    ),
+]
+
+CommentTemplateID = Annotated[
+    str,
+    Field(
+        description="Comment template identifier, as returned by the `comment_templates_get_all` tool",
+    ),
+]
+
+# Write parameters shared by issue_create and issue_update. The update tool
+# replaces list-valued fields instead of adding to them, so its variants append
+# that clause to the same base description rather than restating it.
+MarkupTypeParam = Annotated[
+    str,
+    Field(
+        description="Markup type for description text. Use 'md' for YFM (markdown) markup."
+    ),
+]
+
+_PARENT_DESCRIPTION = (
+    "Parent issue reference. Object with 'id' (parent issue ID) "
+    "and/or 'key' (parent issue key like 'QUEUE-123'); when both are given Tracker "
+    "resolves by 'id'"
+)
+
+IssueParentParam = Annotated[
+    IssueParentRef | str | None,
+    Field(description=f"{_PARENT_DESCRIPTION}, or the bare key."),
+]
+
+IssueSprintParam = Annotated[
+    list[IssueSprintRef] | None,
+    Field(
+        description="Sprint assignments. Array of objects, each with 'id' field "
+        "containing the sprint ID (integer)."
+    ),
+]
+
+IssueProjectParam = Annotated[
+    IssueProjectRef | None,
+    Field(
+        description="Project assignment. Object with 'primary' (int, main project shortId) "
+        "and optional 'secondary' (list of ints, additional project shortIds)."
+    ),
+]
+
+IssueTagsParam = Annotated[
+    list[str] | None,
+    Field(description="Issue tags as array of strings."),
+]
+
+_FOLLOWERS_DESCRIPTION = (
+    "Issue followers/watchers. Array of objects, each with an 'id' field "
+    "holding the user ID (uid) or login."
+)
+
+IssueFollowersParam = Annotated[
+    list[IssueFollowerRef] | None,
+    Field(description=_FOLLOWERS_DESCRIPTION),
+]
+
+IssueFollowersUpdateParam = Annotated[
+    list[IssueFollowerRef] | None,
+    Field(description=f"{_FOLLOWERS_DESCRIPTION} Replaces the current follower list."),
+]
+
+_COMPONENTS_DESCRIPTION = (
+    "Queue components. Array of objects with either 'id' (numeric component ID, "
+    "from queue_get_metadata with expand=['components']) or 'name' (component name). "
+    "Tracker resolves numbers as IDs and strings as names, so the object form is required "
+    "to avoid a 422 on a numeric-looking name."
+)
+
+IssueComponentsParam = Annotated[
+    list[IssueComponentRef] | None,
+    Field(description=_COMPONENTS_DESCRIPTION),
+]
+
+IssueComponentsUpdateParam = Annotated[
+    list[IssueComponentRef] | None,
+    Field(
+        description=f"{_COMPONENTS_DESCRIPTION} Replaces the current component list."
     ),
 ]
 
@@ -111,7 +226,7 @@ In russian Yandex Tracker is called "Яндекс Трекер", "Трекер".
 Queues may be called "Очереди".
 Tasks may be called "Задачи", "Issues", "Таски", "ишью".
 
-When using tools that accept `page` and/or `per_page` parameters and when the task is to find something in the result set (or to receive all available data) - always call the tool as many times as needed increasing the `page` parameter until ther result set is exhausted. If you stumble with the context size limit — try to change the `per_page` parameter to a lower value and restart the search from the `page=1`.
+When using tools that accept `page` and/or `per_page` parameters and when the task is to find something in the result set (or to receive all available data) - always call the tool as many times as needed increasing the `page` parameter until the result set is exhausted. If you stumble with the context size limit — try to change the `per_page` parameter to a lower value and restart the search from the `page=1`.
 
 Some tools use cursor pagination instead of `page` (e.g. `issue_get_changelog`): they accept a `cursor` argument and return a `next_cursor` value. To get all data, keep calling the tool passing the previous `next_cursor` as `cursor` until `next_cursor` is null. Do not change `per_page` mid-pagination; if you must, restart with `cursor` empty.
 """

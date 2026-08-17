@@ -1,4 +1,5 @@
 import datetime
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -10,12 +11,13 @@ from mcp_tracker.tracker.proto.issues import IssueProtocolWrap
 from mcp_tracker.tracker.proto.queues import QueuesProtocolWrap
 from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
 from mcp_tracker.tracker.proto.types.inputs import (
-    IssueUpdateFollower,
-    IssueUpdateParent,
-    IssueUpdatePriority,
-    IssueUpdateProject,
-    IssueUpdateSprint,
-    IssueUpdateType,
+    IssueComponentRef,
+    IssueFollowerRef,
+    IssueParentRef,
+    IssuePriorityRef,
+    IssueProjectRef,
+    IssueSprintRef,
+    IssueTypeRef,
 )
 from mcp_tracker.tracker.proto.types.issue_types import IssueType
 from mcp_tracker.tracker.proto.types.issues import (
@@ -304,26 +306,36 @@ def make_cached_protocols(
             queue: str,
             summary: str,
             *,
-            type: int | None = None,
+            type: IssueTypeRef | str | int | None = None,
             description: str | None = None,
+            markup_type: str | None = None,
             assignee: str | int | None = None,
-            priority: str | None = None,
-            parent: str | None = None,
-            sprint: list[str] | None = None,
+            priority: IssuePriorityRef | str | int | None = None,
+            parent: IssueParentRef | str | None = None,
+            sprint: Sequence[IssueSprintRef | str | int] | None = None,
+            followers: list[IssueFollowerRef] | None = None,
+            components: list[IssueComponentRef] | None = None,
+            tags: list[str] | None = None,
+            project: IssueProjectRef | None = None,
             auth: YandexAuth | None = None,
-            **kwargs: dict[str, Any],
+            fields: dict[str, Any] | None = None,
         ) -> Issue:
             return await self._original.issue_create(
                 queue,
                 summary,
                 type=type,
                 description=description,
+                markup_type=markup_type,
                 assignee=assignee,
                 priority=priority,
                 parent=parent,
                 sprint=sprint,
+                followers=followers,
+                components=components,
+                tags=tags,
+                project=project,
                 auth=auth,
-                **kwargs,
+                fields=fields,
             )
 
         @cached(**cache_config)
@@ -395,18 +407,20 @@ def make_cached_protocols(
             summary: str | None = None,
             description: str | None = None,
             markup_type: str | None = None,
-            parent: IssueUpdateParent | None = None,
-            sprint: list[IssueUpdateSprint] | None = None,
-            type: IssueUpdateType | None = None,
-            priority: IssueUpdatePriority | None = None,
-            followers: list[IssueUpdateFollower] | None = None,
-            project: IssueUpdateProject | None = None,
+            parent: IssueParentRef | str | None = None,
+            sprint: Sequence[IssueSprintRef | str | int] | None = None,
+            type: IssueTypeRef | str | int | None = None,
+            priority: IssuePriorityRef | str | int | None = None,
+            assignee: str | int | None = None,
+            followers: list[IssueFollowerRef] | None = None,
+            components: list[IssueComponentRef] | None = None,
+            project: IssueProjectRef | None = None,
             attachment_ids: list[str] | None = None,
             description_attachment_ids: list[str] | None = None,
             tags: list[str] | None = None,
             version: int | None = None,
             auth: YandexAuth | None = None,
-            **kwargs: Any,
+            fields: dict[str, Any] | None = None,
         ) -> Issue:
             return await self._original.issue_update(
                 issue_id,
@@ -417,14 +431,16 @@ def make_cached_protocols(
                 sprint=sprint,
                 type=type,
                 priority=priority,
+                assignee=assignee,
                 followers=followers,
+                components=components,
                 project=project,
                 attachment_ids=attachment_ids,
                 description_attachment_ids=description_attachment_ids,
                 tags=tags,
                 version=version,
                 auth=auth,
-                **kwargs,
+                fields=fields,
             )
 
         async def issue_move(

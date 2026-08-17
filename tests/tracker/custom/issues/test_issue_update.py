@@ -4,15 +4,16 @@ import pytest
 from aioresponses import aioresponses
 
 from mcp_tracker.tracker.custom.client import TrackerClient
-from mcp_tracker.tracker.custom.errors import IssueNotFound
+from mcp_tracker.tracker.custom.errors import IssueNotFound, IssueVersionConflict
 from mcp_tracker.tracker.proto.common import YandexAuth
 from mcp_tracker.tracker.proto.types.inputs import (
-    IssueUpdateFollower,
-    IssueUpdateParent,
-    IssueUpdatePriority,
-    IssueUpdateProject,
-    IssueUpdateSprint,
-    IssueUpdateType,
+    IssueComponentRef,
+    IssueFollowerRef,
+    IssueParentRef,
+    IssuePriorityRef,
+    IssueProjectRef,
+    IssueSprintRef,
+    IssueTypeRef,
 )
 from mcp_tracker.tracker.proto.types.issues import Issue
 from tests.aioresponses_utils import RequestCapture
@@ -137,7 +138,7 @@ class TestIssueUpdate:
 
             result = await tracker_client.issue_update(
                 "TEST-123",
-                parent=IssueUpdateParent(key="TEST-100"),
+                parent=IssueParentRef(key="TEST-100"),
             )
 
             assert isinstance(result, Issue)
@@ -160,8 +161,8 @@ class TestIssueUpdate:
             result = await tracker_client.issue_update(
                 "TEST-123",
                 sprint=[
-                    IssueUpdateSprint(id=1),
-                    IssueUpdateSprint(id=2),
+                    IssueSprintRef(id=1),
+                    IssueSprintRef(id=2),
                 ],
             )
 
@@ -184,7 +185,7 @@ class TestIssueUpdate:
 
             result = await tracker_client.issue_update(
                 "TEST-123",
-                type=IssueUpdateType(key="bug"),
+                type=IssueTypeRef(key="bug"),
             )
 
             assert isinstance(result, Issue)
@@ -206,7 +207,7 @@ class TestIssueUpdate:
 
             result = await tracker_client.issue_update(
                 "TEST-123",
-                priority=IssueUpdatePriority(key="critical"),
+                priority=IssuePriorityRef(key="critical"),
             )
 
             assert isinstance(result, Issue)
@@ -229,8 +230,8 @@ class TestIssueUpdate:
             result = await tracker_client.issue_update(
                 "TEST-123",
                 followers=[
-                    IssueUpdateFollower(id="user1"),
-                    IssueUpdateFollower(id="user2"),
+                    IssueFollowerRef(id="user1"),
+                    IssueFollowerRef(id="user2"),
                 ],
             )
 
@@ -253,7 +254,7 @@ class TestIssueUpdate:
 
             result = await tracker_client.issue_update(
                 "TEST-123",
-                project=IssueUpdateProject(primary=123, secondary=[456, 789]),
+                project=IssueProjectRef(primary=123, secondary=[456, 789]),
             )
 
             assert isinstance(result, Issue)
@@ -341,7 +342,7 @@ class TestIssueUpdate:
 
             result = await tracker_client.issue_update(
                 "TEST-123",
-                customField="custom value",
+                fields={"customField": "custom value"},
             )
 
             assert isinstance(result, Issue)
@@ -407,7 +408,7 @@ class TestIssueUpdate:
                 "TEST-123",
                 summary="Updated summary",
                 description="Updated description",
-                priority=IssueUpdatePriority(key="critical"),
+                priority=IssuePriorityRef(key="critical"),
                 tags=["urgent"],
             )
 
@@ -419,3 +420,109 @@ class TestIssueUpdate:
         assert body["description"] == "Updated description"
         assert body["priority"] == {"key": "critical"}
         assert body["tags"] == ["urgent"]
+
+    async def test_success_update_components(
+        self, tracker_client: TrackerClient, updated_issue_data: dict[str, Any]
+    ) -> None:
+        capture = RequestCapture(payload=updated_issue_data)
+
+        with aioresponses() as m:
+            m.patch(
+                "https://api.tracker.yandex.net/v3/issues/TEST-123",
+                callback=capture.callback,
+            )
+
+            result = await tracker_client.issue_update(
+                "TEST-123",
+                components=[IssueComponentRef(id=694), IssueComponentRef(name="Infra")],
+            )
+
+            assert isinstance(result, Issue)
+
+        capture.assert_called_once()
+        body = capture.last_request.get_json_body()
+        assert body["components"] == [694, "Infra"]
+
+    async def test_success_update_assignee(
+        self, tracker_client: TrackerClient, updated_issue_data: dict[str, Any]
+    ) -> None:
+        capture = RequestCapture(payload=updated_issue_data)
+
+        with aioresponses() as m:
+            m.patch(
+                "https://api.tracker.yandex.net/v3/issues/TEST-123",
+                callback=capture.callback,
+            )
+
+            result = await tracker_client.issue_update("TEST-123", assignee="user123")
+
+            assert isinstance(result, Issue)
+
+        capture.assert_called_once()
+        body = capture.last_request.get_json_body()
+        assert body["assignee"] == "user123"
+
+    async def test_version_conflict(self, tracker_client: TrackerClient) -> None:
+        """A stale `version` is reported as a conflict the caller can act on.
+
+        Tracker bumps the version on every change, including the ones queue
+        triggers make right after creation, so an update using the version
+        returned by issue_create can hit this.
+        """
+        with aioresponses() as m:
+            m.patch(
+                "https://api.tracker.yandex.net/v3/issues/TEST-123?version=1",
+                status=409,
+            )
+
+            with pytest.raises(IssueVersionConflict) as exc_info:
+                await tracker_client.issue_update(
+                    "TEST-123", summary="Updated summary", version=1
+                )
+
+        assert exc_info.value.issue_id == "TEST-123"
+        assert exc_info.value.version == 1
+        assert "issue_get" in str(exc_info.value)
+
+
+class TestIssueUpdateFields:
+    """`fields` is the escape hatch: it overrides the dedicated parameters and
+    is the only way to clear a field, since an unset parameter is not sent."""
+
+    async def test_fields_override_a_dedicated_parameter(
+        self, tracker_client: TrackerClient, sample_issue_data: dict[str, Any]
+    ) -> None:
+        capture = RequestCapture(payload=sample_issue_data)
+
+        with aioresponses() as m:
+            m.patch(
+                "https://api.tracker.yandex.net/v3/issues/TEST-1",
+                callback=capture.callback,
+            )
+
+            await tracker_client.issue_update(
+                "TEST-1",
+                assignee="jdoe",
+                fields={"assignee": "someone-else"},
+            )
+
+        assert capture.last_request.get_json_body()["assignee"] == "someone-else"
+
+    async def test_fields_null_clears_a_dedicated_parameter(
+        self, tracker_client: TrackerClient, sample_issue_data: dict[str, Any]
+    ) -> None:
+        capture = RequestCapture(payload=sample_issue_data)
+
+        with aioresponses() as m:
+            m.patch(
+                "https://api.tracker.yandex.net/v3/issues/TEST-1",
+                callback=capture.callback,
+            )
+
+            await tracker_client.issue_update(
+                "TEST-1", fields={"assignee": None, "parent": None}
+            )
+
+        body = capture.last_request.get_json_body()
+        assert body["assignee"] is None
+        assert body["parent"] is None
