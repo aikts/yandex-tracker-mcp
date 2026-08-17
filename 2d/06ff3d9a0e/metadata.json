@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "2d06ff3d9a0e",
+  "strategy": "manual-commit",
+  "branch": "claude/issue-43-implementation-40zi79",
+  "checkpoints_count": 8,
+  "files_touched": [
+    "mcp_tracker/mcp/params.py",
+    "mcp_tracker/mcp/tools/_access.py",
+    "mcp_tracker/mcp/tools/_pagination.py",
+    "mcp_tracker/mcp/tools/issue_write.py",
+    "mcp_tracker/mcp/tools/queue.py",
+    "mcp_tracker/mcp/tools/template.py",
+    "mcp_tracker/mcp/tools/user.py",
+    "tests/mcp/tools/test_pagination.py",
+    "tests/mcp/tools/test_template_tools.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/2d/06ff3d9a0e/0/metadata.json",
+      "transcript": "/2d/06ff3d9a0e/0/full.jsonl",
+      "compact_transcript": "/2d/06ff3d9a0e/0/transcript.jsonl",
+      "content_hash": "/2d/06ff3d9a0e/0/content_hash.txt",
+      "prompt": "/2d/06ff3d9a0e/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 77,
+    "cache_creation_tokens": 357562,
+    "cache_read_tokens": 12813776,
+    "output_tokens": 44204,
+    "api_call_count": 41
+  }
+}
