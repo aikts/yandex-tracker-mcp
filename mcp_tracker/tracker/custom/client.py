@@ -1864,15 +1864,11 @@ class TrackerClient(
             page = EntityCommentsRelativePage.model_validate_json(await response.read())
             next_cursor: str | None = None
             if page.hasNext and page.comments:
-<<<<<<< HEAD
-                next_cursor = str(page.comments[-1].id)
-=======
                 # `longId` is optional on the comment model; fall back to the
                 # numeric id (the API accepts either) so a truncated page is
                 # never reported as the complete list.
                 last = page.comments[-1]
                 next_cursor = last.long_id or str(last.id)
->>>>>>> abfb1df (fix: guard entity comment cursor and empty fields selection)
             return CommentsPage(comments=page.comments, next_cursor=next_cursor)
 
     async def _entity_add_comment(
