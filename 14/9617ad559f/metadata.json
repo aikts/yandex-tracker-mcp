@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "149617ad559f",
+  "strategy": "manual-commit",
+  "branch": "recompose3",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "mcp_tracker/mcp/tools/field.py",
+    "mcp_tracker/mcp/tools/queue.py",
+    "mcp_tracker/tracker/proto/types/priorities.py",
+    "mcp_tracker/tracker/proto/types/queues.py",
+    "tests/mcp/tools/conftest.py",
+    "tests/mcp/tools/test_queue_tools.py",
+    "tests/tracker/caching/test_global_data_protocol.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/14/9617ad559f/0/metadata.json",
+      "transcript": "/14/9617ad559f/0/full.jsonl",
+      "compact_transcript": "/14/9617ad559f/0/transcript.jsonl",
+      "content_hash": "/14/9617ad559f/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1,
+    "cache_creation_tokens": 947,
+    "cache_read_tokens": 595094,
+    "output_tokens": 939,
+    "api_call_count": 1
+  }
+}
