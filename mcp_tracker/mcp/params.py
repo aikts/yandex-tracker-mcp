@@ -595,6 +595,8 @@ Use these tools to:
 - View issue details, comments, attachments, and worklogs
 - Get information about users, statuses, and issue types
 - Query issues using Yandex Query Language (YQL)
+- Look up agile boards, their columns and their sprints
+- Create and edit issues, comments, worklogs and links (unless the server runs read-only)
 
 In russian Yandex Tracker is called "Яндекс Трекер", "Трекер".
 Queues may be called "Очереди".
@@ -604,6 +606,16 @@ Portfolios may be called "Портфели".
 Goals may be called "Цели".
 
 Boards ("доски") have no queue field - a board collects whatever its own filter matches. To find the boards of a queue, try both ways: `boards_get_all` with `queue` matches the board's own filter, and misses the boards that filter by something else (personal boards filtering by assignee, for one); reading a few issues of the queue with `issues_find` and looking at their `boards` field catches exactly those.
+
+Writing: `issue_update` takes an optional `version` for optimistic locking. Tracker bumps the version on every change, including the queue triggers and automation that fire right after an issue is created, so the version returned by `issue_create` is routinely stale already - re-read it with `issue_get` before retrying, or omit `version` to update the latest version unconditionally.
+
+Templates are read-only helpers: Tracker cannot create an issue or a comment *from* a template, so no write tool takes a template id. Read the template with `issue_template_get` / `comment_template_get` and pass its values as the write tool's own arguments.
+
+To mention or call users on an issue, use the `summonees` argument of `issue_add_comment` / `issue_update_comment` - a plain `@login` in the comment text notifies nobody.
+
+Tools that accept a `fields` argument (`issues_find`, `queues_get_all`, `boards_get_all`, `board_get`, `board_get_sprints`, ...) return only the fields you select. Use it to keep a large listing out of the context window while searching, then re-read the one record you need in full.
+
+The server may be configured to be read-only, or to allow only some queues: a write tool that is missing, a rejected write, or a queue reported as "not found or not allowed" can be that configuration rather than missing data. Say so instead of retrying.
 
 ## Queues vs. projects/portfolios/goals
 
