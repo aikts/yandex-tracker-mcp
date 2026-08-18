@@ -2,6 +2,41 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.0-dev] - unreleased
+
+### Features
+- Add `TRACKER_READ_ONLY_QUEUES` for per-queue read-only access ([closes #36](https://github.com/aikts/yandex-tracker-mcp/issues/36))
+  - One instance can now be read-write on some queues and read-only on others, instead of running two
+  - Write tools stay registered; each mutating call validates its target queue against the allow-list, while reads are unaffected
+- Add read-only issue and comment template tools ([fixes #43](https://github.com/aikts/yandex-tracker-mcp/issues/43), [#48](https://github.com/aikts/yandex-tracker-mcp/pull/48))
+  - `issue_templates_get_all` / `issue_template_get` return the templates teams keep for bugs, incidents and other recurring work, including the `fieldTemplates` values they prefill
+  - `comment_templates_get_all` / `comment_template_get` return the wording teams reuse when replying, with the users and mailing lists such a comment summons
+  - Both listings take an optional `queue` and answer with that queue's templates plus the ones bound to no queue, which are usable everywhere
+  - Both walk every page by default (the endpoints paginate at 50 items, so a single request used to be a silent truncation) and accept `page` / `per_page` for one page at a time
+  - `TRACKER_LIMIT_QUEUES` is enforced: templates of a restricted queue are dropped from the listings and rejected on direct access, and a restricted `queue` argument is refused before the request
+  - Neither endpoint is in the public API reference; the models follow the official `yandex_tracker_client` collections and keep undeclared response fields instead of dropping them
+- Give `issue_create` the typed reference parameters `issue_update` already had - `parent`, `sprint`, `followers`, `components`, `tags`, `project`, `markup_type` - so a value that works in one tool works in the other
+- Add `assignee` and `components` to `issue_update`
+- `fields` maps on `issue_create` / `issue_update` now override the dedicated parameter of the same name, which is how a field is cleared: `{"assignee": null}` clears it, where an unset parameter is simply not sent
+- `queue_get_metadata` actually returns what `expand` asked for, and answers a requested but empty section with an empty list instead of leaving it out
+- `get_priorities` returns the priority `id` and `description`
+
+### Breaking Changes
+- Entity responses now use Tracker's own field names instead of the Python ones: `storyPoints`, `createdAt`, `updatedBy`, `textHtml`, `executedTriggers`, `maillistSummonees` and the rest, matching what the same fields are called on input. A response can now be fed straight back into a `fields` map; callers that read `story_points` or `created_at` from tool output need updating
+
+### Bug Fixes
+- `IssueComment` is a complete model again: `MaillistReference` was declared after the forward reference that used it, leaving the model unbuilt
+- `issue_create` no longer answers 422 for `components: ["694"]` or `followers: ["8000000000000034"]`: reference values are typed models shared with `issue_update` and serialized identically, with `IssueComponentRef` requiring exactly one of `id` / `name` because Tracker reads a bare string there as a component *name*
+- A key in `fields` naming a dedicated parameter no longer fails the call with a raw `TypeError: got multiple values for keyword argument 'parent'`
+- `assignee` and `parent` can be cleared at all (previously `null` was unreachable and `""` answered 422)
+- An empty reference object (`type={}`) is refused locally with a readable message instead of an unhelpful 400/422 from Tracker
+- API errors carry Tracker's own `errorMessages` / `errors` in `TrackerAPIError` instead of a bare "Unprocessable Entity"
+- 409 on update raises `IssueVersionConflict`, which explains that queue triggers bump the version right after creation, so the version returned by `issue_create` must not be reused
+- A missing queue raises `QueueNotFound` on every queue-scoped read (`queue_get`, `queues_get_tags`, `queues_get_versions`, `queues_get_local_fields`, `queues_get_fields`), not just on the newest ones
+- `queue_get_fields` is described as what it is - the fields configured on the queue - and points at `get_global_fields` for the rest; system fields such as `parent` or `estimation` are settable without appearing in the queue listing
+- `get_priorities` is findable by tool search: its description now names the priority levels and the parameter it feeds
+- Issue templates expose a single, normalized `description`; the issue body a template prefills stays in `fieldTemplates.description`
+
 ## [0.7.3] - 2026-07-28
 
 ### Bug Fixes
