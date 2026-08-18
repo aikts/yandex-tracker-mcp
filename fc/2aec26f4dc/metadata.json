@@ -2,23 +2,48 @@
   "cli_version": "0.8.42",
   "checkpoint_id": "fc2aec26f4dc",
   "strategy": "manual-commit",
-  "branch": "recompose2",
-  "checkpoints_count": 5,
-  "files_touched": null,
+  "branch": "recompose3",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "CLAUDE.md",
+    "manifest.json",
+    "mcp_tracker/mcp/context.py",
+    "mcp_tracker/mcp/server.py",
+    "mcp_tracker/mcp/tools/__init__.py",
+    "mcp_tracker/mcp/tools/_access.py",
+    "mcp_tracker/mcp/tools/_pagination.py",
+    "mcp_tracker/mcp/tools/queue.py",
+    "mcp_tracker/mcp/tools/template.py",
+    "mcp_tracker/mcp/tools/user.py",
+    "mcp_tracker/tracker/caching/client.py",
+    "mcp_tracker/tracker/custom/client.py",
+    "mcp_tracker/tracker/custom/errors.py",
+    "mcp_tracker/tracker/proto/templates.py",
+    "mcp_tracker/tracker/proto/types/templates.py",
+    "tests/mcp/conftest.py",
+    "tests/mcp/server/test_server_creation.py",
+    "tests/mcp/tools/conftest.py",
+    "tests/mcp/tools/test_pagination.py",
+    "tests/mcp/tools/test_template_tools.py",
+    "tests/tracker/caching/test_protocol_conformance.py",
+    "tests/tracker/caching/test_templates_protocol.py",
+    "tests/tracker/custom/test_comment_templates.py",
+    "tests/tracker/custom/test_issue_templates.py"
+  ],
   "sessions": [
     {
       "metadata": "/fc/2aec26f4dc/0/metadata.json",
       "transcript": "/fc/2aec26f4dc/0/full.jsonl",
       "compact_transcript": "/fc/2aec26f4dc/0/transcript.jsonl",
       "content_hash": "/fc/2aec26f4dc/0/content_hash.txt",
-      "prompt": "/fc/2aec26f4dc/0/prompt.txt"
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 4694,
-    "cache_creation_tokens": 2200391,
-    "cache_read_tokens": 96116113,
-    "output_tokens": 278766,
-    "api_call_count": 310
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
   }
 }
