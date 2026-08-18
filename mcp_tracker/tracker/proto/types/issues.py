@@ -38,6 +38,7 @@ class Issue(CreatedUpdatedMixin, BaseTrackerEntity):
     previous_status: StatusReference | None = Field(
         None,
         validation_alias=AliasChoices("previousStatus", "previous_status"),
+        serialization_alias="previousStatus",
         exclude_if=none_excluder,
     )
     deadline: datetime.date | None = NoneExcludedField
@@ -46,6 +47,7 @@ class Issue(CreatedUpdatedMixin, BaseTrackerEntity):
     story_points: float | None = Field(
         None,
         validation_alias=AliasChoices("storyPoints", "story_points"),
+        serialization_alias="storyPoints",
         exclude_if=none_excluder,
     )
     tags: list[str] | None = NoneExcludedField
@@ -70,12 +72,16 @@ class MaillistReference(BaseReference):
 class IssueComment(CreatedUpdatedMixin, BaseTrackerEntity):
     id: int
     long_id: str | None = Field(
-        None, validation_alias=AliasChoices("longId", "long_id")
+        None,
+        validation_alias=AliasChoices("longId", "long_id"),
+        serialization_alias="longId",
     )
     text: str | None = None
     transport: str | None = None
     text_html: str | None = Field(
-        None, validation_alias=AliasChoices("textHtml", "text_html")
+        None,
+        validation_alias=AliasChoices("textHtml", "text_html"),
+        serialization_alias="textHtml",
     )
     summonees: list[UserReference] | None = Field(
         None,
@@ -85,6 +91,7 @@ class IssueComment(CreatedUpdatedMixin, BaseTrackerEntity):
     maillist_summonees: list[MaillistReference] | None = Field(
         None,
         validation_alias=AliasChoices("maillistSummonees", "maillist_summonees"),
+        serialization_alias="maillistSummonees",
         exclude_if=none_excluder,
     )
 
@@ -132,7 +139,9 @@ class IssueAttachment(CreatedMixin, BaseTrackerEntity):
     content: str | None = None
     size: int | None = None
     mimetype: str | None = Field(
-        None, validation_alias=AliasChoices("mimeType", "mimetype")
+        None,
+        validation_alias=AliasChoices("mimeType", "mimetype"),
+        serialization_alias="mimeType",
     )
     metadata: dict[str, str] | None = None
 
@@ -140,10 +149,12 @@ class IssueAttachment(CreatedMixin, BaseTrackerEntity):
 class ChecklistItemDeadline(BaseModel):
     date: datetime.datetime
     deadline_type: str = Field(
-        validation_alias=AliasChoices("deadlineType", "deadline_type")
+        validation_alias=AliasChoices("deadlineType", "deadline_type"),
+        serialization_alias="deadlineType",
     )
     is_exceeded: bool = Field(
-        validation_alias=AliasChoices("isExceeded", "is_exceeded")
+        validation_alias=AliasChoices("isExceeded", "is_exceeded"),
+        serialization_alias="isExceeded",
     )
 
 
@@ -151,13 +162,17 @@ class ChecklistItem(BaseTrackerEntity):
     id: str
     text: str
     text_html: str | None = Field(
-        None, validation_alias=AliasChoices("textHtml", "text_html")
+        None,
+        validation_alias=AliasChoices("textHtml", "text_html"),
+        serialization_alias="textHtml",
     )
     checked: bool = False
     assignee: UserReference | None = None
     deadline: ChecklistItemDeadline | None = None
     checklist_item_type: str | None = Field(
-        None, validation_alias=AliasChoices("checklistItemType", "checklist_item_type")
+        None,
+        validation_alias=AliasChoices("checklistItemType", "checklist_item_type"),
+        serialization_alias="checklistItemType",
     )
 
 
@@ -240,6 +255,7 @@ class ChangelogEntry(CreatedUpdatedMixin, BaseTrackerEntity):
     executed_triggers: list[ChangelogExecutedTrigger] | None = Field(
         None,
         validation_alias=AliasChoices("executedTriggers", "executed_triggers"),
+        serialization_alias="executedTriggers",
         exclude_if=none_excluder,
     )
 

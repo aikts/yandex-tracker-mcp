@@ -36,10 +36,14 @@ class SprintReference(BaseReference):
 class UserReference(BaseReference):
     display: str | None = None
     cloud_uid: str | None = Field(
-        None, validation_alias=AliasChoices("cloudUid", "cloud_uid")
+        None,
+        validation_alias=AliasChoices("cloudUid", "cloud_uid"),
+        serialization_alias="cloudUid",
     )
     passport_uid: int | None = Field(
-        None, validation_alias=AliasChoices("passportUid", "passport_uid")
+        None,
+        validation_alias=AliasChoices("passportUid", "passport_uid"),
+        serialization_alias="passportUid",
     )
 
 

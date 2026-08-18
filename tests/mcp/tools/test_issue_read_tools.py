@@ -375,8 +375,8 @@ class TestIssueGetChangelog:
         assert not result.isError
         entry = get_tool_result_content(result)["entries"][0]
         assert entry["comments"]["added"][0]["display"] == "Looks good"
-        assert entry["executed_triggers"][0]["trigger"]["display"] == "Auto-assign"
-        assert entry["executed_triggers"][0]["success"] is True
+        assert entry["executedTriggers"][0]["trigger"]["display"] == "Auto-assign"
+        assert entry["executedTriggers"][0]["success"] is True
 
     async def test_passes_pagination_and_filters(
         self,
