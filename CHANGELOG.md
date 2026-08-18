@@ -20,8 +20,6 @@ All notable changes to this project will be documented in this file.
 - `fields` maps on `issue_create` / `issue_update` now override the dedicated parameter of the same name, which is how a field is cleared: `{"assignee": null}` clears it, where an unset parameter is simply not sent
 - `queue_get_metadata` actually returns what `expand` asked for, and answers a requested but empty section with an empty list instead of leaving it out
 - `get_priorities` returns the priority `id` and `description`
-
-### Features
 - Add MCP tools for Yandex Tracker projects, portfolios and goals — the entities API, distinct from queues and issues
   - Read: `project_get`/`project_find`, `portfolio_get`/`portfolio_find`, `goal_get`/`goal_find`, each with an explicit per-entity `fields` selector defaulting to a small base field set
   - Write: create/update/delete per entity type, with optimistic concurrency via `version`

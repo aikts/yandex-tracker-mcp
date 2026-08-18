@@ -95,11 +95,13 @@ class EntityDeadline(BaseTrackerEntity):
     deadline_type: str | None = Field(
         None,
         validation_alias=AliasChoices("deadlineType", "deadline_type"),
+        serialization_alias="deadlineType",
         exclude_if=none_excluder,
     )
     is_exceeded: bool | None = Field(
         None,
         validation_alias=AliasChoices("isExceeded", "is_exceeded"),
+        serialization_alias="isExceeded",
         exclude_if=none_excluder,
     )
 
@@ -112,6 +114,7 @@ class EntityChecklistItem(BaseTrackerEntity):
     text_html: str | None = Field(
         None,
         validation_alias=AliasChoices("textHtml", "text_html"),
+        serialization_alias="textHtml",
     )
     checked: bool = False
     assignee: UserReference | None = None
@@ -119,6 +122,7 @@ class EntityChecklistItem(BaseTrackerEntity):
     checklist_item_type: str | None = Field(
         None,
         validation_alias=AliasChoices("checklistItemType", "checklist_item_type"),
+        serialization_alias="checklistItemType",
     )
 
 
