@@ -1,0 +1,41 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "433a932e95a4",
+  "session_id": "56f246a6-22ac-47ec-b3dc-f398fce1262b",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-18T14:35:02.203552Z",
+  "branch": "claude/issue-42-implementation-s7h41x",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "mcp_tracker/mcp/params.py",
+    "tests/mcp/server/test_instructions.py"
+  ],
+  "agent": "Claude Code",
+  "model": "",
+  "turn_id": "98da413840e8",
+  "checkpoint_transcript_start": 1018,
+  "transcript_lines_at_start": 1018,
+  "compact_transcript_start": 163,
+  "token_usage": {
+    "input_tokens": 22,
+    "cache_creation_tokens": 12008,
+    "cache_read_tokens": 3071786,
+    "output_tokens": 8371,
+    "api_call_count": 12
+  },
+  "session_metrics": {
+    "turn_count": 6
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-18T14:35:02.102194Z",
+    "agent_lines": 92,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 92,
+    "total_lines_changed": 92,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}
