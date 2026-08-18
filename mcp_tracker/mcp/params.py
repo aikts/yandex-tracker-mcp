@@ -603,6 +603,8 @@ Projects may be called "Проекты".
 Portfolios may be called "Портфели".
 Goals may be called "Цели".
 
+Boards ("доски") have no queue field - a board collects whatever its own filter matches. To find the boards of a queue, try both ways: `boards_get_all` with `queue` matches the board's own filter, and misses the boards that filter by something else (about a third of them, e.g. personal boards filtering by assignee); reading a few issues of the queue with `issues_find` and looking at their `boards` field catches exactly those.
+
 ## Queues vs. projects/portfolios/goals
 
 A "queue" (e.g. `SOMEPROJECT` in an issue key like `SOMEPROJECT-1`) is where issues live and get

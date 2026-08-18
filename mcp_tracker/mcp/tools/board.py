@@ -77,7 +77,10 @@ def register_board_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         "Use the returned board id with the `board_get`, `board_get_columns` and "
         "`board_get_sprints` tools. "
         "Pass `queue` to get only the boards that collect issues of that queue - "
-        "that is the way to answer 'which board does this project use'. "
+        "that is the way to answer 'which board does this project use'. It matches "
+        "the board's own filter, so it misses boards filtering by something else "
+        "(personal boards, for one); to catch those, read a few issues of the queue "
+        "with `issues_find` and look at their `boards` field. "
         "An organization can have hundreds of boards, so the listing is paginated - "
         "keep increasing `page` until it comes back empty, and pass `fields` to keep "
         "the answer small while searching for the board you need.",
