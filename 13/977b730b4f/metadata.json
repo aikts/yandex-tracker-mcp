@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "13977b730b4f",
+  "strategy": "manual-commit",
+  "branch": "claude/issue-43-implementation-40zi79",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "CHANGELOG.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/13/977b730b4f/0/metadata.json",
+      "transcript": "/13/977b730b4f/0/full.jsonl",
+      "compact_transcript": "/13/977b730b4f/0/transcript.jsonl",
+      "content_hash": "/13/977b730b4f/0/content_hash.txt",
+      "prompt": "/13/977b730b4f/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 8,
+    "cache_creation_tokens": 4899,
+    "cache_read_tokens": 2401052,
+    "output_tokens": 4005,
+    "api_call_count": 4
+  }
+}
