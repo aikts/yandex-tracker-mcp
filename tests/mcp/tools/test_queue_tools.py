@@ -236,3 +236,47 @@ class TestQueueGetMetadata:
 
         assert result.isError
         mock_queues_protocol.queue_get.assert_not_called()
+
+
+class TestQueueGetMetadataExpand:
+    """`expand` sections arrive as extra keys and Tracker omits an empty one, so
+    the model has to keep unknown keys and the tool has to answer with a list."""
+
+    async def test_keeps_the_expanded_sections(
+        self,
+        client_session: ClientSession,
+        mock_queues_protocol: AsyncMock,
+    ) -> None:
+        mock_queues_protocol.queue_get.return_value = Queue.model_validate(
+            {
+                "id": 1,
+                "key": "TEST",
+                "components": [{"id": "783", "display": "Frontend"}],
+            }
+        )
+
+        result = await client_session.call_tool(
+            "queue_get_metadata", {"queue_id": "TEST", "expand": ["components"]}
+        )
+
+        assert not result.isError
+        content = get_tool_result_content(result)
+        assert content["components"] == [{"id": "783", "display": "Frontend"}]
+
+    async def test_an_empty_section_comes_back_as_an_empty_list(
+        self,
+        client_session: ClientSession,
+        mock_queues_protocol: AsyncMock,
+        sample_queue: Queue,
+    ) -> None:
+        mock_queues_protocol.queue_get.return_value = sample_queue
+
+        result = await client_session.call_tool(
+            "queue_get_metadata",
+            {"queue_id": "TEST", "expand": ["components", "versions"]},
+        )
+
+        assert not result.isError
+        content = get_tool_result_content(result)
+        assert content["components"] == []
+        assert content["versions"] == []

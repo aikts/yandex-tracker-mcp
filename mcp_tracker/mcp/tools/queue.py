@@ -23,6 +23,11 @@ from mcp_tracker.tracker.proto.types.queues import (
     QueueVersion,
 )
 
+# `expand` sections that are lists, and so can meaningfully come back empty.
+EXPAND_SECTIONS = frozenset(
+    {"projects", "components", "versions", "types", "workflows", "fields"}
+)
+
 
 def register_queue_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
     """Register queue-related tools (all read-only)."""
@@ -104,10 +109,12 @@ def register_queue_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Get Queue Fields",
-        description="Get fields for a specific Yandex Tracker queue. "
-        "Returns list of global fields and optionally local (queue-specific) fields. "
+        description="Get the fields configured on a specific Yandex Tracker queue, plus its local "
+        "(queue-specific) fields by default. "
         "The schema.required property indicates whether a field is mandatory. "
-        "Use this to find available and required fields before creating an issue with issue_create tool.",
+        "Use this before creating an issue with issue_create - but note it is not the whole registry: "
+        "system fields such as `parent`, `estimation` or `originalEstimation` are settable without "
+        "appearing here, and `get_global_fields` lists every field the organization has.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def queue_get_fields(
@@ -155,13 +162,25 @@ def register_queue_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
                 description="Optional list of fields to expand in the response. "
                 "Available options: 'all', 'projects', 'components', 'versions', 'types', "
                 "'team', 'workflows', 'fields', 'issueTypesConfig'. "
-                "Use 'issueTypesConfig' to get available resolutions for each issue type."
+                "Use 'issueTypesConfig' to get available resolutions for each issue type. "
+                "A requested section that the queue has nothing in comes back as an empty list."
             ),
         ] = None,
     ) -> Queue:
         check_queue_access(settings, queue_id)
-        return await ctx.request_context.lifespan_context.queues.queue_get(
+        queue = await ctx.request_context.lifespan_context.queues.queue_get(
             queue_id,
             expand=expand,
             auth=get_yandex_auth(ctx),
         )
+
+        # Tracker omits an expand section when the queue has nothing in it, which
+        # reads the same as "expand did not work". Answer with an empty list so
+        # the caller can tell the two apart.
+        for option in expand or []:
+            if option not in EXPAND_SECTIONS:
+                continue
+            if getattr(queue, option, None) is None:
+                setattr(queue, option, [])
+
+        return queue
