@@ -270,7 +270,7 @@
     },
     {
       "name": "boards_get_all",
-      "description": "Get all agile boards available in the organization"
+      "description": "Get the agile boards available in the organization, optionally only those collecting issues of a given queue"
     },
     {
       "name": "board_get",

@@ -5,6 +5,7 @@ from mcp.client.session import ClientSession
 
 from mcp_tracker.tracker.proto.types.boards import Board, BoardColumnDetail, Sprint
 from tests.mcp.conftest import get_tool_result_content
+from tests.mcp.tools.conftest import make_board_on_queues
 
 
 class TestBoardsGetAll:
@@ -123,6 +124,152 @@ class TestBoardsGetAll:
         content = get_tool_result_content(result)
         assert "autoFilterSettings" in content[0]
         assert content[0]["estimateBy"]["id"] == "storyPoints"
+
+    async def test_queue_filters_by_the_boards_own_filter(
+        self,
+        client_session: ClientSession,
+        mock_boards_protocol: AsyncMock,
+        boards_across_queues: list[Board],
+    ) -> None:
+        """A board has no queue field - it is matched by the queue it collects."""
+        mock_boards_protocol.boards_list.return_value = boards_across_queues
+
+        result = await client_session.call_tool("boards_get_all", {"queue": "LEVELARM"})
+
+        assert not result.isError
+        content = get_tool_result_content(result)
+        assert [board["id"] for board in content] == [1]
+
+    async def test_queue_matches_a_board_collecting_several_queues(
+        self,
+        client_session: ClientSession,
+        mock_boards_protocol: AsyncMock,
+        boards_across_queues: list[Board],
+    ) -> None:
+        mock_boards_protocol.boards_list.return_value = boards_across_queues
+
+        result = await client_session.call_tool(
+            "boards_get_all", {"queue": "SMARTBOTGOALS"}
+        )
+
+        assert not result.isError
+        assert [board["id"] for board in get_tool_result_content(result)] == [2]
+
+    async def test_queue_is_case_insensitive(
+        self,
+        client_session: ClientSession,
+        mock_boards_protocol: AsyncMock,
+        boards_across_queues: list[Board],
+    ) -> None:
+        mock_boards_protocol.boards_list.return_value = boards_across_queues
+
+        result = await client_session.call_tool("boards_get_all", {"queue": "levelarm"})
+
+        assert not result.isError
+        assert [board["id"] for board in get_tool_result_content(result)] == [1]
+
+    async def test_inverted_condition_is_not_a_match(
+        self,
+        client_session: ClientSession,
+        mock_boards_protocol: AsyncMock,
+        boards_across_queues: list[Board],
+    ) -> None:
+        """ "queue is not LEVELARM" says which queue the board is *not* about."""
+        mock_boards_protocol.boards_list.return_value = boards_across_queues
+
+        result = await client_session.call_tool("boards_get_all", {"queue": "LEVELARM"})
+
+        assert not result.isError
+        assert 3 not in [board["id"] for board in get_tool_result_content(result)]
+
+    async def test_unknown_queue_returns_nothing(
+        self,
+        client_session: ClientSession,
+        mock_boards_protocol: AsyncMock,
+        boards_across_queues: list[Board],
+    ) -> None:
+        mock_boards_protocol.boards_list.return_value = boards_across_queues
+
+        result = await client_session.call_tool("boards_get_all", {"queue": "NOSUCH"})
+
+        assert not result.isError
+        assert get_tool_result_content(result) == []
+
+    async def test_without_queue_returns_boards_naming_none(
+        self,
+        client_session: ClientSession,
+        mock_boards_protocol: AsyncMock,
+        boards_across_queues: list[Board],
+    ) -> None:
+        """Boards with no queue in their filter are only dropped when filtering."""
+        mock_boards_protocol.boards_list.return_value = boards_across_queues
+
+        result = await client_session.call_tool("boards_get_all", {})
+
+        assert not result.isError
+        assert 4 in [board["id"] for board in get_tool_result_content(result)]
+
+    async def test_queue_filter_runs_before_paging(
+        self,
+        client_session: ClientSession,
+        mock_boards_protocol: AsyncMock,
+    ) -> None:
+        """Paging the unfiltered list first would make page 1 come back near-empty."""
+        boards = [make_board_on_queues(i, f"Board {i}", "OTHER") for i in range(60)]
+        boards.append(make_board_on_queues(999, "The one", "LEVELARM"))
+        mock_boards_protocol.boards_list.return_value = boards
+
+        result = await client_session.call_tool("boards_get_all", {"queue": "LEVELARM"})
+
+        assert not result.isError
+        assert [board["id"] for board in get_tool_result_content(result)] == [999]
+
+    async def test_queue_combines_with_fields(
+        self,
+        client_session: ClientSession,
+        mock_boards_protocol: AsyncMock,
+        boards_across_queues: list[Board],
+    ) -> None:
+        mock_boards_protocol.boards_list.return_value = boards_across_queues
+
+        result = await client_session.call_tool(
+            "boards_get_all", {"queue": "LEVELARM", "fields": ["id", "name"]}
+        )
+
+        assert not result.isError
+        content = get_tool_result_content(result)
+        assert [sorted(board) for board in content] == [["id", "name"]]
+
+    async def test_restricted_queue_is_rejected(
+        self,
+        client_session_with_limits: ClientSession,
+        mock_boards_protocol: AsyncMock,
+    ) -> None:
+        """Scoping to a queue outside TRACKER_LIMIT_QUEUES must not answer."""
+        mock_boards_protocol.boards_list.return_value = []
+
+        result = await client_session_with_limits.call_tool(
+            "boards_get_all", {"queue": "FORBIDDEN"}
+        )
+
+        assert result.isError
+        mock_boards_protocol.boards_list.assert_not_called()
+
+    async def test_permitted_queue_is_allowed(
+        self,
+        client_session_with_limits: ClientSession,
+        mock_boards_protocol: AsyncMock,
+    ) -> None:
+        mock_boards_protocol.boards_list.return_value = [
+            make_board_on_queues(1, "Allowed board", "ALLOWED")
+        ]
+
+        result = await client_session_with_limits.call_tool(
+            "boards_get_all", {"queue": "ALLOWED"}
+        )
+
+        assert not result.isError
+        assert [board["id"] for board in get_tool_result_content(result)] == [1]
 
 
 class TestBoardGetSprints:

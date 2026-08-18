@@ -673,10 +673,13 @@ All four tools respect `TRACKER_LIMIT_QUEUES`: templates bound to a restricted q
 
 - **`boards_get_all`**: Get the agile boards available in the organization
   - Parameters:
+    - `queue` (string, optional): Return only the boards that collect issues of that queue, like `"SOMEPROJECT"`
     - `fields` (array of strings, optional): Fields to include in the response. Selecting `["id", "name"]` while looking for a board keeps the answer ~30x smaller
     - `page` (integer, optional, default: 1): Page number
     - `per_page` (integer, optional, default: 50): Items per page
   - Returns list of boards with id, name, version, columns, settings and creation metadata
+  - **Finding the board of a project**: a board has no queue field of its own - it collects whatever its `autoFilterSettings` matches - so `queue` is matched against that filter. Tracker offers no server-side filter here, so the tool reads the whole listing and matches locally. The match is case-insensitive, a board collecting several queues matches any of them, and an inverted condition ("queue is not X") is not a match. Boards whose filter names no queue at all cannot be matched this way and are left out when `queue` is set - on a real organization that is about a third of them.
+  - `queue` respects `TRACKER_LIMIT_QUEUES`: scoping to a restricted queue is rejected
   - Use the returned board `id` with `board_get`, `board_get_columns` and `board_get_sprints`
   - `GET /v3/boards` has no pagination of its own and answers with every board of the organization, so the tool pages the result itself - an organization with hundreds of boards would otherwise return a quarter of a megabyte of JSON in a single call. Keep increasing `page` until the result comes back empty.
   - Boards are organization-wide, so they are not filtered by `TRACKER_LIMIT_QUEUES`

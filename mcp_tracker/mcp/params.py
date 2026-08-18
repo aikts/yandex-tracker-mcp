@@ -525,6 +525,17 @@ EntityChecklistItemsParam = Annotated[
     ),
 ]
 
+BoardQueueFilter = Annotated[
+    str | None,
+    Field(
+        description="Optional queue key (Project ID) to scope the boards to, like "
+        "'SOMEPROJECT'. A board has no queue field of its own - it is matched by the "
+        "queue in its own auto-filter, i.e. the queue whose issues the board collects. "
+        "Boards whose filter names no queue at all cannot be matched this way and are "
+        "left out when this is set.",
+    ),
+]
+
 BoardID = Annotated[
     int,
     Field(

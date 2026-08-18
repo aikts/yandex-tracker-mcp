@@ -664,6 +664,48 @@ def sample_board_with_settings() -> Board:
     )
 
 
+def make_board_on_queues(
+    board_id: int, name: str, *queues: str, invert: bool = False
+) -> Board:
+    """A board whose auto-filter collects the given queues."""
+    return Board.model_construct(
+        id=board_id,
+        name=name,
+        autoFilterSettings=BoardAutoFilterSettings.model_construct(
+            addFilterSettings=BoardFilterSettings.model_construct(
+                liveFilter=BoardLiveFilter.model_construct(
+                    fieldValues=[
+                        BoardFilterField.model_construct(
+                            id="queue",
+                            key="queue",
+                            value=[
+                                BoardFilterFieldValue.model_construct(
+                                    fixed=BoardFilterValueRef.model_construct(
+                                        id=str(i), key=queue, display=queue
+                                    ),
+                                    invert=invert,
+                                )
+                                for i, queue in enumerate(queues)
+                            ],
+                        )
+                    ]
+                )
+            )
+        ),
+    )
+
+
+@pytest.fixture
+def boards_across_queues() -> list[Board]:
+    """A listing mixing boards bound to queues with boards that name none."""
+    return [
+        make_board_on_queues(1, "Level ARM", "LEVELARM"),
+        make_board_on_queues(2, "Smartbot", "SMARTBOTSITE", "SMARTBOTGOALS"),
+        make_board_on_queues(3, "Not Level ARM", "LEVELARM", invert=True),
+        Board.model_construct(id=4, name="Личная доска"),
+    ]
+
+
 @pytest.fixture
 def sample_board_columns() -> list[BoardColumnDetail]:
     """Columns as `GET /v3/boards/{id}/columns` returns them, with statuses."""

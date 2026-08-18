@@ -8,7 +8,8 @@ from mcp.types import ToolAnnotations
 from pydantic import Field
 
 from mcp_tracker.mcp.context import AppContext
-from mcp_tracker.mcp.params import BoardID, PageParam, PerPageParam
+from mcp_tracker.mcp.params import BoardID, BoardQueueFilter, PageParam, PerPageParam
+from mcp_tracker.mcp.tools._access import check_queue_access
 from mcp_tracker.mcp.utils import get_yandex_auth, set_non_needed_fields_null
 from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.proto.types.boards import (
@@ -39,7 +40,35 @@ SprintFieldsParam = Annotated[
 ]
 
 
-def register_board_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
+def board_queue_keys(board: Board) -> set[str]:
+    """Queue keys a board collects issues from, read off its own auto-filter.
+
+    A board carries no queue field: what lands on it is whatever
+    `addFilterSettings` matches, so the queue has to be read out of that filter.
+    An inverted condition ("queue is not X") says which queue the board is
+    *not* about and is therefore not a match.
+    """
+    settings = board.autoFilterSettings
+    add = settings.addFilterSettings if settings is not None else None
+    live = add.liveFilter if add is not None else None
+    if live is None or live.fieldValues is None:
+        return set()
+
+    keys: set[str] = set()
+    for field in live.fieldValues:
+        if field.id != "queue" or field.value is None:
+            continue
+        for value in field.value:
+            fixed = value.fixed
+            if value.invert or fixed is None or isinstance(fixed, str):
+                continue
+            if fixed.key is not None:
+                keys.add(fixed.key.upper())
+
+    return keys
+
+
+def register_board_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
     """Register board and sprint tools (all read-only)."""
 
     @mcp.tool(
@@ -47,6 +76,8 @@ def register_board_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
         description="Get the agile boards (in russian - 'доски') available in Yandex Tracker. "
         "Use the returned board id with the `board_get`, `board_get_columns` and "
         "`board_get_sprints` tools. "
+        "Pass `queue` to get only the boards that collect issues of that queue - "
+        "that is the way to answer 'which board does this project use'. "
         "An organization can have hundreds of boards, so the listing is paginated - "
         "keep increasing `page` until it comes back empty, and pass `fields` to keep "
         "the answer small while searching for the board you need.",
@@ -54,13 +85,26 @@ def register_board_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
     )
     async def boards_get_all(
         ctx: Context[Any, AppContext],
+        queue: BoardQueueFilter = None,
         fields: BoardFieldsParam = None,
         page: PageParam = 1,
         per_page: PerPageParam = 50,
     ) -> list[Board]:
+        if queue is not None:
+            check_queue_access(settings, queue)
+
         boards = await ctx.request_context.lifespan_context.boards.boards_list(
             auth=get_yandex_auth(ctx),
         )
+
+        # Tracker has no server-side filter here (`?queue=` is ignored along with
+        # `page` / `perPage`), so the queue is matched against each board's own
+        # auto-filter. Filtering runs before paging, or `page` would count boards
+        # that are then dropped.
+        if queue is not None:
+            wanted = queue.upper()
+            boards = [b for b in boards if wanted in board_queue_keys(b)]
+
         # `GET /v3/boards` ignores `page` / `perPage` and always answers with every
         # board, so the paging has to happen here. Left unbounded the tool returns
         # a quarter of a megabyte of JSON on a real organization, which is enough
