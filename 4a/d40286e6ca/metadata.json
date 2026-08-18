@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "4ad40286e6ca",
+  "strategy": "manual-commit",
+  "branch": "fixes2-wip",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "mcp_tracker/mcp/tools/field.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/4a/d40286e6ca/0/metadata.json",
+      "transcript": "/4a/d40286e6ca/0/full.jsonl",
+      "compact_transcript": "/4a/d40286e6ca/0/transcript.jsonl",
+      "content_hash": "/4a/d40286e6ca/0/content_hash.txt",
+      "prompt": "/4a/d40286e6ca/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4754,
+    "cache_creation_tokens": 2237814,
+    "cache_read_tokens": 114406727,
+    "output_tokens": 310074,
+    "api_call_count": 342
+  }
+}
