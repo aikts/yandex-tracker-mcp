@@ -1,0 +1,24 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "d4952a21c6d5",
+  "strategy": "manual-commit",
+  "branch": "recompose2",
+  "checkpoints_count": 5,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/d4/952a21c6d5/0/metadata.json",
+      "transcript": "/d4/952a21c6d5/0/full.jsonl",
+      "compact_transcript": "/d4/952a21c6d5/0/transcript.jsonl",
+      "content_hash": "/d4/952a21c6d5/0/content_hash.txt",
+      "prompt": "/d4/952a21c6d5/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4701,
+    "cache_creation_tokens": 2203114,
+    "cache_read_tokens": 98329552,
+    "output_tokens": 281093,
+    "api_call_count": 314
+  }
+}
