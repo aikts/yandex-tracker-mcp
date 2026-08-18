@@ -2,23 +2,41 @@
   "cli_version": "0.8.42",
   "checkpoint_id": "ea8893a870ae",
   "strategy": "manual-commit",
-  "branch": "recompose2",
-  "checkpoints_count": 5,
-  "files_touched": null,
+  "branch": "recompose3",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "CLAUDE.md",
+    "README.md",
+    "README_ru.md",
+    "manifest.json",
+    "mcp_tracker/mcp/params.py",
+    "mcp_tracker/mcp/tools/issue_read.py",
+    "mcp_tracker/mcp/tools/issue_write.py",
+    "mcp_tracker/tracker/caching/client.py",
+    "mcp_tracker/tracker/custom/client.py",
+    "mcp_tracker/tracker/custom/errors.py",
+    "mcp_tracker/tracker/proto/issues.py",
+    "mcp_tracker/tracker/proto/types/inputs.py",
+    "tests/mcp/tools/test_issue_write_tools.py",
+    "tests/tracker/caching/test_issues_protocol.py",
+    "tests/tracker/custom/issues/test_issue_changelog.py",
+    "tests/tracker/custom/issues/test_issue_create.py",
+    "tests/tracker/custom/issues/test_issue_update.py"
+  ],
   "sessions": [
     {
       "metadata": "/ea/8893a870ae/0/metadata.json",
       "transcript": "/ea/8893a870ae/0/full.jsonl",
       "compact_transcript": "/ea/8893a870ae/0/transcript.jsonl",
       "content_hash": "/ea/8893a870ae/0/content_hash.txt",
-      "prompt": "/ea/8893a870ae/0/prompt.txt"
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 4686,
-    "cache_creation_tokens": 2196468,
-    "cache_read_tokens": 93917394,
-    "output_tokens": 277501,
-    "api_call_count": 306
+    "input_tokens": 2,
+    "cache_creation_tokens": 2424,
+    "cache_read_tokens": 591806,
+    "output_tokens": 333,
+    "api_call_count": 1
   }
 }
