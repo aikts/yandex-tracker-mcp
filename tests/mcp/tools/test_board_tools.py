@@ -1,5 +1,6 @@
 from unittest.mock import AsyncMock
 
+import pytest
 from mcp.client.session import ClientSession
 
 from mcp_tracker.tracker.proto.types.boards import Board, Sprint
@@ -40,6 +41,54 @@ class TestBoardsGetAll:
 
         assert not result.isError
         assert get_tool_result_content(result) == []
+
+    @pytest.mark.parametrize(
+        ("page", "per_page", "expected_ids"),
+        [
+            (1, 2, [0, 1]),
+            (2, 2, [2, 3]),
+            (3, 2, [4]),
+            (4, 2, []),
+            (1, 10, [0, 1, 2, 3, 4]),
+        ],
+    )
+    async def test_pages_the_listing(
+        self,
+        client_session: ClientSession,
+        mock_boards_protocol: AsyncMock,
+        page: int,
+        per_page: int,
+        expected_ids: list[int],
+    ) -> None:
+        """`GET /v3/boards` returns every board at once, so the tool pages it itself."""
+        mock_boards_protocol.boards_list.return_value = [
+            Board.model_construct(id=i, name=f"Board {i}") for i in range(5)
+        ]
+
+        result = await client_session.call_tool(
+            "boards_get_all", {"page": page, "per_page": per_page}
+        )
+
+        assert not result.isError
+        content = get_tool_result_content(result)
+        assert [board["id"] for board in content] == expected_ids
+
+    async def test_defaults_to_the_first_page(
+        self,
+        client_session: ClientSession,
+        mock_boards_protocol: AsyncMock,
+    ) -> None:
+        """An organization with hundreds of boards must not be dumped in one call."""
+        mock_boards_protocol.boards_list.return_value = [
+            Board.model_construct(id=i, name=f"Board {i}") for i in range(404)
+        ]
+
+        result = await client_session.call_tool("boards_get_all", {})
+
+        assert not result.isError
+        content = get_tool_result_content(result)
+        assert len(content) == 50
+        assert content[0]["id"] == 0
 
 
 class TestBoardGetSprints:

@@ -5,6 +5,7 @@ import pytest
 from aioresponses import aioresponses
 
 from mcp_tracker.tracker.custom.client import TrackerClient
+from mcp_tracker.tracker.custom.errors import BoardNotFound, TrackerAPIError
 from mcp_tracker.tracker.proto.common import YandexAuth
 from mcp_tracker.tracker.proto.types.boards import Sprint
 from tests.aioresponses_utils import RequestCapture
@@ -130,3 +131,39 @@ class TestBoardGetSprints:
                 "X-Cloud-Org-ID": "cloud-org",
             }
         )
+
+    async def test_missing_board_raises_board_not_found(
+        self, tracker_client: TrackerClient
+    ) -> None:
+        with aioresponses() as m:
+            m.get(
+                "https://api.tracker.yandex.net/v3/boards/99999999/sprints",
+                status=404,
+                payload={"errorMessages": ["Доска не существует."], "statusCode": 404},
+            )
+
+            with pytest.raises(BoardNotFound) as exc_info:
+                await tracker_client.board_get_sprints(99999999)
+
+            assert exc_info.value.board_id == 99999999
+
+    async def test_non_scrum_board_surfaces_the_api_explanation(
+        self, tracker_client: TrackerClient
+    ) -> None:
+        """A board without sprints answers 400, and the reason must reach the caller."""
+        with aioresponses() as m:
+            m.get(
+                "https://api.tracker.yandex.net/v3/boards/8/sprints",
+                status=400,
+                payload={
+                    "errors": {},
+                    "errorMessages": ["У доски этого типа не может быть спринтов."],
+                    "statusCode": 400,
+                },
+            )
+
+            with pytest.raises(TrackerAPIError) as exc_info:
+                await tracker_client.board_get_sprints(8)
+
+            assert exc_info.value.status == 400
+            assert "У доски этого типа не может быть спринтов." in str(exc_info.value)

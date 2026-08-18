@@ -1,9 +1,11 @@
 import datetime
 from typing import Any
 
+import pytest
 from aioresponses import aioresponses
 
 from mcp_tracker.tracker.custom.client import TrackerClient
+from mcp_tracker.tracker.custom.errors import TrackerAPIError
 from mcp_tracker.tracker.proto.common import YandexAuth
 from mcp_tracker.tracker.proto.types.boards import Board
 from tests.aioresponses_utils import RequestCapture
@@ -95,3 +97,19 @@ class TestBoardsList:
                 "X-Cloud-Org-ID": "cloud-org",
             }
         )
+
+    async def test_error_surfaces_the_api_explanation(
+        self, tracker_client: TrackerClient
+    ) -> None:
+        with aioresponses() as m:
+            m.get(
+                "https://api.tracker.yandex.net/v3/boards",
+                status=403,
+                payload={"errorMessages": ["Нет доступа."], "statusCode": 403},
+            )
+
+            with pytest.raises(TrackerAPIError) as exc_info:
+                await tracker_client.boards_list()
+
+            assert exc_info.value.status == 403
+            assert "Нет доступа." in str(exc_info.value)

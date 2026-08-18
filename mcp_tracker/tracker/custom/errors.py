@@ -20,6 +20,12 @@ class QueueNotFound(YandexTrackerError):
         self.queue_id = queue_id
 
 
+class BoardNotFound(YandexTrackerError):
+    def __init__(self, board_id: int):
+        super().__init__(f"Board with ID '{board_id}' not found.")
+        self.board_id = board_id
+
+
 class IssueTemplateNotFound(YandexTrackerError):
     def __init__(self, template_id: str):
         super().__init__(f"Issue template with ID '{template_id}' not found.")

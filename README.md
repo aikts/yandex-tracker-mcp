@@ -671,14 +671,18 @@ All four tools respect `TRACKER_LIMIT_QUEUES`: templates bound to a restricted q
 <details>
 <summary><strong>Boards and Sprints</strong></summary>
 
-- **`boards_get_all`**: Get all agile boards available in the organization
-  - No parameters required
+- **`boards_get_all`**: Get the agile boards available in the organization
+  - Parameters:
+    - `page` (integer, optional, default: 1): Page number
+    - `per_page` (integer, optional, default: 50): Items per page
   - Returns list of boards with id, name, version, columns, and creation metadata
   - Use the returned board `id` with the `board_get_sprints` tool
+  - `GET /v3/boards` has no pagination of its own and answers with every board of the organization, so the tool pages the result itself - an organization with hundreds of boards would otherwise return a quarter of a megabyte of JSON in a single call. Keep increasing `page` until the result comes back empty.
   - Boards are organization-wide, so they are not filtered by `TRACKER_LIMIT_QUEUES`
 
 - **`board_get_sprints`**: Get all sprints of a specific agile board
   - Parameters: `board_id` (integer, board identifier as returned by `boards_get_all`)
+  - A board that is not a scrum board has no sprints and the API rejects the call with "У доски этого типа не может быть спринтов."; an unknown `board_id` is reported as a board-not-found error
   - Returns list of sprints with id, name, status, archived flag, planned dates (`startDate`, `endDate`) and actual dates (`startDateTime`, `endDateTime`)
   - Sprint status is one of `draft`, `in_progress`, `released` or `archived` — the currently running sprint is the one with status `in_progress`
   - Use the returned sprint `id` to place an issue into a sprint with `issue_create` or `issue_update`

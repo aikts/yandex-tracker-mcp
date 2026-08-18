@@ -17,6 +17,7 @@ from yandex.cloud.iam.v1.iam_token_service_pb2_grpc import IamTokenServiceStub
 from yarl import URL
 
 from mcp_tracker.tracker.custom.errors import (
+    BoardNotFound,
     ChecklistItemNotFound,
     CommentTemplateNotFound,
     EntityLinksOnlyUpdate,
@@ -2649,7 +2650,7 @@ class TrackerClient(
         async with self._session.get(
             "v3/boards", headers=await self._build_headers(auth)
         ) as response:
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return BoardList.model_validate_json(await response.read()).root
 
     async def board_get_sprints(
@@ -2658,5 +2659,10 @@ class TrackerClient(
         async with self._session.get(
             f"v3/boards/{board_id}/sprints", headers=await self._build_headers(auth)
         ) as response:
-            response.raise_for_status()
+            if response.status == 404:
+                raise BoardNotFound(board_id)
+            # A board that is not a scrum board answers 400 with
+            # "У доски этого типа не может быть спринтов." - that explanation only
+            # reaches the caller through _raise_for_status.
+            await self._raise_for_status(response)
             return SprintList.model_validate_json(await response.read()).root
