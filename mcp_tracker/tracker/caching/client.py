@@ -12,7 +12,7 @@ from mcp_tracker.tracker.proto.fields import GlobalDataProtocolWrap
 from mcp_tracker.tracker.proto.issues import IssueProtocolWrap
 from mcp_tracker.tracker.proto.queues import QueuesProtocolWrap
 from mcp_tracker.tracker.proto.templates import TemplatesProtocolWrap
-from mcp_tracker.tracker.proto.types.boards import Board, Sprint
+from mcp_tracker.tracker.proto.types.boards import Board, BoardColumnDetail, Sprint
 from mcp_tracker.tracker.proto.types.entities import (
     GoalEntity,
     GoalSearchResult,
@@ -1348,6 +1348,18 @@ def make_cached_protocols(
         @cached(**cache_config)
         async def boards_list(self, *, auth: YandexAuth | None = None) -> list[Board]:
             return await self._original.boards_list(auth=auth)
+
+        @cached(**cache_config)
+        async def board_get(
+            self, board_id: int, *, auth: YandexAuth | None = None
+        ) -> Board:
+            return await self._original.board_get(board_id, auth=auth)
+
+        @cached(**cache_config)
+        async def board_get_columns(
+            self, board_id: int, *, auth: YandexAuth | None = None
+        ) -> list[BoardColumnDetail]:
+            return await self._original.board_get_columns(board_id, auth=auth)
 
         @cached(**cache_config)
         async def board_get_sprints(

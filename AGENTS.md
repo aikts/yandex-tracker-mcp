@@ -48,6 +48,16 @@ uv run mcp-tracker # Run the server
 - **Issue `version`**: it is bumped by every change, including queue triggers and automation that fire right after creation, so the version returned by `issue_create` is routinely stale. Tools that accept `version` must say so and point at `issue_get` for a fresh read.
 - **Templates are not applied on write** (decided 2026-08-17, not yet implemented): `POST /v3/issues` has no `templateId` parameter, so `issue_create` cannot take one without expanding the template client-side. Callers read `issue_template_get` and fill the arguments themselves. Adding a `template_id` parameter later means merging `fieldTemplates` under the explicit arguments (which win) and mapping its reference values onto the `Issue*Ref` models - the template returns them as objects like `{"id": "1", "key": "bug"}`, and `components` in particular need the id-or-name form (see the reference-fields note above). `checklistItems` / `metricItems` cannot be sent at creation at all and would need a follow-up request.
 
+### Reading boards
+
+- **`GET /v3/boards` does not paginate.** `page` / `perPage` are ignored and every board of the organization comes back in one response (404 boards / ~250 KB on a real org), so `boards_get_all` pages the list itself and takes `fields`. Any new board listing has to bound its own output the same way.
+- **Board settings live on the board record**, not on a sub-resource: `autoFilterSettings` (the board's filter - which issues it collects), `estimateBy`, `useRanking`, `country`, `calendar`. `/v3/boards/{id}/filter` and `/settings` do not exist. `autoFilterSettings` is present in the *listing* too, which is why `fields` matters there.
+- **A filter condition is not always a reference.** `autoFilterSettings.…​.liveFilter.fieldValues[].value[]` carries either `fixed` (an object for most fields, but a bare string for enumerated ones like `statusType`) or `macro` (`empty()` / `notEmpty()`), so `fixed` is typed `BoardFilterValueRef | str | None`. `filterFieldsOrder` repeats the same fields for display order and is deliberately not modelled.
+- **`GET /v3/boards/{id}/columns` is a different shape** from the columns nested in a board: `id` is a number and the label is `name`, against a string `id` and `display` when nested. Only this endpoint carries the `statuses` mapped onto a column.
+- **404 on a board-scoped path** means the board does not exist; a board that is not a scrum board answers **400** "У доски этого типа не может быть спринтов." on `/sprints`, so both need `_raise_for_status` to stay diagnosable.
+- **An issue names its boards** in `boards` (`{"id": <int>, "name": ...}` - `name`, not `display`, unlike Tracker's other references). It is derived from the boards' filters and so read-only; the id is what the board tools take. `sprint` on an issue returns the sprint id as a *string* while `Sprint.id` and `IssueSprintRef.id` are ints.
+
+
 ## Testing
 
 ### Rules

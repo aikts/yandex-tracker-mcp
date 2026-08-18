@@ -2,7 +2,19 @@ import datetime
 
 import pytest
 
-from mcp_tracker.tracker.proto.types.boards import Board, BoardColumn, Sprint
+from mcp_tracker.tracker.proto.types.boards import (
+    Board,
+    BoardAutoFilterSettings,
+    BoardColumn,
+    BoardColumnDetail,
+    BoardColumnStatus,
+    BoardFilterField,
+    BoardFilterFieldValue,
+    BoardFilterSettings,
+    BoardFilterValueRef,
+    BoardLiveFilter,
+    Sprint,
+)
 from mcp_tracker.tracker.proto.types.entities import (
     GoalEntity,
     GoalFields,
@@ -613,6 +625,67 @@ def sample_board() -> Board:
             BoardColumn.model_construct(id="2", display="In Progress"),
         ],
     )
+
+
+@pytest.fixture
+def sample_board_with_settings() -> Board:
+    """A board carrying the settings `board_get` is there to expose."""
+    return Board.model_construct(
+        id=1,
+        version=1,
+        name="Development board",
+        useRanking=False,
+        estimateBy=BoardFilterValueRef.model_construct(
+            id="storyPoints", display="Story Points"
+        ),
+        autoFilterSettings=BoardAutoFilterSettings.model_construct(
+            addFilterSettings=BoardFilterSettings.model_construct(
+                enabled=True,
+                liveFilter=BoardLiveFilter.model_construct(
+                    fieldValues=[
+                        BoardFilterField.model_construct(
+                            id="queue",
+                            key="queue",
+                            name="Очередь",
+                            fieldType="queue",
+                            value=[
+                                BoardFilterFieldValue.model_construct(
+                                    fixed=BoardFilterValueRef.model_construct(
+                                        id="88", key="LEVELARM", display="Строители"
+                                    ),
+                                    invert=False,
+                                )
+                            ],
+                        )
+                    ]
+                ),
+            )
+        ),
+    )
+
+
+@pytest.fixture
+def sample_board_columns() -> list[BoardColumnDetail]:
+    """Columns as `GET /v3/boards/{id}/columns` returns them, with statuses."""
+    return [
+        BoardColumnDetail.model_construct(
+            id=1,
+            name="Открыт",
+            statuses=[
+                BoardColumnStatus.model_construct(id="1", key="open", display="Открыт"),
+                BoardColumnStatus.model_construct(id="20", key="new", display="Новый"),
+            ],
+        ),
+        BoardColumnDetail.model_construct(
+            id=2,
+            name="В работе",
+            statuses=[
+                BoardColumnStatus.model_construct(
+                    id="3", key="inProgress", display="В работе"
+                )
+            ],
+        ),
+    ]
 
 
 @pytest.fixture

@@ -1,16 +1,42 @@
 """Board and sprint MCP tools (read-only)."""
 
-from typing import Any
+from typing import Annotated, Any
 
 from mcp.server import FastMCP
 from mcp.server.fastmcp import Context
 from mcp.types import ToolAnnotations
+from pydantic import Field
 
 from mcp_tracker.mcp.context import AppContext
 from mcp_tracker.mcp.params import BoardID, PageParam, PerPageParam
-from mcp_tracker.mcp.utils import get_yandex_auth
+from mcp_tracker.mcp.utils import get_yandex_auth, set_non_needed_fields_null
 from mcp_tracker.settings import Settings
-from mcp_tracker.tracker.proto.types.boards import Board, Sprint
+from mcp_tracker.tracker.proto.types.boards import (
+    Board,
+    BoardColumnDetail,
+    BoardFieldsEnum,
+    Sprint,
+    SprintFieldsEnum,
+)
+
+BoardFieldsParam = Annotated[
+    list[BoardFieldsEnum] | None,
+    Field(
+        description="Fields to include in the response. In order to not pollute the "
+        "context window - select appropriate fields beforehand. Not specifying fields "
+        "will return all available. When looking for a board, id and name are usually "
+        "enough; read the full record of the one board you need with `board_get`.",
+    ),
+]
+
+SprintFieldsParam = Annotated[
+    list[SprintFieldsEnum] | None,
+    Field(
+        description="Fields to include in the response. In order to not pollute the "
+        "context window - select appropriate fields beforehand. Not specifying fields "
+        "will return all available. Most of the time id, name and status are enough.",
+    ),
+]
 
 
 def register_board_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
@@ -19,13 +45,16 @@ def register_board_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
     @mcp.tool(
         title="Get All Boards",
         description="Get the agile boards (in russian - 'доски') available in Yandex Tracker. "
-        "Use the returned board id with the `board_get_sprints` tool to look up sprints of a board. "
+        "Use the returned board id with the `board_get`, `board_get_columns` and "
+        "`board_get_sprints` tools. "
         "An organization can have hundreds of boards, so the listing is paginated - "
-        "keep increasing `page` until it comes back empty.",
+        "keep increasing `page` until it comes back empty, and pass `fields` to keep "
+        "the answer small while searching for the board you need.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def boards_get_all(
         ctx: Context[Any, AppContext],
+        fields: BoardFieldsParam = None,
         page: PageParam = 1,
         per_page: PerPageParam = 50,
     ) -> list[Board]:
@@ -37,7 +66,54 @@ def register_board_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
         # a quarter of a megabyte of JSON on a real organization, which is enough
         # to exhaust the caller's context on a single call.
         start = (page - 1) * per_page
-        return boards[start : start + per_page]
+        result = boards[start : start + per_page]
+
+        if fields is not None:
+            set_non_needed_fields_null(result, {f.name for f in fields})
+
+        return result
+
+    @mcp.tool(
+        title="Get Board",
+        description="Get a single Yandex Tracker agile board (in russian - 'доска') "
+        "with its settings. `autoFilterSettings` is the board's own filter and tells "
+        "which issues the board collects - read it to learn which queue a board is about. "
+        "Also returns the columns, the field issues are estimated by and the working "
+        "calendar the board uses.",
+        annotations=ToolAnnotations(readOnlyHint=True),
+    )
+    async def board_get(
+        ctx: Context[Any, AppContext],
+        board_id: BoardID,
+        fields: BoardFieldsParam = None,
+    ) -> Board:
+        board = await ctx.request_context.lifespan_context.boards.board_get(
+            board_id,
+            auth=get_yandex_auth(ctx),
+        )
+
+        if fields is not None:
+            set_non_needed_fields_null([board], {f.name for f in fields})
+
+        return board
+
+    @mcp.tool(
+        title="Get Board Columns",
+        description="Get the columns of a Yandex Tracker agile board together with the "
+        "issue statuses mapped onto each of them. Use it to find out which status an "
+        "issue has to be in to show up in a given column of the board. "
+        "Richer than the columns nested in `boards_get_all` / `board_get`, which carry "
+        "no statuses.",
+        annotations=ToolAnnotations(readOnlyHint=True),
+    )
+    async def board_get_columns(
+        ctx: Context[Any, AppContext],
+        board_id: BoardID,
+    ) -> list[BoardColumnDetail]:
+        return await ctx.request_context.lifespan_context.boards.board_get_columns(
+            board_id,
+            auth=get_yandex_auth(ctx),
+        )
 
     @mcp.tool(
         title="Get Board Sprints",
@@ -50,8 +126,14 @@ def register_board_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
     async def board_get_sprints(
         ctx: Context[Any, AppContext],
         board_id: BoardID,
+        fields: SprintFieldsParam = None,
     ) -> list[Sprint]:
-        return await ctx.request_context.lifespan_context.boards.board_get_sprints(
+        sprints = await ctx.request_context.lifespan_context.boards.board_get_sprints(
             board_id,
             auth=get_yandex_auth(ctx),
         )
+
+        if fields is not None:
+            set_non_needed_fields_null(sprints, {f.name for f in fields})
+
+        return sprints

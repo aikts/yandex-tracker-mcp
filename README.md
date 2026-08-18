@@ -673,19 +673,37 @@ All four tools respect `TRACKER_LIMIT_QUEUES`: templates bound to a restricted q
 
 - **`boards_get_all`**: Get the agile boards available in the organization
   - Parameters:
+    - `fields` (array of strings, optional): Fields to include in the response. Selecting `["id", "name"]` while looking for a board keeps the answer ~30x smaller
     - `page` (integer, optional, default: 1): Page number
     - `per_page` (integer, optional, default: 50): Items per page
-  - Returns list of boards with id, name, version, columns, and creation metadata
-  - Use the returned board `id` with the `board_get_sprints` tool
+  - Returns list of boards with id, name, version, columns, settings and creation metadata
+  - Use the returned board `id` with `board_get`, `board_get_columns` and `board_get_sprints`
   - `GET /v3/boards` has no pagination of its own and answers with every board of the organization, so the tool pages the result itself - an organization with hundreds of boards would otherwise return a quarter of a megabyte of JSON in a single call. Keep increasing `page` until the result comes back empty.
   - Boards are organization-wide, so they are not filtered by `TRACKER_LIMIT_QUEUES`
 
-- **`board_get_sprints`**: Get all sprints of a specific agile board
+- **`board_get`**: Get a single agile board with its settings
+  - Parameters:
+    - `board_id` (integer, board identifier as returned by `boards_get_all`)
+    - `fields` (array of strings, optional): Fields to include in the response
+  - `autoFilterSettings` is the board's own filter and says which issues the board collects - read it to learn which queue a board is about. `addFilterSettings` describes what lands on the board, `removeFilterSettings` what leaves it; a condition is either a fixed value (a queue, an issue type) or a macro such as `empty()` / `notEmpty()`
+  - Also returns `estimateBy` (the field issues are estimated by), `useRanking`, and the working `calendar` used to count working days in a sprint
+  - An unknown `board_id` is reported as a board-not-found error
+
+- **`board_get_columns`**: Get the columns of an agile board with the statuses mapped onto them
   - Parameters: `board_id` (integer, board identifier as returned by `boards_get_all`)
+  - Returns each column with `id`, `name` and the issue `statuses` that land in it - use it to find out which status an issue has to be in to show up in a given column
+  - Richer than the columns nested in `boards_get_all` / `board_get`, which carry no statuses
+
+- **`board_get_sprints`**: Get all sprints of a specific agile board
+  - Parameters:
+    - `board_id` (integer, board identifier as returned by `boards_get_all`)
+    - `fields` (array of strings, optional): Fields to include in the response
   - A board that is not a scrum board has no sprints and the API rejects the call with "У доски этого типа не может быть спринтов."; an unknown `board_id` is reported as a board-not-found error
   - Returns list of sprints with id, name, status, archived flag, planned dates (`startDate`, `endDate`) and actual dates (`startDateTime`, `endDateTime`)
   - Sprint status is one of `draft`, `in_progress`, `released` or `archived` — the currently running sprint is the one with status `in_progress`
   - Use the returned sprint `id` to place an issue into a sprint with `issue_create` or `issue_update`
+
+An issue returned by `issue_get` / `issues_find` carries a `boards` field naming the boards it shows up on (`{"id": 2, "name": "..."}`) - feed that `id` straight into the tools above. Tracker fills `boards` in from the boards' own filters, so it is read-only: an issue is not assigned to a board directly, it matches the board's filter.
 
 </details>
 

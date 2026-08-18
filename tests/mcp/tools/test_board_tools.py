@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock
 import pytest
 from mcp.client.session import ClientSession
 
-from mcp_tracker.tracker.proto.types.boards import Board, Sprint
+from mcp_tracker.tracker.proto.types.boards import Board, BoardColumnDetail, Sprint
 from tests.mcp.conftest import get_tool_result_content
 
 
@@ -90,6 +90,40 @@ class TestBoardsGetAll:
         assert len(content) == 50
         assert content[0]["id"] == 0
 
+    async def test_fields_trims_the_answer(
+        self,
+        client_session: ClientSession,
+        mock_boards_protocol: AsyncMock,
+        sample_boards: list[Board],
+    ) -> None:
+        """Searching for a board should not drag every board's settings along."""
+        mock_boards_protocol.boards_list.return_value = sample_boards
+
+        result = await client_session.call_tool(
+            "boards_get_all", {"fields": ["id", "name"]}
+        )
+
+        assert not result.isError
+        content = get_tool_result_content(result)
+        assert [sorted(board) for board in content] == [["id", "name"]] * len(
+            sample_boards
+        )
+
+    async def test_without_fields_returns_everything(
+        self,
+        client_session: ClientSession,
+        mock_boards_protocol: AsyncMock,
+        sample_board_with_settings: Board,
+    ) -> None:
+        mock_boards_protocol.boards_list.return_value = [sample_board_with_settings]
+
+        result = await client_session.call_tool("boards_get_all", {})
+
+        assert not result.isError
+        content = get_tool_result_content(result)
+        assert "autoFilterSettings" in content[0]
+        assert content[0]["estimateBy"]["id"] == "storyPoints"
+
 
 class TestBoardGetSprints:
     async def test_returns_sprints(
@@ -155,6 +189,132 @@ class TestBoardGetSprints:
         mock_boards_protocol.board_get_sprints.return_value = []
 
         result = await client_session.call_tool("board_get_sprints", {"board_id": 1})
+
+        assert not result.isError
+        assert get_tool_result_content(result) == []
+
+    async def test_fields_trims_the_answer(
+        self,
+        client_session: ClientSession,
+        mock_boards_protocol: AsyncMock,
+        sample_sprints: list[Sprint],
+    ) -> None:
+        mock_boards_protocol.board_get_sprints.return_value = sample_sprints
+
+        result = await client_session.call_tool(
+            "board_get_sprints", {"board_id": 1, "fields": ["id", "name", "status"]}
+        )
+
+        assert not result.isError
+        content = get_tool_result_content(result)
+        assert [sorted(sprint) for sprint in content] == [
+            ["id", "name", "status"]
+        ] * len(sample_sprints)
+
+
+class TestBoardGet:
+    async def test_returns_the_board_settings(
+        self,
+        client_session: ClientSession,
+        mock_boards_protocol: AsyncMock,
+        sample_board_with_settings: Board,
+    ) -> None:
+        mock_boards_protocol.board_get.return_value = sample_board_with_settings
+
+        result = await client_session.call_tool("board_get", {"board_id": 1})
+
+        assert not result.isError
+        content = get_tool_result_content(result)
+        assert content["id"] == 1
+        assert content["useRanking"] is False
+        assert content["estimateBy"]["display"] == "Story Points"
+
+    async def test_auto_filter_names_the_queue_the_board_collects(
+        self,
+        client_session: ClientSession,
+        mock_boards_protocol: AsyncMock,
+        sample_board_with_settings: Board,
+    ) -> None:
+        """The point of the tool: find out which issues land on a board."""
+        mock_boards_protocol.board_get.return_value = sample_board_with_settings
+
+        result = await client_session.call_tool("board_get", {"board_id": 1})
+
+        assert not result.isError
+        content = get_tool_result_content(result)
+        fields = content["autoFilterSettings"]["addFilterSettings"]["liveFilter"][
+            "fieldValues"
+        ]
+        assert [f["id"] for f in fields] == ["queue"]
+        assert fields[0]["value"][0]["fixed"]["key"] == "LEVELARM"
+
+    async def test_passes_board_id(
+        self,
+        client_session: ClientSession,
+        mock_boards_protocol: AsyncMock,
+        sample_board_with_settings: Board,
+    ) -> None:
+        mock_boards_protocol.board_get.return_value = sample_board_with_settings
+
+        result = await client_session.call_tool("board_get", {"board_id": 42})
+
+        assert not result.isError
+        assert mock_boards_protocol.board_get.call_args[0][0] == 42
+
+    async def test_fields_trims_the_answer(
+        self,
+        client_session: ClientSession,
+        mock_boards_protocol: AsyncMock,
+        sample_board_with_settings: Board,
+    ) -> None:
+        mock_boards_protocol.board_get.return_value = sample_board_with_settings
+
+        result = await client_session.call_tool(
+            "board_get", {"board_id": 1, "fields": ["id", "name"]}
+        )
+
+        assert not result.isError
+        assert sorted(get_tool_result_content(result)) == ["id", "name"]
+
+
+class TestBoardGetColumns:
+    async def test_returns_columns_with_statuses(
+        self,
+        client_session: ClientSession,
+        mock_boards_protocol: AsyncMock,
+        sample_board_columns: list[BoardColumnDetail],
+    ) -> None:
+        mock_boards_protocol.board_get_columns.return_value = sample_board_columns
+
+        result = await client_session.call_tool("board_get_columns", {"board_id": 1})
+
+        assert not result.isError
+        content = get_tool_result_content(result)
+        assert [column["name"] for column in content] == ["Открыт", "В работе"]
+        assert [s["key"] for s in content[0]["statuses"]] == ["open", "new"]
+        assert [s["key"] for s in content[1]["statuses"]] == ["inProgress"]
+
+    async def test_passes_board_id(
+        self,
+        client_session: ClientSession,
+        mock_boards_protocol: AsyncMock,
+        sample_board_columns: list[BoardColumnDetail],
+    ) -> None:
+        mock_boards_protocol.board_get_columns.return_value = sample_board_columns
+
+        result = await client_session.call_tool("board_get_columns", {"board_id": 42})
+
+        assert not result.isError
+        assert mock_boards_protocol.board_get_columns.call_args[0][0] == 42
+
+    async def test_returns_empty_list(
+        self,
+        client_session: ClientSession,
+        mock_boards_protocol: AsyncMock,
+    ) -> None:
+        mock_boards_protocol.board_get_columns.return_value = []
+
+        result = await client_session.call_tool("board_get_columns", {"board_id": 1})
 
         assert not result.isError
         assert get_tool_result_content(result) == []

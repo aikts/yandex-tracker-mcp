@@ -273,6 +273,14 @@
       "description": "Get all agile boards available in the organization"
     },
     {
+      "name": "board_get",
+      "description": "Get a single agile board with its settings, including the auto-filter that says which issues the board collects"
+    },
+    {
+      "name": "board_get_columns",
+      "description": "Get the columns of an agile board together with the issue statuses mapped onto each of them"
+    },
+    {
       "name": "board_get_sprints",
       "description": "Get all sprints of a specific agile board"
     },
