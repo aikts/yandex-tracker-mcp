@@ -2,23 +2,27 @@
   "cli_version": "0.8.42",
   "checkpoint_id": "6725c118a841",
   "strategy": "manual-commit",
-  "branch": "recompose2",
-  "checkpoints_count": 5,
-  "files_touched": null,
+  "branch": "recompose3",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "CLAUDE.md",
+    "mcp_tracker/tracker/custom/client.py",
+    "tests/tracker/custom/queues/test_queue_not_found.py"
+  ],
   "sessions": [
     {
       "metadata": "/67/25c118a841/0/metadata.json",
       "transcript": "/67/25c118a841/0/full.jsonl",
       "compact_transcript": "/67/25c118a841/0/transcript.jsonl",
       "content_hash": "/67/25c118a841/0/content_hash.txt",
-      "prompt": "/67/25c118a841/0/prompt.txt"
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 4698,
-    "cache_creation_tokens": 2201248,
-    "cache_read_tokens": 97221706,
-    "output_tokens": 279465,
-    "api_call_count": 312
+    "input_tokens": 4,
+    "cache_creation_tokens": 864,
+    "cache_read_tokens": 1188943,
+    "output_tokens": 875,
+    "api_call_count": 2
   }
 }
