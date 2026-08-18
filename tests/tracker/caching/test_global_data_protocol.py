@@ -26,7 +26,7 @@ class TestCachingGlobalDataProtocol:
             IssueType(id=1, version=1, key="task", name="Task")
         ]
         original.get_priorities.return_value = [
-            Priority(version=1, key="high", name="High", order=1)
+            Priority(id=4, version=1, key="high", name="High", order=1)
         ]
         original.get_resolutions.return_value = [
             Resolution(id=1, key="fixed", name="Fixed")

@@ -235,6 +235,7 @@ def sample_issue_types(sample_issue_type: IssueType) -> list[IssueType]:
 def sample_priority() -> Priority:
     """Sample priority for testing."""
     return Priority.model_construct(
+        id=3,
         version=1,
         key="normal",
         name="Normal",
@@ -247,12 +248,14 @@ def sample_priorities(sample_priority: Priority) -> list[Priority]:
     """Sample list of priorities for testing."""
     return [
         Priority.model_construct(
+            id=4,
             version=1,
             key="critical",
             name="Critical",
             order=1,
         ),
         Priority.model_construct(
+            id=2,
             version=1,
             key="high",
             name="High",

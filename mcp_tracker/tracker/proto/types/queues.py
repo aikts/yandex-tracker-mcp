@@ -21,7 +21,11 @@ class QueueIssueTypeConfig(BaseTrackerEntity):
 
 
 class Queue(BaseTrackerEntity):
-    model_config = ConfigDict(extra="ignore")
+    # `expand` sections (components, versions, projects, workflows, ...) are
+    # returned as extra keys, and Tracker leaves a section out entirely when it
+    # is empty. Dropping unknown keys here would silently discard everything
+    # `expand` was asked for.
+    model_config = ConfigDict(extra="allow")
 
     id: int | None = NoneExcludedField
     key: str | None = NoneExcludedField
