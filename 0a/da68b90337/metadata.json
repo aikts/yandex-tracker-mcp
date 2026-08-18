@@ -1,0 +1,24 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "0ada68b90337",
+  "strategy": "manual-commit",
+  "branch": "fixes-wip",
+  "checkpoints_count": 5,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/0a/da68b90337/0/metadata.json",
+      "transcript": "/0a/da68b90337/0/full.jsonl",
+      "compact_transcript": "/0a/da68b90337/0/transcript.jsonl",
+      "content_hash": "/0a/da68b90337/0/content_hash.txt",
+      "prompt": "/0a/da68b90337/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4681,
+    "cache_creation_tokens": 2189474,
+    "cache_read_tokens": 92282477,
+    "output_tokens": 273994,
+    "api_call_count": 303
+  }
+}
