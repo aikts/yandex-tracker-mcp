@@ -1307,7 +1307,7 @@ class TrackerClient(
             headers=await self._build_headers(auth),
             params=params,
         ) as response:
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return await response.read()
 
     async def _entity_search(
@@ -1348,7 +1348,7 @@ class TrackerClient(
             json=body,
             params=params,
         ) as response:
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return await response.read()
 
     async def project_get(
@@ -1532,7 +1532,7 @@ class TrackerClient(
             json=body,
             params={"fields": self._entity_fields_param(entity_type, fields)},
         ) as response:
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return await response.read()
 
     async def _entity_update(
@@ -1573,7 +1573,7 @@ class TrackerClient(
             json=body,
             params=params,
         ) as response:
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return await response.read()
 
     async def _entity_delete(
@@ -1590,7 +1590,7 @@ class TrackerClient(
             headers=await self._build_headers(auth),
             params=params,
         ) as response:
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return None
 
     async def project_create(
@@ -1913,7 +1913,7 @@ class TrackerClient(
             headers=await self._build_headers(auth),
             params=params,
         ) as response:
-            response.raise_for_status()
+            await self._raise_for_status(response)
             page = EntityCommentsRelativePage.model_validate_json(await response.read())
             next_cursor: str | None = None
             if page.hasNext and page.comments:
@@ -1945,7 +1945,7 @@ class TrackerClient(
             headers=await self._build_headers(auth),
             json=body,
         ) as response:
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return IssueComment.model_validate_json(await response.read())
 
     async def _entity_update_comment(
@@ -1970,7 +1970,7 @@ class TrackerClient(
             headers=await self._build_headers(auth),
             json=body,
         ) as response:
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return IssueComment.model_validate_json(await response.read())
 
     async def _entity_delete_comment(
@@ -1985,7 +1985,7 @@ class TrackerClient(
             f"v3/entities/{entity_type}/{entity_id}/comments/{comment_id}",
             headers=await self._build_headers(auth),
         ) as response:
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return None
 
     async def project_get_comments(
@@ -2205,7 +2205,7 @@ class TrackerClient(
             json=body,
             params={"fields": self._entity_fields_param(entity_type, fields)},
         ) as response:
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return await response.read()
 
     async def _entity_update_checklist_item(
@@ -2230,7 +2230,7 @@ class TrackerClient(
             json=body,
             params={"fields": self._entity_fields_param(entity_type, fields)},
         ) as response:
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return await response.read()
 
     async def _entity_move_checklist_item(
@@ -2249,7 +2249,7 @@ class TrackerClient(
             json={"before": before},
             params={"fields": self._entity_fields_param(entity_type, fields)},
         ) as response:
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return await response.read()
 
     async def _entity_delete_checklist_item(
@@ -2266,7 +2266,7 @@ class TrackerClient(
             headers=await self._build_headers(auth),
             params={"fields": self._entity_fields_param(entity_type, fields)},
         ) as response:
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return await response.read()
 
     async def _entity_update_checklist(
@@ -2285,7 +2285,7 @@ class TrackerClient(
             json=body,
             params={"fields": self._entity_fields_param(entity_type, fields)},
         ) as response:
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return await response.read()
 
     async def _entity_delete_checklist(
@@ -2301,7 +2301,7 @@ class TrackerClient(
             headers=await self._build_headers(auth),
             params={"fields": self._entity_fields_param(entity_type, fields)},
         ) as response:
-            response.raise_for_status()
+            await self._raise_for_status(response)
             return await response.read()
 
     async def project_add_checklist_item(

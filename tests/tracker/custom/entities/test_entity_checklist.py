@@ -5,6 +5,7 @@ import pytest
 from aioresponses import aioresponses
 
 from mcp_tracker.tracker.custom.client import TrackerClient
+from mcp_tracker.tracker.custom.errors import TrackerAPIError
 from mcp_tracker.tracker.proto.types.entities import PortfolioEntity, ProjectEntity
 from mcp_tracker.tracker.proto.types.inputs import EntityChecklistItemUpdateInput
 from tests.aioresponses_utils import RequestCapture
@@ -234,6 +235,43 @@ class TestEntityUpdateChecklist:
             {"id": "item1", "text": "Do the thing"},
             {"id": "item2", "text": "Do another thing", "checked": True},
         ]
+
+    @pytest.mark.parametrize("entity_type,entity_id,model", ENTITY_TYPES)
+    async def test_partial_item_list_surfaces_tracker_error(
+        self,
+        tracker_client: TrackerClient,
+        entity_type: str,
+        entity_id: str,
+        model: type[ProjectEntity] | type[PortfolioEntity],
+    ) -> None:
+        """Tracker rejects a payload that omits existing items with a bare 500
+
+        (the bulk endpoint edits the existing set in place rather than
+        replacing it, so the item count cannot change). The body carries no
+        `errorMessages`/`errors`, so the raw text must still reach the caller
+        instead of being swallowed by a bare `raise_for_status()`.
+        """
+        error_body = "Internal Server Error"
+
+        with aioresponses() as m:
+            m.patch(
+                re.compile(
+                    rf"^https://api\.tracker\.yandex\.net/v3/entities/{entity_type}/"
+                    rf"{entity_id}/checklistItems(\?.*)?$"
+                ),
+                status=500,
+                body=error_body,
+            )
+
+            method = getattr(tracker_client, f"{entity_type}_update_checklist")
+            with pytest.raises(TrackerAPIError) as exc_info:
+                await method(
+                    entity_id,
+                    items=[EntityChecklistItemUpdateInput(id="item1", text="Only one")],
+                )
+
+        assert exc_info.value.status == 500
+        assert error_body in str(exc_info.value)
 
 
 class TestEntityDeleteChecklist:
