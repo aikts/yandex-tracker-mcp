@@ -30,6 +30,7 @@ from mcp_tracker.tracker.proto.types.issues import (
     IssueAttachment,
     IssueFieldsEnum,
     IssueLink,
+    IssuesCount,
     IssueTransition,
     Worklog,
     WorklogFieldsEnum,
@@ -183,11 +184,12 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
     async def issues_count(
         ctx: Context[Any, AppContext],
         query: YTQuery,
-    ) -> int:
-        return await ctx.request_context.lifespan_context.issues.issues_count(
+    ) -> IssuesCount:
+        count = await ctx.request_context.lifespan_context.issues.issues_count(
             query,
             auth=get_yandex_auth(ctx),
         )
+        return IssuesCount(count=count)
 
     @mcp.tool(
         title="Get Issue Worklogs",
