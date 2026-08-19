@@ -17,6 +17,7 @@ from yandex.cloud.iam.v1.iam_token_service_pb2_grpc import IamTokenServiceStub
 from yarl import URL
 
 from mcp_tracker.tracker.custom.errors import (
+    ChecklistItemNotFound,
     CommentTemplateNotFound,
     EntityLinksOnlyUpdate,
     IssueNotFound,
@@ -106,6 +107,19 @@ class EntityCommentsRelativePage(BaseModel):
     comments: list[IssueComment] = Field(default_factory=list)
     hasNext: bool = False
     hasPrev: bool = False
+
+
+class _ChecklistSnapshotFields(BaseModel):
+    checklistItems: list[ChecklistItem] = Field(default_factory=list)
+
+
+class _ChecklistSnapshot(BaseModel):
+    """Minimal parse of a `GET /v3/entities/<type>/<id>?fields=checklistItems`
+    response, used to reconcile a partial `*_update_checklist` call - see
+    `TrackerClient._reconcile_checklist_update`.
+    """
+
+    fields: _ChecklistSnapshotFields = Field(default_factory=_ChecklistSnapshotFields)
 
 
 GlobalFieldList = RootModel[list[GlobalField]]
@@ -2288,6 +2302,84 @@ class TrackerClient(
             await self._raise_for_status(response)
             return await response.read()
 
+    @staticmethod
+    def _checklist_item_to_update_input(
+        item: ChecklistItem,
+    ) -> EntityChecklistItemUpdateInput:
+        deadline: dict[str, Any] | None = None
+        if item.deadline is not None:
+            deadline = {
+                "date": item.deadline.date.isoformat(),
+                "deadlineType": item.deadline.deadline_type,
+            }
+        return EntityChecklistItemUpdateInput(
+            id=item.id,
+            text=item.text,
+            checked=item.checked,
+            assignee=item.assignee.id if item.assignee is not None else None,
+            deadline=deadline,
+        )
+
+    async def _reconcile_checklist_update(
+        self,
+        entity_type: Literal["project", "portfolio"],
+        entity_id: str,
+        *,
+        items: list[EntityChecklistItemUpdateInput],
+        auth: YandexAuth | None,
+    ) -> list[EntityChecklistItemUpdateInput]:
+        """Fill in the rest of the checklist so a caller can send just the items it wants to change.
+
+        `PATCH .../checklistItems` edits every item in the array it is given and
+        rejects the request outright if the array's length does not match the
+        entity's current item count - verified against the live API, sending a
+        subset (to drop items) or an extra item (to add one) both answer with an
+        opaque 500. Fetching the current checklist first and resending every item
+        - untouched ones verbatim, requested ones with the caller's overrides
+        applied - makes a true partial update possible without the caller having
+        to know about this quirk.
+        """
+        current_raw = await self._entity_get(
+            entity_type, entity_id, fields=["checklistItems"], auth=auth
+        )
+        current = _ChecklistSnapshot.model_validate_json(current_raw)
+        current_by_id = {item.id: item for item in current.fields.checklistItems}
+
+        overrides = {item.id: item for item in items}
+        for item_id in overrides:
+            if item_id not in current_by_id:
+                raise ChecklistItemNotFound(entity_id, item_id)
+
+        merged: list[EntityChecklistItemUpdateInput] = []
+        for item_id, current_item in current_by_id.items():
+            override = overrides.get(item_id)
+            if override is None:
+                merged.append(self._checklist_item_to_update_input(current_item))
+                continue
+            base = self._checklist_item_to_update_input(current_item)
+            merged.append(
+                EntityChecklistItemUpdateInput(
+                    id=item_id,
+                    text=override.text,
+                    checked=(
+                        override.checked
+                        if override.checked is not None
+                        else base.checked
+                    ),
+                    assignee=(
+                        override.assignee
+                        if override.assignee is not None
+                        else base.assignee
+                    ),
+                    deadline=(
+                        override.deadline
+                        if override.deadline is not None
+                        else base.deadline
+                    ),
+                )
+            )
+        return merged
+
     async def _entity_delete_checklist(
         self,
         entity_type: Literal["project", "portfolio"],
@@ -2400,11 +2492,14 @@ class TrackerClient(
         fields: list[str] | None = None,
         auth: YandexAuth | None = None,
     ) -> ProjectEntity:
+        merged_items = await self._reconcile_checklist_update(
+            "project", entity_id, items=items, auth=auth
+        )
         return ProjectEntity.model_validate_json(
             await self._entity_update_checklist(
                 "project",
                 entity_id,
-                items=items,
+                items=merged_items,
                 fields=fields,
                 auth=auth,
             )
@@ -2519,11 +2614,14 @@ class TrackerClient(
         fields: list[str] | None = None,
         auth: YandexAuth | None = None,
     ) -> PortfolioEntity:
+        merged_items = await self._reconcile_checklist_update(
+            "portfolio", entity_id, items=items, auth=auth
+        )
         return PortfolioEntity.model_validate_json(
             await self._entity_update_checklist(
                 "portfolio",
                 entity_id,
-                items=items,
+                items=merged_items,
                 fields=fields,
                 auth=auth,
             )

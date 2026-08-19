@@ -5,7 +5,7 @@ import pytest
 from aioresponses import aioresponses
 
 from mcp_tracker.tracker.custom.client import TrackerClient
-from mcp_tracker.tracker.custom.errors import TrackerAPIError
+from mcp_tracker.tracker.custom.errors import ChecklistItemNotFound, TrackerAPIError
 from mcp_tracker.tracker.proto.types.entities import PortfolioEntity, ProjectEntity
 from mcp_tracker.tracker.proto.types.inputs import EntityChecklistItemUpdateInput
 from tests.aioresponses_utils import RequestCapture
@@ -199,61 +199,203 @@ class TestEntityDeleteChecklistItem:
         capture.assert_called_once()
 
 
+def _checklist_snapshot_data(
+    entity_type: str, entity_id: str, items: list[dict[str, Any]]
+) -> dict[str, Any]:
+    data = _entity_data(entity_type, entity_id)
+    data["fields"] = {"checklistItems": items}
+    return data
+
+
 class TestEntityUpdateChecklist:
+    """`*_update_checklist` reconciles a caller's partial edit against the
+    entity's current checklist (fetched via GET) before sending Tracker's bulk
+    endpoint the full item array it requires - see
+    `TrackerClient._reconcile_checklist_update`. Every test here therefore
+    mocks both the GET and the PATCH.
+    """
+
     @pytest.mark.parametrize("entity_type,entity_id,model", ENTITY_TYPES)
-    async def test_success(
+    async def test_untouched_items_are_resent_verbatim(
         self,
         tracker_client: TrackerClient,
         entity_type: str,
         entity_id: str,
         model: type[ProjectEntity] | type[PortfolioEntity],
     ) -> None:
-        capture = RequestCapture(payload=_entity_data(entity_type, entity_id))
-        items = [
-            EntityChecklistItemUpdateInput(id="item1", text="Do the thing"),
-            EntityChecklistItemUpdateInput(
-                id="item2", text="Do another thing", checked=True
-            ),
+        current_items = [
+            {"id": "item1", "text": "Old text", "checked": False},
+            {
+                "id": "item2",
+                "text": "Do another thing",
+                "checked": True,
+                "assignee": {"id": "user456", "display": "Someone"},
+                "deadline": {
+                    "date": "2026-08-20T00:00:00.000+0000",
+                    "deadlineType": "date",
+                    "isExceeded": False,
+                },
+            },
         ]
+        get_capture = RequestCapture(
+            payload=_checklist_snapshot_data(entity_type, entity_id, current_items)
+        )
+        patch_capture = RequestCapture(payload=_entity_data(entity_type, entity_id))
 
         with aioresponses() as m:
+            m.get(
+                re.compile(
+                    rf"^https://api\.tracker\.yandex\.net/v3/entities/{entity_type}/"
+                    rf"{entity_id}\?fields=checklistItems$"
+                ),
+                callback=get_capture.callback,
+            )
             m.patch(
                 re.compile(
                     rf"^https://api\.tracker\.yandex\.net/v3/entities/{entity_type}/"
                     rf"{entity_id}/checklistItems(\?.*)?$"
                 ),
-                callback=capture.callback,
+                callback=patch_capture.callback,
             )
 
             method = getattr(tracker_client, f"{entity_type}_update_checklist")
-            result = await method(entity_id, items=items)
+            result = await method(
+                entity_id,
+                items=[EntityChecklistItemUpdateInput(id="item1", text="Do the thing")],
+            )
 
             assert isinstance(result, model)
 
-        capture.assert_called_once()
-        assert capture.last_request.get_json_body() == [
-            {"id": "item1", "text": "Do the thing"},
-            {"id": "item2", "text": "Do another thing", "checked": True},
-        ]
+        get_capture.assert_called_once()
+        patch_capture.assert_called_once()
+        body = patch_capture.last_request.get_json_body()
+        assert isinstance(body, list)
+        assert body[0] == {"id": "item1", "text": "Do the thing", "checked": False}
+        # item2 was not mentioned by the caller, so it is resent as-is - including
+        # its assignee (converted from a UserReference back to a bare id) and
+        # deadline (converted from ChecklistItemDeadline back to a request body).
+        assert body[1]["id"] == "item2"
+        assert body[1]["text"] == "Do another thing"
+        assert body[1]["checked"] is True
+        assert body[1]["assignee"] == "user456"
+        assert body[1]["deadline"]["deadlineType"] == "date"
 
     @pytest.mark.parametrize("entity_type,entity_id,model", ENTITY_TYPES)
-    async def test_partial_item_list_surfaces_tracker_error(
+    async def test_override_only_changes_fields_the_caller_set(
         self,
         tracker_client: TrackerClient,
         entity_type: str,
         entity_id: str,
         model: type[ProjectEntity] | type[PortfolioEntity],
     ) -> None:
-        """Tracker rejects a payload that omits existing items with a bare 500
+        current_items = [
+            {
+                "id": "item1",
+                "text": "Old text",
+                "checked": True,
+                "assignee": {"id": "user456"},
+            },
+        ]
+        get_capture = RequestCapture(
+            payload=_checklist_snapshot_data(entity_type, entity_id, current_items)
+        )
+        patch_capture = RequestCapture(payload=_entity_data(entity_type, entity_id))
 
-        (the bulk endpoint edits the existing set in place rather than
-        replacing it, so the item count cannot change). The body carries no
-        `errorMessages`/`errors`, so the raw text must still reach the caller
-        instead of being swallowed by a bare `raise_for_status()`.
+        with aioresponses() as m:
+            m.get(
+                re.compile(
+                    rf"^https://api\.tracker\.yandex\.net/v3/entities/{entity_type}/"
+                    rf"{entity_id}\?fields=checklistItems$"
+                ),
+                callback=get_capture.callback,
+            )
+            m.patch(
+                re.compile(
+                    rf"^https://api\.tracker\.yandex\.net/v3/entities/{entity_type}/"
+                    rf"{entity_id}/checklistItems(\?.*)?$"
+                ),
+                callback=patch_capture.callback,
+            )
+
+            method = getattr(tracker_client, f"{entity_type}_update_checklist")
+            # Only `text` changes; `checked`/`assignee` are left unset by the
+            # caller and must be carried over from the current item, not reset.
+            await method(
+                entity_id,
+                items=[EntityChecklistItemUpdateInput(id="item1", text="New text")],
+            )
+
+        body = patch_capture.last_request.get_json_body()
+        assert body == [
+            {
+                "id": "item1",
+                "text": "New text",
+                "checked": True,
+                "assignee": "user456",
+            }
+        ]
+
+    @pytest.mark.parametrize("entity_type,entity_id,model", ENTITY_TYPES)
+    async def test_unknown_item_id_raises_without_calling_patch(
+        self,
+        tracker_client: TrackerClient,
+        entity_type: str,
+        entity_id: str,
+        model: type[ProjectEntity] | type[PortfolioEntity],
+    ) -> None:
+        current_items = [{"id": "item1", "text": "Do the thing", "checked": False}]
+        get_capture = RequestCapture(
+            payload=_checklist_snapshot_data(entity_type, entity_id, current_items)
+        )
+
+        with aioresponses() as m:
+            m.get(
+                re.compile(
+                    rf"^https://api\.tracker\.yandex\.net/v3/entities/{entity_type}/"
+                    rf"{entity_id}\?fields=checklistItems$"
+                ),
+                callback=get_capture.callback,
+            )
+            # No PATCH mock registered: if the client called it despite the
+            # unknown id, aioresponses would raise a connection error and fail
+            # the test.
+
+            method = getattr(tracker_client, f"{entity_type}_update_checklist")
+            with pytest.raises(ChecklistItemNotFound) as exc_info:
+                await method(
+                    entity_id,
+                    items=[EntityChecklistItemUpdateInput(id="missing", text="Nope")],
+                )
+
+        assert exc_info.value.checklist_item_id == "missing"
+        get_capture.assert_called_once()
+
+    @pytest.mark.parametrize("entity_type,entity_id,model", ENTITY_TYPES)
+    async def test_tracker_error_on_patch_surfaces_body(
+        self,
+        tracker_client: TrackerClient,
+        entity_type: str,
+        entity_id: str,
+        model: type[ProjectEntity] | type[PortfolioEntity],
+    ) -> None:
+        """Even with a reconciled, full item list, Tracker can still reject the
+        PATCH (e.g. a 423 version-lock) - its error body must still reach the
+        caller instead of being swallowed by a bare `raise_for_status()`.
         """
+        current_items = [{"id": "item1", "text": "Do the thing", "checked": False}]
+        get_capture = RequestCapture(
+            payload=_checklist_snapshot_data(entity_type, entity_id, current_items)
+        )
         error_body = "Internal Server Error"
 
         with aioresponses() as m:
+            m.get(
+                re.compile(
+                    rf"^https://api\.tracker\.yandex\.net/v3/entities/{entity_type}/"
+                    rf"{entity_id}\?fields=checklistItems$"
+                ),
+                callback=get_capture.callback,
+            )
             m.patch(
                 re.compile(
                     rf"^https://api\.tracker\.yandex\.net/v3/entities/{entity_type}/"
