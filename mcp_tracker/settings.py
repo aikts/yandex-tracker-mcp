@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     port: int = 8000
     transport: Literal["stdio", "sse", "streamable-http"] = "stdio"
     tracker_api_base_url: str = "https://api.tracker.yandex.net"
+    # Total per-request budget for a Tracker API call. Deep pagination and wide
+    # queries are the slow cases; raise this rather than let them time out.
+    tracker_api_timeout: float = 10.0
     tracker_token: str | None = None
     tracker_iam_token: str | None = None
     tracker_cloud_org_id: str | None = None
