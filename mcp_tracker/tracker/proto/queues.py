@@ -3,6 +3,7 @@ from typing import Protocol, runtime_checkable
 
 from .common import YandexAuth
 from .types.fields import GlobalField, LocalField
+from .types.pagination import PaginatedResult
 from .types.queues import Queue, QueueExpandOption, QueueVersion
 
 
@@ -10,7 +11,7 @@ from .types.queues import Queue, QueueExpandOption, QueueVersion
 class QueuesProtocol(Protocol):
     async def queues_list(
         self, per_page: int = 100, page: int = 1, *, auth: YandexAuth | None = None
-    ) -> list[Queue]: ...
+    ) -> PaginatedResult[Queue]: ...
 
     async def queue_get(
         self,

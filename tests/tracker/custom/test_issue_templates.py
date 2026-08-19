@@ -43,7 +43,7 @@ class TestIssueTemplates:
                 payload=[sample_template_data],
             )
 
-            result = await tracker_client.get_issue_templates()
+            result = (await tracker_client.get_issue_templates()).values
 
             assert isinstance(result, list)
             assert len(result) == 1
@@ -66,7 +66,7 @@ class TestIssueTemplates:
                 payload=templates_response,
             )
 
-            result = await tracker_client.get_issue_templates()
+            result = (await tracker_client.get_issue_templates()).values
 
             assert isinstance(result, list)
             assert len(result) == 0
@@ -85,7 +85,7 @@ class TestIssueTemplates:
                 callback=capture.callback,
             )
 
-            result = await tracker_client.get_issue_templates(auth=yandex_auth)
+            result = (await tracker_client.get_issue_templates(auth=yandex_auth)).values
 
             assert len(result) == 1
 
@@ -108,7 +108,9 @@ class TestIssueTemplates:
                 payload=[sample_template_data],
             )
 
-            result = await tracker_client.get_issue_templates(per_page=25, page=3)
+            result = (
+                await tracker_client.get_issue_templates(per_page=25, page=3)
+            ).values
 
             assert len(result) == 1
 
@@ -123,7 +125,7 @@ class TestIssueTemplates:
                 payload=[sample_template_data],
             )
 
-            result = await tracker_client.get_issue_templates(queue="TEST")
+            result = (await tracker_client.get_issue_templates(queue="TEST")).values
 
             assert len(result) == 1
             assert result[0].id == "1"
@@ -228,7 +230,7 @@ class TestIssueTemplates:
                 payload=[{"id": template_id, "name": "Template"}],
             )
 
-            result = await tracker_client.get_issue_templates()
+            result = (await tracker_client.get_issue_templates()).values
 
             assert result[0].id == template_id
 

@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock
 from mcp.client.session import ClientSession
 
 from mcp_tracker.tracker.proto.types.users import User
-from tests.mcp.conftest import get_tool_result_content
+from tests.mcp.conftest import get_tool_result_content, page
 
 
 class TestUsersGetAll:
@@ -13,17 +13,20 @@ class TestUsersGetAll:
         mock_users_protocol: AsyncMock,
         sample_users: list[User],
     ) -> None:
-        mock_users_protocol.users_list.return_value = sample_users
+        mock_users_protocol.users_list.return_value = page(
+            sample_users, hits=489, pages=10
+        )
 
         result = await client_session.call_tool("users_get_all", {})
 
         assert not result.isError
         mock_users_protocol.users_list.assert_called_once()
         content = get_tool_result_content(result)
-        assert isinstance(content, list)
-        assert len(content) == len(sample_users)
-        assert content[0]["login"] == sample_users[0].login
-        assert content[0]["display"] == sample_users[0].display
+        assert len(content["values"]) == len(sample_users)
+        assert content["values"][0]["login"] == sample_users[0].login
+        assert content["values"][0]["display"] == sample_users[0].display
+        assert content["hits"] == 489
+        assert content["pages"] == 10
 
     async def test_with_pagination(
         self,
@@ -31,7 +34,9 @@ class TestUsersGetAll:
         mock_users_protocol: AsyncMock,
         sample_users: list[User],
     ) -> None:
-        mock_users_protocol.users_list.return_value = sample_users
+        mock_users_protocol.users_list.return_value = page(
+            sample_users, hits=489, pages=10
+        )
 
         result = await client_session.call_tool(
             "users_get_all", {"page": 2, "per_page": 25}
@@ -42,7 +47,7 @@ class TestUsersGetAll:
         assert call_kwargs["page"] == 2
         assert call_kwargs["per_page"] == 25
         content = get_tool_result_content(result)
-        assert len(content) == len(sample_users)
+        assert len(content["values"]) == len(sample_users)
 
     async def test_fields_filters_response(
         self,
@@ -50,14 +55,16 @@ class TestUsersGetAll:
         mock_users_protocol: AsyncMock,
         sample_users: list[User],
     ) -> None:
-        mock_users_protocol.users_list.return_value = sample_users
+        mock_users_protocol.users_list.return_value = page(
+            sample_users, hits=489, pages=10
+        )
 
         result = await client_session.call_tool("users_get_all", {"fields": ["login"]})
 
         assert not result.isError
         content = get_tool_result_content(result)
-        assert content[0]["login"] == sample_users[0].login
-        assert content[0].get("display") is None
+        assert content["values"][0]["login"] == sample_users[0].login
+        assert content["values"][0].get("display") is None
 
 
 class TestUsersSearch:
@@ -67,7 +74,7 @@ class TestUsersSearch:
         mock_users_protocol: AsyncMock,
         sample_users: list[User],
     ) -> None:
-        mock_users_protocol.users_list.side_effect = [sample_users, []]
+        mock_users_protocol.users_list.side_effect = [page(sample_users), page([])]
 
         result = await client_session.call_tool(
             "users_search", {"login_or_email_or_name": "testuser"}
@@ -85,7 +92,7 @@ class TestUsersSearch:
         mock_users_protocol: AsyncMock,
         sample_users: list[User],
     ) -> None:
-        mock_users_protocol.users_list.side_effect = [sample_users, []]
+        mock_users_protocol.users_list.side_effect = [page(sample_users), page([])]
 
         result = await client_session.call_tool(
             "users_search", {"login_or_email_or_name": "testuser@example.com"}
@@ -103,7 +110,7 @@ class TestUsersSearch:
         mock_users_protocol: AsyncMock,
         sample_users: list[User],
     ) -> None:
-        mock_users_protocol.users_list.side_effect = [sample_users, []]
+        mock_users_protocol.users_list.side_effect = [page(sample_users), page([])]
 
         result = await client_session.call_tool(
             "users_search", {"login_or_email_or_name": "Test User"}
@@ -120,7 +127,7 @@ class TestUsersSearch:
         client_session: ClientSession,
         mock_users_protocol: AsyncMock,
     ) -> None:
-        mock_users_protocol.users_list.side_effect = [[], []]
+        mock_users_protocol.users_list.side_effect = [page([]), page([])]
 
         result = await client_session.call_tool(
             "users_search", {"login_or_email_or_name": "nonexistent"}

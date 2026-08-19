@@ -52,9 +52,7 @@ def register_project_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Find Projects",
-        description="Search Yandex Tracker projects by name substring and/or field filters. Paginated: "
-        "call again with `page` incremented (starting from 1) until an empty result is returned "
-        "to retrieve all matches.",
+        description="Search Yandex Tracker projects by name substring and/or field filters. Paginated.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def project_find(

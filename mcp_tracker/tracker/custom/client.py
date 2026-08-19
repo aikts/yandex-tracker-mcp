@@ -70,6 +70,7 @@ from mcp_tracker.tracker.proto.types.issues import (
     IssueTransition,
     Worklog,
 )
+from mcp_tracker.tracker.proto.types.pagination import ItemT, PaginatedResult
 from mcp_tracker.tracker.proto.types.priorities import Priority
 from mcp_tracker.tracker.proto.types.queues import (
     Queue,
@@ -349,7 +350,7 @@ class TrackerClient(
 
     async def queues_list(
         self, per_page: int = 100, page: int = 1, *, auth: YandexAuth | None = None
-    ) -> list[Queue]:
+    ) -> PaginatedResult[Queue]:
         params = {
             "perPage": per_page,
             "page": page,
@@ -358,7 +359,9 @@ class TrackerClient(
             "v3/queues", headers=await self._build_headers(auth), params=params
         ) as response:
             await self._raise_for_status(response)
-            return QueueList.model_validate_json(await response.read()).root
+            return self._paginated(
+                response, QueueList.model_validate_json(await response.read()).root
+            )
 
     async def queues_get_local_fields(
         self, queue_id: str, *, auth: YandexAuth | None = None
@@ -499,7 +502,7 @@ class TrackerClient(
         per_page: int = 50,
         page: int = 1,
         auth: YandexAuth | None = None,
-    ) -> list[IssueTemplate]:
+    ) -> PaginatedResult[IssueTemplate]:
         # The queue-scoped endpoint returns the templates of that queue plus the
         # ones not bound to any queue, which are usable in every queue.
         path = (
@@ -517,7 +520,10 @@ class TrackerClient(
             if queue is not None and response.status == 404:
                 raise QueueNotFound(queue)
             await self._raise_for_status(response)
-            return IssueTemplateList.model_validate_json(await response.read()).root
+            return self._paginated(
+                response,
+                IssueTemplateList.model_validate_json(await response.read()).root,
+            )
 
     async def get_issue_template(
         self, template_id: str, *, auth: YandexAuth | None = None
@@ -537,7 +543,7 @@ class TrackerClient(
         per_page: int = 50,
         page: int = 1,
         auth: YandexAuth | None = None,
-    ) -> list[CommentTemplate]:
+    ) -> PaginatedResult[CommentTemplate]:
         # The queue-scoped endpoint returns the templates of that queue plus the
         # ones not bound to any queue, which are usable in every queue.
         path = (
@@ -555,7 +561,10 @@ class TrackerClient(
             if queue is not None and response.status == 404:
                 raise QueueNotFound(queue)
             await self._raise_for_status(response)
-            return CommentTemplateList.model_validate_json(await response.read()).root
+            return self._paginated(
+                response,
+                CommentTemplateList.model_validate_json(await response.read()).root,
+            )
 
     async def get_comment_template(
         self, template_id: str, *, auth: YandexAuth | None = None
@@ -745,12 +754,11 @@ class TrackerClient(
         per_page: int = 15,
         page: int = 1,
         auth: YandexAuth | None = None,
-    ) -> list[Issue]:
-        params = {
+    ) -> PaginatedResult[Issue]:
+        params: dict[str, Any] = {
             "perPage": per_page,
             "page": page,
         }
-
         body: dict[str, Any] = {
             "query": query,
         }
@@ -762,7 +770,36 @@ class TrackerClient(
             params=params,
         ) as response:
             await self._raise_for_status(response)
-            return IssueList.model_validate_json(await response.read()).root
+            return self._paginated(
+                response, IssueList.model_validate_json(await response.read()).root
+            )
+
+    @classmethod
+    def _paginated(
+        cls, response: ClientResponse, values: list[ItemT]
+    ) -> PaginatedResult[ItemT]:
+        """Pair a decoded page with the totals Tracker reports for the whole query."""
+        return PaginatedResult[ItemT](
+            values=values,
+            hits=cls._parse_int_header(response, "X-Total-Count"),
+            pages=cls._parse_int_header(response, "X-Total-Pages"),
+        )
+
+    @staticmethod
+    def _parse_int_header(response: ClientResponse, name: str) -> int | None:
+        """Read an integer pagination total from a response header.
+
+        The totals are advisory: a missing or malformed header just means the
+        caller has to fall back to paging until a page comes back empty.
+        """
+        raw = response.headers.get(name)
+        if raw is None:
+            return None
+        try:
+            return int(raw)
+        except ValueError:
+            logger.warning("non-integer %s response header: %r", name, raw)
+            return None
 
     async def issue_get_worklogs(
         self, issue_id: str, *, auth: YandexAuth | None = None
@@ -876,7 +913,7 @@ class TrackerClient(
 
     async def users_list(
         self, per_page: int = 50, page: int = 1, *, auth: YandexAuth | None = None
-    ) -> list[User]:
+    ) -> PaginatedResult[User]:
         params: dict[str, str | int] = {
             "perPage": per_page,
             "page": page,
@@ -885,7 +922,9 @@ class TrackerClient(
             "v3/users", headers=await self._build_headers(auth), params=params
         ) as response:
             await self._raise_for_status(response)
-            return UserList.model_validate_json(await response.read()).root
+            return self._paginated(
+                response, UserList.model_validate_json(await response.read()).root
+            )
 
     async def user_get(
         self, user_id: str, *, auth: YandexAuth | None = None

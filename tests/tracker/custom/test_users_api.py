@@ -69,7 +69,7 @@ class TestUsersAPI:
                 payload=users_response,
             )
 
-            result = await tracker_client.users_list()
+            result = (await tracker_client.users_list()).values
 
             assert isinstance(result, list)
             assert len(result) == 1
@@ -92,7 +92,7 @@ class TestUsersAPI:
                 callback=capture.callback,
             )
 
-            result = await tracker_client.users_list(per_page=25, page=3)
+            result = (await tracker_client.users_list(per_page=25, page=3)).values
 
             assert isinstance(result, list)
             assert len(result) == 1
@@ -115,7 +115,9 @@ class TestUsersAPI:
                 callback=capture.callback,
             )
 
-            result = await tracker_client_no_org.users_list(auth=yandex_auth_cloud)
+            result = (
+                await tracker_client_no_org.users_list(auth=yandex_auth_cloud)
+            ).values
 
             assert isinstance(result, list)
             assert len(result) == 1
@@ -173,7 +175,7 @@ class TestUsersAPI:
                 payload=users_response,
             )
 
-            result = await tracker_client.users_list()
+            result = (await tracker_client.users_list()).values
 
             assert isinstance(result, list)
             assert len(result) == 2
@@ -312,7 +314,7 @@ class TestUsersAPI:
                 payload=users_response,
             )
 
-            result = await tracker_client.users_list()
+            result = (await tracker_client.users_list()).values
 
             assert isinstance(result, list)
             assert len(result) == 0

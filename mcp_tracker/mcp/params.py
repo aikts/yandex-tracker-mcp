@@ -621,7 +621,7 @@ Every `project_*`/`portfolio_*`/`goal_*` read tool takes a `fields` selector. As
 you need - omitting it returns that tool's default subset, which is deliberately small. Custom
 (organization-defined) attributes cannot be requested through these tools.
 
-When using tools that accept `page` and/or `per_page` parameters and when the task is to find something in the result set (or to receive all available data) - always call the tool as many times as needed increasing the `page` parameter until the result set is exhausted. If you stumble with the context size limit — try to change the `per_page` parameter to a lower value and restart the search from the `page=1`.
+When using tools that accept `page` and/or `per_page` parameters and when the task is to find something in the result set (or to receive all available data) - always call the tool as many times as needed increasing the `page` parameter until the result set is exhausted. Tools answering with `{values, hits, pages}` tell you when to stop: the current page is the last one when `page` equals `pages`. A null `pages` means no total is available, so keep paging until a page comes back empty. If you stumble with the context size limit — try to change the `per_page` parameter to a lower value and restart the search from the `page=1`.
 
 Some tools use cursor pagination instead of `page` (e.g. `issue_get_changelog` and every `*_get_comments` tool): they accept a `cursor` argument and return a `next_cursor` value. To get all data, keep calling the tool passing the previous `next_cursor` as `cursor` until `next_cursor` is null. Do not change `per_page` mid-pagination; if you must, restart with `cursor` empty.
 """

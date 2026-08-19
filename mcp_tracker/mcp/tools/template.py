@@ -16,9 +16,10 @@ from mcp_tracker.mcp.params import (
     QueueIDFilter,
 )
 from mcp_tracker.mcp.tools._access import check_queue_access, is_queue_allowed
-from mcp_tracker.mcp.tools._pagination import iter_pages
+from mcp_tracker.mcp.tools._pagination import collect_pages
 from mcp_tracker.mcp.utils import get_yandex_auth
 from mcp_tracker.settings import Settings
+from mcp_tracker.tracker.proto.types.pagination import PaginatedResult
 from mcp_tracker.tracker.proto.types.templates import (
     BaseTemplate,
     CommentTemplate,
@@ -55,20 +56,22 @@ def _check_template_access(settings: Settings, template: BaseTemplate) -> None:
 
 async def _collect_templates(
     settings: Settings,
-    fetch: Callable[[int], Awaitable[list[TemplateT]]],
+    fetch: Callable[[int], Awaitable[PaginatedResult[TemplateT]]],
     page: int | None,
     per_page: int,
-) -> list[TemplateT]:
+) -> PaginatedResult[TemplateT]:
     """Collect the visible templates of every page, or of ``page`` alone.
 
     Both template endpoints paginate with a default of 50 items per page, so a
     single request would silently drop everything past the first page.
     """
-    result: list[TemplateT] = []
-    async for templates in iter_pages(fetch, page=page, per_page=per_page):
-        result.extend(_visible_templates(settings, templates))
-
-    return result
+    return await collect_pages(
+        fetch,
+        page=page,
+        per_page=per_page,
+        visible=lambda templates: _visible_templates(settings, templates),
+        restricted=bool(settings.tracker_limit_queues),
+    )
 
 
 def register_template_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
@@ -93,7 +96,7 @@ def register_template_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         queue: QueueIDFilter = None,
         page: PageOrAllParam = None,
         per_page: PerPageParam = 50,
-    ) -> list[IssueTemplate]:
+    ) -> PaginatedResult[IssueTemplate]:
         if queue is not None:
             check_queue_access(settings, queue)
 
@@ -149,7 +152,7 @@ def register_template_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         queue: QueueIDFilter = None,
         page: PageOrAllParam = None,
         per_page: PerPageParam = 50,
-    ) -> list[CommentTemplate]:
+    ) -> PaginatedResult[CommentTemplate]:
         if queue is not None:
             check_queue_access(settings, queue)
 

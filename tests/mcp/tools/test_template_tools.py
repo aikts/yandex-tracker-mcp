@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock
 from mcp.client.session import ClientSession
 
 from mcp_tracker.tracker.proto.types.templates import CommentTemplate, IssueTemplate
-from tests.mcp.conftest import get_tool_result_content
+from tests.mcp.conftest import get_tool_result_content, page
 
 
 class TestIssueTemplatesGetAll:
@@ -14,18 +14,17 @@ class TestIssueTemplatesGetAll:
         sample_issue_templates: list[IssueTemplate],
     ) -> None:
         mock_templates_protocol.get_issue_templates.side_effect = [
-            sample_issue_templates,
-            [],
+            page(sample_issue_templates),
+            page([]),
         ]
 
         result = await client_session.call_tool("issue_templates_get_all", {})
 
         assert not result.isError
         content = get_tool_result_content(result)
-        assert isinstance(content, list)
-        assert len(content) == len(sample_issue_templates)
-        assert content[0]["id"] == sample_issue_templates[0].id
-        assert content[0]["name"] == sample_issue_templates[0].name
+        assert len(content["values"]) == len(sample_issue_templates)
+        assert content["values"][0]["id"] == sample_issue_templates[0].id
+        assert content["values"][0]["name"] == sample_issue_templates[0].name
 
     async def test_returns_field_templates(
         self,
@@ -36,15 +35,18 @@ class TestIssueTemplatesGetAll:
         """The prefilled field values are the point of the tool - they must survive
         serialization back to the MCP client."""
         mock_templates_protocol.get_issue_templates.side_effect = [
-            [sample_issue_template],
-            [],
+            page([sample_issue_template]),
+            page([]),
         ]
 
         result = await client_session.call_tool("issue_templates_get_all", {})
 
         assert not result.isError
         content = get_tool_result_content(result)
-        assert content[0]["fieldTemplates"] == sample_issue_template.fieldTemplates
+        assert (
+            content["values"][0]["fieldTemplates"]
+            == sample_issue_template.fieldTemplates
+        )
 
     async def test_walks_all_pages_by_default(
         self,
@@ -55,9 +57,9 @@ class TestIssueTemplatesGetAll:
         """The endpoint paginates with a default of 50 items per page, so the tool
         keeps asking for pages until a short one arrives."""
         mock_templates_protocol.get_issue_templates.side_effect = [
-            sample_issue_templates[:2],
-            sample_issue_templates[2:],
-            [],
+            page(sample_issue_templates[:2]),
+            page(sample_issue_templates[2:]),
+            page([]),
         ]
 
         result = await client_session.call_tool(
@@ -66,7 +68,7 @@ class TestIssueTemplatesGetAll:
 
         assert not result.isError
         content = get_tool_result_content(result)
-        assert len(content) == len(sample_issue_templates)
+        assert len(content["values"]) == len(sample_issue_templates)
         requested = [
             (call.kwargs["page"], call.kwargs["per_page"])
             for call in mock_templates_protocol.get_issue_templates.call_args_list
@@ -81,8 +83,8 @@ class TestIssueTemplatesGetAll:
         sample_issue_templates: list[IssueTemplate],
     ) -> None:
         mock_templates_protocol.get_issue_templates.side_effect = [
-            sample_issue_templates[:2],
-            [],
+            page(sample_issue_templates[:2]),
+            page([]),
         ]
 
         result = await client_session.call_tool(
@@ -90,7 +92,7 @@ class TestIssueTemplatesGetAll:
         )
 
         assert not result.isError
-        assert len(get_tool_result_content(result)) == 2
+        assert len(get_tool_result_content(result)["values"]) == 2
         mock_templates_protocol.get_issue_templates.assert_called_once()
         call_args = mock_templates_protocol.get_issue_templates.call_args
         assert call_args.kwargs["page"] == 2
@@ -103,8 +105,8 @@ class TestIssueTemplatesGetAll:
         sample_issue_template: IssueTemplate,
     ) -> None:
         mock_templates_protocol.get_issue_templates.side_effect = [
-            [sample_issue_template],
-            [],
+            page([sample_issue_template]),
+            page([]),
         ]
 
         result = await client_session.call_tool(
@@ -120,7 +122,7 @@ class TestIssueTemplatesGetAll:
         client_session: ClientSession,
         mock_templates_protocol: AsyncMock,
     ) -> None:
-        mock_templates_protocol.get_issue_templates.return_value = []
+        mock_templates_protocol.get_issue_templates.return_value = page([])
 
         result = await client_session.call_tool("issue_templates_get_all", {})
 
@@ -137,8 +139,8 @@ class TestIssueTemplatesGetAll:
         """Templates bound to a queue outside TRACKER_LIMIT_QUEUES are dropped,
         while queue-less templates stay visible."""
         mock_templates_protocol.get_issue_templates.side_effect = [
-            sample_issue_templates,
-            [],
+            page(sample_issue_templates),
+            page([]),
         ]
 
         result = await client_session_with_limits.call_tool(
@@ -147,7 +149,7 @@ class TestIssueTemplatesGetAll:
 
         assert not result.isError
         content = get_tool_result_content(result)
-        returned_names = {template["name"] for template in content}
+        returned_names = {template["name"] for template in content["values"]}
         assert returned_names == {"Incident", "Personal template"}
 
     async def test_allows_permitted_queue_scope(
@@ -157,8 +159,8 @@ class TestIssueTemplatesGetAll:
         sample_issue_templates: list[IssueTemplate],
     ) -> None:
         mock_templates_protocol.get_issue_templates.side_effect = [
-            [sample_issue_templates[1]],
-            [],
+            page([sample_issue_templates[1]]),
+            page([]),
         ]
 
         result = await client_session_with_limits.call_tool(
@@ -167,7 +169,7 @@ class TestIssueTemplatesGetAll:
 
         assert not result.isError
         content = get_tool_result_content(result)
-        assert {template["name"] for template in content} == {"Incident"}
+        assert {template["name"] for template in content["values"]} == {"Incident"}
 
     async def test_rejects_restricted_queue_scope(
         self,
@@ -186,12 +188,12 @@ class TestIssueTemplatesGetAll:
         client_session: ClientSession,
         mock_templates_protocol: AsyncMock,
     ) -> None:
-        mock_templates_protocol.get_issue_templates.return_value = []
+        mock_templates_protocol.get_issue_templates.return_value = page([])
 
         result = await client_session.call_tool("issue_templates_get_all", {})
 
         assert not result.isError
-        assert get_tool_result_content(result) == []
+        assert get_tool_result_content(result)["values"] == []
 
 
 class TestIssueTemplateGet:
@@ -288,18 +290,17 @@ class TestCommentTemplatesGetAll:
         sample_comment_templates: list[CommentTemplate],
     ) -> None:
         mock_templates_protocol.get_comment_templates.side_effect = [
-            sample_comment_templates,
-            [],
+            page(sample_comment_templates),
+            page([]),
         ]
 
         result = await client_session.call_tool("comment_templates_get_all", {})
 
         assert not result.isError
         content = get_tool_result_content(result)
-        assert isinstance(content, list)
-        assert len(content) == len(sample_comment_templates)
-        assert content[0]["id"] == sample_comment_templates[0].id
-        assert content[0]["name"] == sample_comment_templates[0].name
+        assert len(content["values"]) == len(sample_comment_templates)
+        assert content["values"][0]["id"] == sample_comment_templates[0].id
+        assert content["values"][0]["name"] == sample_comment_templates[0].name
 
     async def test_returns_template_text_and_summonees(
         self,
@@ -310,18 +311,20 @@ class TestCommentTemplatesGetAll:
         """The comment body and its summonees are the point of the tool - they
         must survive serialization back to the MCP client."""
         mock_templates_protocol.get_comment_templates.side_effect = [
-            [sample_comment_template],
-            [],
+            page([sample_comment_template]),
+            page([]),
         ]
 
         result = await client_session.call_tool("comment_templates_get_all", {})
 
         assert not result.isError
         content = get_tool_result_content(result)
-        assert content[0]["template"] == sample_comment_template.template
-        assert content[0]["description"] == sample_comment_template.description
-        assert content[0]["summonees"][0]["display"] == "Ivan Ivanov"
-        assert content[0]["maillistSummonees"][0]["id"] == "duty@example.com"
+        assert content["values"][0]["template"] == sample_comment_template.template
+        assert (
+            content["values"][0]["description"] == sample_comment_template.description
+        )
+        assert content["values"][0]["summonees"][0]["display"] == "Ivan Ivanov"
+        assert content["values"][0]["maillistSummonees"][0]["id"] == "duty@example.com"
 
     async def test_walks_all_pages_by_default(
         self,
@@ -332,9 +335,9 @@ class TestCommentTemplatesGetAll:
         """The endpoint paginates with a default of 50 items per page, so the tool
         keeps asking for pages until a short one arrives."""
         mock_templates_protocol.get_comment_templates.side_effect = [
-            sample_comment_templates[:2],
-            sample_comment_templates[2:],
-            [],
+            page(sample_comment_templates[:2]),
+            page(sample_comment_templates[2:]),
+            page([]),
         ]
 
         result = await client_session.call_tool(
@@ -358,8 +361,8 @@ class TestCommentTemplatesGetAll:
         sample_comment_templates: list[CommentTemplate],
     ) -> None:
         mock_templates_protocol.get_comment_templates.side_effect = [
-            sample_comment_templates[:2],
-            [],
+            page(sample_comment_templates[:2]),
+            page([]),
         ]
 
         result = await client_session.call_tool(
@@ -367,7 +370,7 @@ class TestCommentTemplatesGetAll:
         )
 
         assert not result.isError
-        assert len(get_tool_result_content(result)) == 2
+        assert len(get_tool_result_content(result)["values"]) == 2
         mock_templates_protocol.get_comment_templates.assert_called_once()
         call_args = mock_templates_protocol.get_comment_templates.call_args
         assert call_args.kwargs["page"] == 2
@@ -380,8 +383,8 @@ class TestCommentTemplatesGetAll:
         sample_comment_template: CommentTemplate,
     ) -> None:
         mock_templates_protocol.get_comment_templates.side_effect = [
-            [sample_comment_template],
-            [],
+            page([sample_comment_template]),
+            page([]),
         ]
 
         result = await client_session.call_tool(
@@ -397,7 +400,7 @@ class TestCommentTemplatesGetAll:
         client_session: ClientSession,
         mock_templates_protocol: AsyncMock,
     ) -> None:
-        mock_templates_protocol.get_comment_templates.return_value = []
+        mock_templates_protocol.get_comment_templates.return_value = page([])
 
         result = await client_session.call_tool("comment_templates_get_all", {})
 
@@ -414,8 +417,8 @@ class TestCommentTemplatesGetAll:
         """Templates bound to a queue outside TRACKER_LIMIT_QUEUES are dropped,
         while queue-less templates stay visible."""
         mock_templates_protocol.get_comment_templates.side_effect = [
-            sample_comment_templates,
-            [],
+            page(sample_comment_templates),
+            page([]),
         ]
 
         result = await client_session_with_limits.call_tool(
@@ -424,7 +427,7 @@ class TestCommentTemplatesGetAll:
 
         assert not result.isError
         content = get_tool_result_content(result)
-        returned_names = {template["name"] for template in content}
+        returned_names = {template["name"] for template in content["values"]}
         assert returned_names == {"Escalation", "Personal reply"}
 
     async def test_allows_permitted_queue_scope(
@@ -434,8 +437,8 @@ class TestCommentTemplatesGetAll:
         sample_comment_templates: list[CommentTemplate],
     ) -> None:
         mock_templates_protocol.get_comment_templates.side_effect = [
-            [sample_comment_templates[1]],
-            [],
+            page([sample_comment_templates[1]]),
+            page([]),
         ]
 
         result = await client_session_with_limits.call_tool(
@@ -444,7 +447,7 @@ class TestCommentTemplatesGetAll:
 
         assert not result.isError
         content = get_tool_result_content(result)
-        assert {template["name"] for template in content} == {"Escalation"}
+        assert {template["name"] for template in content["values"]} == {"Escalation"}
 
     async def test_rejects_restricted_queue_scope(
         self,
@@ -463,12 +466,12 @@ class TestCommentTemplatesGetAll:
         client_session: ClientSession,
         mock_templates_protocol: AsyncMock,
     ) -> None:
-        mock_templates_protocol.get_comment_templates.return_value = []
+        mock_templates_protocol.get_comment_templates.return_value = page([])
 
         result = await client_session.call_tool("comment_templates_get_all", {})
 
         assert not result.isError
-        assert get_tool_result_content(result) == []
+        assert get_tool_result_content(result)["values"] == []
 
 
 class TestCommentTemplateGet:

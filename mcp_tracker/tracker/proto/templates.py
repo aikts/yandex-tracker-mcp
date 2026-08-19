@@ -1,6 +1,7 @@
 from typing import Protocol, runtime_checkable
 
 from .common import YandexAuth
+from .types.pagination import PaginatedResult
 from .types.templates import CommentTemplate, IssueTemplate
 
 
@@ -13,7 +14,7 @@ class TemplatesProtocol(Protocol):
         per_page: int = 50,
         page: int = 1,
         auth: YandexAuth | None = None,
-    ) -> list[IssueTemplate]: ...
+    ) -> PaginatedResult[IssueTemplate]: ...
     async def get_issue_template(
         self, template_id: str, *, auth: YandexAuth | None = None
     ) -> IssueTemplate: ...
@@ -24,7 +25,7 @@ class TemplatesProtocol(Protocol):
         per_page: int = 50,
         page: int = 1,
         auth: YandexAuth | None = None,
-    ) -> list[CommentTemplate]: ...
+    ) -> PaginatedResult[CommentTemplate]: ...
     async def get_comment_template(
         self, template_id: str, *, auth: YandexAuth | None = None
     ) -> CommentTemplate: ...

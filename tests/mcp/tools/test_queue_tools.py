@@ -4,7 +4,7 @@ from mcp.client.session import ClientSession
 
 from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
 from mcp_tracker.tracker.proto.types.queues import Queue, QueueVersion
-from tests.mcp.conftest import get_tool_result_content
+from tests.mcp.conftest import get_tool_result_content, page
 
 
 class TestQueuesGetAll:
@@ -15,17 +15,19 @@ class TestQueuesGetAll:
         sample_queues: list[Queue],
     ) -> None:
         # First call returns queues, second call returns empty list to stop pagination
-        mock_queues_protocol.queues_list.side_effect = [sample_queues, []]
+        mock_queues_protocol.queues_list.side_effect = [page(sample_queues), page([])]
 
         result = await client_session.call_tool("queues_get_all", {})
 
         assert not result.isError
         mock_queues_protocol.queues_list.assert_called()
         content = get_tool_result_content(result)
-        assert isinstance(content, list)
-        assert len(content) == len(sample_queues)
-        assert content[0]["key"] == sample_queues[0].key
-        assert content[0]["name"] == sample_queues[0].name
+        assert len(content["values"]) == len(sample_queues)
+        assert content["values"][0]["key"] == sample_queues[0].key
+        assert content["values"][0]["name"] == sample_queues[0].name
+        # A full walk already returned everything, so totals add nothing.
+        assert content["hits"] is None
+        assert content["pages"] is None
 
     async def test_with_specific_page(
         self,
@@ -33,7 +35,9 @@ class TestQueuesGetAll:
         mock_queues_protocol: AsyncMock,
         sample_queues: list[Queue],
     ) -> None:
-        mock_queues_protocol.queues_list.return_value = sample_queues
+        mock_queues_protocol.queues_list.return_value = page(
+            sample_queues, hits=120, pages=3
+        )
 
         result = await client_session.call_tool(
             "queues_get_all", {"page": 2, "per_page": 50}
@@ -41,8 +45,10 @@ class TestQueuesGetAll:
 
         assert not result.isError
         content = get_tool_result_content(result)
-        assert isinstance(content, list)
-        assert len(content) == len(sample_queues)
+        assert len(content["values"]) == len(sample_queues)
+        # One explicit page on an unrestricted server: totals are trustworthy.
+        assert content["hits"] == 120
+        assert content["pages"] == 3
 
     async def test_respects_queue_limits(
         self,
@@ -52,15 +58,17 @@ class TestQueuesGetAll:
     ) -> None:
         # Include an ALLOWED queue in the response
         sample_queues[0].key = "ALLOWED"
-        mock_queues_protocol.queues_list.side_effect = [sample_queues, []]
+        mock_queues_protocol.queues_list.side_effect = [page(sample_queues), page([])]
 
         result = await client_session_with_limits.call_tool("queues_get_all", {})
 
         assert not result.isError
         content = get_tool_result_content(result)
-        assert isinstance(content, list)
         # Only the ALLOWED queue should be returned
-        assert all(q["key"] == "ALLOWED" for q in content)
+        assert all(q["key"] == "ALLOWED" for q in content["values"])
+        # Totals count what Tracker matched, before the allow-list hid queues.
+        assert content["hits"] is None
+        assert content["pages"] is None
 
 
 class TestQueueGetTags:

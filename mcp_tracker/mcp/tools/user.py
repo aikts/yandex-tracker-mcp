@@ -14,6 +14,7 @@ from mcp_tracker.mcp.params import PageParam, PerPageParam, UserID
 from mcp_tracker.mcp.tools._pagination import iter_pages
 from mcp_tracker.mcp.utils import get_yandex_auth, set_non_needed_fields_null
 from mcp_tracker.settings import Settings
+from mcp_tracker.tracker.proto.types.pagination import PaginatedResult
 from mcp_tracker.tracker.proto.types.users import User, UserFieldsEnum
 
 
@@ -22,9 +23,7 @@ def register_user_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Get All Users",
-        description="Get information about user accounts registered in the organization. Paginated: "
-        "call again with `page` incremented (starting from 1) until an empty list is returned "
-        "to retrieve everyone.",
+        description="Get information about user accounts registered in the organization.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def users_get_all(
@@ -39,17 +38,17 @@ def register_user_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
                 "Not specifying this returns all available fields.",
             ),
         ] = None,
-    ) -> list[User]:
-        users = await ctx.request_context.lifespan_context.users.users_list(
+    ) -> PaginatedResult[User]:
+        result = await ctx.request_context.lifespan_context.users.users_list(
             per_page=per_page,
             page=page,
             auth=get_yandex_auth(ctx),
         )
 
         if fields is not None:
-            set_non_needed_fields_null(users, {f.name for f in fields})
+            set_non_needed_fields_null(result.values, {f.name for f in fields})
 
-        return users
+        return result
 
     @mcp.tool(
         title="Search Users",
@@ -79,14 +78,14 @@ def register_user_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
             page=None,
             per_page=per_page,
         ):
-            for user in batch:
+            for user in batch.values:
                 if user.login and login_or_email_or_name == user.login.strip().lower():
                     return [user]
 
                 if user.email and login_or_email_or_name == user.email.strip().lower():
                     return [user]
 
-            all_users.extend(batch)
+            all_users.extend(batch.values)
 
         names = {
             idx: f"{u.first_name} {u.last_name}" for idx, u in enumerate(all_users)

@@ -51,9 +51,7 @@ def register_goal_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Find Goals",
-        description="Search Yandex Tracker goals by name substring and/or field filters. Paginated: "
-        "call again with `page` incremented (starting from 1) until an empty result is returned "
-        "to retrieve all matches.",
+        description="Search Yandex Tracker goals by name substring and/or field filters. Paginated.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def goal_find(

@@ -48,6 +48,7 @@ from mcp_tracker.tracker.proto.types.issues import (
     IssueTransition,
     Worklog,
 )
+from mcp_tracker.tracker.proto.types.pagination import PaginatedResult
 from mcp_tracker.tracker.proto.types.priorities import Priority
 from mcp_tracker.tracker.proto.types.queues import (
     Queue,
@@ -78,7 +79,7 @@ def make_cached_protocols(
         @cached(**cache_config)
         async def queues_list(
             self, per_page: int = 100, page: int = 1, *, auth: YandexAuth | None = None
-        ) -> list[Queue]:
+        ) -> PaginatedResult[Queue]:
             return await self._original.queues_list(
                 per_page=per_page, page=page, auth=auth
             )
@@ -246,8 +247,9 @@ def make_cached_protocols(
             *,
             per_page: int = 15,
             page: int = 1,
+            fields: Sequence[str] | None = None,
             auth: YandexAuth | None = None,
-        ) -> list[Issue]:
+        ) -> PaginatedResult[Issue]:
             return await self._original.issues_find(
                 query=query,
                 per_page=per_page,
@@ -529,7 +531,7 @@ def make_cached_protocols(
             per_page: int = 50,
             page: int = 1,
             auth: YandexAuth | None = None,
-        ) -> list[IssueTemplate]:
+        ) -> PaginatedResult[IssueTemplate]:
             return await self._original.get_issue_templates(
                 queue=queue, per_page=per_page, page=page, auth=auth
             )
@@ -548,7 +550,7 @@ def make_cached_protocols(
             per_page: int = 50,
             page: int = 1,
             auth: YandexAuth | None = None,
-        ) -> list[CommentTemplate]:
+        ) -> PaginatedResult[CommentTemplate]:
             return await self._original.get_comment_templates(
                 queue=queue, per_page=per_page, page=page, auth=auth
             )
@@ -563,7 +565,7 @@ def make_cached_protocols(
         @cached(**cache_config)
         async def users_list(
             self, per_page: int = 50, page: int = 1, *, auth: YandexAuth | None = None
-        ) -> list[User]:
+        ) -> PaginatedResult[User]:
             return await self._original.users_list(
                 per_page=per_page, page=page, auth=auth
             )
