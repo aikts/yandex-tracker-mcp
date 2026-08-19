@@ -302,3 +302,11 @@ class ChangelogPage(BaseTrackerEntity):
 
     entries: list[ChangelogEntry]
     next_cursor: str | None = None
+
+
+class IssuesCount(BaseTrackerEntity):
+    """The number of issues matching a query."""
+
+    count: int = Field(
+        description="Number of issues matching the query - a count, not an HTTP status.",
+    )

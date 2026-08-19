@@ -252,7 +252,8 @@ class TestIssuesCount:
         assert not result.isError
         mock_issues_protocol.issues_count.assert_called_once()
         content = get_tool_result_content(result)
-        assert content == 42
+        # A named field, so the number cannot be mistaken for an HTTP status.
+        assert content == {"count": 42}
 
 
 class TestIssueGetWorklogs:
