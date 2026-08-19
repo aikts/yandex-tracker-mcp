@@ -1,0 +1,53 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "557bedd60906",
+  "strategy": "manual-commit",
+  "branch": "feat/pagination-totals-and-field-selection",
+  "checkpoints_count": 15,
+  "files_touched": [
+    "mcp_tracker/mcp/params.py",
+    "mcp_tracker/mcp/tools/_pagination.py",
+    "mcp_tracker/mcp/tools/goal.py",
+    "mcp_tracker/mcp/tools/issue_read.py",
+    "mcp_tracker/mcp/tools/portfolio.py",
+    "mcp_tracker/mcp/tools/project.py",
+    "mcp_tracker/mcp/tools/queue.py",
+    "mcp_tracker/mcp/tools/template.py",
+    "mcp_tracker/mcp/tools/user.py",
+    "mcp_tracker/tracker/caching/client.py",
+    "mcp_tracker/tracker/custom/client.py",
+    "mcp_tracker/tracker/proto/issues.py",
+    "mcp_tracker/tracker/proto/queues.py",
+    "mcp_tracker/tracker/proto/templates.py",
+    "mcp_tracker/tracker/proto/types/entities.py",
+    "mcp_tracker/tracker/proto/types/pagination.py",
+    "mcp_tracker/tracker/proto/users.py",
+    "tests/mcp/conftest.py",
+    "tests/mcp/tools/test_issue_read_tools.py",
+    "tests/mcp/tools/test_pagination.py",
+    "tests/mcp/tools/test_queue_tools.py",
+    "tests/mcp/tools/test_template_tools.py",
+    "tests/mcp/tools/test_user_tools.py",
+    "tests/tracker/custom/issues/test_issues_find.py",
+    "tests/tracker/custom/queues/test_queues_list.py",
+    "tests/tracker/custom/test_comment_templates.py",
+    "tests/tracker/custom/test_issue_templates.py",
+    "tests/tracker/custom/test_users_api.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/55/7bedd60906/0/metadata.json",
+      "transcript": "/55/7bedd60906/0/full.jsonl",
+      "compact_transcript": "/55/7bedd60906/0/transcript.jsonl",
+      "content_hash": "/55/7bedd60906/0/content_hash.txt",
+      "prompt": "/55/7bedd60906/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2376,
+    "cache_creation_tokens": 391198,
+    "cache_read_tokens": 65637051,
+    "output_tokens": 217876,
+    "api_call_count": 271
+  }
+}
