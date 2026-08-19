@@ -1,0 +1,66 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "2dedd280ff84",
+  "session_id": "f8ad50c8-7086-4833-91aa-18c869b9bd9a",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-19T15:51:34.385233Z",
+  "branch": "feat/pagination-totals-and-field-selection",
+  "checkpoints_count": 15,
+  "save_step_count": 1,
+  "files_touched": [
+    "CHANGELOG.md",
+    "README.md",
+    "README_ru.md"
+  ],
+  "agent": "Claude Code",
+  "model": "",
+  "turn_id": "cb457a8c125b",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 2384,
+    "cache_creation_tokens": 393661,
+    "cache_read_tokens": 67266581,
+    "output_tokens": 219345,
+    "api_call_count": 275
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-simplify-2026-08-19T15:16:49.690555Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "simplify"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "1709b582fa2a",
+      "timestamp": "2026-08-19T15:16:49.690555Z",
+      "native": {
+        "command": "/simplify"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/simplify",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 15
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-19T15:51:34.296298Z",
+    "agent_lines": 17,
+    "agent_removed": 4,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 17,
+    "total_lines_changed": 21,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}
