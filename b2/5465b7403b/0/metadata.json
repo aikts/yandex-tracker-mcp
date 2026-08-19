@@ -1,0 +1,100 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "b25465b7403b",
+  "session_id": "f8ad50c8-7086-4833-91aa-18c869b9bd9a",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-19T16:27:02.182048Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "",
+  "turn_id": "6402c64724e5",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 2640,
+    "cache_creation_tokens": 467406,
+    "cache_read_tokens": 90434997,
+    "output_tokens": 257257,
+    "api_call_count": 327
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-simplify-2026-08-19T15:16:49.690555Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "simplify"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "1709b582fa2a",
+      "timestamp": "2026-08-19T15:16:49.690555Z",
+      "native": {
+        "command": "/simplify"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/simplify",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-release-2026-08-19T16:24:00.670683Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "release"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "e44ef3721c86",
+      "timestamp": "2026-08-19T16:24:00.670683Z",
+      "native": {
+        "command": "/release"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/release",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 21
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 124,
+      "user_lines_removed": 71,
+      "agent_lines_added": 51,
+      "agent_lines_removed": 44,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 60,
+        "CHANGELOG.md": 41,
+        "README.md": 8,
+        "README_ru.md": 8,
+        "manifest.json": 1,
+        "pyproject.toml": 1,
+        "server.json": 3,
+        "uv.lock": 2
+      },
+      "user_removed_per_file": {
+        "CHANGELOG.md": 48,
+        "README.md": 8,
+        "README_ru.md": 8,
+        "manifest.json": 1,
+        "pyproject.toml": 1,
+        "server.json": 3,
+        "uv.lock": 2
+      }
+    }
+  ]
+}
