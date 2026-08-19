@@ -1,0 +1,24 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "fc91cf608ed8",
+  "strategy": "manual-commit",
+  "branch": "feat/pagination-totals-and-field-selection",
+  "checkpoints_count": 3,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/fc/91cf608ed8/0/metadata.json",
+      "transcript": "/fc/91cf608ed8/0/full.jsonl",
+      "compact_transcript": "/fc/91cf608ed8/0/transcript.jsonl",
+      "content_hash": "/fc/91cf608ed8/0/content_hash.txt",
+      "prompt": "/fc/91cf608ed8/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2597,
+    "cache_creation_tokens": 428146,
+    "cache_read_tokens": 79704151,
+    "output_tokens": 246164,
+    "api_call_count": 304
+  }
+}
