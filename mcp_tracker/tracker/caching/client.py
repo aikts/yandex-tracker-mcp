@@ -254,6 +254,7 @@ def make_cached_protocols(
                 query=query,
                 per_page=per_page,
                 page=page,
+                fields=fields,
                 auth=auth,
             )
 

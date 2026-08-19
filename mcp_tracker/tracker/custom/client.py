@@ -753,12 +753,20 @@ class TrackerClient(
         *,
         per_page: int = 15,
         page: int = 1,
+        fields: Sequence[str] | None = None,
         auth: YandexAuth | None = None,
     ) -> PaginatedResult[Issue]:
         params: dict[str, Any] = {
             "perPage": per_page,
             "page": page,
         }
+        if fields:
+            # The endpoint projects server-side, so an unwanted field costs
+            # nothing on the wire instead of being fetched and dropped later.
+            # Tracker always adds `self`, `id`, `key`, `version` and `favorite`
+            # to whatever is asked for.
+            params["fields"] = ",".join(fields)
+
         body: dict[str, Any] = {
             "query": query,
         }

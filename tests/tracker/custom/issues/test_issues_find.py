@@ -91,3 +91,37 @@ class TestIssuesFind:
             assert result.hits is None
             assert result.pages == 5
             assert len(result.values) == 1
+
+    async def test_fields_are_sent_as_query_param(
+        self, tracker_client: TrackerClient, sample_issue_data: dict[str, Any]
+    ) -> None:
+        capture = RequestCapture(payload=[sample_issue_data])
+
+        with aioresponses() as m:
+            m.post(
+                "https://api.tracker.yandex.net/v3/issues/_search?fields=key,storyPoints&page=1&perPage=15",
+                callback=capture.callback,
+            )
+
+            await tracker_client.issues_find(
+                "Queue: TEST", fields=["key", "storyPoints"]
+            )
+
+        capture.assert_called_once()
+        capture.last_request.assert_param("fields", "key,storyPoints")
+
+    async def test_no_fields_param_when_not_requested(
+        self, tracker_client: TrackerClient, sample_issue_data: dict[str, Any]
+    ) -> None:
+        capture = RequestCapture(payload=[sample_issue_data])
+
+        with aioresponses() as m:
+            m.post(
+                "https://api.tracker.yandex.net/v3/issues/_search?page=1&perPage=15",
+                callback=capture.callback,
+            )
+
+            await tracker_client.issues_find("Queue: TEST")
+
+        capture.assert_called_once()
+        assert "fields" not in capture.last_request.params

@@ -133,11 +133,11 @@ class TestCachingIssuesProtocol:
         yandex_auth: YandexAuth,
     ) -> None:
         result = await caching_issues_protocol.issues_find(
-            "query", per_page=20, page=3, auth=yandex_auth
+            "query", per_page=20, page=3, fields=["key"], auth=yandex_auth
         )
 
         mock_original.issues_find.assert_called_once_with(
-            query="query", per_page=20, page=3, auth=yandex_auth
+            query="query", per_page=20, page=3, fields=["key"], auth=yandex_auth
         )
         assert result == mock_original.issues_find.return_value
 
