@@ -93,6 +93,7 @@ class IssueProtocol(Protocol):
         *,
         per_page: int = 15,
         page: int = 1,
+        fields: Sequence[str] | None = None,
         auth: YandexAuth | None = None,
     ) -> PaginatedResult[Issue]: ...
     async def issue_get_worklogs(

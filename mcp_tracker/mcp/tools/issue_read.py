@@ -28,12 +28,12 @@ from mcp_tracker.tracker.proto.types.issues import (
     CommentsPage,
     Issue,
     IssueAttachment,
-    IssueFieldsEnum,
     IssueLink,
     IssuesCount,
     IssueTransition,
     Worklog,
     WorklogFieldsEnum,
+    resolve_issue_field,
 )
 from mcp_tracker.tracker.proto.types.pagination import PaginatedResult
 
@@ -150,22 +150,32 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             ),
         ] = False,
         fields: Annotated[
-            list[IssueFieldsEnum] | None,
+            list[str] | None,
             Field(
-                description="Fields to include in the response. In order to not pollute context "
-                "window - select appropriate fields beforehand. Not specifying fields returns ALL "
-                "available fields."
+                description="Fields to return, in Tracker's own spelling (`storyPoints`, not "
+                "`story_points`); the standard ones are those of this tool's output schema. For a "
+                "queue's local or the organization's custom fields, pass the field `id` from "
+                "`queue_get_fields`. A name Tracker does not know is dropped silently rather than "
+                "reported, so check that tool if a field comes back missing. Omitting this returns "
+                "ALL fields, including the queue's local ones."
             ),
         ] = None,
         page: PageParam = 1,
         per_page: PerPageParam = 100,
     ) -> PaginatedResult[Issue]:
-        selected = {f.name for f in fields} if fields is not None else None
+        api_fields: list[str] | None = None
+        selected: set[str] | None = None
+        if fields is not None:
+            resolved = [resolve_issue_field(name) for name in fields]
+            # Asking for both spellings of one field would send it to the API twice.
+            api_fields = list(dict.fromkeys(api for api, _ in resolved))
+            selected = {key for _, key in resolved}
 
         result = await ctx.request_context.lifespan_context.issues.issues_find(
             query=query,
             per_page=per_page,
             page=page,
+            fields=api_fields,
             auth=get_yandex_auth(ctx),
         )
 
@@ -176,6 +186,8 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
                 issue.description = None  # Clear description to save context
 
         if selected is not None:
+            # Tracker sends `self`, `id`, `version` and `favorite` on top of any
+            # projection, so the response still needs trimming to what was asked for.
             set_non_needed_fields_null(result.values, selected)
 
         return result

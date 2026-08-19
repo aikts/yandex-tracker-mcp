@@ -8,6 +8,7 @@ import pytest
 from pydantic import BaseModel
 
 import mcp_tracker.tracker.proto.types as types_package
+from mcp_tracker.tracker.proto.types.issues import resolve_issue_field
 
 
 def _aliased_fields() -> list[tuple[str, str, list[str], str | None]]:
@@ -65,3 +66,31 @@ class TestModelAliases:
             f"{model}.{field} accepts '{wire_name}' but serializes as "
             f"'{serialization_alias or field}'"
         )
+
+
+class TestResolveIssueField:
+    @pytest.mark.parametrize(
+        ("requested", "expected"),
+        [
+            # Declared field, Python spelling -> sent Tracker's way, kept under its own name.
+            ("story_points", ("storyPoints", "story_points")),
+            ("created_at", ("createdAt", "created_at")),
+            # The same field spelled Tracker's way.
+            ("storyPoints", ("storyPoints", "story_points")),
+            ("createdAt", ("createdAt", "created_at")),
+            # Declared field whose two spellings coincide.
+            ("summary", ("summary", "summary")),
+            # Undeclared: a standard field `Issue` omits, a queue-local one and a
+            # custom one all pass through untouched.
+            ("resolution", ("resolution", "resolution")),
+            (
+                "694c13a2974fc069fc7db927--chapter",
+                ("694c13a2974fc069fc7db927--chapter",) * 2,
+            ),
+            ("vozvrati", ("vozvrati", "vozvrati")),
+        ],
+    )
+    def test_resolves_every_spelling(
+        self, requested: str, expected: tuple[str, str]
+    ) -> None:
+        assert resolve_issue_field(requested) == expected

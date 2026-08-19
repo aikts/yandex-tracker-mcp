@@ -254,6 +254,116 @@ class TestIssuesFind:
         for issue in content["values"]:
             assert issue.get("description") is None
 
+    async def test_fields_are_pushed_down_to_the_api(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_issues: list[Issue],
+    ) -> None:
+        mock_issues_protocol.issues_find.return_value = page(sample_issues)
+
+        result = await client_session.call_tool(
+            "issues_find", {"query": "Queue: TEST", "fields": ["key", "story_points"]}
+        )
+
+        assert not result.isError
+        # The API only understands Tracker's own spelling of a field name.
+        assert sorted(mock_issues_protocol.issues_find.call_args.kwargs["fields"]) == [
+            "key",
+            "storyPoints",
+        ]
+
+    async def test_fields_accept_trackers_own_spelling(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        issue = Issue.model_construct(key="TEST-123", story_points=3.0)
+        mock_issues_protocol.issues_find.return_value = page([issue])
+
+        result = await client_session.call_tool(
+            "issues_find", {"query": "Queue: TEST", "fields": ["key", "storyPoints"]}
+        )
+
+        assert not result.isError
+        assert mock_issues_protocol.issues_find.call_args.kwargs["fields"] == [
+            "key",
+            "storyPoints",
+        ]
+        # Requested Tracker's way, kept under the model's own name.
+        content = get_tool_result_content(result)
+        assert content["values"][0]["storyPoints"] == 3.0
+
+    async def test_both_spellings_of_one_field_are_sent_once(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_issues: list[Issue],
+    ) -> None:
+        mock_issues_protocol.issues_find.return_value = page(sample_issues)
+
+        result = await client_session.call_tool(
+            "issues_find",
+            {"query": "Queue: TEST", "fields": ["story_points", "storyPoints"]},
+        )
+
+        assert not result.isError
+        assert mock_issues_protocol.issues_find.call_args.kwargs["fields"] == [
+            "storyPoints"
+        ]
+
+    async def test_fields_accept_a_field_the_model_does_not_declare(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        """A queue's local fields and the standard fields `Issue` omits are only
+        reachable because the selector is free-form."""
+        issue = Issue.model_validate(
+            {
+                "key": "TEST-123",
+                "resolution": {"id": "1", "key": "fixed"},
+                "694c13a2974fc069fc7db927--chapter": "Support",
+                "queue": {"id": "1", "key": "TEST"},
+            }
+        )
+        mock_issues_protocol.issues_find.return_value = page([issue])
+
+        result = await client_session.call_tool(
+            "issues_find",
+            {
+                "query": "Queue: TEST",
+                "fields": ["key", "resolution", "694c13a2974fc069fc7db927--chapter"],
+            },
+        )
+
+        assert not result.isError
+        assert mock_issues_protocol.issues_find.call_args.kwargs["fields"] == [
+            "key",
+            "resolution",
+            "694c13a2974fc069fc7db927--chapter",
+        ]
+        content = get_tool_result_content(result)
+        # Requested extras survive; `queue`, which was not asked for, does not.
+        assert content["values"][0] == {
+            "key": "TEST-123",
+            "resolution": {"id": "1", "key": "fixed"},
+            "694c13a2974fc069fc7db927--chapter": "Support",
+        }
+
+    async def test_no_fields_param_when_not_selected(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_issues: list[Issue],
+    ) -> None:
+        mock_issues_protocol.issues_find.return_value = page(sample_issues)
+
+        result = await client_session.call_tool("issues_find", {"query": "Queue: TEST"})
+
+        assert not result.isError
+        assert mock_issues_protocol.issues_find.call_args.kwargs["fields"] is None
+
     async def test_fields_drop_undeclared_api_fields(
         self,
         client_session: ClientSession,

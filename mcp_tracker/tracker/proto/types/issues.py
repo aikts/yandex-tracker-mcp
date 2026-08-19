@@ -59,10 +59,36 @@ class Issue(CreatedUpdatedMixin, BaseTrackerEntity):
     spent: str | None = NoneExcludedField
 
 
-IssueFieldsEnum = Enum(  # type: ignore[misc]
-    "IssueFieldsEnum",
-    {key: key for key in Issue.model_fields.keys()},
-)
+ISSUE_FIELD_API_NAMES: dict[str, str] = {
+    name: (info.serialization_alias or name)
+    for name, info in Issue.model_fields.items()
+}
+"""Python field name -> the name `POST /v3/issues/_search?fields=` expects."""
+
+_ISSUE_FIELD_PYTHON_NAMES: dict[str, str] = {
+    api: name for name, api in ISSUE_FIELD_API_NAMES.items()
+}
+
+
+def resolve_issue_field(name: str) -> tuple[str, str]:
+    """Map a requested field to (name to send the API, key it comes back under).
+
+    The `fields` selector is free-form so that a queue's local fields and an
+    organization's custom ones can be asked for at all, which means it has to
+    cope with three spellings: a declared field named the Python way
+    (`story_points`), the same field named Tracker's way (`storyPoints`), and a
+    field this server does not declare, which passes through untouched and
+    arrives in the model's extras under exactly the name it was asked for.
+    """
+    api = ISSUE_FIELD_API_NAMES.get(name)
+    if api is not None:
+        return api, name
+
+    python = _ISSUE_FIELD_PYTHON_NAMES.get(name)
+    if python is not None:
+        return name, python
+
+    return name, name
 
 
 class MaillistReference(BaseReference):
