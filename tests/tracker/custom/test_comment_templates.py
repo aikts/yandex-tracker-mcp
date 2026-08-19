@@ -52,7 +52,7 @@ class TestCommentTemplates:
                 payload=[sample_template_data],
             )
 
-            result = await tracker_client.get_comment_templates()
+            result = (await tracker_client.get_comment_templates()).values
 
             assert isinstance(result, list)
             assert len(result) == 1
@@ -73,7 +73,7 @@ class TestCommentTemplates:
                 payload=[sample_template_data],
             )
 
-            result = await tracker_client.get_comment_templates()
+            result = (await tracker_client.get_comment_templates()).values
 
             template = result[0]
             assert template.summonees is not None
@@ -95,7 +95,7 @@ class TestCommentTemplates:
                 payload=templates_response,
             )
 
-            result = await tracker_client.get_comment_templates()
+            result = (await tracker_client.get_comment_templates()).values
 
             assert isinstance(result, list)
             assert len(result) == 0
@@ -114,7 +114,9 @@ class TestCommentTemplates:
                 callback=capture.callback,
             )
 
-            result = await tracker_client.get_comment_templates(auth=yandex_auth)
+            result = (
+                await tracker_client.get_comment_templates(auth=yandex_auth)
+            ).values
 
             assert len(result) == 1
 
@@ -137,7 +139,9 @@ class TestCommentTemplates:
                 payload=[sample_template_data],
             )
 
-            result = await tracker_client.get_comment_templates(per_page=25, page=3)
+            result = (
+                await tracker_client.get_comment_templates(per_page=25, page=3)
+            ).values
 
             assert len(result) == 1
 
@@ -152,7 +156,7 @@ class TestCommentTemplates:
                 payload=[sample_template_data],
             )
 
-            result = await tracker_client.get_comment_templates(queue="TEST")
+            result = (await tracker_client.get_comment_templates(queue="TEST")).values
 
             assert len(result) == 1
             assert result[0].id == "1"
@@ -259,6 +263,6 @@ class TestCommentTemplates:
                 payload=[{"id": template_id, "name": "Template"}],
             )
 
-            result = await tracker_client.get_comment_templates()
+            result = (await tracker_client.get_comment_templates()).values
 
             assert result[0].id == template_id

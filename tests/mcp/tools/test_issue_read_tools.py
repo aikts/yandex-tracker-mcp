@@ -18,7 +18,7 @@ from mcp_tracker.tracker.proto.types.issues import (
     IssueTransition,
     Worklog,
 )
-from tests.mcp.conftest import get_tool_result_content
+from tests.mcp.conftest import get_tool_result_content, page
 
 
 class TestIssueGetUrl:
@@ -189,16 +189,34 @@ class TestIssuesFind:
         mock_issues_protocol: AsyncMock,
         sample_issues: list[Issue],
     ) -> None:
-        mock_issues_protocol.issues_find.return_value = sample_issues
+        mock_issues_protocol.issues_find.return_value = page(
+            sample_issues, hits=403, pages=5
+        )
 
         result = await client_session.call_tool("issues_find", {"query": "Queue: TEST"})
 
         assert not result.isError
         mock_issues_protocol.issues_find.assert_called_once()
         content = get_tool_result_content(result)
-        assert isinstance(content, list)
-        assert len(content) == len(sample_issues)
-        assert content[0]["key"] == sample_issues[0].key
+        assert len(content["values"]) == len(sample_issues)
+        assert content["values"][0]["key"] == sample_issues[0].key
+
+    async def test_returns_pagination_totals(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_issues: list[Issue],
+    ) -> None:
+        mock_issues_protocol.issues_find.return_value = page(
+            sample_issues, hits=403, pages=5
+        )
+
+        result = await client_session.call_tool("issues_find", {"query": "Queue: TEST"})
+
+        assert not result.isError
+        content = get_tool_result_content(result)
+        assert content["hits"] == 403
+        assert content["pages"] == 5
 
     async def test_with_pagination(
         self,
@@ -206,7 +224,7 @@ class TestIssuesFind:
         mock_issues_protocol: AsyncMock,
         sample_issues: list[Issue],
     ) -> None:
-        mock_issues_protocol.issues_find.return_value = sample_issues
+        mock_issues_protocol.issues_find.return_value = page(sample_issues)
 
         result = await client_session.call_tool(
             "issues_find", {"query": "Queue: TEST", "page": 2, "per_page": 50}
@@ -217,7 +235,7 @@ class TestIssuesFind:
         assert call_kwargs["page"] == 2
         assert call_kwargs["per_page"] == 50
         content = get_tool_result_content(result)
-        assert len(content) == len(sample_issues)
+        assert len(content["values"]) == len(sample_issues)
 
     async def test_excludes_description_by_default(
         self,
@@ -225,7 +243,7 @@ class TestIssuesFind:
         mock_issues_protocol: AsyncMock,
         sample_issues: list[Issue],
     ) -> None:
-        mock_issues_protocol.issues_find.return_value = sample_issues
+        mock_issues_protocol.issues_find.return_value = page(sample_issues)
 
         result = await client_session.call_tool("issues_find", {"query": "Queue: TEST"})
 
@@ -233,8 +251,57 @@ class TestIssuesFind:
         mock_issues_protocol.issues_find.assert_called_once()
         content = get_tool_result_content(result)
         # By default, description is excluded (set to None)
-        for issue in content:
+        for issue in content["values"]:
             assert issue.get("description") is None
+
+    async def test_fields_drop_undeclared_api_fields(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        # Tracker adds `self`, `id`, `version` and `favorite` to every projection,
+        # and a queue's local fields come back as `<queue-id>--<key>`. None of them
+        # are declared on `Issue`, so they land in the model's extras.
+        issue = Issue.model_validate(
+            {
+                "self": "https://api.tracker.yandex.net/v3/issues/TEST-123",
+                "id": "593cd211ef7e8a33abcd1234",
+                "key": "TEST-123",
+                "version": 1,
+                "favorite": False,
+                "statusStartTime": "2024-01-01T00:00:00.000+0000",
+                "queue": {"id": "1", "key": "TEST"},
+                "694c13a2974fc069fc7db927--chapter": None,
+            }
+        )
+        mock_issues_protocol.issues_find.return_value = page([issue])
+
+        result = await client_session.call_tool(
+            "issues_find", {"query": "Queue: TEST", "fields": ["key"]}
+        )
+
+        assert not result.isError
+        content = get_tool_result_content(result)
+        assert content["values"] == [{"key": "TEST-123"}]
+
+    async def test_description_selected_through_fields_is_kept(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        issue = Issue.model_construct(key="TEST-123", description="Body text")
+        mock_issues_protocol.issues_find.return_value = page([issue])
+
+        result = await client_session.call_tool(
+            "issues_find",
+            {"query": "Queue: TEST", "fields": ["key", "description"]},
+        )
+
+        assert not result.isError
+        content = get_tool_result_content(result)
+        # `include_description` defaults to False, but asking for `description`
+        # through `fields` is an explicit request for it.
+        assert content["values"][0]["description"] == "Body text"
 
 
 class TestIssuesCount:

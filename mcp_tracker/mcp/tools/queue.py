@@ -12,10 +12,11 @@ from starlette.requests import Request
 from mcp_tracker.mcp.context import AppContext
 from mcp_tracker.mcp.params import PageOrAllParam, PerPageParam, QueueID
 from mcp_tracker.mcp.tools._access import check_queue_access, is_queue_allowed
-from mcp_tracker.mcp.tools._pagination import iter_pages
+from mcp_tracker.mcp.tools._pagination import collect_pages
 from mcp_tracker.mcp.utils import get_yandex_auth, set_non_needed_fields_null
 from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.proto.types.fields import GlobalField
+from mcp_tracker.tracker.proto.types.pagination import PaginatedResult
 from mcp_tracker.tracker.proto.types.queues import (
     Queue,
     QueueExpandOption,
@@ -52,10 +53,15 @@ def register_queue_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         ] = None,
         page: PageOrAllParam = None,
         per_page: PerPageParam = 100,
-    ) -> list[Queue]:
-        result: list[Queue] = []
+    ) -> PaginatedResult[Queue]:
+        def allowed(queues: list[Queue]) -> list[Queue]:
+            return [
+                queue
+                for queue in queues
+                if queue.key is not None and is_queue_allowed(settings, queue.key)
+            ]
 
-        async for queues in iter_pages(
+        result = await collect_pages(
             lambda current_page: (
                 ctx.request_context.lifespan_context.queues.queues_list(
                     per_page=per_page,
@@ -65,18 +71,12 @@ def register_queue_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             ),
             page=page,
             per_page=per_page,
-        ):
-            if settings.tracker_limit_queues:
-                queues = [
-                    queue
-                    for queue in queues
-                    if queue.key is not None and is_queue_allowed(settings, queue.key)
-                ]
-
-            result.extend(queues)
+            visible=allowed,
+            restricted=bool(settings.tracker_limit_queues),
+        )
 
         if fields is not None:
-            set_non_needed_fields_null(result, {f.name for f in fields})
+            set_non_needed_fields_null(result.values, {f.name for f in fields})
 
         return result
 

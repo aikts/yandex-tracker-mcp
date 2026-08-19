@@ -10,6 +10,7 @@ from mcp_tracker.tracker.proto.types.base import (
     none_excluder,
 )
 from mcp_tracker.tracker.proto.types.mixins import CreatedUpdatedMixin
+from mcp_tracker.tracker.proto.types.pagination import PaginatedResult
 from mcp_tracker.tracker.proto.types.refs import QueueReference, UserReference
 
 # Status values for projects and portfolios.
@@ -303,19 +304,9 @@ class GoalEntity(CreatedUpdatedMixin, BaseTrackerEntity):
     fields: GoalFields | None = NoneExcludedField
 
 
-class ProjectSearchResult(BaseTrackerEntity):
-    hits: int | None = NoneExcludedField
-    pages: int | None = NoneExcludedField
-    values: list[ProjectEntity] = Field(default_factory=list)
-
-
-class PortfolioSearchResult(BaseTrackerEntity):
-    hits: int | None = NoneExcludedField
-    pages: int | None = NoneExcludedField
-    values: list[PortfolioEntity] = Field(default_factory=list)
-
-
-class GoalSearchResult(BaseTrackerEntity):
-    hits: int | None = NoneExcludedField
-    pages: int | None = NoneExcludedField
-    values: list[GoalEntity] = Field(default_factory=list)
+# The entity search endpoints answer with the same {values, hits, pages} shape the
+# `page`/`perPage` listings build from their response headers, so they share one
+# envelope - and with it the documented meaning of a null total.
+ProjectSearchResult = PaginatedResult[ProjectEntity]
+PortfolioSearchResult = PaginatedResult[PortfolioEntity]
+GoalSearchResult = PaginatedResult[GoalEntity]

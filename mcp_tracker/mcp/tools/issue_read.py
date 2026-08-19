@@ -35,6 +35,7 @@ from mcp_tracker.tracker.proto.types.issues import (
     Worklog,
     WorklogFieldsEnum,
 )
+from mcp_tracker.tracker.proto.types.pagination import PaginatedResult
 
 
 def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
@@ -135,8 +136,7 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         title="Find Issues",
         description="Find Yandex Tracker issues matching a Yandex Tracker Query (YQL) - not limited to "
         "queue/date, any indexed field can be used (assignee, status, tags, etc., see the `query` "
-        "parameter for the full syntax). Paginated: call again with `page` incremented (starting "
-        "from 1) until an empty list is returned to retrieve all matches.",
+        "parameter for the full syntax).",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def issues_find(
@@ -145,40 +145,44 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         include_description: Annotated[
             bool,
             Field(
-                description="Whether to include issue description in the issues result. It can be large, so use only when needed.",
+                description="Whether to include the issue description; it can be large. "
+                "Ignored when `description` is listed in `fields`.",
             ),
         ] = False,
         fields: Annotated[
             list[IssueFieldsEnum] | None,
             Field(
-                description="Fields to include in the response. In order to not pollute context window - select "
-                "appropriate fields beforehand. Not specifying fields returns ALL available fields "
-                "(unlike project_find/portfolio_find/goal_find, which default to a small field subset) "
-                "- specify fields explicitly to keep the response small."
+                description="Fields to include in the response. In order to not pollute context "
+                "window - select appropriate fields beforehand. Not specifying fields returns ALL "
+                "available fields."
             ),
         ] = None,
         page: PageParam = 1,
         per_page: PerPageParam = 100,
-    ) -> list[Issue]:
-        issues = await ctx.request_context.lifespan_context.issues.issues_find(
+    ) -> PaginatedResult[Issue]:
+        selected = {f.name for f in fields} if fields is not None else None
+
+        result = await ctx.request_context.lifespan_context.issues.issues_find(
             query=query,
             per_page=per_page,
             page=page,
             auth=get_yandex_auth(ctx),
         )
 
-        if not include_description:
-            for issue in issues:
+        # A description asked for through `fields` is an explicit request for it,
+        # so it is not stripped by `include_description` defaulting to False.
+        if not include_description and "description" not in (selected or ()):
+            for issue in result.values:
                 issue.description = None  # Clear description to save context
 
-        if fields is not None:
-            set_non_needed_fields_null(issues, {f.name for f in fields})
+        if selected is not None:
+            set_non_needed_fields_null(result.values, selected)
 
-        return issues
+        return result
 
     @mcp.tool(
         title="Count Issues",
-        description="Get the count of Yandex Tracker issues matching a query",
+        description="Get the count of Yandex Tracker issues matching a query.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def issues_count(

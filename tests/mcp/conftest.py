@@ -18,6 +18,7 @@ from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
 from mcp_tracker.tracker.proto.templates import TemplatesProtocol
+from mcp_tracker.tracker.proto.types.pagination import PaginatedResult
 from mcp_tracker.tracker.proto.users import UsersProtocol
 
 
@@ -42,6 +43,13 @@ async def safe_client_session(
     finally:
         with suppress(RuntimeError, ExceptionGroup):
             await ctx_mgr.__aexit__(None, None, None)
+
+
+def page(
+    values: list[Any], *, hits: int | None = None, pages: int | None = None
+) -> PaginatedResult[Any]:
+    """Wrap a list of items the way a paginated protocol method returns them."""
+    return PaginatedResult[Any](values=values, hits=hits, pages=pages)
 
 
 def get_tool_result_content(result: CallToolResult) -> Any:

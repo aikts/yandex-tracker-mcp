@@ -24,6 +24,7 @@ from .types.issues import (
     IssueTransition,
     Worklog,
 )
+from .types.pagination import PaginatedResult
 
 
 @runtime_checkable
@@ -93,7 +94,7 @@ class IssueProtocol(Protocol):
         per_page: int = 15,
         page: int = 1,
         auth: YandexAuth | None = None,
-    ) -> list[Issue]: ...
+    ) -> PaginatedResult[Issue]: ...
     async def issue_get_worklogs(
         self, issue_id: str, *, auth: YandexAuth | None = None
     ) -> list[Worklog]: ...

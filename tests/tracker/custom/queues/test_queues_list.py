@@ -20,7 +20,7 @@ class TestQueuesList:
                 payload=queues_response,
             )
 
-            result = await tracker_client.queues_list()
+            result = (await tracker_client.queues_list()).values
 
             assert isinstance(result, list)
             assert len(result) == 1
@@ -41,7 +41,7 @@ class TestQueuesList:
                 callback=capture.callback,
             )
 
-            result = await tracker_client.queues_list(per_page=50, page=2)
+            result = (await tracker_client.queues_list(per_page=50, page=2)).values
 
             assert isinstance(result, list)
             assert len(result) == 1
@@ -64,7 +64,9 @@ class TestQueuesList:
                 callback=capture.callback,
             )
 
-            result = await tracker_client_no_org.queues_list(auth=yandex_auth_cloud)
+            result = (
+                await tracker_client_no_org.queues_list(auth=yandex_auth_cloud)
+            ).values
 
             assert isinstance(result, list)
             assert len(result) == 1
