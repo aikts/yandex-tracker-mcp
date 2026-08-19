@@ -1,13 +1,28 @@
-from typing import Annotated
+import datetime
+from typing import Annotated, Any, get_args
 
 from pydantic import Field
 
+from mcp_tracker.tracker.proto.types.entities import (
+    DEFAULT_ENTITY_FIELDS,
+    GoalFieldsEnum,
+    GoalLinkRelationship,
+    GoalStatus,
+    PortfolioFieldsEnum,
+    ProjectFieldsEnum,
+    ProjectPortfolioLinkRelationship,
+    ProjectPortfolioStatus,
+)
 from mcp_tracker.tracker.proto.types.inputs import (
+    EntityChecklistItemUpdateInput,
+    EntityParentEntityInput,
+    GoalLinkInput,
     IssueComponentRef,
     IssueFollowerRef,
     IssueParentRef,
     IssueProjectRef,
     IssueSprintRef,
+    ProjectPortfolioLinkInput,
 )
 
 PageParam = Annotated[
@@ -170,6 +185,364 @@ UserID = Annotated[
     ),
 ]
 
+EntityID = Annotated[
+    str,
+    Field(
+        description="Entity identifier (id or shortId) of a Yandex Tracker project, portfolio or goal"
+    ),
+]
+
+
+def entity_fields_description(default_fields: list[str]) -> str:
+    """Shared wording for per-entity `fields` params (project/portfolio/goal).
+
+    Kept as a function (not a constant) so each entity tool can plug in its
+    own default field list while using identical phrasing everywhere.
+    """
+    return (
+        "Entity fields to include in the response, selected from the allowed enum values. "
+        "In order to not pollute the context window - select only the fields you actually need. "
+        f"Not specifying this returns a reasonable default subset: {default_fields}. "
+        "Custom (organization-defined) attributes are not supported by this tool."
+    )
+
+
+ProjectFieldsParam = Annotated[
+    list[ProjectFieldsEnum] | None,
+    Field(description=entity_fields_description(DEFAULT_ENTITY_FIELDS["project"])),
+]
+
+PortfolioFieldsParam = Annotated[
+    list[PortfolioFieldsEnum] | None,
+    Field(description=entity_fields_description(DEFAULT_ENTITY_FIELDS["portfolio"])),
+]
+
+GoalFieldsParam = Annotated[
+    list[GoalFieldsEnum] | None,
+    Field(description=entity_fields_description(DEFAULT_ENTITY_FIELDS["goal"])),
+]
+
+
+EntityInputParam = Annotated[
+    str | None,
+    Field(description="Substring to search for in the entity name (summary)"),
+]
+
+
+def entity_filter_description(status_values: tuple[str, ...]) -> str:
+    """Shared wording for per-entity `filter` params (project/portfolio/goal).
+
+    Takes the entity type's own `entityStatus` literal values so the description
+    can enumerate the actually-valid values instead of a generic example.
+    """
+    return (
+        "Exact-match field criteria to filter entities by, e.g. {'entityStatus': 'in_progress'}. "
+        f"Valid 'entityStatus' values for this entity type: {', '.join(status_values)}. "
+        "Other common keys: 'tags', 'lead', 'author'. A value may be a single string or a list of "
+        "strings (matches any of them). Omitting this returns all entities, unfiltered."
+    )
+
+
+EntityFilterParam = Annotated[
+    dict[str, str | list[str]] | None,
+    Field(description=entity_filter_description(get_args(ProjectPortfolioStatus))),
+]
+
+GoalFilterParam = Annotated[
+    dict[str, str | list[str]] | None,
+    Field(description=entity_filter_description(get_args(GoalStatus))),
+]
+
+EntityOrderByParam = Annotated[
+    str | None,
+    Field(description="Field to sort results by"),
+]
+
+EntityOrderAscParam = Annotated[
+    bool | None,
+    Field(description="Sort order: True for ascending, False for descending"),
+]
+
+EntityRootOnlyParam = Annotated[
+    bool | None,
+    Field(
+        description="When True, only return entities that are not nested under a parent entity"
+    ),
+]
+
+EntitySummaryParam = Annotated[
+    str | None,
+    Field(description="Entity name/title"),
+]
+
+EntitySummaryRequiredParam = Annotated[
+    str,
+    Field(description="Entity name/title (required)"),
+]
+
+ProjectPortfolioStatusParam = Annotated[
+    ProjectPortfolioStatus | None,
+    Field(
+        description=f"Entity status. One of: {', '.join(get_args(ProjectPortfolioStatus))}. "
+        "Omitting this leaves the status unset/unchanged."
+    ),
+]
+
+GoalStatusParam = Annotated[
+    GoalStatus | None,
+    Field(
+        description=f"Goal status. One of: {', '.join(get_args(GoalStatus))}. "
+        "Omitting this leaves the status unset/unchanged."
+    ),
+]
+
+_CANNOT_CLEAR_NOTE = (
+    " Omitting it leaves the current value unchanged; there is no way to clear an "
+    "already-set value through this server - passing null is a no-op, not a reset."
+)
+
+EntityDescriptionParam = Annotated[
+    str | None,
+    Field(description="Entity description." + _CANNOT_CLEAR_NOTE),
+]
+
+EntityLeadParam = Annotated[
+    str | None,
+    Field(description="User ID or login of the entity lead." + _CANNOT_CLEAR_NOTE),
+]
+
+EntityTeamUsersParam = Annotated[
+    list[str] | None,
+    Field(description="User IDs or logins of team members"),
+]
+
+EntityClientsParam = Annotated[
+    list[str] | None,
+    Field(description="User IDs or logins of customers"),
+]
+
+EntityFollowersParam = Annotated[
+    list[str] | None,
+    Field(description="User IDs or logins of followers"),
+]
+
+EntityStartParam = Annotated[
+    datetime.date | datetime.datetime | None,
+    Field(description="Start date or date/time"),
+]
+
+EntityEndParam = Annotated[
+    datetime.date | datetime.datetime | None,
+    Field(description="Deadline date or date/time"),
+]
+
+EntityTagsParam = Annotated[
+    list[str] | None,
+    Field(description="Tags"),
+]
+
+EntityParentEntityParam = Annotated[
+    EntityParentEntityInput | None,
+    Field(
+        description="Containment: for a project/portfolio, the portfolio(s) it belongs to "
+        "('Included in portfolio'); for a goal, its parent goal. "
+        "`primary` is the main container id, `secondary` is additional portfolio ids "
+        "(projects/portfolios only). "
+        "Example: {'primary': 'portfolio_id_1', 'secondary': ['portfolio_id_2']}."
+        + _CANNOT_CLEAR_NOTE
+    ),
+]
+
+_LINKS_DESCRIPTION = (
+    "Links from this entity to other entities (dependency/support relationships, not "
+    "containment - use parent_entity for 'included in portfolio' or 'parent goal'). "
+    "Each item is {{'relationship': ..., 'entity': <id of the other entity>}}. "
+    "Valid relationship values: {relationships}. "
+    "{target_rules}"
+    "Example: [{{'relationship': '{example_relationship}', 'entity': '<other entity id>'}}]. "
+    "Links are ADDED, not replaced: pass only the new links, never re-send existing ones - "
+    "linking an already-linked pair fails with an error. They are also write-only in the "
+    "Tracker API, so no tool can read the current links back, and this server cannot remove "
+    "a link once created (do that in the Tracker UI). "
+    "On update, `links` is only applied when the same call also changes a field or passes a "
+    "`comment` - Tracker ignores a links-only update, so this server rejects one."
+)
+
+# The target's entity type matters on top of the relationship name, and the API
+# only answers 422 when the combination is wrong. Verified against the live API.
+_PROJECT_PORTFOLIO_LINK_TARGETS = (
+    "The target type matters: 'works towards' must point at a GOAL, while "
+    "'depends on'/'is dependent by' must point at another project or portfolio. "
+    "The API rejects the wrong combination with an unhelpful 422. "
+)
+_GOAL_LINK_TARGETS = (
+    "The target type matters: 'is supported by' must point at a PROJECT or portfolio, "
+    "while 'parent entity'/'child entity'/'depends on'/'is dependent by' point at another "
+    "goal. The API rejects the wrong combination with an unhelpful 422. "
+)
+
+ProjectPortfolioLinksParam = Annotated[
+    list[ProjectPortfolioLinkInput] | None,
+    Field(
+        description=_LINKS_DESCRIPTION.format(
+            relationships=", ".join(
+                f"'{value}'" for value in get_args(ProjectPortfolioLinkRelationship)
+            ),
+            target_rules=_PROJECT_PORTFOLIO_LINK_TARGETS,
+            example_relationship=get_args(ProjectPortfolioLinkRelationship)[0],
+        )
+    ),
+]
+
+GoalLinksParam = Annotated[
+    list[GoalLinkInput] | None,
+    Field(
+        description=_LINKS_DESCRIPTION.format(
+            relationships=", ".join(
+                f"'{value}'" for value in get_args(GoalLinkRelationship)
+            ),
+            target_rules=_GOAL_LINK_TARGETS,
+            example_relationship=get_args(GoalLinkRelationship)[0],
+        )
+    ),
+]
+
+EntityCommentParam = Annotated[
+    str | None,
+    Field(description="Optional comment describing the update"),
+]
+
+EntityVersionParam = Annotated[
+    int | None,
+    Field(
+        description="Expected current version of the entity, for optimistic concurrency control. "
+        "If provided and stale, the update is rejected."
+    ),
+]
+
+EntityWithBoardParam = Annotated[
+    bool,
+    Field(description="Whether to also delete the board associated with the entity"),
+]
+
+EntityTeamAccessParam = Annotated[
+    bool | None,
+    Field(description="Whether access is limited to entity participants"),
+]
+
+
+CommentsCursorParam = Annotated[
+    str | None,
+    Field(
+        description="Cursor for the next page of comments: the 'next_cursor' value returned "
+        "by the previous call. Leave empty for the first page.",
+    ),
+]
+
+
+EntityCommentIDParam = Annotated[
+    int,
+    Field(
+        description="Comment ID (integer), as returned in the `id` field by "
+        "*_get_comments or *_add_comment, e.g. 12345."
+    ),
+]
+
+EntityCommentTextParam = Annotated[
+    str,
+    Field(
+        description="Comment text (Markdown/YFM supported). "
+        "Example: 'Looks good, approving the plan.'"
+    ),
+]
+
+EntityCommentSummoneesParam = Annotated[
+    list[str] | None,
+    Field(
+        description="Optional list of user logins or IDs to summon into the discussion "
+        "so they get notified. Example: ['i.ivanov', 'j.doe']. "
+        "IMPORTANT: do NOT rely on '@login' inside the comment text for this — use this "
+        "parameter instead."
+    ),
+]
+
+EntityCommentMaillistSummoneesParam = Annotated[
+    list[str] | None,
+    Field(
+        description="Optional list of mailing list emails to summon. "
+        "Example: ['team@example.com']."
+    ),
+]
+
+
+EntityChecklistItemIDParam = Annotated[
+    str,
+    Field(
+        description="Checklist item ID, as returned in the `id` field of an item under "
+        "`fields.checklistItems`. Example: '5f8b2c1e4c3a2d001a7e9b1c'."
+    ),
+]
+
+EntityChecklistItemTextParam = Annotated[
+    str,
+    Field(
+        description="Checklist item text (Markdown/YFM supported). "
+        "Example: 'Get sign-off from legal.'"
+    ),
+]
+
+EntityChecklistItemTextOptionalParam = Annotated[
+    str | None,
+    Field(
+        description="New checklist item text (Markdown/YFM supported). Omit to leave "
+        "unchanged. Example: 'Get sign-off from legal.'"
+    ),
+]
+
+EntityChecklistItemCheckedParam = Annotated[
+    bool | None,
+    Field(description="Whether the checklist item is checked off. Example: true"),
+]
+
+EntityChecklistItemAssigneeParam = Annotated[
+    str | None,
+    Field(
+        description="User ID or login to assign the checklist item to. Example: 'i.ivanov'"
+    ),
+]
+
+EntityChecklistItemDeadlineParam = Annotated[
+    dict[str, Any] | None,
+    Field(
+        description="Deadline for the checklist item. Example: "
+        "{'date': '2026-08-20T00:00:00.000+0000', 'deadlineType': 'date'}."
+    ),
+]
+
+EntityChecklistItemBeforeParam = Annotated[
+    str,
+    Field(
+        description="ID of the checklist item to move this item before (i.e. this item "
+        "will be placed immediately above it). Example: '5f8b2c1e4c3a2d001a7e9b1c'."
+    ),
+]
+
+EntityChecklistItemsParam = Annotated[
+    list[EntityChecklistItemUpdateInput],
+    Field(
+        description="Bulk edit of the entity's EXISTING checklist items. Each item requires "
+        "`id` (an existing checklist item ID) and `text`, and may optionally include "
+        "`checked`, `assignee`, `deadline`. "
+        "IMPORTANT: pass every item the checklist currently has - the API rejects a partial "
+        "list with a 500 error, and the item count cannot change here. Read the current items "
+        "first with `*_get(fields=['checklistItems'])`. This tool cannot add or remove items: "
+        "use *_add_checklist_item / *_delete_checklist_item for that. Optional attributes left "
+        "out of an item are reset to their defaults. "
+        "Example: [{'id': '5f8b2c1e4c3a2d001a7e9b1c', 'text': 'Get sign-off', "
+        "'checked': false}]."
+    ),
+]
+
 
 YTQuery = Annotated[
     str,
@@ -217,7 +590,8 @@ YTQuery = Annotated[
 
 instructions = """Tools for interacting with Yandex Tracker issue tracking system.
 Use these tools to:
-- Search and browse projects (queues) and issues
+- Search and browse queues and issues
+- Search and manage projects, portfolios, and goals (project-management entities, distinct from queues)
 - View issue details, comments, attachments, and worklogs
 - Get information about users, statuses, and issue types
 - Query issues using Yandex Query Language (YQL)
@@ -225,8 +599,40 @@ Use these tools to:
 In russian Yandex Tracker is called "Яндекс Трекер", "Трекер".
 Queues may be called "Очереди".
 Tasks may be called "Задачи", "Issues", "Таски", "ишью".
+Projects may be called "Проекты".
+Portfolios may be called "Портфели".
+Goals may be called "Цели".
+
+## Queues vs. projects/portfolios/goals
+
+A "queue" (e.g. `SOMEPROJECT` in an issue key like `SOMEPROJECT-1`) is where issues live and get
+numbered - use `queues_get_all`, `issues_find`, etc. A "project"/"portfolio"/"goal" (`project_*`,
+`portfolio_*`, `goal_*` tools) is a separate project-management entity used to group and track
+progress across issues from possibly many queues. Don't confuse a queue key with an entity id: entity
+ids come from `project_find`/`portfolio_find`/`goal_find`/`*_get` results, not from issue keys.
+
+## Linking issues, projects, portfolios, and goals together
+
+- Issue -> project: set the issue's `project` field (on `issue_create`/`issue_update`) to
+  `{"primary": <project shortId>, "secondary": [<other project shortIds>]}`. The project's `shortId`
+  comes from `project_get`/`project_find`. There is no direct issue-to-portfolio or issue-to-goal link;
+  portfolios/goals track progress via the projects (and, for goals, other goals) linked into them.
+- Project/portfolio -> portfolio (containment, "included in portfolio"): set `parent_entity` on
+  `project_create`/`project_update`/`portfolio_create`/`portfolio_update` to
+  `{"primary": <portfolio id>, "secondary": [<other portfolio ids>]}`.
+- Goal -> parent goal (containment): set `parent_entity.primary` on `goal_create`/`goal_update` to the
+  parent goal's id.
+- Cross-entity relationships that aren't containment (e.g. a project "depends on" another project, or
+  "works towards" a goal): use the `links` param on `project_create`/`portfolio_create`/`goal_create`/
+  `*_update`, e.g. `[{"relationship": "works towards", "entity": <goal id>}]`. `links` ADDS links and
+  never replaces them: pass only the new ones, since linking an already-linked pair fails. Links are
+  write-only in the Tracker API - no tool can read an entity's current links (there is no `links` value
+  for the `fields` selector), and this server cannot delete a link; removing one is a manual step in
+  the Tracker UI. On `*_update`, links are applied only when the same call also changes a field or
+  carries a `comment`: Tracker ignores a links-only update, so this server rejects it with an error
+  rather than reporting a success that did nothing.
 
 When using tools that accept `page` and/or `per_page` parameters and when the task is to find something in the result set (or to receive all available data) - always call the tool as many times as needed increasing the `page` parameter until the result set is exhausted. If you stumble with the context size limit — try to change the `per_page` parameter to a lower value and restart the search from the `page=1`.
 
-Some tools use cursor pagination instead of `page` (e.g. `issue_get_changelog`): they accept a `cursor` argument and return a `next_cursor` value. To get all data, keep calling the tool passing the previous `next_cursor` as `cursor` until `next_cursor` is null. Do not change `per_page` mid-pagination; if you must, restart with `cursor` empty.
+Some tools use cursor pagination instead of `page` (e.g. `issue_get_changelog` and every `*_get_comments` tool): they accept a `cursor` argument and return a `next_cursor` value. To get all data, keep calling the tool passing the previous `next_cursor` as `cursor` until `next_cursor` is null. Do not change `per_page` mid-pagination; if you must, restart with `cursor` empty.
 """

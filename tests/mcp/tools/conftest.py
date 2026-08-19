@@ -1,5 +1,16 @@
 import pytest
 
+from mcp_tracker.tracker.proto.types.entities import (
+    GoalEntity,
+    GoalFields,
+    GoalSearchResult,
+    PortfolioEntity,
+    PortfolioFields,
+    PortfolioSearchResult,
+    ProjectEntity,
+    ProjectFields,
+    ProjectSearchResult,
+)
 from mcp_tracker.tracker.proto.types.fields import FieldSchema, GlobalField, LocalField
 from mcp_tracker.tracker.proto.types.issue_types import IssueType
 from mcp_tracker.tracker.proto.types.issues import (
@@ -691,3 +702,82 @@ def sample_comment_templates(
             queue=None,
         ),
     ]
+
+
+# Entity (project/portfolio/goal) fixtures
+@pytest.fixture
+def sample_project() -> ProjectEntity:
+    """Sample project entity for testing."""
+    return ProjectEntity.model_construct(
+        id="abc123",
+        shortId=1,
+        version=1,
+        entityType="project",
+        fields=ProjectFields.model_construct(
+            summary="Test Project",
+            description="A test project for unit testing",
+            entityStatus="in_progress",
+        ),
+    )
+
+
+@pytest.fixture
+def sample_projects(sample_project: ProjectEntity) -> ProjectSearchResult:
+    """Sample project search result for testing."""
+    return ProjectSearchResult.model_construct(
+        hits=1,
+        pages=1,
+        values=[sample_project],
+    )
+
+
+@pytest.fixture
+def sample_portfolio() -> PortfolioEntity:
+    """Sample portfolio entity for testing."""
+    return PortfolioEntity.model_construct(
+        id="def456",
+        shortId=2,
+        version=1,
+        entityType="portfolio",
+        fields=PortfolioFields.model_construct(
+            summary="Test Portfolio",
+            description="A test portfolio for unit testing",
+            entityStatus="in_progress",
+        ),
+    )
+
+
+@pytest.fixture
+def sample_portfolios(sample_portfolio: PortfolioEntity) -> PortfolioSearchResult:
+    """Sample portfolio search result for testing."""
+    return PortfolioSearchResult.model_construct(
+        hits=1,
+        pages=1,
+        values=[sample_portfolio],
+    )
+
+
+@pytest.fixture
+def sample_goal() -> GoalEntity:
+    """Sample goal entity for testing."""
+    return GoalEntity.model_construct(
+        id="ghi789",
+        shortId=3,
+        version=1,
+        entityType="goal",
+        fields=GoalFields.model_construct(
+            summary="Test Goal",
+            description="A test goal for unit testing",
+            entityStatus="according_to_plan",
+        ),
+    )
+
+
+@pytest.fixture
+def sample_goals(sample_goal: GoalEntity) -> GoalSearchResult:
+    """Sample goal search result for testing."""
+    return GoalSearchResult.model_construct(
+        hits=1,
+        pages=1,
+        values=[sample_goal],
+    )

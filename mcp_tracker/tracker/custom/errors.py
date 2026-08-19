@@ -101,3 +101,20 @@ def _parse_error_body(body: str) -> tuple[list[str], dict[str, str]]:
     )
 
     return messages, errors
+
+
+class EntityLinksOnlyUpdate(YandexTrackerError):
+    """Raised for an entity update that would only change links.
+
+    Verified against the live API: Tracker answers 200 but ignores `links`
+    unless the same request also changes the entity (a field value or a
+    comment), so such a call would silently do nothing.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            "Yandex Tracker ignores `links` when the update changes nothing else: "
+            "pass at least one field to change, or a `comment`, in the same call. "
+            "Note that links are added, not replaced - sending a link that already "
+            "exists fails, and links cannot be removed through this server."
+        )

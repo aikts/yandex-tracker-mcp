@@ -11,9 +11,14 @@ When both `id` and `key` are given, Tracker resolves by `id` and ignores the
 `key`, which makes it safe to pass a reference copied straight out of an issue.
 """
 
-from typing import Self
+from typing import Any, Self
 
 from pydantic import BaseModel, Field, model_validator
+
+from mcp_tracker.tracker.proto.types.entities import (
+    GoalLinkRelationship,
+    ProjectPortfolioLinkRelationship,
+)
 
 
 class IssueParentRef(BaseModel):
@@ -119,4 +124,44 @@ class IssueProjectRef(BaseModel):
     )
     secondary: list[int] | None = Field(
         None, description="Secondary project IDs (shortId of additional projects)"
+    )
+
+
+class EntityParentEntityInput(BaseModel):
+    """Parent entity reference for project/portfolio/goal create/update."""
+
+    primary: str | None = Field(None, description="Primary parent entity ID")
+    secondary: list[str] | None = Field(None, description="Secondary parent entity IDs")
+
+
+class ProjectPortfolioLinkInput(BaseModel):
+    """Link to another entity for project/portfolio create/update."""
+
+    relationship: ProjectPortfolioLinkRelationship = Field(
+        ..., description="Relationship type"
+    )
+    entity: str = Field(..., description="Linked entity ID")
+
+
+class GoalLinkInput(BaseModel):
+    """Link to another entity for goal create/update."""
+
+    relationship: GoalLinkRelationship = Field(..., description="Relationship type")
+    entity: str = Field(..., description="Linked entity ID")
+
+
+class EntityChecklistItemUpdateInput(BaseModel):
+    """Single checklist item for the bulk checklist replace/update endpoint on
+    project/portfolio entities. Unlike adding/editing a single item, the bulk
+    endpoint requires `id` and `text` for every item in the array.
+    """
+
+    id: str = Field(..., description="Checklist item ID")
+    text: str = Field(..., description="Checklist item text")
+    checked: bool | None = Field(None, description="Whether the item is checked")
+    assignee: str | None = Field(None, description="Assignee user ID or login")
+    deadline: dict[str, Any] | None = Field(
+        None,
+        description="Deadline object. Example: "
+        "{'date': '2026-08-20T00:00:00.000+0000', 'deadlineType': 'date'}",
     )

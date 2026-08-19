@@ -24,7 +24,8 @@
         "TRACKER_TOKEN": "${user_config.tracker_token}",
         "TRACKER_IAM_TOKEN": "${user_config.tracker_iam_token}",
         "TRACKER_CLOUD_ORG_ID": "${user_config.tracker_cloud_org_id}",
-        "TRACKER_ORG_ID": "${user_config.tracker_org_id}"
+        "TRACKER_ORG_ID": "${user_config.tracker_org_id}",
+        "TRACKER_ENTITIES_ENABLED": "${user_config.tracker_entities_enabled}"
       }
     }
   },
@@ -58,6 +59,162 @@
     {
       "name": "queue_get_metadata",
       "description": "Get detailed metadata about a specific queue"
+    },
+    {
+      "name": "project_get",
+      "description": "Get a project by its id or shortId (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "project_find",
+      "description": "Search projects by name substring and/or field filters (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "project_get_comments",
+      "description": "Get a page of comments of a project by its id or shortId (cursor-paginated) (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "portfolio_get",
+      "description": "Get a portfolio by its id or shortId (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "portfolio_find",
+      "description": "Search portfolios by name substring and/or field filters (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "portfolio_get_comments",
+      "description": "Get a page of comments of a portfolio by its id or shortId (cursor-paginated) (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "goal_get",
+      "description": "Get a goal by its id or shortId (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "goal_find",
+      "description": "Search goals by name substring and/or field filters (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "goal_get_comments",
+      "description": "Get a page of comments of a goal by its id or shortId (cursor-paginated) (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "project_create",
+      "description": "Create a new project (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "project_update",
+      "description": "Update fields of an existing project (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "project_delete",
+      "description": "Delete a project (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "project_add_comment",
+      "description": "Add a comment to a project (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "project_update_comment",
+      "description": "Update an existing comment on a project (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "project_delete_comment",
+      "description": "Delete a comment from a project (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "project_add_checklist_item",
+      "description": "Add a checklist item to a project (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "project_update_checklist_item",
+      "description": "Update a checklist item on a project (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "project_move_checklist_item",
+      "description": "Reorder a checklist item on a project (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "project_delete_checklist_item",
+      "description": "Delete a checklist item from a project (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "project_update_checklist",
+      "description": "Bulk-edit all existing checklist items of a project (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "project_delete_checklist",
+      "description": "Delete the entire checklist of a project (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "portfolio_create",
+      "description": "Create a new portfolio (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "portfolio_update",
+      "description": "Update fields of an existing portfolio (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "portfolio_delete",
+      "description": "Delete a portfolio (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "portfolio_add_comment",
+      "description": "Add a comment to a portfolio (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "portfolio_update_comment",
+      "description": "Update an existing comment on a portfolio (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "portfolio_delete_comment",
+      "description": "Delete a comment from a portfolio (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "portfolio_add_checklist_item",
+      "description": "Add a checklist item to a portfolio (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "portfolio_update_checklist_item",
+      "description": "Update a checklist item on a portfolio (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "portfolio_move_checklist_item",
+      "description": "Reorder a checklist item on a portfolio (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "portfolio_delete_checklist_item",
+      "description": "Delete a checklist item from a portfolio (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "portfolio_update_checklist",
+      "description": "Bulk-edit all existing checklist items of a portfolio (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "portfolio_delete_checklist",
+      "description": "Delete the entire checklist of a portfolio (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "goal_create",
+      "description": "Create a new goal (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "goal_update",
+      "description": "Update fields of an existing goal (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "goal_delete",
+      "description": "Delete a goal (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "goal_add_comment",
+      "description": "Add a comment to a goal (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "goal_update_comment",
+      "description": "Update an existing comment on a goal (requires TRACKER_ENTITIES_ENABLED)"
+    },
+    {
+      "name": "goal_delete_comment",
+      "description": "Delete a comment from a goal (requires TRACKER_ENTITIES_ENABLED)"
     },
     {
       "name": "users_get_all",
@@ -121,7 +278,7 @@
     },
     {
       "name": "issue_get_comments",
-      "description": "Fetch all comments for an issue"
+      "description": "Fetch a page of comments for an issue (cursor-paginated)"
     },
     {
       "name": "issue_add_comment",
@@ -240,6 +397,14 @@
       "required": false,
       "sensitive": false,
       "default": ""
+    },
+    "tracker_entities_enabled": {
+      "type": "boolean",
+      "title": "Enable Project/Portfolio/Goal Tools",
+      "description": "Register the project, portfolio and goal tools. They add a large tool manifest and are not covered by the queue restrictions, so they are off by default.",
+      "required": false,
+      "sensitive": false,
+      "default": false
     }
   },
   "keywords": [

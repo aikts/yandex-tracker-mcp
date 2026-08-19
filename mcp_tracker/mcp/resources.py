@@ -15,6 +15,7 @@ class YandexTrackerMCPConfigurationResponse(BaseModel):
     org_id: str | None
     read_only: bool
     cache_enabled: bool
+    entities_enabled: bool
 
 
 def register_resources(settings: Settings, mcp: FastMCP[Any]):
@@ -31,4 +32,5 @@ def register_resources(settings: Settings, mcp: FastMCP[Any]):
             org_id=auth.org_id or settings.tracker_org_id,
             read_only=settings.tracker_read_only,
             cache_enabled=settings.tools_cache_enabled,
+            entities_enabled=settings.tracker_entities_enabled,
         )

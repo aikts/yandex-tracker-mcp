@@ -96,6 +96,12 @@ class IssueComment(CreatedUpdatedMixin, BaseTrackerEntity):
     )
 
 
+CommentFieldsEnum = Enum(  # type: ignore[misc]
+    "CommentFieldsEnum",
+    {key: key for key in IssueComment.model_fields.keys()},
+)
+
+
 class LinkTypeReference(BaseReference):
     id: str
     inward: str | None = None
@@ -133,6 +139,12 @@ class Worklog(CreatedUpdatedMixin, BaseTrackerEntity):
     comment: str | None = None
 
 
+WorklogFieldsEnum = Enum(  # type: ignore[misc]
+    "WorklogFieldsEnum",
+    {key: key for key in Worklog.model_fields.keys()},
+)
+
+
 class IssueAttachment(CreatedMixin, BaseTrackerEntity):
     id: str
     name: str
@@ -144,6 +156,12 @@ class IssueAttachment(CreatedMixin, BaseTrackerEntity):
         serialization_alias="mimeType",
     )
     metadata: dict[str, str] | None = None
+
+
+AttachmentFieldsEnum = Enum(  # type: ignore[misc]
+    "AttachmentFieldsEnum",
+    {key: key for key in IssueAttachment.model_fields.keys()},
+)
 
 
 class ChecklistItemDeadline(BaseModel):
@@ -258,6 +276,18 @@ class ChangelogEntry(CreatedUpdatedMixin, BaseTrackerEntity):
         serialization_alias="executedTriggers",
         exclude_if=none_excluder,
     )
+
+
+class CommentsPage(BaseTrackerEntity):
+    """A page of comments plus the cursor to fetch the next page.
+
+    `next_cursor` is the cursor for the next page, or `None` when there are no more
+    pages; how it is obtained depends on the endpoint. Pass it back as the `cursor`
+    argument to continue.
+    """
+
+    comments: list[IssueComment]
+    next_cursor: str | None = None
 
 
 class ChangelogPage(BaseTrackerEntity):

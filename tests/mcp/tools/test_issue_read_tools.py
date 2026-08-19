@@ -2,6 +2,7 @@ from unittest.mock import AsyncMock
 
 from mcp.client.session import ClientSession
 
+from mcp_tracker.tracker.proto.common import YandexAuth
 from mcp_tracker.tracker.proto.types.issues import (
     ChangelogComments,
     ChangelogEntry,
@@ -9,6 +10,7 @@ from mcp_tracker.tracker.proto.types.issues import (
     ChangelogPage,
     ChangelogReference,
     ChecklistItem,
+    CommentsPage,
     Issue,
     IssueAttachment,
     IssueComment,
@@ -90,18 +92,42 @@ class TestIssueGetComments:
         mock_issues_protocol: AsyncMock,
         sample_comments: list[IssueComment],
     ) -> None:
-        mock_issues_protocol.issue_get_comments.return_value = sample_comments
+        mock_issues_protocol.issue_get_comments.return_value = CommentsPage(
+            comments=sample_comments, next_cursor="99"
+        )
 
         result = await client_session.call_tool(
             "issue_get_comments", {"issue_id": "TEST-123"}
         )
 
         assert not result.isError
-        mock_issues_protocol.issue_get_comments.assert_called_once()
+        mock_issues_protocol.issue_get_comments.assert_called_once_with(
+            "TEST-123", per_page=50, cursor=None, auth=YandexAuth()
+        )
         content = get_tool_result_content(result)
-        assert isinstance(content, list)
-        assert len(content) == len(sample_comments)
-        assert content[0]["text"] == sample_comments[0].text
+        assert content["next_cursor"] == "99"
+        assert len(content["comments"]) == len(sample_comments)
+        assert content["comments"][0]["text"] == sample_comments[0].text
+
+    async def test_passes_pagination_params(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_comments: list[IssueComment],
+    ) -> None:
+        mock_issues_protocol.issue_get_comments.return_value = CommentsPage(
+            comments=sample_comments
+        )
+
+        result = await client_session.call_tool(
+            "issue_get_comments",
+            {"issue_id": "TEST-123", "per_page": 10, "cursor": "42"},
+        )
+
+        assert not result.isError
+        mock_issues_protocol.issue_get_comments.assert_called_once_with(
+            "TEST-123", per_page=10, cursor="42", auth=YandexAuth()
+        )
 
     async def test_restricted_queue_raises_error(
         self,
@@ -114,6 +140,25 @@ class TestIssueGetComments:
 
         assert result.isError
         mock_issues_protocol.issue_get_comments.assert_not_called()
+
+    async def test_fields_filters_response(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_comments: list[IssueComment],
+    ) -> None:
+        mock_issues_protocol.issue_get_comments.return_value = CommentsPage(
+            comments=sample_comments
+        )
+
+        result = await client_session.call_tool(
+            "issue_get_comments", {"issue_id": "TEST-123", "fields": ["text"]}
+        )
+
+        assert not result.isError
+        content = get_tool_result_content(result)
+        assert content["comments"][0]["text"] == sample_comments[0].text
+        assert content["comments"][0].get("createdBy") is None
 
 
 class TestIssueGetLinks:
@@ -244,6 +289,24 @@ class TestIssueGetWorklogs:
         assert result.isError
         mock_issues_protocol.issue_get_worklogs.assert_not_called()
 
+    async def test_fields_filters_response(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_worklogs: list[Worklog],
+    ) -> None:
+        mock_issues_protocol.issue_get_worklogs.return_value = sample_worklogs
+
+        result = await client_session.call_tool(
+            "issue_get_worklogs",
+            {"issue_ids": ["TEST-123"], "fields": ["comment"]},
+        )
+
+        assert not result.isError
+        content = get_tool_result_content(result)
+        assert content["TEST-123"][0]["comment"] == sample_worklogs[0].comment
+        assert content["TEST-123"][0].get("createdBy") is None
+
 
 class TestIssueGetAttachments:
     async def test_returns_attachments(
@@ -264,6 +327,23 @@ class TestIssueGetAttachments:
         assert isinstance(content, list)
         assert len(content) == len(sample_attachments)
         assert content[0]["name"] == sample_attachments[0].name
+
+    async def test_fields_filters_response(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_attachments: list[IssueAttachment],
+    ) -> None:
+        mock_issues_protocol.issue_get_attachments.return_value = sample_attachments
+
+        result = await client_session.call_tool(
+            "issue_get_attachments", {"issue_id": "TEST-123", "fields": ["name"]}
+        )
+
+        assert not result.isError
+        content = get_tool_result_content(result)
+        assert content[0]["name"] == sample_attachments[0].name
+        assert content[0].get("content") is None
 
 
 class TestIssueGetChecklist:

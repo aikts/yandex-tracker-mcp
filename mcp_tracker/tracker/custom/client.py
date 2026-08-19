@@ -11,13 +11,14 @@ from typing import Any, Literal
 import jwt
 import yandexcloud
 from aiohttp import ClientResponse, ClientSession, ClientTimeout
-from pydantic import BaseModel, RootModel
+from pydantic import BaseModel, Field, RootModel
 from yandex.cloud.iam.v1.iam_token_service_pb2 import CreateIamTokenRequest
 from yandex.cloud.iam.v1.iam_token_service_pb2_grpc import IamTokenServiceStub
 from yarl import URL
 
 from mcp_tracker.tracker.custom.errors import (
     CommentTemplateNotFound,
+    EntityLinksOnlyUpdate,
     IssueNotFound,
     IssueTemplateNotFound,
     IssueVersionConflict,
@@ -25,12 +26,27 @@ from mcp_tracker.tracker.custom.errors import (
     TrackerAPIError,
 )
 from mcp_tracker.tracker.proto.common import YandexAuth
+from mcp_tracker.tracker.proto.entities import EntitiesProtocol
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
 from mcp_tracker.tracker.proto.templates import TemplatesProtocol
+from mcp_tracker.tracker.proto.types.entities import (
+    DEFAULT_ENTITY_FIELDS_PARAM,
+    GoalEntity,
+    GoalSearchResult,
+    GoalStatus,
+    PortfolioEntity,
+    PortfolioSearchResult,
+    ProjectEntity,
+    ProjectPortfolioStatus,
+    ProjectSearchResult,
+)
 from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
 from mcp_tracker.tracker.proto.types.inputs import (
+    EntityChecklistItemUpdateInput,
+    EntityParentEntityInput,
+    GoalLinkInput,
     IssueComponentRef,
     IssueFollowerRef,
     IssueParentRef,
@@ -38,12 +54,14 @@ from mcp_tracker.tracker.proto.types.inputs import (
     IssueProjectRef,
     IssueSprintRef,
     IssueTypeRef,
+    ProjectPortfolioLinkInput,
 )
 from mcp_tracker.tracker.proto.types.issue_types import IssueType
 from mcp_tracker.tracker.proto.types.issues import (
     ChangelogEntry,
     ChangelogPage,
     ChecklistItem,
+    CommentsPage,
     Issue,
     IssueAttachment,
     IssueComment,
@@ -74,6 +92,21 @@ IssueCommentList = RootModel[list[IssueComment]]
 WorklogList = RootModel[list[Worklog]]
 IssueAttachmentList = RootModel[list[IssueAttachment]]
 ChecklistItemList = RootModel[list[ChecklistItem]]
+
+
+class EntityCommentsRelativePage(BaseModel):
+    """Raw response of `GET /v3/entities/<type>/<id>/comments/_relative`.
+
+    Unlike the issue comment endpoint, entity comments paginate through a
+    dedicated `_relative` endpoint that answers with an object and signals more
+    pages via `hasNext` rather than a `Link` header.
+    """
+
+    comments: list[IssueComment] = Field(default_factory=list)
+    hasNext: bool = False
+    hasPrev: bool = False
+
+
 GlobalFieldList = RootModel[list[GlobalField]]
 StatusList = RootModel[list[Status]]
 IssueTypeList = RootModel[list[IssueType]]
@@ -206,7 +239,12 @@ class ServiceAccountStore:
 
 
 class TrackerClient(
-    QueuesProtocol, IssueProtocol, GlobalDataProtocol, TemplatesProtocol, UsersProtocol
+    QueuesProtocol,
+    IssueProtocol,
+    GlobalDataProtocol,
+    TemplatesProtocol,
+    UsersProtocol,
+    EntitiesProtocol,
 ):
     def __init__(
         self,
@@ -592,15 +630,31 @@ class TrackerClient(
             return None
 
     async def issue_get_comments(
-        self, issue_id: str, *, auth: YandexAuth | None = None
-    ) -> list[IssueComment]:
+        self,
+        issue_id: str,
+        *,
+        per_page: int = 50,
+        cursor: str | None = None,
+        auth: YandexAuth | None = None,
+    ) -> CommentsPage:
+        params: dict[str, Any] = {"perPage": per_page}
+        if cursor is not None:
+            # `id` is exclusive: the page starts after that comment.
+            params["id"] = cursor
+
         async with self._session.get(
-            f"v3/issues/{issue_id}/comments", headers=await self._build_headers(auth)
+            f"v3/issues/{issue_id}/comments",
+            headers=await self._build_headers(auth),
+            params=params,
         ) as response:
             if response.status == 404:
                 raise IssueNotFound(issue_id)
             await self._raise_for_status(response)
-            return IssueCommentList.model_validate_json(await response.read()).root
+            comments = IssueCommentList.model_validate_json(await response.read()).root
+            return CommentsPage(
+                comments=comments,
+                next_cursor=self._parse_next_cursor(response),
+            )
 
     async def issue_add_comment(
         self,
@@ -1173,3 +1227,1270 @@ class TrackerClient(
                 raise IssueNotFound(issue_id)
             await self._raise_for_status(response)
             return Issue.model_validate_json(await response.read())
+
+    @staticmethod
+    def _entity_fields_param(
+        entity_type: Literal["project", "portfolio", "goal"],
+        fields: list[str] | None,
+    ) -> str:
+        """Build the `fields` query value for an entity request.
+
+        Yandex Tracker only populates the response's `fields` object with the
+        fields explicitly named here, so a per-entity default is applied when
+        the caller doesn't pass one. The default sets differ per entity type
+        (e.g. `start` is not a valid goal field).
+        """
+        # An empty list means "nothing selected", which would send `fields=` and
+        # come back with an empty `fields` object - fall back to the default.
+        if fields:
+            return ",".join(fields)
+        return DEFAULT_ENTITY_FIELDS_PARAM[entity_type]
+
+    async def _entity_get(
+        self,
+        entity_type: Literal["project", "portfolio", "goal"],
+        entity_id: str,
+        *,
+        fields: list[str] | None,
+        auth: YandexAuth | None,
+    ) -> bytes:
+        params = {"fields": self._entity_fields_param(entity_type, fields)}
+        async with self._session.get(
+            f"v3/entities/{entity_type}/{entity_id}",
+            headers=await self._build_headers(auth),
+            params=params,
+        ) as response:
+            response.raise_for_status()
+            return await response.read()
+
+    async def _entity_search(
+        self,
+        entity_type: Literal["project", "portfolio", "goal"],
+        *,
+        input: str | None,
+        filter: dict[str, str | list[str]] | None,
+        order_by: str | None,
+        order_asc: bool | None,
+        root_only: bool | None,
+        per_page: int,
+        page: int,
+        fields: list[str] | None,
+        auth: YandexAuth | None,
+    ) -> bytes:
+        params: dict[str, Any] = {
+            "perPage": per_page,
+            "page": page,
+            "fields": self._entity_fields_param(entity_type, fields),
+        }
+
+        body: dict[str, Any] = {}
+        if input is not None:
+            body["input"] = input
+        if filter is not None:
+            body["filter"] = filter
+        if order_by is not None:
+            body["orderBy"] = order_by
+        if order_asc is not None:
+            body["orderAsc"] = order_asc
+        if root_only is not None:
+            body["rootOnly"] = root_only
+
+        async with self._session.post(
+            f"v3/entities/{entity_type}/_search",
+            headers=await self._build_headers(auth),
+            json=body,
+            params=params,
+        ) as response:
+            response.raise_for_status()
+            return await response.read()
+
+    async def project_get(
+        self,
+        entity_id: str,
+        *,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> ProjectEntity:
+        return ProjectEntity.model_validate_json(
+            await self._entity_get("project", entity_id, fields=fields, auth=auth)
+        )
+
+    async def project_find(
+        self,
+        *,
+        input: str | None = None,
+        filter: dict[str, str | list[str]] | None = None,
+        order_by: str | None = None,
+        order_asc: bool | None = None,
+        root_only: bool | None = None,
+        per_page: int = 50,
+        page: int = 1,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> ProjectSearchResult:
+        return ProjectSearchResult.model_validate_json(
+            await self._entity_search(
+                "project",
+                input=input,
+                filter=filter,
+                order_by=order_by,
+                order_asc=order_asc,
+                root_only=root_only,
+                per_page=per_page,
+                page=page,
+                fields=fields,
+                auth=auth,
+            )
+        )
+
+    async def portfolio_get(
+        self,
+        entity_id: str,
+        *,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> PortfolioEntity:
+        return PortfolioEntity.model_validate_json(
+            await self._entity_get("portfolio", entity_id, fields=fields, auth=auth)
+        )
+
+    async def portfolio_find(
+        self,
+        *,
+        input: str | None = None,
+        filter: dict[str, str | list[str]] | None = None,
+        order_by: str | None = None,
+        order_asc: bool | None = None,
+        root_only: bool | None = None,
+        per_page: int = 50,
+        page: int = 1,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> PortfolioSearchResult:
+        return PortfolioSearchResult.model_validate_json(
+            await self._entity_search(
+                "portfolio",
+                input=input,
+                filter=filter,
+                order_by=order_by,
+                order_asc=order_asc,
+                root_only=root_only,
+                per_page=per_page,
+                page=page,
+                fields=fields,
+                auth=auth,
+            )
+        )
+
+    async def goal_get(
+        self,
+        entity_id: str,
+        *,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> GoalEntity:
+        return GoalEntity.model_validate_json(
+            await self._entity_get("goal", entity_id, fields=fields, auth=auth)
+        )
+
+    async def goal_find(
+        self,
+        *,
+        input: str | None = None,
+        filter: dict[str, str | list[str]] | None = None,
+        order_by: str | None = None,
+        order_asc: bool | None = None,
+        root_only: bool | None = None,
+        per_page: int = 50,
+        page: int = 1,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> GoalSearchResult:
+        return GoalSearchResult.model_validate_json(
+            await self._entity_search(
+                "goal",
+                input=input,
+                filter=filter,
+                order_by=order_by,
+                order_asc=order_asc,
+                root_only=root_only,
+                per_page=per_page,
+                page=page,
+                fields=fields,
+                auth=auth,
+            )
+        )
+
+    @staticmethod
+    def _build_entity_fields_body(
+        *,
+        summary: str | None,
+        description: str | None,
+        lead: str | None,
+        team_users: list[str] | None,
+        clients: list[str] | None,
+        followers: list[str] | None,
+        start: datetime.date | datetime.datetime | None,
+        end: datetime.date | datetime.datetime | None,
+        tags: list[str] | None,
+        entity_status: str | None,
+        parent_entity: EntityParentEntityInput | None,
+        team_access: bool | None = None,
+    ) -> dict[str, Any]:
+        fields_body: dict[str, Any] = {}
+        if summary is not None:
+            fields_body["summary"] = summary
+        if description is not None:
+            fields_body["description"] = description
+        if lead is not None:
+            fields_body["lead"] = lead
+        if team_users is not None:
+            fields_body["teamUsers"] = team_users
+        if clients is not None:
+            fields_body["clients"] = clients
+        if followers is not None:
+            fields_body["followers"] = followers
+        if start is not None:
+            fields_body["start"] = start.isoformat()
+        if end is not None:
+            fields_body["end"] = end.isoformat()
+        if tags is not None:
+            fields_body["tags"] = tags
+        if entity_status is not None:
+            fields_body["entityStatus"] = entity_status
+        if parent_entity is not None:
+            fields_body["parentEntity"] = parent_entity.model_dump(exclude_none=True)
+        if team_access is not None:
+            fields_body["teamAccess"] = team_access
+        return fields_body
+
+    async def _entity_create(
+        self,
+        entity_type: Literal["project", "portfolio", "goal"],
+        *,
+        fields_body: dict[str, Any],
+        links: list[ProjectPortfolioLinkInput] | list[GoalLinkInput] | None,
+        fields: list[str] | None,
+        auth: YandexAuth | None,
+    ) -> bytes:
+        body: dict[str, Any] = {}
+        if fields_body:
+            body["fields"] = fields_body
+        if links is not None:
+            body["links"] = [link.model_dump(exclude_none=True) for link in links]
+
+        async with self._session.post(
+            f"v3/entities/{entity_type}",
+            headers=await self._build_headers(auth),
+            json=body,
+            params={"fields": self._entity_fields_param(entity_type, fields)},
+        ) as response:
+            response.raise_for_status()
+            return await response.read()
+
+    async def _entity_update(
+        self,
+        entity_type: Literal["project", "portfolio", "goal"],
+        entity_id: str,
+        *,
+        fields_body: dict[str, Any],
+        links: list[ProjectPortfolioLinkInput] | list[GoalLinkInput] | None,
+        comment: str | None,
+        version: int | None,
+        fields: list[str] | None,
+        auth: YandexAuth | None,
+    ) -> bytes:
+        # Tracker silently ignores `links` unless the request changes the entity
+        # itself, so a links-only update would return 200 having done nothing.
+        if links and not fields_body and comment is None:
+            raise EntityLinksOnlyUpdate()
+
+        # An update may touch only links and/or add a comment - don't send an empty `fields`.
+        body: dict[str, Any] = {}
+        if fields_body:
+            body["fields"] = fields_body
+        if links is not None:
+            body["links"] = [link.model_dump(exclude_none=True) for link in links]
+        if comment is not None:
+            body["comment"] = comment
+
+        params: dict[str, Any] = {
+            "fields": self._entity_fields_param(entity_type, fields)
+        }
+        if version is not None:
+            params["version"] = version
+
+        async with self._session.patch(
+            f"v3/entities/{entity_type}/{entity_id}",
+            headers=await self._build_headers(auth),
+            json=body,
+            params=params,
+        ) as response:
+            response.raise_for_status()
+            return await response.read()
+
+    async def _entity_delete(
+        self,
+        entity_type: Literal["project", "portfolio", "goal"],
+        entity_id: str,
+        *,
+        with_board: bool,
+        auth: YandexAuth | None,
+    ) -> None:
+        params = {"withBoard": "true"} if with_board else None
+        async with self._session.delete(
+            f"v3/entities/{entity_type}/{entity_id}",
+            headers=await self._build_headers(auth),
+            params=params,
+        ) as response:
+            response.raise_for_status()
+            return None
+
+    async def project_create(
+        self,
+        *,
+        summary: str,
+        description: str | None = None,
+        lead: str | None = None,
+        team_users: list[str] | None = None,
+        clients: list[str] | None = None,
+        followers: list[str] | None = None,
+        start: datetime.date | datetime.datetime | None = None,
+        end: datetime.date | datetime.datetime | None = None,
+        tags: list[str] | None = None,
+        entity_status: ProjectPortfolioStatus | None = None,
+        parent_entity: EntityParentEntityInput | None = None,
+        team_access: bool | None = None,
+        links: list[ProjectPortfolioLinkInput] | None = None,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> ProjectEntity:
+        fields_body = self._build_entity_fields_body(
+            summary=summary,
+            description=description,
+            lead=lead,
+            team_users=team_users,
+            clients=clients,
+            followers=followers,
+            start=start,
+            end=end,
+            tags=tags,
+            entity_status=entity_status,
+            parent_entity=parent_entity,
+            team_access=team_access,
+        )
+        return ProjectEntity.model_validate_json(
+            await self._entity_create(
+                "project",
+                fields_body=fields_body,
+                links=links,
+                fields=fields,
+                auth=auth,
+            )
+        )
+
+    async def project_update(
+        self,
+        entity_id: str,
+        *,
+        summary: str | None = None,
+        description: str | None = None,
+        lead: str | None = None,
+        team_users: list[str] | None = None,
+        clients: list[str] | None = None,
+        followers: list[str] | None = None,
+        start: datetime.date | datetime.datetime | None = None,
+        end: datetime.date | datetime.datetime | None = None,
+        tags: list[str] | None = None,
+        entity_status: ProjectPortfolioStatus | None = None,
+        parent_entity: EntityParentEntityInput | None = None,
+        team_access: bool | None = None,
+        links: list[ProjectPortfolioLinkInput] | None = None,
+        comment: str | None = None,
+        version: int | None = None,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> ProjectEntity:
+        fields_body = self._build_entity_fields_body(
+            summary=summary,
+            description=description,
+            lead=lead,
+            team_users=team_users,
+            clients=clients,
+            followers=followers,
+            start=start,
+            end=end,
+            tags=tags,
+            entity_status=entity_status,
+            parent_entity=parent_entity,
+            team_access=team_access,
+        )
+        return ProjectEntity.model_validate_json(
+            await self._entity_update(
+                "project",
+                entity_id,
+                fields_body=fields_body,
+                links=links,
+                comment=comment,
+                version=version,
+                fields=fields,
+                auth=auth,
+            )
+        )
+
+    async def project_delete(
+        self,
+        entity_id: str,
+        *,
+        with_board: bool = False,
+        auth: YandexAuth | None = None,
+    ) -> None:
+        await self._entity_delete(
+            "project", entity_id, with_board=with_board, auth=auth
+        )
+
+    async def portfolio_create(
+        self,
+        *,
+        summary: str,
+        description: str | None = None,
+        lead: str | None = None,
+        team_users: list[str] | None = None,
+        clients: list[str] | None = None,
+        followers: list[str] | None = None,
+        start: datetime.date | datetime.datetime | None = None,
+        end: datetime.date | datetime.datetime | None = None,
+        tags: list[str] | None = None,
+        entity_status: ProjectPortfolioStatus | None = None,
+        parent_entity: EntityParentEntityInput | None = None,
+        team_access: bool | None = None,
+        links: list[ProjectPortfolioLinkInput] | None = None,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> PortfolioEntity:
+        fields_body = self._build_entity_fields_body(
+            summary=summary,
+            description=description,
+            lead=lead,
+            team_users=team_users,
+            clients=clients,
+            followers=followers,
+            start=start,
+            end=end,
+            tags=tags,
+            entity_status=entity_status,
+            parent_entity=parent_entity,
+            team_access=team_access,
+        )
+        return PortfolioEntity.model_validate_json(
+            await self._entity_create(
+                "portfolio",
+                fields_body=fields_body,
+                links=links,
+                fields=fields,
+                auth=auth,
+            )
+        )
+
+    async def portfolio_update(
+        self,
+        entity_id: str,
+        *,
+        summary: str | None = None,
+        description: str | None = None,
+        lead: str | None = None,
+        team_users: list[str] | None = None,
+        clients: list[str] | None = None,
+        followers: list[str] | None = None,
+        start: datetime.date | datetime.datetime | None = None,
+        end: datetime.date | datetime.datetime | None = None,
+        tags: list[str] | None = None,
+        entity_status: ProjectPortfolioStatus | None = None,
+        parent_entity: EntityParentEntityInput | None = None,
+        team_access: bool | None = None,
+        links: list[ProjectPortfolioLinkInput] | None = None,
+        comment: str | None = None,
+        version: int | None = None,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> PortfolioEntity:
+        fields_body = self._build_entity_fields_body(
+            summary=summary,
+            description=description,
+            lead=lead,
+            team_users=team_users,
+            clients=clients,
+            followers=followers,
+            start=start,
+            end=end,
+            tags=tags,
+            entity_status=entity_status,
+            parent_entity=parent_entity,
+            team_access=team_access,
+        )
+        return PortfolioEntity.model_validate_json(
+            await self._entity_update(
+                "portfolio",
+                entity_id,
+                fields_body=fields_body,
+                links=links,
+                comment=comment,
+                version=version,
+                fields=fields,
+                auth=auth,
+            )
+        )
+
+    async def portfolio_delete(
+        self,
+        entity_id: str,
+        *,
+        with_board: bool = False,
+        auth: YandexAuth | None = None,
+    ) -> None:
+        await self._entity_delete(
+            "portfolio", entity_id, with_board=with_board, auth=auth
+        )
+
+    async def goal_create(
+        self,
+        *,
+        summary: str,
+        description: str | None = None,
+        lead: str | None = None,
+        team_users: list[str] | None = None,
+        clients: list[str] | None = None,
+        followers: list[str] | None = None,
+        end: datetime.date | datetime.datetime | None = None,
+        tags: list[str] | None = None,
+        entity_status: GoalStatus | None = None,
+        parent_entity: EntityParentEntityInput | None = None,
+        team_access: bool | None = None,
+        links: list[GoalLinkInput] | None = None,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> GoalEntity:
+        fields_body = self._build_entity_fields_body(
+            summary=summary,
+            description=description,
+            lead=lead,
+            team_users=team_users,
+            clients=clients,
+            followers=followers,
+            start=None,
+            end=end,
+            tags=tags,
+            entity_status=entity_status,
+            parent_entity=parent_entity,
+            team_access=team_access,
+        )
+        return GoalEntity.model_validate_json(
+            await self._entity_create(
+                "goal", fields_body=fields_body, links=links, fields=fields, auth=auth
+            )
+        )
+
+    async def goal_update(
+        self,
+        entity_id: str,
+        *,
+        summary: str | None = None,
+        description: str | None = None,
+        lead: str | None = None,
+        team_users: list[str] | None = None,
+        clients: list[str] | None = None,
+        followers: list[str] | None = None,
+        end: datetime.date | datetime.datetime | None = None,
+        tags: list[str] | None = None,
+        entity_status: GoalStatus | None = None,
+        parent_entity: EntityParentEntityInput | None = None,
+        team_access: bool | None = None,
+        links: list[GoalLinkInput] | None = None,
+        comment: str | None = None,
+        version: int | None = None,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> GoalEntity:
+        fields_body = self._build_entity_fields_body(
+            summary=summary,
+            description=description,
+            lead=lead,
+            team_users=team_users,
+            clients=clients,
+            followers=followers,
+            start=None,
+            end=end,
+            tags=tags,
+            entity_status=entity_status,
+            parent_entity=parent_entity,
+            team_access=team_access,
+        )
+        return GoalEntity.model_validate_json(
+            await self._entity_update(
+                "goal",
+                entity_id,
+                fields_body=fields_body,
+                links=links,
+                comment=comment,
+                version=version,
+                fields=fields,
+                auth=auth,
+            )
+        )
+
+    async def goal_delete(
+        self,
+        entity_id: str,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> None:
+        # Goals have no board, so `withBoard` is not applicable here.
+        await self._entity_delete("goal", entity_id, with_board=False, auth=auth)
+
+    async def _entity_get_comments(
+        self,
+        entity_type: Literal["project", "portfolio", "goal"],
+        entity_id: str,
+        *,
+        per_page: int,
+        cursor: str | None,
+        auth: YandexAuth | None,
+    ) -> CommentsPage:
+        params: dict[str, Any] = {"perPage": per_page}
+        if cursor is not None:
+            # `from` is exclusive: the page starts after that comment.
+            params["from"] = cursor
+
+        async with self._session.get(
+            f"v3/entities/{entity_type}/{entity_id}/comments/_relative",
+            headers=await self._build_headers(auth),
+            params=params,
+        ) as response:
+            response.raise_for_status()
+            page = EntityCommentsRelativePage.model_validate_json(await response.read())
+            next_cursor: str | None = None
+            if page.hasNext and page.comments:
+                # `longId` is optional on the comment model; fall back to the
+                # numeric id (the API accepts either) so a truncated page is
+                # never reported as the complete list.
+                last = page.comments[-1]
+                next_cursor = last.long_id or str(last.id)
+            return CommentsPage(comments=page.comments, next_cursor=next_cursor)
+
+    async def _entity_add_comment(
+        self,
+        entity_type: Literal["project", "portfolio", "goal"],
+        entity_id: str,
+        *,
+        text: str,
+        summonees: list[str] | None,
+        maillist_summonees: list[str] | None,
+        auth: YandexAuth | None,
+    ) -> IssueComment:
+        body: dict[str, Any] = {"text": text}
+        if summonees is not None:
+            body["summonees"] = summonees
+        if maillist_summonees is not None:
+            body["maillistSummonees"] = maillist_summonees
+
+        async with self._session.post(
+            f"v3/entities/{entity_type}/{entity_id}/comments",
+            headers=await self._build_headers(auth),
+            json=body,
+        ) as response:
+            response.raise_for_status()
+            return IssueComment.model_validate_json(await response.read())
+
+    async def _entity_update_comment(
+        self,
+        entity_type: Literal["project", "portfolio", "goal"],
+        entity_id: str,
+        comment_id: int,
+        *,
+        text: str,
+        summonees: list[str] | None,
+        maillist_summonees: list[str] | None,
+        auth: YandexAuth | None,
+    ) -> IssueComment:
+        body: dict[str, Any] = {"text": text}
+        if summonees is not None:
+            body["summonees"] = summonees
+        if maillist_summonees is not None:
+            body["maillistSummonees"] = maillist_summonees
+
+        async with self._session.patch(
+            f"v3/entities/{entity_type}/{entity_id}/comments/{comment_id}",
+            headers=await self._build_headers(auth),
+            json=body,
+        ) as response:
+            response.raise_for_status()
+            return IssueComment.model_validate_json(await response.read())
+
+    async def _entity_delete_comment(
+        self,
+        entity_type: Literal["project", "portfolio", "goal"],
+        entity_id: str,
+        comment_id: int,
+        *,
+        auth: YandexAuth | None,
+    ) -> None:
+        async with self._session.delete(
+            f"v3/entities/{entity_type}/{entity_id}/comments/{comment_id}",
+            headers=await self._build_headers(auth),
+        ) as response:
+            response.raise_for_status()
+            return None
+
+    async def project_get_comments(
+        self,
+        entity_id: str,
+        *,
+        per_page: int = 50,
+        cursor: str | None = None,
+        auth: YandexAuth | None = None,
+    ) -> CommentsPage:
+        return await self._entity_get_comments(
+            "project", entity_id, per_page=per_page, cursor=cursor, auth=auth
+        )
+
+    async def project_add_comment(
+        self,
+        entity_id: str,
+        *,
+        text: str,
+        summonees: list[str] | None = None,
+        maillist_summonees: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> IssueComment:
+        return await self._entity_add_comment(
+            "project",
+            entity_id,
+            text=text,
+            summonees=summonees,
+            maillist_summonees=maillist_summonees,
+            auth=auth,
+        )
+
+    async def project_update_comment(
+        self,
+        entity_id: str,
+        comment_id: int,
+        *,
+        text: str,
+        summonees: list[str] | None = None,
+        maillist_summonees: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> IssueComment:
+        return await self._entity_update_comment(
+            "project",
+            entity_id,
+            comment_id,
+            text=text,
+            summonees=summonees,
+            maillist_summonees=maillist_summonees,
+            auth=auth,
+        )
+
+    async def project_delete_comment(
+        self,
+        entity_id: str,
+        comment_id: int,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> None:
+        await self._entity_delete_comment("project", entity_id, comment_id, auth=auth)
+
+    async def portfolio_get_comments(
+        self,
+        entity_id: str,
+        *,
+        per_page: int = 50,
+        cursor: str | None = None,
+        auth: YandexAuth | None = None,
+    ) -> CommentsPage:
+        return await self._entity_get_comments(
+            "portfolio", entity_id, per_page=per_page, cursor=cursor, auth=auth
+        )
+
+    async def portfolio_add_comment(
+        self,
+        entity_id: str,
+        *,
+        text: str,
+        summonees: list[str] | None = None,
+        maillist_summonees: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> IssueComment:
+        return await self._entity_add_comment(
+            "portfolio",
+            entity_id,
+            text=text,
+            summonees=summonees,
+            maillist_summonees=maillist_summonees,
+            auth=auth,
+        )
+
+    async def portfolio_update_comment(
+        self,
+        entity_id: str,
+        comment_id: int,
+        *,
+        text: str,
+        summonees: list[str] | None = None,
+        maillist_summonees: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> IssueComment:
+        return await self._entity_update_comment(
+            "portfolio",
+            entity_id,
+            comment_id,
+            text=text,
+            summonees=summonees,
+            maillist_summonees=maillist_summonees,
+            auth=auth,
+        )
+
+    async def portfolio_delete_comment(
+        self,
+        entity_id: str,
+        comment_id: int,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> None:
+        await self._entity_delete_comment("portfolio", entity_id, comment_id, auth=auth)
+
+    async def goal_get_comments(
+        self,
+        entity_id: str,
+        *,
+        per_page: int = 50,
+        cursor: str | None = None,
+        auth: YandexAuth | None = None,
+    ) -> CommentsPage:
+        return await self._entity_get_comments(
+            "goal", entity_id, per_page=per_page, cursor=cursor, auth=auth
+        )
+
+    async def goal_add_comment(
+        self,
+        entity_id: str,
+        *,
+        text: str,
+        summonees: list[str] | None = None,
+        maillist_summonees: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> IssueComment:
+        return await self._entity_add_comment(
+            "goal",
+            entity_id,
+            text=text,
+            summonees=summonees,
+            maillist_summonees=maillist_summonees,
+            auth=auth,
+        )
+
+    async def goal_update_comment(
+        self,
+        entity_id: str,
+        comment_id: int,
+        *,
+        text: str,
+        summonees: list[str] | None = None,
+        maillist_summonees: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> IssueComment:
+        return await self._entity_update_comment(
+            "goal",
+            entity_id,
+            comment_id,
+            text=text,
+            summonees=summonees,
+            maillist_summonees=maillist_summonees,
+            auth=auth,
+        )
+
+    async def goal_delete_comment(
+        self,
+        entity_id: str,
+        comment_id: int,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> None:
+        await self._entity_delete_comment("goal", entity_id, comment_id, auth=auth)
+
+    @staticmethod
+    def _build_checklist_item_body(
+        *,
+        text: str | None,
+        checked: bool | None,
+        assignee: str | None,
+        deadline: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        body: dict[str, Any] = {}
+        if text is not None:
+            body["text"] = text
+        if checked is not None:
+            body["checked"] = checked
+        if assignee is not None:
+            body["assignee"] = assignee
+        if deadline is not None:
+            body["deadline"] = deadline
+        return body
+
+    async def _entity_add_checklist_item(
+        self,
+        entity_type: Literal["project", "portfolio"],
+        entity_id: str,
+        *,
+        text: str,
+        checked: bool | None,
+        assignee: str | None,
+        deadline: dict[str, Any] | None,
+        fields: list[str] | None,
+        auth: YandexAuth | None,
+    ) -> bytes:
+        body = self._build_checklist_item_body(
+            text=text, checked=checked, assignee=assignee, deadline=deadline
+        )
+        async with self._session.post(
+            f"v3/entities/{entity_type}/{entity_id}/checklistItems",
+            headers=await self._build_headers(auth),
+            json=body,
+            params={"fields": self._entity_fields_param(entity_type, fields)},
+        ) as response:
+            response.raise_for_status()
+            return await response.read()
+
+    async def _entity_update_checklist_item(
+        self,
+        entity_type: Literal["project", "portfolio"],
+        entity_id: str,
+        checklist_item_id: str,
+        *,
+        text: str | None,
+        checked: bool | None,
+        assignee: str | None,
+        deadline: dict[str, Any] | None,
+        fields: list[str] | None,
+        auth: YandexAuth | None,
+    ) -> bytes:
+        body = self._build_checklist_item_body(
+            text=text, checked=checked, assignee=assignee, deadline=deadline
+        )
+        async with self._session.patch(
+            f"v3/entities/{entity_type}/{entity_id}/checklistItems/{checklist_item_id}",
+            headers=await self._build_headers(auth),
+            json=body,
+            params={"fields": self._entity_fields_param(entity_type, fields)},
+        ) as response:
+            response.raise_for_status()
+            return await response.read()
+
+    async def _entity_move_checklist_item(
+        self,
+        entity_type: Literal["project", "portfolio"],
+        entity_id: str,
+        checklist_item_id: str,
+        *,
+        before: str,
+        fields: list[str] | None,
+        auth: YandexAuth | None,
+    ) -> bytes:
+        async with self._session.post(
+            f"v3/entities/{entity_type}/{entity_id}/checklistItems/{checklist_item_id}/_move",
+            headers=await self._build_headers(auth),
+            json={"before": before},
+            params={"fields": self._entity_fields_param(entity_type, fields)},
+        ) as response:
+            response.raise_for_status()
+            return await response.read()
+
+    async def _entity_delete_checklist_item(
+        self,
+        entity_type: Literal["project", "portfolio"],
+        entity_id: str,
+        checklist_item_id: str,
+        *,
+        fields: list[str] | None,
+        auth: YandexAuth | None,
+    ) -> bytes:
+        async with self._session.delete(
+            f"v3/entities/{entity_type}/{entity_id}/checklistItems/{checklist_item_id}",
+            headers=await self._build_headers(auth),
+            params={"fields": self._entity_fields_param(entity_type, fields)},
+        ) as response:
+            response.raise_for_status()
+            return await response.read()
+
+    async def _entity_update_checklist(
+        self,
+        entity_type: Literal["project", "portfolio"],
+        entity_id: str,
+        *,
+        items: list[EntityChecklistItemUpdateInput],
+        fields: list[str] | None,
+        auth: YandexAuth | None,
+    ) -> bytes:
+        body = [item.model_dump(exclude_none=True) for item in items]
+        async with self._session.patch(
+            f"v3/entities/{entity_type}/{entity_id}/checklistItems",
+            headers=await self._build_headers(auth),
+            json=body,
+            params={"fields": self._entity_fields_param(entity_type, fields)},
+        ) as response:
+            response.raise_for_status()
+            return await response.read()
+
+    async def _entity_delete_checklist(
+        self,
+        entity_type: Literal["project", "portfolio"],
+        entity_id: str,
+        *,
+        fields: list[str] | None,
+        auth: YandexAuth | None,
+    ) -> bytes:
+        async with self._session.delete(
+            f"v3/entities/{entity_type}/{entity_id}/checklistItems",
+            headers=await self._build_headers(auth),
+            params={"fields": self._entity_fields_param(entity_type, fields)},
+        ) as response:
+            response.raise_for_status()
+            return await response.read()
+
+    async def project_add_checklist_item(
+        self,
+        entity_id: str,
+        *,
+        text: str,
+        checked: bool | None = None,
+        assignee: str | None = None,
+        deadline: dict[str, Any] | None = None,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> ProjectEntity:
+        return ProjectEntity.model_validate_json(
+            await self._entity_add_checklist_item(
+                "project",
+                entity_id,
+                text=text,
+                checked=checked,
+                assignee=assignee,
+                deadline=deadline,
+                fields=fields,
+                auth=auth,
+            )
+        )
+
+    async def project_update_checklist_item(
+        self,
+        entity_id: str,
+        checklist_item_id: str,
+        *,
+        text: str | None = None,
+        checked: bool | None = None,
+        assignee: str | None = None,
+        deadline: dict[str, Any] | None = None,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> ProjectEntity:
+        return ProjectEntity.model_validate_json(
+            await self._entity_update_checklist_item(
+                "project",
+                entity_id,
+                checklist_item_id,
+                text=text,
+                checked=checked,
+                assignee=assignee,
+                deadline=deadline,
+                fields=fields,
+                auth=auth,
+            )
+        )
+
+    async def project_move_checklist_item(
+        self,
+        entity_id: str,
+        checklist_item_id: str,
+        *,
+        before: str,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> ProjectEntity:
+        return ProjectEntity.model_validate_json(
+            await self._entity_move_checklist_item(
+                "project",
+                entity_id,
+                checklist_item_id,
+                before=before,
+                fields=fields,
+                auth=auth,
+            )
+        )
+
+    async def project_delete_checklist_item(
+        self,
+        entity_id: str,
+        checklist_item_id: str,
+        *,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> ProjectEntity:
+        return ProjectEntity.model_validate_json(
+            await self._entity_delete_checklist_item(
+                "project",
+                entity_id,
+                checklist_item_id,
+                fields=fields,
+                auth=auth,
+            )
+        )
+
+    async def project_update_checklist(
+        self,
+        entity_id: str,
+        *,
+        items: list[EntityChecklistItemUpdateInput],
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> ProjectEntity:
+        return ProjectEntity.model_validate_json(
+            await self._entity_update_checklist(
+                "project",
+                entity_id,
+                items=items,
+                fields=fields,
+                auth=auth,
+            )
+        )
+
+    async def project_delete_checklist(
+        self,
+        entity_id: str,
+        *,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> ProjectEntity:
+        return ProjectEntity.model_validate_json(
+            await self._entity_delete_checklist(
+                "project", entity_id, fields=fields, auth=auth
+            )
+        )
+
+    async def portfolio_add_checklist_item(
+        self,
+        entity_id: str,
+        *,
+        text: str,
+        checked: bool | None = None,
+        assignee: str | None = None,
+        deadline: dict[str, Any] | None = None,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> PortfolioEntity:
+        return PortfolioEntity.model_validate_json(
+            await self._entity_add_checklist_item(
+                "portfolio",
+                entity_id,
+                text=text,
+                checked=checked,
+                assignee=assignee,
+                deadline=deadline,
+                fields=fields,
+                auth=auth,
+            )
+        )
+
+    async def portfolio_update_checklist_item(
+        self,
+        entity_id: str,
+        checklist_item_id: str,
+        *,
+        text: str | None = None,
+        checked: bool | None = None,
+        assignee: str | None = None,
+        deadline: dict[str, Any] | None = None,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> PortfolioEntity:
+        return PortfolioEntity.model_validate_json(
+            await self._entity_update_checklist_item(
+                "portfolio",
+                entity_id,
+                checklist_item_id,
+                text=text,
+                checked=checked,
+                assignee=assignee,
+                deadline=deadline,
+                fields=fields,
+                auth=auth,
+            )
+        )
+
+    async def portfolio_move_checklist_item(
+        self,
+        entity_id: str,
+        checklist_item_id: str,
+        *,
+        before: str,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> PortfolioEntity:
+        return PortfolioEntity.model_validate_json(
+            await self._entity_move_checklist_item(
+                "portfolio",
+                entity_id,
+                checklist_item_id,
+                before=before,
+                fields=fields,
+                auth=auth,
+            )
+        )
+
+    async def portfolio_delete_checklist_item(
+        self,
+        entity_id: str,
+        checklist_item_id: str,
+        *,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> PortfolioEntity:
+        return PortfolioEntity.model_validate_json(
+            await self._entity_delete_checklist_item(
+                "portfolio",
+                entity_id,
+                checklist_item_id,
+                fields=fields,
+                auth=auth,
+            )
+        )
+
+    async def portfolio_update_checklist(
+        self,
+        entity_id: str,
+        *,
+        items: list[EntityChecklistItemUpdateInput],
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> PortfolioEntity:
+        return PortfolioEntity.model_validate_json(
+            await self._entity_update_checklist(
+                "portfolio",
+                entity_id,
+                items=items,
+                fields=fields,
+                auth=auth,
+            )
+        )
+
+    async def portfolio_delete_checklist(
+        self,
+        entity_id: str,
+        *,
+        fields: list[str] | None = None,
+        auth: YandexAuth | None = None,
+    ) -> PortfolioEntity:
+        return PortfolioEntity.model_validate_json(
+            await self._entity_delete_checklist(
+                "portfolio", entity_id, fields=fields, auth=auth
+            )
+        )

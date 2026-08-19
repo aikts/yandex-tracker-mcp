@@ -13,6 +13,7 @@ from mcp.types import CallToolResult
 from mcp_tracker.mcp.context import AppContext
 from mcp_tracker.mcp.server import Lifespan, create_mcp_server
 from mcp_tracker.settings import Settings
+from mcp_tracker.tracker.proto.entities import EntitiesProtocol
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
@@ -70,6 +71,7 @@ def create_test_settings(
     limit_queues: list[str] | None = None,
     read_only: bool = False,
     read_only_queues: list[str] | None = None,
+    entities_enabled: bool = True,
 ) -> Settings:
     """Create Settings for testing with minimal required configuration."""
     return Settings.model_construct(
@@ -79,6 +81,7 @@ def create_test_settings(
         tracker_limit_queues=limit_queues,
         tracker_read_only=read_only,
         tracker_read_only_queues=read_only_queues,
+        tracker_entities_enabled=entities_enabled,
         tools_cache_enabled=False,
         oauth_enabled=False,
         host="0.0.0.0",
@@ -135,12 +138,19 @@ def mock_users_protocol() -> AsyncMock:
 
 
 @pytest.fixture
+def mock_entities_protocol() -> AsyncMock:
+    """Create a mock EntitiesProtocol."""
+    return AsyncMock(spec=EntitiesProtocol)
+
+
+@pytest.fixture
 def mock_app_context(
     mock_queues_protocol: AsyncMock,
     mock_issues_protocol: AsyncMock,
     mock_fields_protocol: AsyncMock,
     mock_templates_protocol: AsyncMock,
     mock_users_protocol: AsyncMock,
+    mock_entities_protocol: AsyncMock,
 ) -> AppContext:
     """Create AppContext with mock protocols."""
     return AppContext(
@@ -149,6 +159,7 @@ def mock_app_context(
         fields=mock_fields_protocol,
         templates=mock_templates_protocol,
         users=mock_users_protocol,
+        entities=mock_entities_protocol,
     )
 
 
@@ -198,6 +209,33 @@ async def client_session_with_limits(
 ) -> AsyncIterator[ClientSession]:
     """Create connected client session with queue restrictions."""
     async with safe_client_session(mcp_server_with_queue_limits) as session:
+        yield session
+
+
+@pytest.fixture
+def test_settings_entities_disabled() -> Settings:
+    """Settings with the default (opt-out) entity tool configuration."""
+    return create_test_settings(entities_enabled=False)
+
+
+@pytest.fixture
+def mcp_server_entities_disabled(
+    test_settings_entities_disabled: Settings,
+    mock_app_context: AppContext,
+) -> FastMCP[Any]:
+    """Create test MCP server without project/portfolio/goal tools."""
+    return create_mcp_server(
+        settings=test_settings_entities_disabled,
+        lifespan=make_test_lifespan(mock_app_context),
+    )
+
+
+@pytest_asyncio.fixture(loop_scope="function")
+async def client_session_entities_disabled(
+    mcp_server_entities_disabled: FastMCP[Any],
+) -> AsyncIterator[ClientSession]:
+    """Create connected client session with entity tools disabled."""
+    async with safe_client_session(mcp_server_entities_disabled) as session:
         yield session
 
 

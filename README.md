@@ -17,6 +17,7 @@ Documentation in Russian is available [here](README_ru.md) / Документа�
 ## Features
 
 - **Complete Queue Management**: List and access all available Yandex Tracker queues with pagination support, tag retrieval, and detailed metadata
+- **Projects, Portfolios and Goals**: Dedicated read-only tools with explicit schemas for each entity type in the Tracker "entities" API
 - **User Management**: Retrieve user account information, including login details, email addresses, license status, and organizational data
 - **Full Issue Lifecycle**: Create, read, update, and manage issues with support for custom fields, attachments, and workflow transitions
 - **Status Workflow Management**: Execute status transitions, close issues with resolutions, and navigate complex workflows
@@ -539,14 +540,73 @@ The server exposes the following tools through the MCP protocol:
 </details>
 
 <details>
+<summary><strong>Projects, Portfolios and Goals</strong></summary>
+
+Projects, portfolios and goals are separate Yandex Tracker entities (distinct from queues) exposed through the Tracker "entities" API. Each entity type has its own dedicated tool and explicit schema; custom (organization-defined) attributes are not modeled and are not returned.
+
+> **These tools are opt-in.** They are registered only when `TRACKER_ENTITIES_ENABLED=true` (default `false`), because they add a large tool manifest and are not covered by the queue restrictions — see [Queue Access Control](#queue-access-control).
+
+- **`project_get`**: Get a project by its id or shortId
+  - Parameters:
+    - `entity_id` (string, required): Project id or shortId
+    - `fields` (array of strings, optional): Entity fields to include, constrained to the allowed values for this entity type. Defaults to a base field set (`summary`, `description`, `entityStatus`, `start`, `end`, `lead`, `author`, `tags`; goals omit `start`, which the API does not define for them)
+  - Returns project metadata (id, shortId, version, createdBy/createdAt/updatedAt) and the requested fields
+
+- **`project_find`**: Search projects by name substring and/or field filters
+  - Parameters (all optional): `input` (substring match), `filter` (field criteria map), `order_by`, `order_asc`, `root_only` (exclude nested entities), `page`, `per_page`, `fields`
+  - Returns a paginated search result (`hits`, `pages`, `values`)
+
+- **`portfolio_get`** / **`portfolio_find`**: Same shape as `project_get` / `project_find`, for portfolios (a portfolio groups projects and/or other portfolios)
+
+- **`goal_get`** / **`goal_find`**: Same shape as `project_get` / `project_find`, for goals. Goals use a different `entityStatus` value set (`draft`, `according_to_plan`, `at_risk`, `blocked`, `achieved`, `partially_achieved`, `not_achieved`, `exceeded`, `cancelled`)
+
+- **`project_get_comments`**: Get a page of comments of a project by its id or shortId
+  - Parameters: `entity_id` (required); `per_page` (optional, default 50); `cursor` (optional, the `next_cursor` from the previous call); `fields` (optional, array of comment field names — text/text_html can be large, so select only what you need; omit to get all fields)
+  - Returns `{comments, next_cursor}` (comments have the same shape as issue comments). Cursor-paginated: keep passing `next_cursor` back as `cursor` until it is null
+- **`portfolio_get_comments`** / **`goal_get_comments`**: Same shape as `project_get_comments`, for portfolios and goals
+
+Write tools (`project_create`/`project_update`/`project_delete` and the equivalent `portfolio_*` / `goal_*` tools) are also available and are only registered when `TRACKER_ENTITIES_ENABLED` is set and `TRACKER_READ_ONLY` is not:
+
+- **`project_create`**: Create a project. Requires `summary`. Accepts `description`, `lead`, `team_users`, `clients`, `followers`, `start`, `end`, `tags`, `entity_status`, `parent_entity`, `team_access`, and `links`
+- **`project_update`**: Update any of the above fields on an existing project. Accepts an optional `comment` and `version` (for optimistic-concurrency conflict detection). Passing `links` **adds** links, it does not replace them — re-sending an existing link fails. Links are write-only in the Tracker API (`links` is not a valid `fields` value and is not returned by get/update), so the current set cannot be read back and links cannot be removed through the server. Tracker also ignores a links-only update, so `links` must accompany a field change or a `comment`; the server rejects a links-only call instead of reporting a no-op as success (all verified against the live API)
+- **`project_delete`**: Delete a project. Accepts an optional `with_board` flag to also delete the associated board
+- **`portfolio_create`** / **`portfolio_update`** / **`portfolio_delete`**: Same shape as the project write tools
+- **`goal_create`** / **`goal_update`** / **`goal_delete`**: Same shape as the portfolio write tools, without `start`, and using the goal `entityStatus` and link-relationship value sets. `goal_delete` has no `with_board` flag, since goals have no board
+
+All create/update tools accept the same `fields` selector as the read tools and return the created/updated entity with those fields populated.
+
+- **`project_add_comment`**: Add a comment to a project. Requires `entity_id` and `text` (Markdown/YFM supported). Accepts optional `summonees` (user logins/IDs to notify — use this instead of `@login` in the text) and `maillist_summonees` (mailing list emails)
+- **`project_update_comment`**: Update an existing comment. Requires `entity_id`, `comment_id`, and `text`. Accepts the same optional `summonees` / `maillist_summonees`
+- **`project_delete_comment`**: Delete a comment. Requires `entity_id` and `comment_id`
+- **`portfolio_add_comment`** / **`portfolio_update_comment`** / **`portfolio_delete_comment`** and **`goal_add_comment`** / **`goal_update_comment`** / **`goal_delete_comment`**: Same shape as the project comment write tools, for portfolios and goals
+
+Projects and portfolios (not goals — the Yandex Tracker API does not support checklists on goals) also expose checklist write tools. All of them return the full updated entity (request `checklistItems` via `fields` to see the current items):
+
+- **`project_add_checklist_item`**: Add a checklist item. Requires `entity_id` and `text`. Accepts optional `checked`, `assignee` (user ID/login), and `deadline` (e.g. `{'date': '2026-08-20T00:00:00.000+0000', 'deadlineType': 'date'}`)
+- **`project_update_checklist_item`**: Partially update a checklist item. Requires `entity_id` and `checklist_item_id`; all other fields (`text`, `checked`, `assignee`, `deadline`) are optional and only change what's passed
+- **`project_move_checklist_item`**: Reorder a checklist item. Requires `entity_id`, `checklist_item_id`, and `before` (the id of the item to insert immediately above)
+- **`project_delete_checklist_item`**: Delete a single checklist item. Requires `entity_id` and `checklist_item_id`
+- **`project_update_checklist`**: Bulk-edit the existing checklist items. Requires `entity_id` and `items` (`{id, text, checked?, assignee?, deadline?}` objects). Every item the checklist currently has must be present — a partial list is rejected by the API with a 500, and the item count cannot change here (verified against the live API). Use the add/delete item tools to change the set
+- **`project_delete_checklist`**: Delete the entire checklist. Requires `entity_id`
+- **`portfolio_add_checklist_item`** / **`portfolio_update_checklist_item`** / **`portfolio_move_checklist_item`** / **`portfolio_delete_checklist_item`** / **`portfolio_update_checklist`** / **`portfolio_delete_checklist`**: Same shape as the project checklist write tools, for portfolios
+
+Metrics (`metricItems`, on all three entity types) and a goal's key results (`keyResultItems`) are readable through the `fields` selector — request them explicitly, they are not in the default field set. Writing them is not supported: the API reference doesn't define whether an update replaces or merges these collections.
+
+Not yet supported: writing metrics/key results, and bulk changes — these are tracked for a future iteration.
+
+</details>
+
+<details>
 <summary><strong>User Management</strong></summary>
 
 - **`users_get_all`**: Get information about user accounts registered in the organization
   - Parameters:
     - `per_page` (optional): Number of users per page (default: 50)
     - `page` (optional): Page number to return (default: 1)
+    - `fields` (array of strings, optional): Fields to include per user. Not specifying this returns all available fields
   - Returns paginated list of users with login, email, license status, and organizational details
   - Includes user metadata such as external status, dismissal status, and notification preferences
+  - Paginated: call again with `page` incremented until an empty list is returned
 
 - **`user_get`**: Get information about a specific user by login or UID
   - Parameters: `user_id` (string, user login like "john.doe" or UID like "12345")
@@ -648,9 +708,12 @@ All four tools respect `TRACKER_LIMIT_QUEUES`: templates bound to a restricted q
   - Parameters: `issue_id` (string)
   - Returns: `https://tracker.yandex.ru/{issue_id}`
 
-- **`issue_get_comments`**: Fetch all comments for an issue
-  - Parameters: `issue_id` (string)
-  - Returns chronological list of comments with metadata
+- **`issue_get_comments`**: Fetch a page of comments for an issue
+  - Parameters:
+    - `issue_id` (string)
+    - `per_page` (optional, default 50), `cursor` (optional, the `next_cursor` from the previous call)
+    - `fields` (array of strings, optional): Fields to include per comment (text/text_html can be large). Not specifying this returns all available fields
+  - Returns `{comments, next_cursor}` — comments in chronological order with metadata. Cursor-paginated: keep passing `next_cursor` back as `cursor` until it is null
 
 - **`issue_add_comment`**: Add a comment to an issue
   - Parameters:
@@ -696,7 +759,9 @@ All four tools respect `TRACKER_LIMIT_QUEUES`: templates bound to a restricted q
   - Returns links to related, blocked, or duplicate issues
 
 - **`issue_get_worklogs`**: Retrieve worklog entries
-  - Parameters: `issue_ids` (array of strings)
+  - Parameters:
+    - `issue_ids` (array of strings)
+    - `fields` (array of strings, optional): Fields to include per worklog entry. Not specifying this returns all available fields
   - Returns time tracking data for specified issues
 
 - **`issue_add_worklog`**: Add a worklog entry (log spent time) to an issue
@@ -723,7 +788,9 @@ All four tools respect `TRACKER_LIMIT_QUEUES`: templates bound to a restricted q
   - Returns: `null` (success)
 
 - **`issue_get_attachments`**: Get attachments for an issue
-  - Parameters: `issue_id` (string, format: "QUEUE-123")
+  - Parameters:
+    - `issue_id` (string, format: "QUEUE-123")
+    - `fields` (array of strings, optional): Fields to include per attachment (the `content` field can be large). Not specifying this returns all available fields
   - Returns list of attachments with metadata for the specified issue
 
 - **`issue_get_checklist`**: Get checklist items of an issue
@@ -1193,6 +1260,7 @@ TRACKER_API_BASE_URL=https://api.tracker.yandex.net  # Default: https://api.trac
 # Security - Restrict access to specific queues (optional)
 TRACKER_LIMIT_QUEUES=PROJ1,PROJ2,DEV      # Comma-separated queue keys - allow-list of accessible queues
 TRACKER_READ_ONLY_QUEUES=PROJ2            # Comma-separated queue keys - allowed for reads but reject writes (per-queue read-only)
+TRACKER_ENTITIES_ENABLED=true             # Default: false - Register project/portfolio/goal tools (NOT covered by the queue restrictions above)
 
 # Server Configuration
 HOST=0.0.0.0                              # Default: 0.0.0.0
@@ -1234,6 +1302,16 @@ Access to queues can be scoped at three levels, from coarse to fine-grained:
   registered, but any mutating call (create/update/move/comment/worklog/link,
   queue version creation) targeting a listed queue is rejected, while reads keep
   working. Queues not listed here remain read-write.
+
+> **Project/portfolio/goal tools are outside this model.** A project, portfolio or
+> goal isn't reliably mappable to a single queue, so none of the three settings
+> above constrain them — neither the read tools (`project_get`, `project_find`,
+> `*_get_comments`, …) nor the write tools (including comment and checklist
+> tools). Enabling them grants org-wide access to those entities for anyone who
+> can reach the server. For this reason they are **opt-in**: they are registered
+> only when `TRACKER_ENTITIES_ENABLED=true` (default `false`), which also keeps
+> the tool manifest small for deployments that don't need them. `TRACKER_READ_ONLY`
+> still applies: it unregisters entity write tools along with all other write tools.
 
 This lets a single instance be **read-write on some queues and read-only on
 others** at the same time — e.g. `TRACKER_LIMIT_QUEUES=DEV,MGMT` together with

@@ -9,6 +9,7 @@ from mcp_tracker.tracker.proto.types.issues import (
     ChangelogEntry,
     ChangelogPage,
     ChecklistItem,
+    CommentsPage,
     Issue,
     IssueAttachment,
     IssueComment,
@@ -32,9 +33,9 @@ class TestCachingIssuesProtocol:
                 ),
             )
         ]
-        original.issue_get_comments.return_value = [
-            IssueComment(id=1, text="Test comment")
-        ]
+        original.issue_get_comments.return_value = CommentsPage(
+            comments=[IssueComment(id=1, text="Test comment")]
+        )
         original.issues_find.return_value = [Issue(key="TEST-1", summary="Test Issue")]
         original.issue_get_worklogs.return_value = [Worklog(id=1)]
         original.issue_get_attachments.return_value = [
@@ -100,7 +101,9 @@ class TestCachingIssuesProtocol:
     ) -> None:
         result = await caching_issues_protocol.issue_get_comments("TEST-1")
 
-        mock_original.issue_get_comments.assert_called_once_with("TEST-1", auth=None)
+        mock_original.issue_get_comments.assert_called_once_with(
+            "TEST-1", per_page=50, cursor=None, auth=None
+        )
         assert result == mock_original.issue_get_comments.return_value
 
     async def test_issue_add_link_calls_original(

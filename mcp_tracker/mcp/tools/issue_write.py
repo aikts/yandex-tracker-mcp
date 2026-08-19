@@ -158,9 +158,9 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         fields: Annotated[
             dict[str, str | int | list[str]] | None,
             Field(
-                description="Optional dictionary of additional fields to set during the transition. "
-                "Common fields include 'resolution' (e.g., 'fixed', 'wontFix') for closing issues, "
-                "'assignee' for reassigning, etc."
+                description="Optional dictionary of additional fields to set during the transition "
+                "(e.g. 'assignee' for reassigning). Do NOT set 'resolution' here - use the dedicated "
+                "resolution_id parameter instead."
             ),
         ] = None,
         comment: Annotated[

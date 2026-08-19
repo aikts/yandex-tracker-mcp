@@ -6,12 +6,26 @@ from typing import Any
 from aiocache import cached
 
 from mcp_tracker.tracker.proto.common import YandexAuth
+from mcp_tracker.tracker.proto.entities import EntitiesProtocolWrap
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocolWrap
 from mcp_tracker.tracker.proto.issues import IssueProtocolWrap
 from mcp_tracker.tracker.proto.queues import QueuesProtocolWrap
 from mcp_tracker.tracker.proto.templates import TemplatesProtocolWrap
+from mcp_tracker.tracker.proto.types.entities import (
+    GoalEntity,
+    GoalSearchResult,
+    GoalStatus,
+    PortfolioEntity,
+    PortfolioSearchResult,
+    ProjectEntity,
+    ProjectPortfolioStatus,
+    ProjectSearchResult,
+)
 from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
 from mcp_tracker.tracker.proto.types.inputs import (
+    EntityChecklistItemUpdateInput,
+    EntityParentEntityInput,
+    GoalLinkInput,
     IssueComponentRef,
     IssueFollowerRef,
     IssueParentRef,
@@ -19,11 +33,13 @@ from mcp_tracker.tracker.proto.types.inputs import (
     IssueProjectRef,
     IssueSprintRef,
     IssueTypeRef,
+    ProjectPortfolioLinkInput,
 )
 from mcp_tracker.tracker.proto.types.issue_types import IssueType
 from mcp_tracker.tracker.proto.types.issues import (
     ChangelogPage,
     ChecklistItem,
+    CommentsPage,
     Issue,
     IssueAttachment,
     IssueComment,
@@ -52,6 +68,7 @@ class CacheCollection:
     global_data: type[GlobalDataProtocolWrap]
     templates: type[TemplatesProtocolWrap]
     users: type[UsersProtocolWrap]
+    entities: type[EntitiesProtocolWrap]
 
 
 def make_cached_protocols(
@@ -158,9 +175,16 @@ def make_cached_protocols(
 
         @cached(**cache_config)
         async def issue_get_comments(
-            self, issue_id: str, *, auth: YandexAuth | None = None
-        ) -> list[IssueComment]:
-            return await self._original.issue_get_comments(issue_id, auth=auth)
+            self,
+            issue_id: str,
+            *,
+            per_page: int = 50,
+            cursor: str | None = None,
+            auth: YandexAuth | None = None,
+        ) -> CommentsPage:
+            return await self._original.issue_get_comments(
+                issue_id, per_page=per_page, cursor=cursor, auth=auth
+            )
 
         async def issue_add_comment(
             self,
@@ -554,10 +578,771 @@ def make_cached_protocols(
         async def user_get_current(self, *, auth: YandexAuth | None = None) -> User:
             return await self._original.user_get_current(auth=auth)
 
+    class CachingEntitiesProtocol(EntitiesProtocolWrap):
+        @cached(**cache_config)
+        async def project_get(
+            self,
+            entity_id: str,
+            *,
+            fields: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> ProjectEntity:
+            return await self._original.project_get(entity_id, fields=fields, auth=auth)
+
+        @cached(**cache_config)
+        async def project_find(
+            self,
+            *,
+            input: str | None = None,
+            filter: dict[str, str | list[str]] | None = None,
+            order_by: str | None = None,
+            order_asc: bool | None = None,
+            root_only: bool | None = None,
+            per_page: int = 50,
+            page: int = 1,
+            fields: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> ProjectSearchResult:
+            return await self._original.project_find(
+                input=input,
+                filter=filter,
+                order_by=order_by,
+                order_asc=order_asc,
+                root_only=root_only,
+                per_page=per_page,
+                page=page,
+                fields=fields,
+                auth=auth,
+            )
+
+        @cached(**cache_config)
+        async def portfolio_get(
+            self,
+            entity_id: str,
+            *,
+            fields: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> PortfolioEntity:
+            return await self._original.portfolio_get(
+                entity_id, fields=fields, auth=auth
+            )
+
+        @cached(**cache_config)
+        async def portfolio_find(
+            self,
+            *,
+            input: str | None = None,
+            filter: dict[str, str | list[str]] | None = None,
+            order_by: str | None = None,
+            order_asc: bool | None = None,
+            root_only: bool | None = None,
+            per_page: int = 50,
+            page: int = 1,
+            fields: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> PortfolioSearchResult:
+            return await self._original.portfolio_find(
+                input=input,
+                filter=filter,
+                order_by=order_by,
+                order_asc=order_asc,
+                root_only=root_only,
+                per_page=per_page,
+                page=page,
+                fields=fields,
+                auth=auth,
+            )
+
+        @cached(**cache_config)
+        async def goal_get(
+            self,
+            entity_id: str,
+            *,
+            fields: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> GoalEntity:
+            return await self._original.goal_get(entity_id, fields=fields, auth=auth)
+
+        @cached(**cache_config)
+        async def goal_find(
+            self,
+            *,
+            input: str | None = None,
+            filter: dict[str, str | list[str]] | None = None,
+            order_by: str | None = None,
+            order_asc: bool | None = None,
+            root_only: bool | None = None,
+            per_page: int = 50,
+            page: int = 1,
+            fields: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> GoalSearchResult:
+            return await self._original.goal_find(
+                input=input,
+                filter=filter,
+                order_by=order_by,
+                order_asc=order_asc,
+                root_only=root_only,
+                per_page=per_page,
+                page=page,
+                fields=fields,
+                auth=auth,
+            )
+
+        async def project_create(
+            self,
+            *,
+            summary: str,
+            description: str | None = None,
+            lead: str | None = None,
+            team_users: list[str] | None = None,
+            clients: list[str] | None = None,
+            followers: list[str] | None = None,
+            start: datetime.date | datetime.datetime | None = None,
+            end: datetime.date | datetime.datetime | None = None,
+            tags: list[str] | None = None,
+            entity_status: ProjectPortfolioStatus | None = None,
+            parent_entity: EntityParentEntityInput | None = None,
+            team_access: bool | None = None,
+            links: list[ProjectPortfolioLinkInput] | None = None,
+            fields: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> ProjectEntity:
+            return await self._original.project_create(
+                summary=summary,
+                description=description,
+                lead=lead,
+                team_users=team_users,
+                clients=clients,
+                followers=followers,
+                start=start,
+                end=end,
+                tags=tags,
+                entity_status=entity_status,
+                parent_entity=parent_entity,
+                team_access=team_access,
+                links=links,
+                fields=fields,
+                auth=auth,
+            )
+
+        async def project_update(
+            self,
+            entity_id: str,
+            *,
+            summary: str | None = None,
+            description: str | None = None,
+            lead: str | None = None,
+            team_users: list[str] | None = None,
+            clients: list[str] | None = None,
+            followers: list[str] | None = None,
+            start: datetime.date | datetime.datetime | None = None,
+            end: datetime.date | datetime.datetime | None = None,
+            tags: list[str] | None = None,
+            entity_status: ProjectPortfolioStatus | None = None,
+            parent_entity: EntityParentEntityInput | None = None,
+            team_access: bool | None = None,
+            links: list[ProjectPortfolioLinkInput] | None = None,
+            comment: str | None = None,
+            version: int | None = None,
+            fields: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> ProjectEntity:
+            return await self._original.project_update(
+                entity_id,
+                summary=summary,
+                description=description,
+                lead=lead,
+                team_users=team_users,
+                clients=clients,
+                followers=followers,
+                start=start,
+                end=end,
+                tags=tags,
+                entity_status=entity_status,
+                parent_entity=parent_entity,
+                team_access=team_access,
+                links=links,
+                comment=comment,
+                version=version,
+                fields=fields,
+                auth=auth,
+            )
+
+        async def project_delete(
+            self,
+            entity_id: str,
+            *,
+            with_board: bool = False,
+            auth: YandexAuth | None = None,
+        ) -> None:
+            return await self._original.project_delete(
+                entity_id, with_board=with_board, auth=auth
+            )
+
+        async def portfolio_create(
+            self,
+            *,
+            summary: str,
+            description: str | None = None,
+            lead: str | None = None,
+            team_users: list[str] | None = None,
+            clients: list[str] | None = None,
+            followers: list[str] | None = None,
+            start: datetime.date | datetime.datetime | None = None,
+            end: datetime.date | datetime.datetime | None = None,
+            tags: list[str] | None = None,
+            entity_status: ProjectPortfolioStatus | None = None,
+            parent_entity: EntityParentEntityInput | None = None,
+            team_access: bool | None = None,
+            links: list[ProjectPortfolioLinkInput] | None = None,
+            fields: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> PortfolioEntity:
+            return await self._original.portfolio_create(
+                summary=summary,
+                description=description,
+                lead=lead,
+                team_users=team_users,
+                clients=clients,
+                followers=followers,
+                start=start,
+                end=end,
+                tags=tags,
+                entity_status=entity_status,
+                parent_entity=parent_entity,
+                team_access=team_access,
+                links=links,
+                fields=fields,
+                auth=auth,
+            )
+
+        async def portfolio_update(
+            self,
+            entity_id: str,
+            *,
+            summary: str | None = None,
+            description: str | None = None,
+            lead: str | None = None,
+            team_users: list[str] | None = None,
+            clients: list[str] | None = None,
+            followers: list[str] | None = None,
+            start: datetime.date | datetime.datetime | None = None,
+            end: datetime.date | datetime.datetime | None = None,
+            tags: list[str] | None = None,
+            entity_status: ProjectPortfolioStatus | None = None,
+            parent_entity: EntityParentEntityInput | None = None,
+            team_access: bool | None = None,
+            links: list[ProjectPortfolioLinkInput] | None = None,
+            comment: str | None = None,
+            version: int | None = None,
+            fields: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> PortfolioEntity:
+            return await self._original.portfolio_update(
+                entity_id,
+                summary=summary,
+                description=description,
+                lead=lead,
+                team_users=team_users,
+                clients=clients,
+                followers=followers,
+                start=start,
+                end=end,
+                tags=tags,
+                entity_status=entity_status,
+                parent_entity=parent_entity,
+                team_access=team_access,
+                links=links,
+                comment=comment,
+                version=version,
+                fields=fields,
+                auth=auth,
+            )
+
+        async def portfolio_delete(
+            self,
+            entity_id: str,
+            *,
+            with_board: bool = False,
+            auth: YandexAuth | None = None,
+        ) -> None:
+            return await self._original.portfolio_delete(
+                entity_id, with_board=with_board, auth=auth
+            )
+
+        async def goal_create(
+            self,
+            *,
+            summary: str,
+            description: str | None = None,
+            lead: str | None = None,
+            team_users: list[str] | None = None,
+            clients: list[str] | None = None,
+            followers: list[str] | None = None,
+            end: datetime.date | datetime.datetime | None = None,
+            tags: list[str] | None = None,
+            entity_status: GoalStatus | None = None,
+            parent_entity: EntityParentEntityInput | None = None,
+            team_access: bool | None = None,
+            links: list[GoalLinkInput] | None = None,
+            fields: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> GoalEntity:
+            return await self._original.goal_create(
+                summary=summary,
+                description=description,
+                lead=lead,
+                team_users=team_users,
+                clients=clients,
+                followers=followers,
+                end=end,
+                tags=tags,
+                entity_status=entity_status,
+                parent_entity=parent_entity,
+                team_access=team_access,
+                links=links,
+                fields=fields,
+                auth=auth,
+            )
+
+        async def goal_update(
+            self,
+            entity_id: str,
+            *,
+            summary: str | None = None,
+            description: str | None = None,
+            lead: str | None = None,
+            team_users: list[str] | None = None,
+            clients: list[str] | None = None,
+            followers: list[str] | None = None,
+            end: datetime.date | datetime.datetime | None = None,
+            tags: list[str] | None = None,
+            entity_status: GoalStatus | None = None,
+            parent_entity: EntityParentEntityInput | None = None,
+            team_access: bool | None = None,
+            links: list[GoalLinkInput] | None = None,
+            comment: str | None = None,
+            version: int | None = None,
+            fields: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> GoalEntity:
+            return await self._original.goal_update(
+                entity_id,
+                summary=summary,
+                description=description,
+                lead=lead,
+                team_users=team_users,
+                clients=clients,
+                followers=followers,
+                end=end,
+                tags=tags,
+                entity_status=entity_status,
+                parent_entity=parent_entity,
+                team_access=team_access,
+                links=links,
+                comment=comment,
+                version=version,
+                fields=fields,
+                auth=auth,
+            )
+
+        async def goal_delete(
+            self,
+            entity_id: str,
+            *,
+            auth: YandexAuth | None = None,
+        ) -> None:
+            return await self._original.goal_delete(entity_id, auth=auth)
+
+        # Comments are never cached: they mutate frequently and caching would
+        # risk serving stale conversation state.
+        async def project_get_comments(
+            self,
+            entity_id: str,
+            *,
+            per_page: int = 50,
+            cursor: str | None = None,
+            auth: YandexAuth | None = None,
+        ) -> CommentsPage:
+            return await self._original.project_get_comments(
+                entity_id, per_page=per_page, cursor=cursor, auth=auth
+            )
+
+        async def project_add_comment(
+            self,
+            entity_id: str,
+            *,
+            text: str,
+            summonees: list[str] | None = None,
+            maillist_summonees: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> IssueComment:
+            return await self._original.project_add_comment(
+                entity_id,
+                text=text,
+                summonees=summonees,
+                maillist_summonees=maillist_summonees,
+                auth=auth,
+            )
+
+        async def project_update_comment(
+            self,
+            entity_id: str,
+            comment_id: int,
+            *,
+            text: str,
+            summonees: list[str] | None = None,
+            maillist_summonees: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> IssueComment:
+            return await self._original.project_update_comment(
+                entity_id,
+                comment_id,
+                text=text,
+                summonees=summonees,
+                maillist_summonees=maillist_summonees,
+                auth=auth,
+            )
+
+        async def project_delete_comment(
+            self,
+            entity_id: str,
+            comment_id: int,
+            *,
+            auth: YandexAuth | None = None,
+        ) -> None:
+            return await self._original.project_delete_comment(
+                entity_id, comment_id, auth=auth
+            )
+
+        async def portfolio_get_comments(
+            self,
+            entity_id: str,
+            *,
+            per_page: int = 50,
+            cursor: str | None = None,
+            auth: YandexAuth | None = None,
+        ) -> CommentsPage:
+            return await self._original.portfolio_get_comments(
+                entity_id, per_page=per_page, cursor=cursor, auth=auth
+            )
+
+        async def portfolio_add_comment(
+            self,
+            entity_id: str,
+            *,
+            text: str,
+            summonees: list[str] | None = None,
+            maillist_summonees: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> IssueComment:
+            return await self._original.portfolio_add_comment(
+                entity_id,
+                text=text,
+                summonees=summonees,
+                maillist_summonees=maillist_summonees,
+                auth=auth,
+            )
+
+        async def portfolio_update_comment(
+            self,
+            entity_id: str,
+            comment_id: int,
+            *,
+            text: str,
+            summonees: list[str] | None = None,
+            maillist_summonees: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> IssueComment:
+            return await self._original.portfolio_update_comment(
+                entity_id,
+                comment_id,
+                text=text,
+                summonees=summonees,
+                maillist_summonees=maillist_summonees,
+                auth=auth,
+            )
+
+        async def portfolio_delete_comment(
+            self,
+            entity_id: str,
+            comment_id: int,
+            *,
+            auth: YandexAuth | None = None,
+        ) -> None:
+            return await self._original.portfolio_delete_comment(
+                entity_id, comment_id, auth=auth
+            )
+
+        async def goal_get_comments(
+            self,
+            entity_id: str,
+            *,
+            per_page: int = 50,
+            cursor: str | None = None,
+            auth: YandexAuth | None = None,
+        ) -> CommentsPage:
+            return await self._original.goal_get_comments(
+                entity_id, per_page=per_page, cursor=cursor, auth=auth
+            )
+
+        async def goal_add_comment(
+            self,
+            entity_id: str,
+            *,
+            text: str,
+            summonees: list[str] | None = None,
+            maillist_summonees: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> IssueComment:
+            return await self._original.goal_add_comment(
+                entity_id,
+                text=text,
+                summonees=summonees,
+                maillist_summonees=maillist_summonees,
+                auth=auth,
+            )
+
+        async def goal_update_comment(
+            self,
+            entity_id: str,
+            comment_id: int,
+            *,
+            text: str,
+            summonees: list[str] | None = None,
+            maillist_summonees: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> IssueComment:
+            return await self._original.goal_update_comment(
+                entity_id,
+                comment_id,
+                text=text,
+                summonees=summonees,
+                maillist_summonees=maillist_summonees,
+                auth=auth,
+            )
+
+        async def goal_delete_comment(
+            self,
+            entity_id: str,
+            comment_id: int,
+            *,
+            auth: YandexAuth | None = None,
+        ) -> None:
+            return await self._original.goal_delete_comment(
+                entity_id, comment_id, auth=auth
+            )
+
+        async def project_add_checklist_item(
+            self,
+            entity_id: str,
+            *,
+            text: str,
+            checked: bool | None = None,
+            assignee: str | None = None,
+            deadline: dict[str, Any] | None = None,
+            fields: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> ProjectEntity:
+            return await self._original.project_add_checklist_item(
+                entity_id,
+                text=text,
+                checked=checked,
+                assignee=assignee,
+                deadline=deadline,
+                fields=fields,
+                auth=auth,
+            )
+
+        async def project_update_checklist_item(
+            self,
+            entity_id: str,
+            checklist_item_id: str,
+            *,
+            text: str | None = None,
+            checked: bool | None = None,
+            assignee: str | None = None,
+            deadline: dict[str, Any] | None = None,
+            fields: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> ProjectEntity:
+            return await self._original.project_update_checklist_item(
+                entity_id,
+                checklist_item_id,
+                text=text,
+                checked=checked,
+                assignee=assignee,
+                deadline=deadline,
+                fields=fields,
+                auth=auth,
+            )
+
+        async def project_move_checklist_item(
+            self,
+            entity_id: str,
+            checklist_item_id: str,
+            *,
+            before: str,
+            fields: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> ProjectEntity:
+            return await self._original.project_move_checklist_item(
+                entity_id,
+                checklist_item_id,
+                before=before,
+                fields=fields,
+                auth=auth,
+            )
+
+        async def project_delete_checklist_item(
+            self,
+            entity_id: str,
+            checklist_item_id: str,
+            *,
+            fields: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> ProjectEntity:
+            return await self._original.project_delete_checklist_item(
+                entity_id,
+                checklist_item_id,
+                fields=fields,
+                auth=auth,
+            )
+
+        async def project_update_checklist(
+            self,
+            entity_id: str,
+            *,
+            items: list[EntityChecklistItemUpdateInput],
+            fields: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> ProjectEntity:
+            return await self._original.project_update_checklist(
+                entity_id,
+                items=items,
+                fields=fields,
+                auth=auth,
+            )
+
+        async def project_delete_checklist(
+            self,
+            entity_id: str,
+            *,
+            fields: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> ProjectEntity:
+            return await self._original.project_delete_checklist(
+                entity_id, fields=fields, auth=auth
+            )
+
+        async def portfolio_add_checklist_item(
+            self,
+            entity_id: str,
+            *,
+            text: str,
+            checked: bool | None = None,
+            assignee: str | None = None,
+            deadline: dict[str, Any] | None = None,
+            fields: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> PortfolioEntity:
+            return await self._original.portfolio_add_checklist_item(
+                entity_id,
+                text=text,
+                checked=checked,
+                assignee=assignee,
+                deadline=deadline,
+                fields=fields,
+                auth=auth,
+            )
+
+        async def portfolio_update_checklist_item(
+            self,
+            entity_id: str,
+            checklist_item_id: str,
+            *,
+            text: str | None = None,
+            checked: bool | None = None,
+            assignee: str | None = None,
+            deadline: dict[str, Any] | None = None,
+            fields: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> PortfolioEntity:
+            return await self._original.portfolio_update_checklist_item(
+                entity_id,
+                checklist_item_id,
+                text=text,
+                checked=checked,
+                assignee=assignee,
+                deadline=deadline,
+                fields=fields,
+                auth=auth,
+            )
+
+        async def portfolio_move_checklist_item(
+            self,
+            entity_id: str,
+            checklist_item_id: str,
+            *,
+            before: str,
+            fields: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> PortfolioEntity:
+            return await self._original.portfolio_move_checklist_item(
+                entity_id,
+                checklist_item_id,
+                before=before,
+                fields=fields,
+                auth=auth,
+            )
+
+        async def portfolio_delete_checklist_item(
+            self,
+            entity_id: str,
+            checklist_item_id: str,
+            *,
+            fields: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> PortfolioEntity:
+            return await self._original.portfolio_delete_checklist_item(
+                entity_id,
+                checklist_item_id,
+                fields=fields,
+                auth=auth,
+            )
+
+        async def portfolio_update_checklist(
+            self,
+            entity_id: str,
+            *,
+            items: list[EntityChecklistItemUpdateInput],
+            fields: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> PortfolioEntity:
+            return await self._original.portfolio_update_checklist(
+                entity_id,
+                items=items,
+                fields=fields,
+                auth=auth,
+            )
+
+        async def portfolio_delete_checklist(
+            self,
+            entity_id: str,
+            *,
+            fields: list[str] | None = None,
+            auth: YandexAuth | None = None,
+        ) -> PortfolioEntity:
+            return await self._original.portfolio_delete_checklist(
+                entity_id, fields=fields, auth=auth
+            )
+
     return CacheCollection(
         queues=CachingQueuesProtocol,
         issues=CachingIssuesProtocol,
         global_data=CachingGlobalDataProtocol,
         templates=CachingTemplatesProtocol,
         users=CachingUsersProtocol,
+        entities=CachingEntitiesProtocol,
     )

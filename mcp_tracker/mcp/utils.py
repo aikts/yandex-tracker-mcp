@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from typing import Any, TypeVar
+from typing import Any, TypeVar, get_args
 
 from mcp.server.auth.middleware.auth_context import get_access_token
 from mcp.server.fastmcp import Context
@@ -44,6 +44,16 @@ def get_yandex_auth(ctx: Context[Any, Any, Request]) -> YandexAuth:
 
 def set_non_needed_fields_null(data: Iterable[T], needed_fields: set[str]) -> None:
     for item in data:
+        model_fields = type(item).model_fields
         for field in item.model_fields_set:
-            if field not in needed_fields:
-                setattr(item, field, None)
+            if field in needed_fields:
+                continue
+            field_info = model_fields.get(field)
+            # Skip fields whose declared type doesn't allow None (e.g. required
+            # `id: int`) - nulling them would produce a response that violates
+            # the tool's own output schema.
+            if field_info is not None and type(None) not in get_args(
+                field_info.annotation
+            ):
+                continue
+            setattr(item, field, None)
