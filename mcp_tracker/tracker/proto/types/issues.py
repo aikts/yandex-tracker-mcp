@@ -75,13 +75,15 @@ class IssueComment(CreatedUpdatedMixin, BaseTrackerEntity):
         None,
         validation_alias=AliasChoices("longId", "long_id"),
         serialization_alias="longId",
+        exclude_if=none_excluder,
     )
-    text: str | None = None
-    transport: str | None = None
+    text: str | None = NoneExcludedField
+    transport: str | None = NoneExcludedField
     text_html: str | None = Field(
         None,
         validation_alias=AliasChoices("textHtml", "text_html"),
         serialization_alias="textHtml",
+        exclude_if=none_excluder,
     )
     summonees: list[UserReference] | None = Field(
         None,
@@ -133,10 +135,10 @@ class IssueLink(CreatedUpdatedMixin, BaseTrackerEntity):
 
 class Worklog(CreatedUpdatedMixin, BaseTrackerEntity):
     id: int
-    start: datetime.datetime | None = None
-    duration: datetime.timedelta | None = None
-    issue: IssueReference | None = None
-    comment: str | None = None
+    start: datetime.datetime | None = NoneExcludedField
+    duration: datetime.timedelta | None = NoneExcludedField
+    issue: IssueReference | None = NoneExcludedField
+    comment: str | None = NoneExcludedField
 
 
 WorklogFieldsEnum = Enum(  # type: ignore[misc]
@@ -148,14 +150,15 @@ WorklogFieldsEnum = Enum(  # type: ignore[misc]
 class IssueAttachment(CreatedMixin, BaseTrackerEntity):
     id: str
     name: str
-    content: str | None = None
-    size: int | None = None
+    content: str | None = NoneExcludedField
+    size: int | None = NoneExcludedField
     mimetype: str | None = Field(
         None,
         validation_alias=AliasChoices("mimeType", "mimetype"),
         serialization_alias="mimeType",
+        exclude_if=none_excluder,
     )
-    metadata: dict[str, str] | None = None
+    metadata: dict[str, str] | None = NoneExcludedField
 
 
 AttachmentFieldsEnum = Enum(  # type: ignore[misc]
