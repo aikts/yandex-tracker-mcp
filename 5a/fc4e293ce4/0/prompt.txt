@@ -1,0 +1,78 @@
+в main много всего влилось
+
+есть некоторые проблемы с тулами при использовании:
+
+issues_count → 403. Вызывал дважды, с Project: 10157 и "Project": 10157 — оба раза в ответе прилетела голая строка 403, без статуса и текста. При этом issues_find с тем же самым запросом отрабатывает нормально, так что дело не в фильтре и не в доступе к проекту — похоже, эндпоинт count либо не разрешён токеном, либо ошибка пробрасывается сырой.
+
+issues_find → Failed to fetch. Запрос был Project: 10157 "Sort By": Key ASC, page=400, per_page=1 — я пытался прыжком в конец выяснить общее число задач. Ни таймаута, ни кода, просто «не смог».
+
+Ещё два момента, которые формально не ошибки, но мешали:
+
+fields не фильтрует ответ. Просил ["key"] — всё равно приходят self, id, statusStartTime, statusType, project, boards, queue, favorite и локальные поля очереди вида 694c13a2974fc069fc7db927--chapter, все со значением null. На сотне задач это заметный объём мусора, притом что в описании инструмента как раз просят выбирать поля, чтобы не засорять контекст.
+
+issues_find не отдаёт метаданные пагинации. project_find возвращает hits и pages, а здесь просто склеенные объекты без обёртки, и понять, последняя это страница или нет, можно только вызвав следующую. Из-за этого я и полез в count, который отдал 403.
+
+
+посмотри, на сколько они валидные и давай поисследуем почему указанные ошибки появляются
+
+---
+
+давай все поправим. по п4 - видимо придется оборачивать результат в словарь, но думаю это ок - вряд ли какие-то клиенты пинятся глубоко на формат ответов
+
+---
+
+нужно в hits, pages объяснить когда они могут быть null
+
+---
+
+Не трогал одну смежную вещь: IssueFieldsEnum строится только из объявленных полей Issue, поэтому выбрать queue, project или локальное поле очереди через fields по-прежнему нельзя — без fields они приходят, с fields их не заказать. Это отдельный пробел, не из вашего списка; скажите, если добить.
+
+тут что лучше всего? разрешить еще произвольные поля передавать в fields?
+
+---
+
+я не вижу большого смысла объяснять откуда берутся праамтеры - это какое то раскрытие релаизации. тут десрипшенов у полей кажется более чем достаточно. Можно парой слов объяснить что такое Panginatedresult
+
+---
+
+что можем посжимать/пооптимзировать в описаниях тулов/полей для entity тулов? может есть общие части которые стоит лучше вынести в общие интсрукции не повторяясь?
+
+---
+
+давай подсократим да
+а нет ли механизма переиспользовать схемы между тулами если ты говоришь что там одинаковые схемы
+
+---
+
+я бы все таки разрешил произвольные поля но в описании прописал что клиент должен проверять какие поля доступны через соответствующий тул
+
+---
+
+/simplify
+
+---
+
+<agent-message from="reuse-2">
+Reuse review complete. Four real findings, each verified by reading the named helper.
+
+**1. `mcp_tracker/tracker/proto/types/pagination.py:10` — `PaginatedResult[T]` re-implements three existing models with the identical `{values, hits, pages}` shape.**
+`ProjectSearchResult` (`mcp_tracker/tracker/proto/types/entities.py:306`), `PortfolioSearchResult` (`:312`), `GoalSearchResult` (`:318`) are already exactly `hits: int | None`, `pages: int | None`, `values: list[...]` — returned by `project_find`/`portfolio_find`/`goal_find` (`mcp_tracker/mcp/tools/project.py:72` and siblings), parsed in `mcp_tracker/tracker/custom/client.py:1377/1417/1456`. Cost: the server now exposes two parallel paginated shapes to MCP clients, and the nullability contract is documented on only one — the three entity models carry no field descriptions, so a client paging `project_find` gets no explanation of a null `hits`. `mcp_tracker/tracker/caching/client.py` now imports both. Call instead: define `ProjectSearchResult = PaginatedResult[ProjectEntity]` etc. as aliases (keeps client/caching/test imports unchanged). One decision on merge: the entity models use `NoneExcludedField` so they omit null totals, while `PaginatedResult` emits explicit nulls — pick one behaviour for all listings.
+
+**2. `mcp_tracker/mcp/tools/queue.py:88-95` and `mcp_tracker/mcp/tools/template.py:78-86` — the walk-pages-and-assemble block is written twice, verbatim.**
+Both keep a `last_page` cursor across `iter_pages`, filter the batch by the allow-list, then repeat the same `hide_totals = restricted_totals_unavailable(...)` + four-line `PaginatedResult(...)` construction. `_collect_templates` is already the generic version of this; `queues_get_all` is a second copy differing only in `is_queue_allowed` vs `_visible_templates`. Cost: the totals-suppression rule — the subtle part — has two implementations that must stay in sync. Call instead: put the collector in `mcp_tracker/mcp/tools/_pagination.py` (both modules already import it) as e.g. `collect_pages(fetch, *, page, per_page, keep=...)`, making `restricted_totals_unavailable` its internal detail rather than a boolean both call sites must remember to consult.
+
+**3. `tests/mcp/tools/test_issue_read_tools.py:193,211,228,249,268,289,312,341,373,402,420` — 11 inline `PaginatedResult[Issue](values=...)` constructions ignore the `page()` helper added by this same change.**
+`tests/mcp/conftest.py:48` defines `page(values, *, hits=None, pages=None)` for exactly this, and `test_queue_tools.py`, `test_template_tools.py`, `test_user_tools.py` all import it. Also `tests/mcp/tools/test_pagination.py:12`, whose local `result(*values)` is `page(list(values))`. Cost: three spellings of one idiom; the file-local ones bypass the shared helper if its signature changes. Call instead: `from tests.mcp.conftest import page` in both files.
+
+**4. `tests/aioresponses_utils.py:93,107,127-133` — the new `headers` parameter on `RequestCapture` duplicates a kwarg `aioresponses` already provides.**
+`m.post(url, payload=..., headers={...})` sets response headers natively (confirmed: `headers` is in `aioresponses.add`'s signature). The two tests that motivated it — `tests/tracker/custom/issues/test_issues_find.py:50` and `:83` — never touch `capture.last_request` or `assert_called_once`; they use `RequestCapture` purely to attach headers, while `test_totals_are_none_without_headers` at `:69` in the same class already uses the plain `m.post(url, payload=...)` form. Cost: a parameter threaded through `__init__`, docstring and `callback()` for no capability gain. Call instead: drop it and pass `headers=` to `m.post` in those two tests.
+
+Checked and cleared as genuinely new (no existing helper fits): `_paginated`/`_parse_int_header` (no prior header parsing anywhere in `mcp_tracker/`), the `__pydantic_extra__` handling in `set_non_needed_fields_null` (no prior extras manipulation), `resolve_issue_field`/`ISSUE_FIELD_API_NAMES` (no alias-map helper outside the alias *test*), `IssuesCount` (no existing scalar wrapper), and the `",".join(fields)` in `issues_find` (`_entity_fields_param` layers per-entity-type defaults on top, so it doesn't fit).
+</agent-message>
+
+---
+
+Не стал чинить в рамках /simplify — это правка поведения семи тулов, а не уборка. Фикс механический (те же NoneExcludedField на четырёх моделях плюс тест-инвариант в стиле        
+  test_model_aliases.py). Чинить?
+
+надо бы

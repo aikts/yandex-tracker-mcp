@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "5afc4e293ce4",
+  "strategy": "manual-commit",
+  "branch": "feat/pagination-totals-and-field-selection",
+  "checkpoints_count": 15,
+  "files_touched": [
+    "mcp_tracker/mcp/utils.py",
+    "mcp_tracker/tracker/proto/types/issues.py",
+    "mcp_tracker/tracker/proto/types/users.py",
+    "tests/mcp/tools/test_field_selection.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/5a/fc4e293ce4/0/metadata.json",
+      "transcript": "/5a/fc4e293ce4/0/full.jsonl",
+      "compact_transcript": "/5a/fc4e293ce4/0/transcript.jsonl",
+      "content_hash": "/5a/fc4e293ce4/0/content_hash.txt",
+      "prompt": "/5a/fc4e293ce4/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2341,
+    "cache_creation_tokens": 375628,
+    "cache_read_tokens": 58072722,
+    "output_tokens": 204089,
+    "api_call_count": 252
+  }
+}
