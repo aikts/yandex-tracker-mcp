@@ -26,6 +26,13 @@ All notable changes to this project will be documented in this file.
   - Comments: add/update/delete plus cursor-paginated `*_get_comments`
   - Checklists (projects and portfolios only — the API does not define them for goals): add, edit, move, delete a single item, bulk-edit all items, delete the whole checklist
   - Goal progress is readable through `progressPercentage` and `keyResultItems`; `metricItems` is readable on all three entity types. Both must be requested explicitly via `fields`
+- Paginated listings report their totals: `issues_find`, `users_get_all`, `queues_get_all`, `issue_templates_get_all` and `comment_templates_get_all` now answer with `{values, hits, pages}` (the shared `PaginatedResult`) instead of a bare list
+  - `hits` / `pages` come from Tracker's `X-Total-Count` / `X-Total-Pages` headers, which every `page`/`perPage` endpoint sends and which were previously discarded, so the last page no longer has to be discovered by requesting the empty page after it
+  - The three tools that walk every page by default report totals only for an explicit single page, and only when `TRACKER_LIMIT_QUEUES` is unset - the headers count what Tracker matched, before this server drops queues the caller may not see
+- `issues_find` pushes its `fields` selection to the API (`POST /v3/issues/_search?fields=`), so unwanted fields are never fetched rather than fetched and dropped
+- `issues_find` accepts any field name in `fields`, not only the ones `Issue` declares: standard fields the model omits (`resolution`, `queue`, `project`, `followers`, ...), a queue's local fields and an organization's custom ones are selectable at all for the first time - pass the field `id` from `queue_get_fields`
+  - Both spellings of a declared field work (`story_points` and `storyPoints`); Tracker silently ignores a name it does not know, which the parameter's description says
+- Add `TRACKER_API_TIMEOUT` (default `10`) - the per-request Tracker API timeout was hardcoded and could not be raised for slow queries
 - Add `TRACKER_ENTITIES_ENABLED` (default `false`) to gate registration of the entity tools
   - They are not covered by `TRACKER_LIMIT_QUEUES` / `TRACKER_READ_ONLY_QUEUES`, since an entity is not reliably mappable to a single queue, so enabling them widens what the server exposes
   - Keeping them off by default also keeps the tool manifest at its previous size (39 tools); enabling adds 39 more
@@ -33,11 +40,17 @@ All notable changes to this project will be documented in this file.
 
 ### Breaking Changes
 - Entity responses now use Tracker's own field names instead of the Python ones: `storyPoints`, `createdAt`, `updatedBy`, `textHtml`, `executedTriggers`, `maillistSummonees` and the rest, matching what the same fields are called on input. A response can now be fed straight back into a `fields` map; callers that read `story_points` or `created_at` from tool output need updating
+- Change the paginated listings from a bare list to `{values, hits, pages}`: `issues_find`, `users_get_all`, `queues_get_all`, `issue_templates_get_all`, `comment_templates_get_all`. Consumers that iterated the top-level result must iterate `values`
+- Change `issues_count` from a bare integer to `{"count": N}`
 - Change the `issue_get_comments` result from `list[IssueComment]` to the cursor-paginated `{comments, next_cursor}` object
   - Calls without pagination parameters now return the first 50 comments instead of all comments
   - Consumers that previously iterated over the top-level result must iterate over `comments` and pass `next_cursor` as `cursor` to fetch subsequent pages
 
 ### Bug Fixes
+- `fields` actually filters the response instead of blanking it, in every tool that offers the selector - `issues_find`, `users_get_all`, `issue_get_comments`, `issue_get_worklogs`, `issue_get_attachments` and the entity `*_get_comments`. Asking `issues_find` for `["key"]` used to return a dozen null keys per issue
+  - Fields the API returns that the model does not declare (`self`, `id`, `statusStartTime`, `queue`, `boards`, `favorite`, a queue's own `<queue-id>--<key>` local fields) live in the model's extras, which carry no `exclude_if`, so blanking one left it in the payload as an explicit `null`; they are now dropped outright
+  - `User`, `IssueComment`, `Worklog` and `IssueAttachment` declared their optional fields with a bare `Field(None)`, so a blanked field stayed in the payload for the same reason. `tests/mcp/tools/test_field_selection.py` now fails if a model reachable from a `fields` selector forgets `exclude_if`
+- `issues_count` returns `{"count": N}` instead of a bare integer, which for a project of 403 issues was indistinguishable from an HTTP 403
 - `IssueComment` is a complete model again: `MaillistReference` was declared after the forward reference that used it, leaving the model unbuilt
 - `issue_create` no longer answers 422 for `components: ["694"]` or `followers: ["8000000000000034"]`: reference values are typed models shared with `issue_update` and serialized identically, with `IssueComponentRef` requiring exactly one of `id` / `name` because Tracker reads a bare string there as a component *name*
 - A key in `fields` naming a dedicated parameter no longer fails the call with a raw `TypeError: got multiple values for keyword argument 'parent'`

@@ -896,10 +896,10 @@ All four tools respect `TRACKER_LIMIT_QUEUES`: templates bound to a restricted q
   - Parameters:
     - `query` (required): Query string using Yandex Tracker Query Language syntax
     - `include_description` (boolean, optional, default: false): Whether to include issue description in the issues result. Can be large, so use only when needed.
-    - `fields` (list of strings, optional): Fields to include in the response. Helps optimize context window usage by selecting only needed fields. If not specified, returns all available fields.
+    - `fields` (list of strings, optional): Fields to return, in Tracker's own spelling (`storyPoints`, not `story_points`). Any field name is accepted, including a queue's local and the organization's custom fields - pass the field `id` from `queue_get_fields`. A name Tracker does not know is dropped silently. If not specified, returns all available fields.
     - `page` (optional): Page number for pagination (default: 1)
     - `per_page` (optional): Number of items per page (default: 100). May be decreased if results exceed context window.
-  - Returns up to specified number of issues per page
+  - Returns `{values, hits, pages}`: the page of issues plus how many issues match in total and how many pages that is
 
 - **`issues_count`**: Count issues matching a query using [Yandex Tracker Query Language](https://yandex.ru/support/tracker/ru/user/query-filter)
   - Parameters:
