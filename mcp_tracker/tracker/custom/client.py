@@ -2316,7 +2316,7 @@ class TrackerClient(
             id=item.id,
             text=item.text,
             checked=item.checked,
-            assignee=item.assignee.id if item.assignee is not None else None,
+            assignee=(str(item.assignee.id) if item.assignee is not None else None),
             deadline=deadline,
         )
 

@@ -281,6 +281,61 @@ class TestEntityUpdateChecklist:
         assert body[1]["deadline"]["deadlineType"] == "date"
 
     @pytest.mark.parametrize("entity_type,entity_id,model", ENTITY_TYPES)
+    async def test_untouched_item_with_numeric_assignee_id_is_resent(
+        self,
+        tracker_client: TrackerClient,
+        entity_type: str,
+        entity_id: str,
+        model: type[ProjectEntity] | type[PortfolioEntity],
+    ) -> None:
+        """Tracker returns a real user's assignee `id` as a number (verified
+
+        against the live API), not the string this server's request models
+        expect - resending it verbatim used to fail local pydantic validation
+        for `EntityChecklistItemUpdateInput.assignee: str | None` before the
+        current item is converted to `str(...)`.
+        """
+        current_items = [
+            {"id": "item1", "text": "Do the thing", "checked": False},
+            {
+                "id": "item2",
+                "text": "Assigned to someone",
+                "checked": False,
+                "assignee": {"id": 8000000000000036, "display": "Someone"},
+            },
+        ]
+        get_capture = RequestCapture(
+            payload=_checklist_snapshot_data(entity_type, entity_id, current_items)
+        )
+        patch_capture = RequestCapture(payload=_entity_data(entity_type, entity_id))
+
+        with aioresponses() as m:
+            m.get(
+                re.compile(
+                    rf"^https://api\.tracker\.yandex\.net/v3/entities/{entity_type}/"
+                    rf"{entity_id}\?fields=checklistItems$"
+                ),
+                callback=get_capture.callback,
+            )
+            m.patch(
+                re.compile(
+                    rf"^https://api\.tracker\.yandex\.net/v3/entities/{entity_type}/"
+                    rf"{entity_id}/checklistItems(\?.*)?$"
+                ),
+                callback=patch_capture.callback,
+            )
+
+            method = getattr(tracker_client, f"{entity_type}_update_checklist")
+            await method(
+                entity_id,
+                items=[EntityChecklistItemUpdateInput(id="item1", text="Do the thing")],
+            )
+
+        body = patch_capture.last_request.get_json_body()
+        assert isinstance(body, list)
+        assert body[1]["assignee"] == "8000000000000036"
+
+    @pytest.mark.parametrize("entity_type,entity_id,model", ENTITY_TYPES)
     async def test_override_only_changes_fields_the_caller_set(
         self,
         tracker_client: TrackerClient,
