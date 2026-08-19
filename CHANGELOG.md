@@ -5,73 +5,53 @@ All notable changes to this project will be documented in this file.
 ## [0.8.0-dev] - unreleased
 
 ### Features
-- Add `TRACKER_READ_ONLY_QUEUES` for per-queue read-only access ([closes #36](https://github.com/aikts/yandex-tracker-mcp/issues/36))
-  - One instance can now be read-write on some queues and read-only on others, instead of running two
-  - Write tools stay registered; each mutating call validates its target queue against the allow-list, while reads are unaffected
-- Add read-only issue and comment template tools ([fixes #43](https://github.com/aikts/yandex-tracker-mcp/issues/43), [#48](https://github.com/aikts/yandex-tracker-mcp/pull/48))
-  - `issue_templates_get_all` / `issue_template_get` return the templates teams keep for bugs, incidents and other recurring work, including the `fieldTemplates` values they prefill
-  - `comment_templates_get_all` / `comment_template_get` return the wording teams reuse when replying, with the users and mailing lists such a comment summons
-  - Both listings take an optional `queue` and answer with that queue's templates plus the ones bound to no queue, which are usable everywhere
-  - Both walk every page by default (the endpoints paginate at 50 items, so a single request used to be a silent truncation) and accept `page` / `per_page` for one page at a time
-  - `TRACKER_LIMIT_QUEUES` is enforced: templates of a restricted queue are dropped from the listings and rejected on direct access, and a restricted `queue` argument is refused before the request
-  - Neither endpoint is in the public API reference; the models follow the official `yandex_tracker_client` collections and keep undeclared response fields instead of dropping them
-- Give `issue_create` the typed reference parameters `issue_update` already had - `parent`, `sprint`, `followers`, `components`, `tags`, `project`, `markup_type` - so a value that works in one tool works in the other
-- Add `assignee` and `components` to `issue_update`
-- `fields` maps on `issue_create` / `issue_update` now override the dedicated parameter of the same name, which is how a field is cleared: `{"assignee": null}` clears it, where an unset parameter is simply not sent
-- `queue_get_metadata` actually returns what `expand` asked for, and answers a requested but empty section with an empty list instead of leaving it out
-- `get_priorities` returns the priority `id` and `description`
-- Add MCP tools for Yandex Tracker projects, portfolios and goals — the entities API, distinct from queues and issues
-  - Read: `project_get`/`project_find`, `portfolio_get`/`portfolio_find`, `goal_get`/`goal_find`, each with an explicit per-entity `fields` selector defaulting to a small base field set
-  - Write: create/update/delete per entity type, with optimistic concurrency via `version`
-  - Comments: add/update/delete plus cursor-paginated `*_get_comments`
-  - Checklists (projects and portfolios only — the API does not define them for goals): add, edit, move, delete a single item, bulk-edit all items, delete the whole checklist
-  - Goal progress is readable through `progressPercentage` and `keyResultItems`; `metricItems` is readable on all three entity types. Both must be requested explicitly via `fields`
-- Paginated listings report their totals: `issues_find`, `users_get_all`, `queues_get_all`, `issue_templates_get_all` and `comment_templates_get_all` now answer with `{values, hits, pages}` (the shared `PaginatedResult`) instead of a bare list
-  - `hits` / `pages` come from Tracker's `X-Total-Count` / `X-Total-Pages` headers, which every `page`/`perPage` endpoint sends and which were previously discarded, so the last page no longer has to be discovered by requesting the empty page after it
-  - The three tools that walk every page by default report totals only for an explicit single page, and only when `TRACKER_LIMIT_QUEUES` is unset - the headers count what Tracker matched, before this server drops queues the caller may not see
-- `issues_find` pushes its `fields` selection to the API (`POST /v3/issues/_search?fields=`), so unwanted fields are never fetched rather than fetched and dropped
-- `issues_find` accepts any field name in `fields`, not only the ones `Issue` declares: standard fields the model omits (`resolution`, `queue`, `project`, `followers`, ...), a queue's local fields and an organization's custom ones are selectable at all for the first time - pass the field `id` from `queue_get_fields`
-  - Both spellings of a declared field work (`story_points` and `storyPoints`); Tracker silently ignores a name it does not know, which the parameter's description says
-- Add `TRACKER_API_TIMEOUT` (default `10`) - the per-request Tracker API timeout was hardcoded and could not be raised for slow queries
-- Add `TRACKER_ENTITIES_ENABLED` (default `false`) to gate registration of the entity tools
-  - They are not covered by `TRACKER_LIMIT_QUEUES` / `TRACKER_READ_ONLY_QUEUES`, since an entity is not reliably mappable to a single queue, so enabling them widens what the server exposes
-  - Keeping them off by default also keeps the tool manifest at its previous size (39 tools); enabling adds 39 more
-  - `TRACKER_READ_ONLY` still applies and unregisters the entity write tools
+
+- **Project, portfolio and goal tools** — the entities API, distinct from queues and issues ([#45](https://github.com/aikts/yandex-tracker-mcp/pull/45))
+  - 39 tools: get/find, create/update/delete with optimistic concurrency via `version`, comments, and checklists (projects and portfolios only — the API has none for goals)
+  - Reads take a per-entity `fields` selector defaulting to a small base set, so `metricItems` and a goal's `progressPercentage` / `keyResultItems` must be asked for explicitly
+  - Off by default behind `TRACKER_ENTITIES_ENABLED`: they double the tool manifest (43 tools to 82) and are not covered by `TRACKER_LIMIT_QUEUES` / `TRACKER_READ_ONLY_QUEUES`, since an entity has no single queue. `TRACKER_READ_ONLY` still unregisters the write tools
+  - `links` are added, never replaced, and are write-only in Tracker: an existing link cannot be re-sent, read back, or removed through this server. A links-only update is rejected rather than reported as a success Tracker silently ignores
+  - `*_update_checklist` is a bulk edit of all existing items; a partial list is rejected by the API with a 500
+- **Issue and comment template tools**, read-only ([#43](https://github.com/aikts/yandex-tracker-mcp/issues/43), [#48](https://github.com/aikts/yandex-tracker-mcp/pull/48))
+  - `issue_templates_get_all` / `issue_template_get`, `comment_templates_get_all` / `comment_template_get`
+  - The issue body a template prefills is in `fieldTemplates.description`, not the template's own `description`
+  - Optional `queue` scoping, every page retrieved by default, `TRACKER_LIMIT_QUEUES` enforced
+- **`TRACKER_READ_ONLY_QUEUES`** — per-queue read-only access, so one instance can be read-write on some queues and read-only on others ([#36](https://github.com/aikts/yandex-tracker-mcp/issues/36))
+- **`TRACKER_API_TIMEOUT`** (default `10`) — the per-request Tracker timeout was hardcoded and could not be raised
+- **Paginated listings report their totals.** `issues_find`, `users_get_all`, `queues_get_all` and both template listings answer with `{values, hits, pages}`, built from the `X-Total-Count` / `X-Total-Pages` headers the client used to discard. The last page no longer has to be found by requesting the empty one after it
+  - Totals are withheld where they would mislead: on a full walk, and when `TRACKER_LIMIT_QUEUES` hides rows Tracker counted
+- **`issues_find` selects fields through the API** (`_search?fields=`), so unwanted fields are never fetched instead of fetched and dropped
+  - `fields` now takes any field name, not just the 25 `Issue` declares: `resolution`, `queue`, `project`, `followers`, queue-local and organization-custom fields become selectable. Pass the field `id` from `queue_get_fields`; both `story_points` and `storyPoints` work
+- `issue_create` gained the typed reference parameters `issue_update` already had (`parent`, `sprint`, `followers`, `components`, `tags`, `project`, `markup_type`), and `issue_update` gained `assignee` and `components`
+- A `fields` map on `issue_create` / `issue_update` overrides the dedicated parameter of the same name, which is how a field is cleared: `{"assignee": null}` clears it
+- `get_priorities` returns each priority's `id` and `description`
 
 ### Breaking Changes
-- Entity responses now use Tracker's own field names instead of the Python ones: `storyPoints`, `createdAt`, `updatedBy`, `textHtml`, `executedTriggers`, `maillistSummonees` and the rest, matching what the same fields are called on input. A response can now be fed straight back into a `fields` map; callers that read `story_points` or `created_at` from tool output need updating
-- Change the paginated listings from a bare list to `{values, hits, pages}`: `issues_find`, `users_get_all`, `queues_get_all`, `issue_templates_get_all`, `comment_templates_get_all`. Consumers that iterated the top-level result must iterate `values`
-- Change `issues_count` from a bare integer to `{"count": N}`
-- Change the `issue_get_comments` result from `list[IssueComment]` to the cursor-paginated `{comments, next_cursor}` object
-  - Calls without pagination parameters now return the first 50 comments instead of all comments
-  - Consumers that previously iterated over the top-level result must iterate over `comments` and pass `next_cursor` as `cursor` to fetch subsequent pages
+
+- Responses use Tracker's own field names instead of the Python ones: `storyPoints`, `createdAt`, `updatedBy`, `textHtml` and the rest. A response can now be fed straight back into a `fields` map; callers reading `story_points` or `created_at` need updating
+- `issues_find`, `users_get_all`, `queues_get_all`, `issue_templates_get_all` and `comment_templates_get_all` return `{values, hits, pages}` instead of a bare list — iterate `values`
+- `issues_count` returns `{"count": N}` instead of a bare integer, which for a project of 403 issues was indistinguishable from an HTTP 403
+- `issue_get_comments` returns the cursor-paginated `{comments, next_cursor}` instead of a list, and without pagination arguments returns the first 50 comments rather than all of them
 
 ### Bug Fixes
-- `fields` actually filters the response instead of blanking it, in every tool that offers the selector - `issues_find`, `users_get_all`, `issue_get_comments`, `issue_get_worklogs`, `issue_get_attachments` and the entity `*_get_comments`. Asking `issues_find` for `["key"]` used to return a dozen null keys per issue
-  - Fields the API returns that the model does not declare (`self`, `id`, `statusStartTime`, `queue`, `boards`, `favorite`, a queue's own `<queue-id>--<key>` local fields) live in the model's extras, which carry no `exclude_if`, so blanking one left it in the payload as an explicit `null`; they are now dropped outright
-  - `User`, `IssueComment`, `Worklog` and `IssueAttachment` declared their optional fields with a bare `Field(None)`, so a blanked field stayed in the payload for the same reason. `tests/mcp/tools/test_field_selection.py` now fails if a model reachable from a `fields` selector forgets `exclude_if`
-- `issues_count` returns `{"count": N}` instead of a bare integer, which for a project of 403 issues was indistinguishable from an HTTP 403
+
+- `fields` actually filters the response instead of blanking it, in every tool that offers the selector. Asking `issues_find` for `["key"]` used to return a dozen null keys per issue
+  - Undeclared fields the API returns (`self`, `id`, `queue`, a queue's `<queue-id>--<key>` local fields) sat in the model's extras, which carry no `exclude_if`, so blanking left them as explicit nulls; they are now dropped
+  - `User`, `IssueComment`, `Worklog` and `IssueAttachment` declared optionals with a bare `Field(None)` and leaked nulls the same way. A test now fails if a model reachable from a `fields` selector forgets `exclude_if`
+- `issue_create` no longer answers 422 for `components: ["694"]` or `followers: ["8000000000000034"]`: reference values are typed models shared with `issue_update`, with `IssueComponentRef` requiring exactly one of `id` / `name` because Tracker reads a bare string there as a component *name*
+- A key in `fields` naming a dedicated parameter no longer fails with `TypeError: got multiple values for keyword argument 'parent'`
+- `assignee` and `parent` can be cleared at all — `null` was unreachable and `""` answered 422
+- An empty reference object (`type={}`) is refused locally with a readable message instead of an unhelpful 400/422
+- API errors carry Tracker's own `errorMessages` / `errors` instead of a bare "Unprocessable Entity"
+- A 409 on update raises `IssueVersionConflict`, which explains that queue triggers bump the version right after creation, so the version from `issue_create` must not be reused
+- A missing queue raises `QueueNotFound` on every queue-scoped read (`queue_get_tags`, `queue_get_versions`, `queue_get_fields`, `queue_get_metadata`), not just the newest ones
+- `queue_get_metadata` returns what `expand` asked for, and answers a requested but empty section with an empty list instead of omitting it
 - `IssueComment` is a complete model again: `MaillistReference` was declared after the forward reference that used it, leaving the model unbuilt
-- `issue_create` no longer answers 422 for `components: ["694"]` or `followers: ["8000000000000034"]`: reference values are typed models shared with `issue_update` and serialized identically, with `IssueComponentRef` requiring exactly one of `id` / `name` because Tracker reads a bare string there as a component *name*
-- A key in `fields` naming a dedicated parameter no longer fails the call with a raw `TypeError: got multiple values for keyword argument 'parent'`
-- `assignee` and `parent` can be cleared at all (previously `null` was unreachable and `""` answered 422)
-- An empty reference object (`type={}`) is refused locally with a readable message instead of an unhelpful 400/422 from Tracker
-- API errors carry Tracker's own `errorMessages` / `errors` in `TrackerAPIError` instead of a bare "Unprocessable Entity"
-- 409 on update raises `IssueVersionConflict`, which explains that queue triggers bump the version right after creation, so the version returned by `issue_create` must not be reused
-- A missing queue raises `QueueNotFound` on every queue-scoped read (`queue_get`, `queues_get_tags`, `queues_get_versions`, `queues_get_local_fields`, `queues_get_fields`), not just on the newest ones
-- `queue_get_fields` is described as what it is - the fields configured on the queue - and points at `get_global_fields` for the rest; system fields such as `parent` or `estimation` are settable without appearing in the queue listing
-- `get_priorities` is findable by tool search: its description now names the priority levels and the parameter it feeds
-- Issue templates expose a single, normalized `description`; the issue body a template prefills stays in `fieldTemplates.description`
-- Reject an entity update that would only change `links` instead of reporting a no-op as success
-  - Yandex Tracker answers 200 but ignores `links` unless the same request also changes a field or carries a `comment`; the entity's `version` does not even advance
-  - `links` are added rather than replaced: re-sending an existing link fails, links cannot be read back or removed through the server, and each relationship is only valid against a particular target entity type. All of this is now stated in the tool descriptions
-- Paginate entity comments through the dedicated `/comments/_relative` endpoint (`perPage` + an exclusive `from` cursor, `hasNext`), instead of returning only the first page
-- Fall back to the per-entity default field set when `fields` is an empty list, which previously sent `fields=` and returned an entity with no fields populated
-- Describe `*_update_checklist` as the bulk edit of existing items that it is: a partial list, or one that changes the item count, is rejected by the API with a 500
-- Drop `with_board` from `goal_delete`: goals have no board
+- `queue_get_fields` and `get_priorities` are described as what they are, so tool search finds them and callers know `get_global_fields` holds the rest
 
 ### Internal
-- `lastCommentUpdatedAt` is typed as `datetime` rather than `date | datetime`, which made the serialized type depend on whether the timestamp landed exactly on midnight
+
+- Entity tool and parameter descriptions state shared rules once in the server instructions instead of repeating them per tool, cutting ~21 KB from the manifest
 
 ## [0.7.3] - 2026-07-28
 
