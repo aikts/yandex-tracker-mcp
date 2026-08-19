@@ -77,6 +77,7 @@ def make_tracker_lifespan(settings: Settings) -> Lifespan:
             service_account=service_account_settings,
             cloud_org_id=settings.tracker_cloud_org_id,
             org_id=settings.tracker_org_id,
+            timeout=settings.tracker_api_timeout,
         )
 
         queues: QueuesProtocol = tracker
