@@ -4,15 +4,6 @@ from mcp_tracker.mcp.errors import TrackerError
 from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.custom.errors import IssueNotFound
 
-# Appended to every project/portfolio/goal tool description, read and write alike:
-# an entity isn't reliably mappable to a single queue, so `check_*_access` is never
-# called for them. Registration of the whole group is gated on
-# TRACKER_ENTITIES_ENABLED instead.
-ENTITY_QUEUE_RESTRICTIONS_NOTE = (
-    " Not subject to TRACKER_LIMIT_QUEUES / TRACKER_READ_ONLY_QUEUES restrictions, "
-    "since an entity isn't reliably mappable to a single queue."
-)
-
 
 def _is_read_only_queue(settings: Settings, queue: str) -> bool:
     """Return True if the given queue is configured as read-only."""

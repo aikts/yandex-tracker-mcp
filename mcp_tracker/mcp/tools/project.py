@@ -21,7 +21,6 @@ from mcp_tracker.mcp.params import (
     PerPageParam,
     ProjectFieldsParam,
 )
-from mcp_tracker.mcp.tools._access import ENTITY_QUEUE_RESTRICTIONS_NOTE
 from mcp_tracker.mcp.utils import get_yandex_auth, set_non_needed_fields_null
 from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.proto.types.entities import (
@@ -37,8 +36,7 @@ def register_project_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
     @mcp.tool(
         title="Get Project",
         description="Get a Yandex Tracker project by its id or shortId. "
-        "A project groups issues and is distinct from a queue."
-        + ENTITY_QUEUE_RESTRICTIONS_NOTE,
+        "A project groups issues and is distinct from a queue.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def project_get(
@@ -56,7 +54,7 @@ def register_project_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
         title="Find Projects",
         description="Search Yandex Tracker projects by name substring and/or field filters. Paginated: "
         "call again with `page` incremented (starting from 1) until an empty result is returned "
-        "to retrieve all matches." + ENTITY_QUEUE_RESTRICTIONS_NOTE,
+        "to retrieve all matches.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def project_find(
@@ -87,8 +85,7 @@ def register_project_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
         description="Get a page of comments of a Yandex Tracker project by its id or shortId, "
         "e.g. 'abc123'. Returns the comments plus 'next_cursor'. To fetch the next "
         "page, pass 'next_cursor' from the previous result as the 'cursor' argument; when "
-        "'next_cursor' is null there are no more comments."
-        + ENTITY_QUEUE_RESTRICTIONS_NOTE,
+        "'next_cursor' is null there are no more comments.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def project_get_comments(
