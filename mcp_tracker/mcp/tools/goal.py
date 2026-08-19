@@ -21,7 +21,6 @@ from mcp_tracker.mcp.params import (
     PageParam,
     PerPageParam,
 )
-from mcp_tracker.mcp.tools._access import ENTITY_QUEUE_RESTRICTIONS_NOTE
 from mcp_tracker.mcp.utils import get_yandex_auth, set_non_needed_fields_null
 from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.proto.types.entities import (
@@ -36,8 +35,7 @@ def register_goal_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Get Goal",
-        description="Get a Yandex Tracker goal by its id or shortId."
-        + ENTITY_QUEUE_RESTRICTIONS_NOTE,
+        description="Get a Yandex Tracker goal by its id or shortId.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def goal_get(
@@ -55,7 +53,7 @@ def register_goal_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
         title="Find Goals",
         description="Search Yandex Tracker goals by name substring and/or field filters. Paginated: "
         "call again with `page` incremented (starting from 1) until an empty result is returned "
-        "to retrieve all matches." + ENTITY_QUEUE_RESTRICTIONS_NOTE,
+        "to retrieve all matches.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def goal_find(
@@ -86,8 +84,7 @@ def register_goal_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
         description="Get a page of comments of a Yandex Tracker goal by its id or shortId, "
         "e.g. 'ghi789'. Returns the comments plus 'next_cursor'. To fetch the next "
         "page, pass 'next_cursor' from the previous result as the 'cursor' argument; when "
-        "'next_cursor' is null there are no more comments."
-        + ENTITY_QUEUE_RESTRICTIONS_NOTE,
+        "'next_cursor' is null there are no more comments.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def goal_get_comments(

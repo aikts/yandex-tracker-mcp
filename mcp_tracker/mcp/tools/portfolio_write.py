@@ -40,7 +40,6 @@ from mcp_tracker.mcp.params import (
     ProjectPortfolioLinksParam,
     ProjectPortfolioStatusParam,
 )
-from mcp_tracker.mcp.tools._access import ENTITY_QUEUE_RESTRICTIONS_NOTE
 from mcp_tracker.mcp.utils import get_yandex_auth
 from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.proto.types.entities import PortfolioEntity
@@ -52,8 +51,7 @@ def register_portfolio_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> No
 
     @mcp.tool(
         title="Create Portfolio",
-        description="Create a new Yandex Tracker portfolio."
-        + ENTITY_QUEUE_RESTRICTIONS_NOTE,
+        description="Create a new Yandex Tracker portfolio.",
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def portfolio_create(
@@ -93,8 +91,7 @@ def register_portfolio_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> No
 
     @mcp.tool(
         title="Update Portfolio",
-        description="Update fields of an existing Yandex Tracker portfolio."
-        + ENTITY_QUEUE_RESTRICTIONS_NOTE,
+        description="Update fields of an existing Yandex Tracker portfolio.",
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def portfolio_update(
@@ -140,8 +137,7 @@ def register_portfolio_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> No
 
     @mcp.tool(
         title="Delete Portfolio",
-        description="Delete a Yandex Tracker portfolio."
-        + ENTITY_QUEUE_RESTRICTIONS_NOTE,
+        description="Delete a Yandex Tracker portfolio.",
         annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True),
     )
     async def portfolio_delete(
@@ -160,7 +156,7 @@ def register_portfolio_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> No
         description="Add a comment to a Yandex Tracker portfolio, e.g. entity_id='def456'. "
         "IMPORTANT: If you need to mention/call people to the discussion (so they get "
         "notifications), do NOT rely on '@login' in the text — use the `summonees` "
-        "parameter instead." + ENTITY_QUEUE_RESTRICTIONS_NOTE,
+        "parameter instead.",
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def portfolio_add_comment(
@@ -184,7 +180,7 @@ def register_portfolio_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> No
         title="Update Portfolio Comment",
         description="Update an existing comment on a Yandex Tracker portfolio. "
         "IMPORTANT: If you need to mention/call people (notifications), use the "
-        "`summonees` parameter." + ENTITY_QUEUE_RESTRICTIONS_NOTE,
+        "`summonees` parameter.",
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def portfolio_update_comment(
@@ -206,8 +202,7 @@ def register_portfolio_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> No
 
     @mcp.tool(
         title="Delete Portfolio Comment",
-        description="Delete a comment from a Yandex Tracker portfolio."
-        + ENTITY_QUEUE_RESTRICTIONS_NOTE,
+        description="Delete a comment from a Yandex Tracker portfolio.",
         annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True),
     )
     async def portfolio_delete_comment(
@@ -225,8 +220,7 @@ def register_portfolio_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> No
         title="Add Portfolio Checklist Item",
         description="Add a checklist item to a Yandex Tracker portfolio, e.g. "
         "entity_id='def456'. Returns the full updated entity; request "
-        "`checklistItems` via `fields` to see the new item."
-        + ENTITY_QUEUE_RESTRICTIONS_NOTE,
+        "`checklistItems` via `fields` to see the new item.",
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def portfolio_add_checklist_item(
@@ -250,8 +244,7 @@ def register_portfolio_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> No
 
     @mcp.tool(
         title="Update Portfolio Checklist Item",
-        description="Update (partial) a checklist item on a Yandex Tracker portfolio."
-        + ENTITY_QUEUE_RESTRICTIONS_NOTE,
+        description="Update (partial) a checklist item on a Yandex Tracker portfolio.",
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def portfolio_update_checklist_item(
@@ -278,7 +271,7 @@ def register_portfolio_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> No
     @mcp.tool(
         title="Move Portfolio Checklist Item",
         description="Reorder a checklist item on a Yandex Tracker portfolio by moving it "
-        "before another item." + ENTITY_QUEUE_RESTRICTIONS_NOTE,
+        "before another item.",
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def portfolio_move_checklist_item(
@@ -298,8 +291,7 @@ def register_portfolio_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> No
 
     @mcp.tool(
         title="Delete Portfolio Checklist Item",
-        description="Delete a single checklist item from a Yandex Tracker portfolio."
-        + ENTITY_QUEUE_RESTRICTIONS_NOTE,
+        description="Delete a single checklist item from a Yandex Tracker portfolio.",
         annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True),
     )
     async def portfolio_delete_checklist_item(
@@ -321,7 +313,7 @@ def register_portfolio_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> No
         "Pass every item the checklist currently has, each referencing an existing item "
         "`id`: a partial list is rejected by the API with a 500 error, and the item count "
         "cannot change. Use *_add_checklist_item / *_delete_checklist_item to add or "
-        "remove items." + ENTITY_QUEUE_RESTRICTIONS_NOTE,
+        "remove items.",
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def portfolio_update_checklist(
@@ -339,8 +331,7 @@ def register_portfolio_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> No
 
     @mcp.tool(
         title="Delete Portfolio Checklist",
-        description="Delete the entire checklist from a Yandex Tracker portfolio."
-        + ENTITY_QUEUE_RESTRICTIONS_NOTE,
+        description="Delete the entire checklist from a Yandex Tracker portfolio.",
         annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True),
     )
     async def portfolio_delete_checklist(

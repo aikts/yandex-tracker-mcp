@@ -187,9 +187,7 @@ UserID = Annotated[
 
 EntityID = Annotated[
     str,
-    Field(
-        description="Entity identifier (id or shortId) of a Yandex Tracker project, portfolio or goal"
-    ),
+    Field(description="Entity id or shortId"),
 ]
 
 
@@ -199,12 +197,7 @@ def entity_fields_description(default_fields: list[str]) -> str:
     Kept as a function (not a constant) so each entity tool can plug in its
     own default field list while using identical phrasing everywhere.
     """
-    return (
-        "Entity fields to include in the response, selected from the allowed enum values. "
-        "In order to not pollute the context window - select only the fields you actually need. "
-        f"Not specifying this returns a reasonable default subset: {default_fields}. "
-        "Custom (organization-defined) attributes are not supported by this tool."
-    )
+    return f"Fields to return. Defaults to {default_fields}."
 
 
 ProjectFieldsParam = Annotated[
@@ -297,8 +290,7 @@ GoalStatusParam = Annotated[
 ]
 
 _CANNOT_CLEAR_NOTE = (
-    " Omitting it leaves the current value unchanged; there is no way to clear an "
-    "already-set value through this server - passing null is a no-op, not a reset."
+    " Omitting it leaves the current value unchanged; null does not clear it."
 )
 
 EntityDescriptionParam = Annotated[
@@ -344,41 +336,31 @@ EntityTagsParam = Annotated[
 EntityParentEntityParam = Annotated[
     EntityParentEntityInput | None,
     Field(
-        description="Containment: for a project/portfolio, the portfolio(s) it belongs to "
-        "('Included in portfolio'); for a goal, its parent goal. "
-        "`primary` is the main container id, `secondary` is additional portfolio ids "
-        "(projects/portfolios only). "
-        "Example: {'primary': 'portfolio_id_1', 'secondary': ['portfolio_id_2']}."
+        description="Containment: `primary` is the containing portfolio id (for a goal, "
+        "the parent goal), `secondary` additional portfolio ids (projects/portfolios only)."
         + _CANNOT_CLEAR_NOTE
     ),
 ]
 
+# The rest of how links behave is in the server instructions, but these two rules
+# are kept here: a caller that does not know them gets an error, and a client is
+# free to ignore `instructions` while it always sees a tool's own schema.
 _LINKS_DESCRIPTION = (
-    "Links from this entity to other entities (dependency/support relationships, not "
-    "containment - use parent_entity for 'included in portfolio' or 'parent goal'). "
-    "Each item is {{'relationship': ..., 'entity': <id of the other entity>}}. "
-    "Valid relationship values: {relationships}. "
-    "{target_rules}"
-    "Example: [{{'relationship': '{example_relationship}', 'entity': '<other entity id>'}}]. "
-    "Links are ADDED, not replaced: pass only the new links, never re-send existing ones - "
-    "linking an already-linked pair fails with an error. They are also write-only in the "
-    "Tracker API, so no tool can read the current links back, and this server cannot remove "
-    "a link once created (do that in the Tracker UI). "
-    "On update, `links` is only applied when the same call also changes a field or passes a "
-    "`comment` - Tracker ignores a links-only update, so this server rejects one."
+    "Links to ADD, e.g. [{{'relationship': '{example_relationship}', 'entity': "
+    "'<other entity id>'}}]. Valid: {relationships}. {target_rules} "
+    "Never re-send an existing link - that errors; on update `links` also needs "
+    "another field change or a `comment` in the same call."
 )
 
 # The target's entity type matters on top of the relationship name, and the API
 # only answers 422 when the combination is wrong. Verified against the live API.
 _PROJECT_PORTFOLIO_LINK_TARGETS = (
-    "The target type matters: 'works towards' must point at a GOAL, while "
-    "'depends on'/'is dependent by' must point at another project or portfolio. "
-    "The API rejects the wrong combination with an unhelpful 422. "
+    "'works towards' must target a goal, the others a project or portfolio "
+    "(a wrong target answers 422)."
 )
 _GOAL_LINK_TARGETS = (
-    "The target type matters: 'is supported by' must point at a PROJECT or portfolio, "
-    "while 'parent entity'/'child entity'/'depends on'/'is dependent by' point at another "
-    "goal. The API rejects the wrong combination with an unhelpful 422. "
+    "'is supported by' must target a project or portfolio, the others a goal "
+    "(a wrong target answers 422)."
 )
 
 ProjectPortfolioLinksParam = Annotated[
@@ -610,6 +592,7 @@ numbered - use `queues_get_all`, `issues_find`, etc. A "project"/"portfolio"/"go
 `portfolio_*`, `goal_*` tools) is a separate project-management entity used to group and track
 progress across issues from possibly many queues. Don't confuse a queue key with an entity id: entity
 ids come from `project_find`/`portfolio_find`/`goal_find`/`*_get` results, not from issue keys.
+Entity tools are also not covered by the server's queue restrictions, since an entity has no single queue.
 
 ## Linking issues, projects, portfolios, and goals together
 
@@ -631,6 +614,12 @@ ids come from `project_find`/`portfolio_find`/`goal_find`/`*_get` results, not f
   the Tracker UI. On `*_update`, links are applied only when the same call also changes a field or
   carries a `comment`: Tracker ignores a links-only update, so this server rejects it with an error
   rather than reporting a success that did nothing.
+
+## Selecting entity fields
+
+Every `project_*`/`portfolio_*`/`goal_*` read tool takes a `fields` selector. Ask only for the fields
+you need - omitting it returns that tool's default subset, which is deliberately small. Custom
+(organization-defined) attributes cannot be requested through these tools.
 
 When using tools that accept `page` and/or `per_page` parameters and when the task is to find something in the result set (or to receive all available data) - always call the tool as many times as needed increasing the `page` parameter until the result set is exhausted. If you stumble with the context size limit — try to change the `per_page` parameter to a lower value and restart the search from the `page=1`.
 
