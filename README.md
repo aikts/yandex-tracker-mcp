@@ -496,7 +496,7 @@ The server exposes the following tools through the MCP protocol:
     - `fields` (optional): Fields to include in the response (e.g., ["key", "name"]). Helps optimize context window usage by selecting only needed fields. If not specified, returns all available fields.
     - `page` (optional): Page number to return. If not specified, retrieves all pages automatically.
     - `per_page` (optional): Number of items per page (default: 100)
-  - Returns paginated queue information with selective field inclusion
+  - Returns `{values, hits, pages}`. `hits`/`pages` are reported only for an explicit single page on a server without `TRACKER_LIMIT_QUEUES`, since the totals count queues the allow-list then hides
   - Respects `TRACKER_LIMIT_QUEUES` restrictions
 
 - **`queue_get_tags`**: Get all tags for a specific queue
@@ -604,9 +604,9 @@ Not yet supported: writing metrics/key results, and bulk changes — these are t
     - `per_page` (optional): Number of users per page (default: 50)
     - `page` (optional): Page number to return (default: 1)
     - `fields` (array of strings, optional): Fields to include per user. Not specifying this returns all available fields
-  - Returns paginated list of users with login, email, license status, and organizational details
+  - Returns `{values, hits, pages}`: the page of users plus how many users there are in total and how many pages that is
   - Includes user metadata such as external status, dismissal status, and notification preferences
-  - Paginated: call again with `page` incremented until an empty list is returned
+  - The current page is the last one when `page` equals `pages`
 
 - **`user_get`**: Get information about a specific user by login or UID
   - Parameters: `user_id` (string, user login like "john.doe" or UID like "12345")
@@ -664,7 +664,7 @@ Not yet supported: writing metrics/key results, and bulk changes — these are t
     - `queue` (string, optional): Return only the templates usable in that queue - its own templates plus the ones bound to no queue
     - `page` (integer, optional): Page number, default is all pages
     - `per_page` (integer, optional): Items per page (default: 50)
-  - Returns the templates teams use for bugs, incidents and other recurring work
+  - Returns `{values, hits, pages}`; `values` holds the templates teams use for bugs, incidents and other recurring work
   - Includes template id, name, owning queue and the `fieldTemplates` values the template prefills
 
 - **`issue_template_get`**: Get a single issue template by its id
@@ -677,7 +677,7 @@ Not yet supported: writing metrics/key results, and bulk changes — these are t
     - `queue` (string, optional): Return only the templates usable in that queue - its own templates plus the ones bound to no queue
     - `page` (integer, optional): Page number, default is all pages
     - `per_page` (integer, optional): Items per page (default: 50)
-  - Returns the wording teams reuse when replying on issues
+  - Returns `{values, hits, pages}`; `values` holds the wording teams reuse when replying on issues
   - Includes template id, name, description, owning queue, the `template` comment text and the `summonees` / `maillistSummonees` such a comment summons
 
 - **`comment_template_get`**: Get a single comment template by its id
@@ -904,7 +904,7 @@ All four tools respect `TRACKER_LIMIT_QUEUES`: templates bound to a restricted q
 - **`issues_count`**: Count issues matching a query using [Yandex Tracker Query Language](https://yandex.ru/support/tracker/ru/user/query-filter)
   - Parameters:
     - `query` (required): Query string using Yandex Tracker Query Language syntax
-  - Returns the total count of issues matching the specified criteria
+  - Returns `{"count": N}` - the number of issues matching the specified criteria
   - Supports all query language features: field filtering, date functions, logical operators, and complex expressions
   - Useful for analytics, reporting, and understanding issue distribution without retrieving full issue data
 

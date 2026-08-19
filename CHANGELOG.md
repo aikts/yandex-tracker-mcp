@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.8.0-dev] - unreleased
+## [0.8.0] - 2026-08-19
 
 ### Features
 
