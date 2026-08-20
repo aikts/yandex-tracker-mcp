@@ -1,0 +1,48 @@
+login
+
+---
+
+мне бы обновить aiohttp до последней версии - но там куча тестов падает
+
+---
+
+айтемы вв чейнджлоге нужно сильно более компактно оформить - и сказать что обновили и остальные компоненты и помесить в 0.8.0 релиз - это туда пойдет
+
+---
+
+закомить и запушь
+
+---
+
+install_aioresponses_compat() лучше оформить в виде фикстуры которая будет откатывать изменения в библиотеке
+
+---
+
+- aiohttp 3.14 made `stream_writer` a required `ClientResponse` argument, which no released `aioresponses` handles yet ([#292](https://github.com/pnuckowski/aioresponses/pull/292)); `tests/aioresponses_compat.py` carries the upstream patch until it ships
+
+эти детали можно убрать из чейнджлога
+
+---
+
+а че там за ворнинги в тестах?
+
+================================================================================= warnings summary ==================================================================================
+tests/mcp/server/test_manifest.py: 1 warning
+tests/mcp/server/test_server_creation.py: 10 warnings
+tests/mcp/resources/test_configuration.py: 1 warning
+  /Volumes/Workspace/Projects/_/ai/mcp/mcp-yandex-tracker/.venv/lib/python3.13/site-packages/pydantic_settings/sources/utils.py:47: IncompleteFieldDefinitionWarning: Field 'lifespan' has an incomplete definition: its annotation contains an unresolved forward reference, so settings sources may fail to correctly resolve its value. Call `model_rebuild()` on the model where the field is defined, once all the referenced types are defined.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+
+---
+
+ладно, если это не у нас - то пофиг
+
+---
+
+давай 3.15
+
+---
+
+продолжай
