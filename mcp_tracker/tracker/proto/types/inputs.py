@@ -159,7 +159,9 @@ class EntityChecklistItemUpdateInput(BaseModel):
     id: str = Field(..., description="Checklist item ID")
     text: str = Field(..., description="Checklist item text")
     checked: bool | None = Field(None, description="Whether the item is checked")
-    assignee: str | None = Field(None, description="Assignee user ID or login")
+    assignee: str | int | None = Field(
+        None, description="Assignee user ID (uid, e.g. 8000000000000034) or login"
+    )
     deadline: dict[str, Any] | None = Field(
         None,
         description="Deadline object. Example: "

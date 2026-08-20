@@ -11,7 +11,7 @@ All notable changes to this project will be documented in this file.
   - Reads take a per-entity `fields` selector defaulting to a small base set, so `metricItems` and a goal's `progressPercentage` / `keyResultItems` must be asked for explicitly
   - Off by default behind `TRACKER_ENTITIES_ENABLED`: they double the tool manifest (43 tools to 82) and are not covered by `TRACKER_LIMIT_QUEUES` / `TRACKER_READ_ONLY_QUEUES`, since an entity has no single queue. `TRACKER_READ_ONLY` still unregisters the write tools
   - `links` are added, never replaced, and are write-only in Tracker: an existing link cannot be re-sent, read back, or removed through this server. A links-only update is rejected rather than reported as a success Tracker silently ignores
-  - `*_update_checklist` is a bulk edit of all existing items; a partial list is rejected by the API with a 500
+  - `*_update_checklist` edits existing items by id; items you don't mention, and fields left unset on ones you do, are left as-is
 - **Issue and comment template tools**, read-only ([#43](https://github.com/aikts/yandex-tracker-mcp/issues/43), [#48](https://github.com/aikts/yandex-tracker-mcp/pull/48))
   - `issue_templates_get_all` / `issue_template_get`, `comment_templates_get_all` / `comment_template_get`
   - The issue body a template prefills is in `fieldTemplates.description`, not the template's own `description`

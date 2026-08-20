@@ -103,6 +103,25 @@ def _parse_error_body(body: str) -> tuple[list[str], dict[str, str]]:
     return messages, errors
 
 
+class ChecklistItemNotFound(YandexTrackerError):
+    """Raised when *_update_checklist is asked to edit an id that isn't in the
+    entity's current checklist.
+
+    The bulk-edit endpoint can only edit items that already exist - it has no
+    way to add one - so an unknown id here means the caller wanted
+    *_add_checklist_item instead.
+    """
+
+    def __init__(self, entity_id: str, checklist_item_id: str):
+        super().__init__(
+            f"Checklist item '{checklist_item_id}' was not found on entity "
+            f"'{entity_id}'. *_update_checklist can only edit items that already "
+            f"exist - use *_add_checklist_item to add a new one."
+        )
+        self.entity_id = entity_id
+        self.checklist_item_id = checklist_item_id
+
+
 class EntityLinksOnlyUpdate(YandexTrackerError):
     """Raised for an entity update that would only change links.
 

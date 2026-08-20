@@ -512,14 +512,14 @@ EntityChecklistItemBeforeParam = Annotated[
 EntityChecklistItemsParam = Annotated[
     list[EntityChecklistItemUpdateInput],
     Field(
-        description="Bulk edit of the entity's EXISTING checklist items. Each item requires "
+        description="Edits to the entity's EXISTING checklist items. Each item requires "
         "`id` (an existing checklist item ID) and `text`, and may optionally include "
         "`checked`, `assignee`, `deadline`. "
-        "IMPORTANT: pass every item the checklist currently has - the API rejects a partial "
-        "list with a 500 error, and the item count cannot change here. Read the current items "
-        "first with `*_get(fields=['checklistItems'])`. This tool cannot add or remove items: "
-        "use *_add_checklist_item / *_delete_checklist_item for that. Optional attributes left "
-        "out of an item are reset to their defaults. "
+        "Only the items you list here are changed - any other item on the checklist is left "
+        "untouched, and any optional field you leave out of a listed item keeps its current "
+        "value rather than being cleared. An `id` that doesn't exist on the entity is "
+        "rejected with a clear error. This tool cannot add or remove items: use "
+        "*_add_checklist_item / *_delete_checklist_item for that. "
         "Example: [{'id': '5f8b2c1e4c3a2d001a7e9b1c', 'text': 'Get sign-off', "
         "'checked': false}]."
     ),
