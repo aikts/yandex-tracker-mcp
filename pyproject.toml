@@ -6,15 +6,15 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "aiocache[redis]>=0.12.3",
-    "aiohttp>=3.11.18,<3.14",
-    "cryptography>=44.0",
-    "mcp[cli]>=1.21,<2",
-    "pydantic>=2.12.4",
-    "pydantic-settings>=2.8.1",
+    "aiohttp>=3.14.3,<3.15",
+    "cryptography>=50.0.0",
+    "mcp[cli]>=1.29,<2",
+    "pydantic>=2.12.4,<3",
+    "pydantic-settings>=2.15.0,<3",
     "python-dateutil>=2.9.0.post0",
     "thefuzz>=0.22.1",
-    "yandexcloud>=0.353.0",
-    "yarl>=1.20.0",
+    "yandexcloud>=0.403.0",
+    "yarl>=1.24.5",
 ]
 
 [tool.uv]
@@ -36,7 +36,7 @@ dev = [
     "pytest-cov>=5.0.0",
     "pytest-mock>=3.14.0",
     "pytest-xdist>=3.5.0",
-    "aioresponses>=0.7.7",
+    "aioresponses>=0.7.9",
     "ty>=0.0.8",
 ]
 

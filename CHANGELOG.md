@@ -52,6 +52,7 @@ All notable changes to this project will be documented in this file.
 ### Internal
 
 - Entity tool and parameter descriptions state shared rules once in the server instructions instead of repeating them per tool, cutting ~21 KB from the manifest
+- Update dependencies: `aiohttp` 3.14.3 (undoing the `<3.14` cap from 0.7.2), `cryptography` 50.0.0, `mcp` 1.29.0, `pydantic-settings` 2.15.0, `yandexcloud` 0.403.0, `yarl` 1.24.5
 
 ## [0.7.3] - 2026-07-28
 

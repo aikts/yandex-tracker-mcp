@@ -4,6 +4,13 @@ import pytest
 
 from mcp_tracker.tracker.custom.client import TrackerClient
 from mcp_tracker.tracker.proto.common import YandexAuth
+from tests.aioresponses_compat import install as install_aioresponses_compat
+
+
+@pytest.fixture(autouse=True)
+def aioresponses_compat(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep aioresponses usable on aiohttp >= 3.14, undone after every test."""
+    install_aioresponses_compat(monkeypatch)
 
 
 @pytest.fixture
