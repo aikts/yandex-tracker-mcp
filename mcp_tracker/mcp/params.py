@@ -539,7 +539,7 @@ YTQuery = Annotated[
             """5. You may use brackets for complex logical expressions\n"""
             """6. To find issues with exact string matching in the field use this syntax: `Summary: #"Version 2.0"`. If you need to pass special characters - you must escape them using `\\` symbol\n"""
             """7. To find issues that don't contain the specified text use this syntax: `Summary: !"Version 2.0"`. If you need to pass special characters - you must escape them using `\\` symbol\n"""
-            """8. If you need to search by local queue field use the following syntax: `<QUEUE>.<LOCAL_FIELD_KEY>: "<value>", where <QUEUE> is a queue key, <LOCAL_FIELD_KEY> is a local field's key from the `queue_get_local_fields` tool result.\n"""
+            """8. If you need to search by local queue field use the following syntax: `<QUEUE>.<LOCAL_FIELD_KEY>: "<value>", where <QUEUE> is a queue key, <LOCAL_FIELD_KEY> is a local field's key from the `queue_get_fields` tool result (call it with `include_local_fields=true`).\n"""
             """9. For dates use the format YYYY-MM-DD.\n"""
             """10. For numerical values you may use comparison operators (>, <, >=, <=): `<param>: ><value>`.\n"""
             """11. To sort the result specify the `Sort By` directive (you may provide ASC or DESC for the sort order): `"Sort By": Created ASC`.\n"""

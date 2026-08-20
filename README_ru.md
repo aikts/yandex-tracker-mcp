@@ -15,7 +15,7 @@ mcp-name: io.github.aikts/yandex-tracker-mcp
 ## Возможности
 
 - **Полное управление очередями**: Список и доступ ко всем доступным очередям Яндекс.Трекера с поддержкой пагинации, получением тегов и подробными метаданными
-- **Проекты, портфели и цели**: Отдельные инструменты чтения и записи с явными схемами для каждого типа сущности API "entities" Трекера
+- **Проекты, портфели и цели**: Отдельные инструменты чтения и записи с явными схемами для каждого типа сущности API "entities" Трекера (включаются через `TRACKER_ENTITIES_ENABLED`)
 - **Управление пользователями**: Получение информации об учетных записях пользователей, включая данные для входа, адреса электронной почты, статус лицензии и данные организации
 - **Полный жизненный цикл задач**: Создание, чтение, обновление и управление задачами с поддержкой пользовательских полей, вложений и переходов по рабочему процессу
 - **Управление рабочим процессом**: Выполнение переходов статусов, закрытие задач с резолюциями и навигация по сложным рабочим процессам
@@ -62,7 +62,13 @@ Yandex Tracker MCP Server можно установить в один клик �
   - `TRACKER_TOKEN` - Ваш OAuth токен Яндекс.Трекера
   - `TRACKER_IAM_TOKEN` - Ваш IAM токен
   - `TRACKER_SA_KEY_ID`, `TRACKER_SA_SERVICE_ACCOUNT_ID`, `TRACKER_SA_PRIVATE_KEY` - Учетные данные сервисного аккаунта
-- `TRACKER_CLOUD_ORG_ID` или `TRACKER_ORG_ID` - Идентификатор вашей организации Yandex Cloud (или Яндекс 360)
+- Организация - ровно одна из следующих переменных:
+  - `TRACKER_CLOUD_ORG_ID` - Идентификатор вашей организации Yandex Cloud
+  - `TRACKER_ORG_ID` - Идентификатор вашей организации Яндекс 360
+
+> Задавайте **одну** из двух. Если заданы обе, любой вызов Трекера завершится ошибкой
+> `Only one of org_id or cloud_org_id should be provided.` В примерах ниже используется
+> `TRACKER_CLOUD_ORG_ID`; для Яндекс 360 замените этот ключ на `TRACKER_ORG_ID`.
 
 <details>
 <summary><strong>Claude Desktop</strong></summary>
@@ -80,8 +86,7 @@ Yandex Tracker MCP Server можно установить в один клик �
       "args": ["yandex-tracker-mcp@latest"],
       "env": {
         "TRACKER_TOKEN": "ваш_токен_трекера",
-        "TRACKER_CLOUD_ORG_ID": "ваш_cloud_org_id",
-        "TRACKER_ORG_ID": "ваш_org_id"
+        "TRACKER_CLOUD_ORG_ID": "ваш_cloud_org_id"
       }
     }
   }
@@ -98,13 +103,11 @@ Yandex Tracker MCP Server можно установить в один клик �
         "run", "--rm", "-i",
         "-e", "TRACKER_TOKEN",
         "-e", "TRACKER_CLOUD_ORG_ID",
-        "-e", "TRACKER_ORG_ID",
         "ghcr.io/aikts/yandex-tracker-mcp:latest"
       ],
       "env": {
         "TRACKER_TOKEN": "ваш_токен_трекера",
-        "TRACKER_CLOUD_ORG_ID": "ваш_cloud_org_id",
-        "TRACKER_ORG_ID": "ваш_org_id"
+        "TRACKER_CLOUD_ORG_ID": "ваш_cloud_org_id"
       }
     }
   }
@@ -121,13 +124,12 @@ Yandex Tracker MCP Server можно установить в один клик �
 claude mcp add yandex-tracker uvx yandex-tracker-mcp@latest \
   -e TRACKER_TOKEN=ваш_токен_трекера \
   -e TRACKER_CLOUD_ORG_ID=ваш_cloud_org_id \
-  -e TRACKER_ORG_ID=ваш_org_id \
   -e TRANSPORT=stdio
 ```
 
 **Используя Docker:**
 ```bash
-claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_токен_трекера -e TRACKER_CLOUD_ORG_ID=ваш_cloud_org_id -e TRACKER_ORG_ID=ваш_org_id -e TRANSPORT=stdio ghcr.io/aikts/yandex-tracker-mcp:latest"
+claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_токен_трекера -e TRACKER_CLOUD_ORG_ID=ваш_cloud_org_id -e TRANSPORT=stdio ghcr.io/aikts/yandex-tracker-mcp:latest"
 ```
 
 </details>
@@ -148,8 +150,7 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
       "args": ["yandex-tracker-mcp@latest"],
       "env": {
         "TRACKER_TOKEN": "ваш_токен_трекера",
-        "TRACKER_CLOUD_ORG_ID": "ваш_cloud_org_id",
-        "TRACKER_ORG_ID": "ваш_org_id"
+        "TRACKER_CLOUD_ORG_ID": "ваш_cloud_org_id"
       }
     }
   }
@@ -166,13 +167,11 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
         "run", "--rm", "-i",
         "-e", "TRACKER_TOKEN",
         "-e", "TRACKER_CLOUD_ORG_ID",
-        "-e", "TRACKER_ORG_ID",
         "ghcr.io/aikts/yandex-tracker-mcp:latest"
       ],
       "env": {
         "TRACKER_TOKEN": "ваш_токен_трекера",
-        "TRACKER_CLOUD_ORG_ID": "ваш_cloud_org_id",
-        "TRACKER_ORG_ID": "ваш_org_id"
+        "TRACKER_CLOUD_ORG_ID": "ваш_cloud_org_id"
       }
     }
   }
@@ -198,8 +197,7 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
       "args": ["yandex-tracker-mcp@latest"],
       "env": {
         "TRACKER_TOKEN": "ваш_токен_трекера",
-        "TRACKER_CLOUD_ORG_ID": "ваш_cloud_org_id",
-        "TRACKER_ORG_ID": "ваш_org_id"
+        "TRACKER_CLOUD_ORG_ID": "ваш_cloud_org_id"
       }
     }
   }
@@ -216,13 +214,11 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
         "run", "--rm", "-i",
         "-e", "TRACKER_TOKEN",
         "-e", "TRACKER_CLOUD_ORG_ID",
-        "-e", "TRACKER_ORG_ID",
         "ghcr.io/aikts/yandex-tracker-mcp:latest"
       ],
       "env": {
         "TRACKER_TOKEN": "ваш_токен_трекера",
-        "TRACKER_CLOUD_ORG_ID": "ваш_cloud_org_id",
-        "TRACKER_ORG_ID": "ваш_org_id"
+        "TRACKER_CLOUD_ORG_ID": "ваш_cloud_org_id"
       }
     }
   }
@@ -252,8 +248,7 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
         "args": ["yandex-tracker-mcp@latest"],
         "env": {
           "TRACKER_TOKEN": "ваш_токен_трекера",
-          "TRACKER_CLOUD_ORG_ID": "ваш_cloud_org_id",
-          "TRACKER_ORG_ID": "ваш_org_id"
+          "TRACKER_CLOUD_ORG_ID": "ваш_cloud_org_id"
         }
       }
     }
@@ -273,13 +268,11 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
           "run", "--rm", "-i",
           "-e", "TRACKER_TOKEN",
           "-e", "TRACKER_CLOUD_ORG_ID",
-          "-e", "TRACKER_ORG_ID",
           "ghcr.io/aikts/yandex-tracker-mcp:latest"
         ],
         "env": {
           "TRACKER_TOKEN": "ваш_токен_трекера",
-          "TRACKER_CLOUD_ORG_ID": "ваш_cloud_org_id",
-          "TRACKER_ORG_ID": "ваш_org_id"
+          "TRACKER_CLOUD_ORG_ID": "ваш_cloud_org_id"
         }
       }
     }
@@ -314,11 +307,6 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
       "type": "promptString",
       "id": "cloud-org-id",
       "description": "Идентификатор организации Yandex Cloud"
-    },
-    {
-      "type": "promptString",
-      "id": "org-id",
-      "description": "Идентификатор организации Яндекс.Трекера (опционально)"
     }
   ],
   "servers": {
@@ -329,7 +317,6 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
       "env": {
         "TRACKER_TOKEN": "${input:tracker-token}",
         "TRACKER_CLOUD_ORG_ID": "${input:cloud-org-id}",
-        "TRACKER_ORG_ID": "${input:org-id}",
         "TRANSPORT": "stdio"
       }
     }
@@ -351,11 +338,6 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
       "type": "promptString",
       "id": "cloud-org-id",
       "description": "Идентификатор организации Yandex Cloud"
-    },
-    {
-      "type": "promptString",
-      "id": "org-id",
-      "description": "Идентификатор организации Яндекс.Трекера (опционально)"
     }
   ],
   "servers": {
@@ -366,13 +348,11 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
         "run", "--rm", "-i",
         "-e", "TRACKER_TOKEN",
         "-e", "TRACKER_CLOUD_ORG_ID",
-        "-e", "TRACKER_ORG_ID",
         "ghcr.io/aikts/yandex-tracker-mcp:latest"
       ],
       "env": {
         "TRACKER_TOKEN": "${input:tracker-token}",
         "TRACKER_CLOUD_ORG_ID": "${input:cloud-org-id}",
-        "TRACKER_ORG_ID": "${input:org-id}",
         "TRANSPORT": "stdio"
       }
     }
@@ -394,8 +374,7 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
       "args": ["yandex-tracker-mcp@latest"],
       "env": {
         "TRACKER_TOKEN": "ваш_токен_трекера",
-        "TRACKER_CLOUD_ORG_ID": "ваш_cloud_org_id",
-        "TRACKER_ORG_ID": "ваш_org_id"
+        "TRACKER_CLOUD_ORG_ID": "ваш_cloud_org_id"
       }
     }
   }
@@ -413,13 +392,11 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
         "run", "--rm", "-i",
         "-e", "TRACKER_TOKEN",
         "-e", "TRACKER_CLOUD_ORG_ID",
-        "-e", "TRACKER_ORG_ID",
         "ghcr.io/aikts/yandex-tracker-mcp:latest"
       ],
       "env": {
         "TRACKER_TOKEN": "ваш_токен_трекера",
-        "TRACKER_CLOUD_ORG_ID": "ваш_cloud_org_id",
-        "TRACKER_ORG_ID": "ваш_org_id"
+        "TRACKER_CLOUD_ORG_ID": "ваш_cloud_org_id"
       }
     }
   }
@@ -442,8 +419,7 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
       "args": ["yandex-tracker-mcp@latest"],
       "env": {
         "TRACKER_TOKEN": "ваш_токен_трекера",
-        "TRACKER_CLOUD_ORG_ID": "ваш_cloud_org_id",
-        "TRACKER_ORG_ID": "ваш_org_id"
+        "TRACKER_CLOUD_ORG_ID": "ваш_cloud_org_id"
       }
     }
   }
@@ -460,13 +436,11 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
         "run", "--rm", "-i",
         "-e", "TRACKER_TOKEN",
         "-e", "TRACKER_CLOUD_ORG_ID",
-        "-e", "TRACKER_ORG_ID",
         "ghcr.io/aikts/yandex-tracker-mcp:latest"
       ],
       "env": {
         "TRACKER_TOKEN": "ваш_токен_трекера",
-        "TRACKER_CLOUD_ORG_ID": "ваш_cloud_org_id",
-        "TRACKER_ORG_ID": "ваш_org_id"
+        "TRACKER_CLOUD_ORG_ID": "ваш_cloud_org_id"
       }
     }
   }
@@ -618,7 +592,7 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
 - **`users_search`**: Поиск пользователя по логину, электронной почте или реальному имени (имя или фамилия, или оба)
   - Параметры: `login_or_email_or_name` (строка, логин пользователя, электронная почта или реальное имя для поиска)
   - Возвращает одного пользователя или нескольких пользователей, если несколько совпадают с запросом, или пустой список, если ни один пользователь не соответствует
-  - Использует нечеткое сопоставление для реальных имен с порогом сходства 80%
+  - Использует нечеткое сопоставление для реальных имен с порогом сходства 80% и возвращает не более 3 лучших совпадений
   - Приоритизирует точные совпадения для логина и электронной почты перед нечеткими совпадениями имен
 
 </details>
@@ -682,7 +656,7 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
     - `template_id` (строка): Идентификатор шаблона из результата `comment_templates_get_all`
   - Используйте перед `issue_add_comment`, чтобы комментарий соответствовал актуальному шаблону команды
 
-Оба списка постранично разбиваются API (50 шаблонов на страницу), поэтому по умолчанию инструменты проходят все страницы и возвращают полный набор; передайте `page`, чтобы получить одну страницу при ограниченном контексте.
+Оба списка постранично разбиваются API (50 шаблонов на страницу), поэтому по умолчанию инструменты проходят все страницы и возвращают полный набор; передайте `page`, чтобы получить одну страницу при ограниченном контексте. Как и у `queues_get_all`, `hits`/`pages` заполняются только для явно запрошенной одной страницы и только когда не задан `TRACKER_LIMIT_QUEUES`: полный обход и так вернул всё, что есть, а итоги считают шаблоны, которые allow-list затем скрывает.
 
 Шаблоны доступны только на чтение: в API Трекера нет способа создать задачу или комментарий *из* шаблона, поэтому у `issue_create` и `issue_add_comment` нет параметра `template_id`. Сначала прочитайте шаблон и передайте его значения в аргументы инструмента.
 
@@ -822,11 +796,12 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
     - `issue_id` (строка, обязательно, формат: "QUEUE-123"): Ключ задачи
     - `resolution_id` (строка, обязательно): ID резолюции для установки при закрытии (например, 'fixed', 'wontFix', 'duplicate')
     - `comment` (строка, опционально): Опциональный комментарий для добавления при закрытии задачи
+    - `fields` (объект, опционально): Словарь дополнительных полей, устанавливаемых при переходе закрытия (например, `assignee` для переназначения). НЕ задавайте здесь `resolution` - для этого есть отдельный параметр `resolution_id`
   - Автоматически находит переход к статусу 'done' и выполняет его с указанной резолюцией
   - Возвращает список доступных переходов для нового (закрытого) статуса
   - **Примечание по использованию**: Перед закрытием вы ДОЛЖНЫ:
     1. Вызвать `issue_get` для получения поля `type` задачи
-    2. Вызвать `get_queue_metadata` с `expand: ["issueTypesConfig"]` для получения доступных резолюций
+    2. Вызвать `queue_get_metadata` с `expand: ["issueTypesConfig"]` для получения доступных резолюций
     3. Выбрать резолюцию из записи `issueTypesConfig`, соответствующей типу задачи - каждый тип задачи имеет свой набор допустимых резолюций
 
 - **`issue_create`**: Создать новую задачу в очереди
@@ -892,7 +867,7 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
 - **`issues_find`**: Поиск задач с использованием [языка запросов Яндекс.Трекера](https://yandex.ru/support/tracker/ru/user/query-filter)
   - Параметры:
     - `query` (обязательно): Строка запроса с использованием синтаксиса языка запросов Яндекс.Трекера
-    - `include_description` (логический, опционально, по умолчанию: false): Включать ли описание задачи в результат задач. Может быть большим, поэтому используйте только при необходимости.
+    - `include_description` (логический, опционально, по умолчанию: false): Включать ли описание задачи в результат задач. Может быть большим, поэтому используйте только при необходимости. Игнорируется, если `description` указан в `fields` - это явный запрос описания.
     - `fields` (список строк, опционально): Поля для ответа, в написании самого Трекера (`storyPoints`, а не `story_points`). Принимается любое имя поля, включая локальные поля очереди и кастомные поля организации - передавайте `id` поля из `queue_get_fields`. Неизвестное Трекеру имя молча отбрасывается. Если не указано, возвращает все доступные поля.
     - `page` (опционально): Номер страницы для пагинации (по умолчанию: 1)
     - `per_page` (опционально): Количество элементов на страницу (по умолчанию: 100). Может быть уменьшено, если результаты превышают контекстное окно.
@@ -997,6 +972,14 @@ OAUTH_SERVER_URL=https://oauth.yandex.ru  # OAuth сервер Яндекса п
 
 # Когда OAuth включен, TRACKER_TOKEN становится опциональным
 ```
+
+##### OAuth scopes
+
+При `OAUTH_USE_SCOPES=true` (по умолчанию) сервер запрашивает, публикует и требует scope'ы Яндекс
+Трекера `tracker:read` и `tracker:write` - либо только `tracker:read`, если задан
+`TRACKER_READ_ONLY=true`, чтобы read-only инстанс никогда не просил у пользователя доступ на запись.
+`OAUTH_USE_SCOPES=false` полностью убирает scope'ы из потока - это требуется для федерации
+Yandex Cloud.
 
 #### Настройка приложения Яндекс OAuth
 
@@ -1247,7 +1230,7 @@ TRACKER_SA_KEY_ID=ваш_key_id                   # ID ключа сервисн
 TRACKER_SA_SERVICE_ACCOUNT_ID=ваш_sa_id        # ID сервисного аккаунта
 TRACKER_SA_PRIVATE_KEY=ваш_private_key          # Приватный ключ сервисного аккаунта
 
-# Конфигурация организации (выберите одну)
+# Конфигурация организации (задайте ровно одну - обе сразу задавать нельзя)
 TRACKER_CLOUD_ORG_ID=ваш_cloud_org_id    # Для организаций Yandex Cloud
 TRACKER_ORG_ID=ваш_org_id                # Для организаций Яндекс 360
 
@@ -1327,13 +1310,19 @@ TRACKER_READ_ONLY=true                    # По умолчанию: false - О�
 
 ### Использование готового образа (рекомендуется)
 
+По умолчанию образ работает с `TRANSPORT=stdio` — общение идёт через stdin/stdout контейнера,
+и никакой порт не слушается. Для примеров ниже, где сервер доступен по HTTP, задайте
+`TRANSPORT=streamable-http`; для stdio-клиента запускайте контейнер с `-i` и без `-p`
+(см. примеры в разделе [Конфигурация MCP клиента](#конфигурация-mcp-клиента)).
+
 ```bash
-# Используя файл окружения
+# Используя файл окружения (в нём должно быть TRANSPORT=streamable-http)
 docker run --env-file .env -p 8000:8000 ghcr.io/aikts/yandex-tracker-mcp:latest
 
 # С встроенными переменными окружения
 docker run -e TRACKER_TOKEN=ваш_токен \
            -e TRACKER_CLOUD_ORG_ID=ваш_org_id \
+           -e TRANSPORT=streamable-http \
            -p 8000:8000 \
            ghcr.io/aikts/yandex-tracker-mcp:latest
 ```
@@ -1348,7 +1337,6 @@ docker build -t yandex-tracker-mcp .
 
 **Используя готовый образ:**
 ```yaml
-version: '3.8'
 services:
   mcp-tracker:
     image: ghcr.io/aikts/yandex-tracker-mcp:latest
@@ -1357,11 +1345,11 @@ services:
     environment:
       - TRACKER_TOKEN=${TRACKER_TOKEN}
       - TRACKER_CLOUD_ORG_ID=${TRACKER_CLOUD_ORG_ID}
+      - TRANSPORT=streamable-http
 ```
 
 **Сборка локально:**
 ```yaml
-version: '3.8'
 services:
   mcp-tracker:
     build: .
@@ -1370,6 +1358,7 @@ services:
     environment:
       - TRACKER_TOKEN=${TRACKER_TOKEN}
       - TRACKER_CLOUD_ORG_ID=${TRACKER_CLOUD_ORG_ID}
+      - TRANSPORT=streamable-http
 ```
 
 ### Настройка для разработки

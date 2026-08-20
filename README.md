@@ -17,7 +17,7 @@ Documentation in Russian is available [here](README_ru.md) / Документа�
 ## Features
 
 - **Complete Queue Management**: List and access all available Yandex Tracker queues with pagination support, tag retrieval, and detailed metadata
-- **Projects, Portfolios and Goals**: Dedicated read-only tools with explicit schemas for each entity type in the Tracker "entities" API
+- **Projects, Portfolios and Goals**: Dedicated read and write tools with explicit schemas for each entity type in the Tracker "entities" API (opt-in via `TRACKER_ENTITIES_ENABLED`)
 - **User Management**: Retrieve user account information, including login details, email addresses, license status, and organizational data
 - **Full Issue Lifecycle**: Create, read, update, and manage issues with support for custom fields, attachments, and workflow transitions
 - **Status Workflow Management**: Execute status transitions, close issues with resolutions, and navigate complex workflows
@@ -65,7 +65,13 @@ The following sections show how to configure the MCP server for different AI cli
   - `TRACKER_TOKEN` - Your Yandex Tracker OAuth token
   - `TRACKER_IAM_TOKEN` - Your IAM token
   - `TRACKER_SA_KEY_ID`, `TRACKER_SA_SERVICE_ACCOUNT_ID`, `TRACKER_SA_PRIVATE_KEY` - Service account credentials
-- `TRACKER_CLOUD_ORG_ID` or `TRACKER_ORG_ID` - Your Yandex Cloud (or Yandex 360) organization ID
+- Organization - exactly one of the following:
+  - `TRACKER_CLOUD_ORG_ID` - Your Yandex Cloud organization ID
+  - `TRACKER_ORG_ID` - Your Yandex 360 organization ID
+
+> Set **one** of the two. Setting both makes every Tracker call fail with
+> `Only one of org_id or cloud_org_id should be provided.` The examples below use
+> `TRACKER_CLOUD_ORG_ID`; on Yandex 360, replace that key with `TRACKER_ORG_ID`.
 
 <details>
 <summary><strong>Claude Desktop</strong></summary>
@@ -83,8 +89,7 @@ The following sections show how to configure the MCP server for different AI cli
       "args": ["yandex-tracker-mcp@latest"],
       "env": {
         "TRACKER_TOKEN": "your_tracker_token_here",
-        "TRACKER_CLOUD_ORG_ID": "your_cloud_org_id_here",
-        "TRACKER_ORG_ID": "your_org_id_here"
+        "TRACKER_CLOUD_ORG_ID": "your_cloud_org_id_here"
       }
     }
   }
@@ -101,13 +106,11 @@ The following sections show how to configure the MCP server for different AI cli
         "run", "--rm", "-i",
         "-e", "TRACKER_TOKEN",
         "-e", "TRACKER_CLOUD_ORG_ID",
-        "-e", "TRACKER_ORG_ID",
         "ghcr.io/aikts/yandex-tracker-mcp:latest"
       ],
       "env": {
         "TRACKER_TOKEN": "your_tracker_token_here",
-        "TRACKER_CLOUD_ORG_ID": "your_cloud_org_id_here",
-        "TRACKER_ORG_ID": "your_org_id_here"
+        "TRACKER_CLOUD_ORG_ID": "your_cloud_org_id_here"
       }
     }
   }
@@ -124,13 +127,12 @@ The following sections show how to configure the MCP server for different AI cli
 claude mcp add yandex-tracker uvx yandex-tracker-mcp@latest \
   -e TRACKER_TOKEN=your_tracker_token_here \
   -e TRACKER_CLOUD_ORG_ID=your_cloud_org_id_here \
-  -e TRACKER_ORG_ID=your_org_id_here \
   -e TRANSPORT=stdio
 ```
 
 **Using Docker:**
 ```bash
-claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=your_tracker_token_here -e TRACKER_CLOUD_ORG_ID=your_cloud_org_id_here -e TRACKER_ORG_ID=your_org_id_here -e TRANSPORT=stdio ghcr.io/aikts/yandex-tracker-mcp:latest"
+claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=your_tracker_token_here -e TRACKER_CLOUD_ORG_ID=your_cloud_org_id_here -e TRANSPORT=stdio ghcr.io/aikts/yandex-tracker-mcp:latest"
 ```
 
 </details>
@@ -151,8 +153,7 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=your_tracker_
       "args": ["yandex-tracker-mcp@latest"],
       "env": {
         "TRACKER_TOKEN": "your_tracker_token_here",
-        "TRACKER_CLOUD_ORG_ID": "your_cloud_org_id_here",
-        "TRACKER_ORG_ID": "your_org_id_here"
+        "TRACKER_CLOUD_ORG_ID": "your_cloud_org_id_here"
       }
     }
   }
@@ -169,13 +170,11 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=your_tracker_
         "run", "--rm", "-i",
         "-e", "TRACKER_TOKEN",
         "-e", "TRACKER_CLOUD_ORG_ID",
-        "-e", "TRACKER_ORG_ID",
         "ghcr.io/aikts/yandex-tracker-mcp:latest"
       ],
       "env": {
         "TRACKER_TOKEN": "your_tracker_token_here",
-        "TRACKER_CLOUD_ORG_ID": "your_cloud_org_id_here",
-        "TRACKER_ORG_ID": "your_org_id_here"
+        "TRACKER_CLOUD_ORG_ID": "your_cloud_org_id_here"
       }
     }
   }
@@ -201,8 +200,7 @@ Access via: Windsurf Settings → Cascade tab → Model Context Protocol (MCP) S
       "args": ["yandex-tracker-mcp@latest"],
       "env": {
         "TRACKER_TOKEN": "your_tracker_token_here",
-        "TRACKER_CLOUD_ORG_ID": "your_cloud_org_id_here",
-        "TRACKER_ORG_ID": "your_org_id_here"
+        "TRACKER_CLOUD_ORG_ID": "your_cloud_org_id_here"
       }
     }
   }
@@ -219,13 +217,11 @@ Access via: Windsurf Settings → Cascade tab → Model Context Protocol (MCP) S
         "run", "--rm", "-i",
         "-e", "TRACKER_TOKEN",
         "-e", "TRACKER_CLOUD_ORG_ID",
-        "-e", "TRACKER_ORG_ID",
         "ghcr.io/aikts/yandex-tracker-mcp:latest"
       ],
       "env": {
         "TRACKER_TOKEN": "your_tracker_token_here",
-        "TRACKER_CLOUD_ORG_ID": "your_cloud_org_id_here",
-        "TRACKER_ORG_ID": "your_org_id_here"
+        "TRACKER_CLOUD_ORG_ID": "your_cloud_org_id_here"
       }
     }
   }
@@ -255,8 +251,7 @@ Access via: `Cmd+,` (macOS) or `Ctrl+,` (Linux/Windows) or command palette: "zed
         "args": ["yandex-tracker-mcp@latest"],
         "env": {
           "TRACKER_TOKEN": "your_tracker_token_here",
-          "TRACKER_CLOUD_ORG_ID": "your_cloud_org_id_here",
-          "TRACKER_ORG_ID": "your_org_id_here"
+          "TRACKER_CLOUD_ORG_ID": "your_cloud_org_id_here"
         }
       }
     }
@@ -276,13 +271,11 @@ Access via: `Cmd+,` (macOS) or `Ctrl+,` (Linux/Windows) or command palette: "zed
           "run", "--rm", "-i",
           "-e", "TRACKER_TOKEN",
           "-e", "TRACKER_CLOUD_ORG_ID",
-          "-e", "TRACKER_ORG_ID",
           "ghcr.io/aikts/yandex-tracker-mcp:latest"
         ],
         "env": {
           "TRACKER_TOKEN": "your_tracker_token_here",
-          "TRACKER_CLOUD_ORG_ID": "your_cloud_org_id_here",
-          "TRACKER_ORG_ID": "your_org_id_here"
+          "TRACKER_CLOUD_ORG_ID": "your_cloud_org_id_here"
         }
       }
     }
@@ -317,11 +310,6 @@ Create `.vscode/mcp.json`:
       "type": "promptString",
       "id": "cloud-org-id",
       "description": "Yandex Cloud Organization ID"
-    },
-    {
-      "type": "promptString",
-      "id": "org-id",
-      "description": "Yandex Tracker Organization ID (optional)"
     }
   ],
   "servers": {
@@ -332,7 +320,6 @@ Create `.vscode/mcp.json`:
       "env": {
         "TRACKER_TOKEN": "${input:tracker-token}",
         "TRACKER_CLOUD_ORG_ID": "${input:cloud-org-id}",
-        "TRACKER_ORG_ID": "${input:org-id}",
         "TRANSPORT": "stdio"
       }
     }
@@ -354,11 +341,6 @@ Create `.vscode/mcp.json`:
       "type": "promptString",
       "id": "cloud-org-id",
       "description": "Yandex Cloud Organization ID"
-    },
-    {
-      "type": "promptString",
-      "id": "org-id",
-      "description": "Yandex Tracker Organization ID (optional)"
     }
   ],
   "servers": {
@@ -369,13 +351,11 @@ Create `.vscode/mcp.json`:
         "run", "--rm", "-i",
         "-e", "TRACKER_TOKEN",
         "-e", "TRACKER_CLOUD_ORG_ID",
-        "-e", "TRACKER_ORG_ID",
         "ghcr.io/aikts/yandex-tracker-mcp:latest"
       ],
       "env": {
         "TRACKER_TOKEN": "${input:tracker-token}",
         "TRACKER_CLOUD_ORG_ID": "${input:cloud-org-id}",
-        "TRACKER_ORG_ID": "${input:org-id}",
         "TRANSPORT": "stdio"
       }
     }
@@ -397,8 +377,7 @@ Add to VS Code `settings.json`:
       "args": ["yandex-tracker-mcp@latest"],
       "env": {
         "TRACKER_TOKEN": "your_tracker_token_here",
-        "TRACKER_CLOUD_ORG_ID": "your_cloud_org_id_here",
-        "TRACKER_ORG_ID": "your_org_id_here"
+        "TRACKER_CLOUD_ORG_ID": "your_cloud_org_id_here"
       }
     }
   }
@@ -416,13 +395,11 @@ Add to VS Code `settings.json`:
         "run", "--rm", "-i",
         "-e", "TRACKER_TOKEN",
         "-e", "TRACKER_CLOUD_ORG_ID",
-        "-e", "TRACKER_ORG_ID",
         "ghcr.io/aikts/yandex-tracker-mcp:latest"
       ],
       "env": {
         "TRACKER_TOKEN": "your_tracker_token_here",
-        "TRACKER_CLOUD_ORG_ID": "your_cloud_org_id_here",
-        "TRACKER_ORG_ID": "your_org_id_here"
+        "TRACKER_CLOUD_ORG_ID": "your_cloud_org_id_here"
       }
     }
   }
@@ -445,8 +422,7 @@ For other MCP-compatible clients, use the standard MCP server configuration form
       "args": ["yandex-tracker-mcp@latest"],
       "env": {
         "TRACKER_TOKEN": "your_tracker_token_here",
-        "TRACKER_CLOUD_ORG_ID": "your_cloud_org_id_here",
-        "TRACKER_ORG_ID": "your_org_id_here"
+        "TRACKER_CLOUD_ORG_ID": "your_cloud_org_id_here"
       }
     }
   }
@@ -463,13 +439,11 @@ For other MCP-compatible clients, use the standard MCP server configuration form
         "run", "--rm", "-i",
         "-e", "TRACKER_TOKEN",
         "-e", "TRACKER_CLOUD_ORG_ID",
-        "-e", "TRACKER_ORG_ID",
         "ghcr.io/aikts/yandex-tracker-mcp:latest"
       ],
       "env": {
         "TRACKER_TOKEN": "your_tracker_token_here",
-        "TRACKER_CLOUD_ORG_ID": "your_cloud_org_id_here",
-        "TRACKER_ORG_ID": "your_org_id_here"
+        "TRACKER_CLOUD_ORG_ID": "your_cloud_org_id_here"
       }
     }
   }
@@ -621,7 +595,7 @@ Not yet supported: writing metrics/key results, and bulk changes — these are t
 - **`users_search`**: Search user based on login, email or real name (first or last name, or both)
   - Parameters: `login_or_email_or_name` (string, user login, email or real name to search for)
   - Returns either single user or multiple users if several match the query or an empty list if no users matched
-  - Uses fuzzy matching for real names with a similarity threshold of 80%
+  - Uses fuzzy matching for real names with a similarity threshold of 80%, returning at most the 3 best matches
   - Prioritizes exact matches for login and email over fuzzy name matches
 
 </details>
@@ -685,7 +659,7 @@ Not yet supported: writing metrics/key results, and bulk changes — these are t
     - `template_id` (string): Template identifier, as returned by `comment_templates_get_all`
   - Use this before `issue_add_comment` so the comment follows the team's current template
 
-Both listings paginate (the API returns 50 templates per page), so by default they walk every page and return the full set; pass `page` to fetch a single page when the context window is tight.
+Both listings paginate (the API returns 50 templates per page), so by default they walk every page and return the full set; pass `page` to fetch a single page when the context window is tight. As with `queues_get_all`, `hits`/`pages` are reported only for an explicit single page on a server without `TRACKER_LIMIT_QUEUES`: a full walk already returned everything there is, and the totals count templates the allow-list then hides.
 
 Templates are read-only helpers: the Tracker API has no way to create an issue or a comment *from* a template, so `issue_create` and `issue_add_comment` take no `template_id`. Read the template first and pass its values as the tool's arguments.
 
@@ -825,11 +799,12 @@ All four tools respect `TRACKER_LIMIT_QUEUES`: templates bound to a restricted q
     - `issue_id` (string, required, format: "QUEUE-123"): The issue key
     - `resolution_id` (string, required): The resolution ID to set when closing (e.g., 'fixed', 'wontFix', 'duplicate')
     - `comment` (string, optional): Optional comment to add when closing the issue
+    - `fields` (object, optional): Dictionary of additional fields to set during the closing transition (e.g. `assignee` for reassigning). Do NOT set `resolution` here - use the dedicated `resolution_id` parameter instead
   - Automatically finds a transition to a 'done' status and executes it with the specified resolution
   - Returns list of available transitions for the new (closed) status
   - **Usage note**: Before closing, you MUST:
     1. Call `issue_get` to retrieve the issue's `type` field
-    2. Call `get_queue_metadata` with `expand: ["issueTypesConfig"]` to get available resolutions
+    2. Call `queue_get_metadata` with `expand: ["issueTypesConfig"]` to get available resolutions
     3. Choose a resolution from the `issueTypesConfig` entry matching the issue's type - each issue type has its own set of valid resolutions
 
 - **`issue_create`**: Create a new issue in a queue
@@ -895,7 +870,7 @@ All four tools respect `TRACKER_LIMIT_QUEUES`: templates bound to a restricted q
 - **`issues_find`**: Search issues using [Yandex Tracker Query Language](https://yandex.ru/support/tracker/ru/user/query-filter)
   - Parameters:
     - `query` (required): Query string using Yandex Tracker Query Language syntax
-    - `include_description` (boolean, optional, default: false): Whether to include issue description in the issues result. Can be large, so use only when needed.
+    - `include_description` (boolean, optional, default: false): Whether to include issue description in the issues result. Can be large, so use only when needed. Ignored when `description` is listed in `fields` - naming it there is an explicit request for it.
     - `fields` (list of strings, optional): Fields to return, in Tracker's own spelling (`storyPoints`, not `story_points`). Any field name is accepted, including a queue's local and the organization's custom fields - pass the field `id` from `queue_get_fields`. A name Tracker does not know is dropped silently. If not specified, returns all available fields.
     - `page` (optional): Page number for pagination (default: 1)
     - `per_page` (optional): Number of items per page (default: 100). May be decreased if results exceed context window.
@@ -1000,6 +975,14 @@ OAUTH_SERVER_URL=https://oauth.yandex.ru  # Default Yandex OAuth server
 
 # When OAuth is enabled, TRACKER_TOKEN becomes optional
 ```
+
+##### OAuth Scopes
+
+With `OAUTH_USE_SCOPES=true` (the default) the server requests, advertises and requires the Yandex
+Tracker scopes `tracker:read` and `tracker:write` - or `tracker:read` alone when
+`TRACKER_READ_ONLY=true`, so a read-only instance never asks the user for write access. Setting
+`OAUTH_USE_SCOPES=false` drops scopes from the flow entirely, which is what Yandex Cloud federation
+requires.
 
 #### Setting Up Yandex OAuth Application
 
@@ -1250,7 +1233,7 @@ TRACKER_SA_KEY_ID=your_key_id                    # Service account key ID
 TRACKER_SA_SERVICE_ACCOUNT_ID=your_sa_id        # Service account ID
 TRACKER_SA_PRIVATE_KEY=your_private_key          # Service account private key
 
-# Organization Configuration (choose one)
+# Organization Configuration (set exactly one - setting both is an error)
 TRACKER_CLOUD_ORG_ID=your_cloud_org_id    # For Yandex Cloud organizations
 TRACKER_ORG_ID=your_org_id                # For Yandex 360 organizations
 
@@ -1328,13 +1311,19 @@ themselves.
 
 ### Using Pre-built Image (Recommended)
 
+The image defaults to `TRANSPORT=stdio`, which talks over the container's stdin/stdout and
+opens no port. Set `TRANSPORT=streamable-http` for the examples below, where the server is
+reached over HTTP; for a stdio client, run the container with `-i` and no `-p` instead (see
+the [MCP Client Configuration](#mcp-client-configuration) examples).
+
 ```bash
-# Using environment file
+# Using environment file (it must set TRANSPORT=streamable-http)
 docker run --env-file .env -p 8000:8000 ghcr.io/aikts/yandex-tracker-mcp:latest
 
 # With inline environment variables
 docker run -e TRACKER_TOKEN=your_token \
            -e TRACKER_CLOUD_ORG_ID=your_org_id \
+           -e TRANSPORT=streamable-http \
            -p 8000:8000 \
            ghcr.io/aikts/yandex-tracker-mcp:latest
 ```
@@ -1349,7 +1338,6 @@ docker build -t yandex-tracker-mcp .
 
 **Using pre-built image:**
 ```yaml
-version: '3.8'
 services:
   mcp-tracker:
     image: ghcr.io/aikts/yandex-tracker-mcp:latest
@@ -1358,11 +1346,11 @@ services:
     environment:
       - TRACKER_TOKEN=${TRACKER_TOKEN}
       - TRACKER_CLOUD_ORG_ID=${TRACKER_CLOUD_ORG_ID}
+      - TRANSPORT=streamable-http
 ```
 
 **Building locally:**
 ```yaml
-version: '3.8'
 services:
   mcp-tracker:
     build: .
@@ -1371,6 +1359,7 @@ services:
     environment:
       - TRACKER_TOKEN=${TRACKER_TOKEN}
       - TRACKER_CLOUD_ORG_ID=${TRACKER_CLOUD_ORG_ID}
+      - TRANSPORT=streamable-http
 ```
 
 ### Development Setup
