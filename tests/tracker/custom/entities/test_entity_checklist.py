@@ -288,12 +288,11 @@ class TestEntityUpdateChecklist:
         entity_id: str,
         model: type[ProjectEntity] | type[PortfolioEntity],
     ) -> None:
-        """Tracker returns a real user's assignee `id` as a number (verified
+        """Tracker returns a real user's assignee `id` as a number and also
 
-        against the live API), not the string this server's request models
-        expect - resending it verbatim used to fail local pydantic validation
-        for `EntityChecklistItemUpdateInput.assignee: str | None` before the
-        current item is converted to `str(...)`.
+        accepts a number back on write (verified against the live API), so
+        `EntityChecklistItemUpdateInput.assignee: str | int | None` resends
+        it unconverted.
         """
         current_items = [
             {"id": "item1", "text": "Do the thing", "checked": False},
@@ -333,7 +332,7 @@ class TestEntityUpdateChecklist:
 
         body = patch_capture.last_request.get_json_body()
         assert isinstance(body, list)
-        assert body[1]["assignee"] == "8000000000000036"
+        assert body[1]["assignee"] == 8000000000000036
 
     @pytest.mark.parametrize("entity_type,entity_id,model", ENTITY_TYPES)
     async def test_override_only_changes_fields_the_caller_set(
