@@ -83,6 +83,66 @@ class TestIssueGetAttachments:
             assert exc_info.value.issue_id == "NOTFOUND-123"
 
 
+class TestIssueGetAttachment:
+    async def test_success(self, tracker_client: TrackerClient) -> None:
+        attachment_data = {
+            "self": "https://api.tracker.yandex.net/v3/issues/TEST-123/attachments/9504",
+            "id": "9504",
+            "name": "image.png",
+            "content": "https://api.tracker.yandex.net/v3/issues/TEST-123/attachments/9504/image.png",
+            "createdBy": {
+                "self": "https://api.tracker.yandex.net/v3/users/1234567890",
+                "id": "user123",
+                "display": "Test User",
+            },
+            "createdAt": "2023-01-01T12:00:00.000+0000",
+            "mimetype": "image/png",
+            "size": 1024,
+        }
+
+        with aioresponses() as m:
+            m.get(
+                "https://api.tracker.yandex.net/v3/issues/TEST-123/attachments/9504",
+                payload=attachment_data,
+            )
+
+            result = await tracker_client.issue_get_attachment("TEST-123", "9504")
+
+            assert isinstance(result, IssueAttachment)
+            assert result.id == "9504"
+            assert result.name == "image.png"
+            assert result.mimetype == "image/png"
+
+    async def test_not_found(self, tracker_client: TrackerClient) -> None:
+        with aioresponses() as m:
+            m.get(
+                "https://api.tracker.yandex.net/v3/issues/TEST-123/attachments/missing",
+                status=404,
+            )
+
+            with pytest.raises(AttachmentNotFound) as exc_info:
+                await tracker_client.issue_get_attachment("TEST-123", "missing")
+
+            assert exc_info.value.issue_id == "TEST-123"
+            assert exc_info.value.attachment_id == "missing"
+
+    @pytest.mark.parametrize(
+        ("issue_id", "attachment_id"),
+        [
+            ("TEST-123/evil", "9504"),
+            ("TEST-123", "9504/../evil"),
+        ],
+    )
+    async def test_rejects_unsafe_identifiers(
+        self,
+        tracker_client: TrackerClient,
+        issue_id: str,
+        attachment_id: str,
+    ) -> None:
+        with pytest.raises(ValueError, match="unsafe characters"):
+            await tracker_client.issue_get_attachment(issue_id, attachment_id)
+
+
 class TestIssueDownloadAttachment:
     async def test_success_streams_chunks(
         self, tracker_client: TrackerClient, tmp_path: Path

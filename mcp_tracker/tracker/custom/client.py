@@ -30,7 +30,10 @@ from mcp_tracker.tracker.custom.errors import (
     QueueNotFound,
     TrackerAPIError,
 )
-from mcp_tracker.tracker.custom.safe_identifiers import build_attachment_download_path
+from mcp_tracker.tracker.custom.safe_identifiers import (
+    build_attachment_download_path,
+    build_attachment_path,
+)
 from mcp_tracker.tracker.proto.common import YandexAuth
 from mcp_tracker.tracker.proto.entities import EntitiesProtocol
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
@@ -939,6 +942,22 @@ class TrackerClient(
                 raise IssueNotFound(issue_id)
             await self._raise_for_status(response)
             return IssueAttachmentList.model_validate_json(await response.read()).root
+
+    async def issue_get_attachment(
+        self,
+        issue_id: str,
+        attachment_id: str,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> IssueAttachment:
+        url = build_attachment_path(issue_id, attachment_id)
+        async with self._session.get(
+            url, headers=await self._build_headers(auth)
+        ) as response:
+            if response.status == 404:
+                raise AttachmentNotFound(issue_id, attachment_id, "")
+            await self._raise_for_status(response)
+            return IssueAttachment.model_validate_json(await response.read())
 
     async def issue_download_attachment(
         self,

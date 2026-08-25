@@ -10,10 +10,14 @@ def validate_safe_identifier(value: str, *, field_name: str) -> None:
         raise ValueError(f"{field_name} contains unsafe characters")
 
 
+def build_attachment_path(issue_id: str, attachment_id: str) -> str:
+    validate_safe_identifier(issue_id, field_name="issue_id")
+    validate_safe_identifier(attachment_id, field_name="attachment_id")
+    return f"v3/issues/{issue_id}/attachments/{attachment_id}"
+
+
 def build_attachment_download_path(
     issue_id: str, attachment_id: str, file_name: str
 ) -> str:
-    validate_safe_identifier(issue_id, field_name="issue_id")
-    validate_safe_identifier(attachment_id, field_name="attachment_id")
     safe_name = quote(Path(file_name).name, safe="")
-    return f"v3/issues/{issue_id}/attachments/{attachment_id}/{safe_name}"
+    return f"{build_attachment_path(issue_id, attachment_id)}/{safe_name}"

@@ -26,7 +26,6 @@ from mcp_tracker.mcp.params import (
 from mcp_tracker.mcp.tools._access import check_issue_access, check_queue_access
 from mcp_tracker.mcp.utils import get_yandex_auth, resolve_issue_attachment_local_path
 from mcp_tracker.settings import Settings
-from mcp_tracker.tracker.custom.errors import AttachmentNotFound
 from mcp_tracker.tracker.proto.types.inputs import (
     IssuePriorityRef,
     IssueTypeRef,
@@ -754,15 +753,13 @@ def register_issue_attachment_download_tool(
         check_issue_access(settings, issue_id)
 
         auth = get_yandex_auth(ctx)
-        attachments = (
-            await ctx.request_context.lifespan_context.issues.issue_get_attachments(
+        attachment = (
+            await ctx.request_context.lifespan_context.issues.issue_get_attachment(
                 issue_id,
+                attachment_id,
                 auth=auth,
             )
         )
-        attachment = next((a for a in attachments if a.id == attachment_id), None)
-        if attachment is None:
-            raise AttachmentNotFound(issue_id, attachment_id, "")
 
         safe_file_name = Path(attachment.name).name
         local_path = resolve_issue_attachment_local_path(

@@ -1187,7 +1187,7 @@ class TestIssueDownloadAttachment:
             name="image.png",
             mimetype="image/png",
         )
-        mock_issues_protocol.issue_get_attachments.return_value = [attachment]
+        mock_issues_protocol.issue_get_attachment.return_value = attachment
 
         async def _fake_download(
             issue_id: str,
@@ -1220,7 +1220,7 @@ class TestIssueDownloadAttachment:
             )
 
         assert not result.isError
-        mock_issues_protocol.issue_get_attachments.assert_called_once()
+        mock_issues_protocol.issue_get_attachment.assert_called_once()
         mock_issues_protocol.issue_download_attachment.assert_called_once()
         call_args = mock_issues_protocol.issue_download_attachment.call_args
         assert call_args.args[:3] == ("TEST-123", "7698", "image.png")
@@ -1251,7 +1251,7 @@ class TestIssueDownloadAttachment:
             name="archive.tar.gz",
             mimetype="application/gzip",
         )
-        mock_issues_protocol.issue_get_attachments.return_value = [attachment]
+        mock_issues_protocol.issue_get_attachment.return_value = attachment
         mock_issues_protocol.issue_download_attachment.return_value = 3
 
         settings = create_test_settings(
@@ -1289,7 +1289,7 @@ class TestIssueDownloadAttachment:
             name="image.png",
             mimetype="application/pdf",
         )
-        mock_issues_protocol.issue_get_attachments.return_value = [attachment]
+        mock_issues_protocol.issue_get_attachment.return_value = attachment
         mock_issues_protocol.issue_download_attachment.return_value = 4
 
         settings = create_test_settings(
@@ -1325,7 +1325,7 @@ class TestIssueDownloadAttachment:
             name="export",
             mimetype="text/csv",
         )
-        mock_issues_protocol.issue_get_attachments.return_value = [attachment]
+        mock_issues_protocol.issue_get_attachment.return_value = attachment
         mock_issues_protocol.issue_download_attachment.return_value = 4
 
         settings = create_test_settings(
@@ -1378,7 +1378,7 @@ class TestIssueDownloadAttachment:
             )
 
         assert result.isError
-        mock_issues_protocol.issue_get_attachments.assert_not_called()
+        mock_issues_protocol.issue_get_attachment.assert_not_called()
         mock_issues_protocol.issue_download_attachment.assert_not_called()
 
     async def test_protocol_not_found_error_propagates(
@@ -1387,13 +1387,13 @@ class TestIssueDownloadAttachment:
         mock_issues_protocol: AsyncMock,
         tmp_path: Path,
     ) -> None:
-        mock_issues_protocol.issue_get_attachments.return_value = [
+        mock_issues_protocol.issue_get_attachment.return_value = (
             IssueAttachment.model_construct(
                 id="7698",
                 name="image.png",
                 mimetype="image/png",
             )
-        ]
+        )
         mock_issues_protocol.issue_download_attachment.side_effect = AttachmentNotFound(
             "TEST-123",
             "7698",
@@ -1426,7 +1426,11 @@ class TestIssueDownloadAttachment:
         mock_issues_protocol: AsyncMock,
         tmp_path: Path,
     ) -> None:
-        mock_issues_protocol.issue_get_attachments.return_value = []
+        mock_issues_protocol.issue_get_attachment.side_effect = AttachmentNotFound(
+            "TEST-123",
+            "missing",
+            "",
+        )
         settings = create_test_settings(
             tracker_attachments_dir=str(tmp_path),
             attachment_download_enabled=True,
@@ -1459,7 +1463,7 @@ class TestIssueDownloadAttachment:
             name="image.png",
             mimetype=None,
         )
-        mock_issues_protocol.issue_get_attachments.return_value = [attachment]
+        mock_issues_protocol.issue_get_attachment.return_value = attachment
         mock_issues_protocol.issue_download_attachment.return_value = 4
 
         settings = create_test_settings(
@@ -1490,19 +1494,28 @@ class TestIssueDownloadAttachment:
         mock_issues_protocol: AsyncMock,
         tmp_path: Path,
     ) -> None:
-        attachments = [
-            IssueAttachment.model_construct(
+        attachments_by_id = {
+            "100": IssueAttachment.model_construct(
                 id="100",
                 name="first.pdf",
                 mimetype="application/pdf",
             ),
-            IssueAttachment.model_construct(
+            "200": IssueAttachment.model_construct(
                 id="200",
                 name="second.png",
                 mimetype="image/png",
             ),
-        ]
-        mock_issues_protocol.issue_get_attachments.return_value = attachments
+        }
+
+        async def _fake_get_attachment(
+            issue_id: str,
+            attachment_id: str,
+            *,
+            auth: object | None = None,
+        ) -> IssueAttachment:
+            return attachments_by_id[attachment_id]
+
+        mock_issues_protocol.issue_get_attachment.side_effect = _fake_get_attachment
 
         async def _fake_download(
             issue_id: str,

@@ -158,6 +158,16 @@ class TestCachingIssuesProtocol:
         mock_original.issue_get_attachments.assert_called_once_with("TEST-1", auth=None)
         assert result == mock_original.issue_get_attachments.return_value
 
+    async def test_issue_get_attachment_calls_original(
+        self, caching_issues_protocol: Any, mock_original: AsyncMock
+    ) -> None:
+        result = await caching_issues_protocol.issue_get_attachment("TEST-1", "9504")
+
+        mock_original.issue_get_attachment.assert_called_once_with(
+            "TEST-1", "9504", auth=None
+        )
+        assert result == mock_original.issue_get_attachment.return_value
+
     async def test_issue_download_attachment_calls_original(
         self, caching_issues_protocol: Any, mock_original: AsyncMock, tmp_path: Path
     ) -> None:
