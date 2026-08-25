@@ -1,10 +1,17 @@
+import uuid
+from datetime import date
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
 from pydantic import BaseModel
 from pytest_mock import MockerFixture
 
-from mcp_tracker.mcp.utils import get_yandex_auth, set_non_needed_fields_null
+from mcp_tracker.mcp.utils import (
+    get_yandex_auth,
+    resolve_issue_attachment_local_path,
+    set_non_needed_fields_null,
+)
 from mcp_tracker.tracker.proto.common import YandexAuth
 
 
@@ -349,3 +356,116 @@ class TestSetNonNeededFieldsNull:
         assert item.name == "test"
         assert item.value is None
         assert item.description is None
+
+
+_FIXED_UUID = uuid.UUID("12345678-1234-5678-1234-567812345678")
+_FIXED_HEX = _FIXED_UUID.hex
+
+
+class TestResolveIssueAttachmentLocalPath:
+    def test_resolves_path_under_date_dir(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        base_dir = tmp_path / "sandbox"
+        monkeypatch.setattr("mcp_tracker.mcp.utils.uuid.uuid4", lambda: _FIXED_UUID)
+
+        local_path = resolve_issue_attachment_local_path(
+            original_name="image.png",
+            attachments_base_dir=base_dir,
+        )
+
+        day_dir = base_dir.resolve() / date.today().isoformat()
+        assert local_path == day_dir / f"{_FIXED_HEX}.png"
+        assert day_dir.is_dir()
+        assert not local_path.exists()
+
+    def test_rejects_existing_local_path(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        base_dir = tmp_path / "sandbox"
+        day_dir = base_dir / date.today().isoformat()
+        day_dir.mkdir(parents=True)
+        existing = day_dir / f"{_FIXED_HEX}.png"
+        existing.write_bytes(b"old")
+        monkeypatch.setattr("mcp_tracker.mcp.utils.uuid.uuid4", lambda: _FIXED_UUID)
+
+        with pytest.raises(ValueError, match="Attachment file already exists"):
+            resolve_issue_attachment_local_path(
+                original_name="image.png",
+                attachments_base_dir=base_dir,
+            )
+
+    def test_rejects_date_directory_that_is_file(self, tmp_path: Path) -> None:
+        base_dir = tmp_path / "sandbox"
+        base_dir.mkdir(parents=True)
+        day_path = base_dir / date.today().isoformat()
+        day_path.write_bytes(b"blocker")
+
+        with pytest.raises(ValueError, match="save path is a file"):
+            resolve_issue_attachment_local_path(
+                original_name="file.txt",
+                attachments_base_dir=base_dir,
+            )
+
+    def test_uses_basename_only_for_suffix(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        base_dir = tmp_path / "sandbox"
+        monkeypatch.setattr("mcp_tracker.mcp.utils.uuid.uuid4", lambda: _FIXED_UUID)
+
+        local_path = resolve_issue_attachment_local_path(
+            original_name="../../etc/passwd",
+            attachments_base_dir=base_dir,
+        )
+
+        assert local_path.name == _FIXED_HEX
+        assert local_path.parent == base_dir.resolve() / date.today().isoformat()
+        assert not local_path.exists()
+
+    @pytest.mark.parametrize(
+        ("original_name", "expected_suffix"),
+        [
+            ("report.pdf", ".pdf"),
+            ("archive.tar.gz", ".gz"),
+            ("noextension", ""),
+        ],
+    )
+    def test_preserves_file_suffix(
+        self,
+        tmp_path: Path,
+        original_name: str,
+        expected_suffix: str,
+    ) -> None:
+        base_dir = tmp_path / "sandbox"
+        local_path = resolve_issue_attachment_local_path(
+            original_name=original_name,
+            attachments_base_dir=base_dir,
+        )
+
+        assert local_path.suffix == expected_suffix
+        assert local_path.is_relative_to(base_dir.resolve())
+        assert local_path.parent.name == date.today().isoformat()
+
+    def test_wraps_oserror_from_mkdir(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        base_dir = tmp_path / "sandbox"
+
+        def _raise_oserror(self: Path, *args: object, **kwargs: object) -> None:
+            raise OSError(13, "Permission denied")
+
+        monkeypatch.setattr(Path, "mkdir", _raise_oserror)
+
+        with pytest.raises(ValueError, match="Failed to create save directory"):
+            resolve_issue_attachment_local_path(
+                original_name="file.txt",
+                attachments_base_dir=base_dir,
+            )

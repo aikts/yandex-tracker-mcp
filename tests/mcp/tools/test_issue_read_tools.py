@@ -18,7 +18,10 @@ from mcp_tracker.tracker.proto.types.issues import (
     IssueTransition,
     Worklog,
 )
-from tests.mcp.conftest import get_tool_result_content, page
+from tests.mcp.conftest import (
+    get_tool_result_content,
+    page,
+)
 
 
 class TestIssueGetUrl:

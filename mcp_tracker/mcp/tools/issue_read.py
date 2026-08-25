@@ -18,7 +18,10 @@ from mcp_tracker.mcp.params import (
     YTQuery,
 )
 from mcp_tracker.mcp.tools._access import check_issue_access
-from mcp_tracker.mcp.utils import get_yandex_auth, set_non_needed_fields_null
+from mcp_tracker.mcp.utils import (
+    get_yandex_auth,
+    set_non_needed_fields_null,
+)
 from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.proto.types.issues import (
     AttachmentFieldsEnum,

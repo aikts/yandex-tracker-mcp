@@ -1,4 +1,7 @@
+import uuid
 from collections.abc import Iterable
+from datetime import date
+from pathlib import Path
 from typing import Any, TypeVar, get_args
 
 from mcp.server.auth.middleware.auth_context import get_access_token
@@ -71,3 +74,39 @@ def set_non_needed_fields_null(data: Iterable[T], needed_fields: set[str]) -> No
             ):
                 continue
             setattr(item, field, None)
+
+
+def _mkdir_attachment_directory(directory: Path) -> None:
+    if directory.is_file():
+        msg = f"save path is a file, expected directory: {directory}"
+        raise ValueError(msg)
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        msg = f"Failed to create save directory {directory}: {e}"
+        raise ValueError(msg) from e
+
+
+def resolve_issue_attachment_local_path(
+    *,
+    original_name: str,
+    attachments_base_dir: str | Path,
+) -> Path:
+    """Resolve a sandbox-local path for a downloaded attachment.
+
+    Layout: ``{base}/{YYYY-MM-DD}/{random}{suffix}``. Suffix comes from the
+    original Tracker name; the on-disk basename is a random hex id so the
+    caller cannot pick a path. If that path already exists, raises
+    ``ValueError`` (no silent overwrite). Bytes are written later by
+    ``TrackerClient.issue_download_attachment``.
+    """
+    base_dir = Path(attachments_base_dir).resolve()
+    directory = base_dir / date.today().isoformat()
+    _mkdir_attachment_directory(directory)
+
+    suffix = Path(Path(original_name).name).suffix
+    local_path = directory / f"{uuid.uuid4().hex}{suffix}"
+    if local_path.exists():
+        msg = f"Attachment file already exists: {local_path}"
+        raise ValueError(msg)
+    return local_path

@@ -1,5 +1,7 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import date
+from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -9,18 +11,27 @@ from mcp.server import FastMCP
 from mcp.shared.context import RequestContext
 from mcp.types import ElicitRequestParams, ElicitResult
 
+from mcp_tracker.mcp.context import AppContext
+from mcp_tracker.mcp.server import create_mcp_server
+from mcp_tracker.tracker.custom.errors import AttachmentNotFound
 from mcp_tracker.tracker.proto.types.inputs import (
     IssueComponentRef,
     IssueFollowerRef,
 )
 from mcp_tracker.tracker.proto.types.issues import (
     Issue,
+    IssueAttachment,
     IssueComment,
     IssueLink,
     IssueTransition,
     Worklog,
 )
-from tests.mcp.conftest import get_tool_result_content, safe_client_session
+from tests.mcp.conftest import (
+    create_test_settings,
+    get_tool_result_content,
+    make_test_lifespan,
+    safe_client_session,
+)
 
 
 def _elicitation_callback(result: ElicitResult):
@@ -1150,3 +1161,403 @@ class TestCreateUpdateSymmetry:
 
         assert not result.isError
         assert mock_issues_protocol.issue_update.call_args.kwargs[field] == value
+
+
+def _assert_dated_random_path(
+    content: dict[str, Any], tmp_path: Path, suffix: str
+) -> Path:
+    name = str(content["name"])
+    day = date.today().isoformat()
+    assert content["local_path"] == f"{day}/{name}"
+    assert Path(name).suffix == suffix
+    assert len(Path(name).stem) == 32
+    return tmp_path.resolve() / str(content["local_path"])
+
+
+class TestIssueDownloadAttachment:
+    async def test_saves_file_and_returns_metadata(
+        self,
+        mock_app_context: AppContext,
+        mock_issues_protocol: AsyncMock,
+        tmp_path: Path,
+    ) -> None:
+        file_content = b"hello attachment"
+        attachment = IssueAttachment.model_construct(
+            id="7698",
+            name="image.png",
+            mimetype="image/png",
+        )
+        mock_issues_protocol.issue_get_attachment.return_value = attachment
+
+        async def _fake_download(
+            issue_id: str,
+            attachment_id: str,
+            file_name: str,
+            destination: Path,
+            *,
+            auth: object | None = None,
+        ) -> int:
+            destination.write_bytes(file_content)
+            return len(file_content)
+
+        mock_issues_protocol.issue_download_attachment.side_effect = _fake_download
+        settings = create_test_settings(
+            tracker_attachments_dir=str(tmp_path),
+            attachment_download_enabled=True,
+        )
+        mcp_server = create_mcp_server(
+            settings=settings,
+            lifespan=make_test_lifespan(mock_app_context),
+        )
+
+        async with safe_client_session(mcp_server) as client_session:
+            result = await client_session.call_tool(
+                "issue_download_attachment",
+                {
+                    "issue_id": "TEST-123",
+                    "attachment_id": "7698",
+                },
+            )
+
+        assert not result.isError
+        mock_issues_protocol.issue_get_attachment.assert_called_once()
+        mock_issues_protocol.issue_download_attachment.assert_called_once()
+        call_args = mock_issues_protocol.issue_download_attachment.call_args
+        assert call_args.args[:3] == ("TEST-123", "7698", "image.png")
+        destination = call_args.args[3]
+        assert "auth" in call_args.kwargs
+        content = get_tool_result_content(result)
+        saved_path = _assert_dated_random_path(content, tmp_path, ".png")
+        assert destination == saved_path
+        assert content == {
+            "issue_id": "TEST-123",
+            "attachment_id": "7698",
+            "local_path": content["local_path"],
+            "name": content["name"],
+            "original_name": "image.png",
+            "mime_type": "image/png",
+            "size": len(file_content),
+        }
+        assert saved_path.read_bytes() == file_content
+
+    async def test_disk_name_matches_local_path_and_multi_suffix(
+        self,
+        mock_app_context: AppContext,
+        mock_issues_protocol: AsyncMock,
+        tmp_path: Path,
+    ) -> None:
+        attachment = IssueAttachment.model_construct(
+            id="42",
+            name="archive.tar.gz",
+            mimetype="application/gzip",
+        )
+        mock_issues_protocol.issue_get_attachment.return_value = attachment
+        mock_issues_protocol.issue_download_attachment.return_value = 3
+
+        settings = create_test_settings(
+            tracker_attachments_dir=str(tmp_path),
+            attachment_download_enabled=True,
+        )
+        mcp_server = create_mcp_server(
+            settings=settings,
+            lifespan=make_test_lifespan(mock_app_context),
+        )
+
+        async with safe_client_session(mcp_server) as client_session:
+            result = await client_session.call_tool(
+                "issue_download_attachment",
+                {
+                    "issue_id": "TEST-1",
+                    "attachment_id": "42",
+                },
+            )
+
+        assert not result.isError
+        content = get_tool_result_content(result)
+        _assert_dated_random_path(content, tmp_path, ".gz")
+        assert content["original_name"] == "archive.tar.gz"
+        assert content["name"] == Path(content["local_path"]).name
+
+    async def test_api_mime_type_overrides_extension(
+        self,
+        mock_app_context: AppContext,
+        mock_issues_protocol: AsyncMock,
+        tmp_path: Path,
+    ) -> None:
+        attachment = IssueAttachment.model_construct(
+            id="7698",
+            name="image.png",
+            mimetype="application/pdf",
+        )
+        mock_issues_protocol.issue_get_attachment.return_value = attachment
+        mock_issues_protocol.issue_download_attachment.return_value = 4
+
+        settings = create_test_settings(
+            tracker_attachments_dir=str(tmp_path),
+            attachment_download_enabled=True,
+        )
+        mcp_server = create_mcp_server(
+            settings=settings,
+            lifespan=make_test_lifespan(mock_app_context),
+        )
+
+        async with safe_client_session(mcp_server) as client_session:
+            result = await client_session.call_tool(
+                "issue_download_attachment",
+                {
+                    "issue_id": "TEST-123",
+                    "attachment_id": "7698",
+                },
+            )
+
+        assert not result.isError
+        content = get_tool_result_content(result)
+        assert content["mime_type"] == "application/pdf"
+
+    async def test_extensionless_uses_api_mime_type(
+        self,
+        mock_app_context: AppContext,
+        mock_issues_protocol: AsyncMock,
+        tmp_path: Path,
+    ) -> None:
+        attachment = IssueAttachment.model_construct(
+            id="7698",
+            name="export",
+            mimetype="text/csv",
+        )
+        mock_issues_protocol.issue_get_attachment.return_value = attachment
+        mock_issues_protocol.issue_download_attachment.return_value = 4
+
+        settings = create_test_settings(
+            tracker_attachments_dir=str(tmp_path),
+            attachment_download_enabled=True,
+        )
+        mcp_server = create_mcp_server(
+            settings=settings,
+            lifespan=make_test_lifespan(mock_app_context),
+        )
+
+        async with safe_client_session(mcp_server) as client_session:
+            result = await client_session.call_tool(
+                "issue_download_attachment",
+                {
+                    "issue_id": "TEST-123",
+                    "attachment_id": "7698",
+                },
+            )
+
+        assert not result.isError
+        content = get_tool_result_content(result)
+        _assert_dated_random_path(content, tmp_path, "")
+        assert content["mime_type"] == "text/csv"
+        assert content["original_name"] == "export"
+
+    async def test_restricted_queue_raises_error(
+        self,
+        mock_app_context: AppContext,
+        mock_issues_protocol: AsyncMock,
+        tmp_path: Path,
+    ) -> None:
+        settings = create_test_settings(
+            limit_queues=["ALLOWED", "PERMITTED"],
+            tracker_attachments_dir=str(tmp_path),
+            attachment_download_enabled=True,
+        )
+        mcp_server = create_mcp_server(
+            settings=settings,
+            lifespan=make_test_lifespan(mock_app_context),
+        )
+
+        async with safe_client_session(mcp_server) as client_session:
+            result = await client_session.call_tool(
+                "issue_download_attachment",
+                {
+                    "issue_id": "RESTRICTED-123",
+                    "attachment_id": "7698",
+                },
+            )
+
+        assert result.isError
+        mock_issues_protocol.issue_get_attachment.assert_not_called()
+        mock_issues_protocol.issue_download_attachment.assert_not_called()
+
+    async def test_protocol_not_found_error_propagates(
+        self,
+        mock_app_context: AppContext,
+        mock_issues_protocol: AsyncMock,
+        tmp_path: Path,
+    ) -> None:
+        mock_issues_protocol.issue_get_attachment.return_value = (
+            IssueAttachment.model_construct(
+                id="7698",
+                name="image.png",
+                mimetype="image/png",
+            )
+        )
+        mock_issues_protocol.issue_download_attachment.side_effect = AttachmentNotFound(
+            "TEST-123",
+            "7698",
+            "image.png",
+        )
+
+        settings = create_test_settings(
+            tracker_attachments_dir=str(tmp_path),
+            attachment_download_enabled=True,
+        )
+        mcp_server = create_mcp_server(
+            settings=settings,
+            lifespan=make_test_lifespan(mock_app_context),
+        )
+
+        async with safe_client_session(mcp_server) as client_session:
+            result = await client_session.call_tool(
+                "issue_download_attachment",
+                {
+                    "issue_id": "TEST-123",
+                    "attachment_id": "7698",
+                },
+            )
+
+        assert result.isError
+
+    async def test_unknown_attachment_id_raises_error(
+        self,
+        mock_app_context: AppContext,
+        mock_issues_protocol: AsyncMock,
+        tmp_path: Path,
+    ) -> None:
+        mock_issues_protocol.issue_get_attachment.side_effect = AttachmentNotFound(
+            "TEST-123",
+            "missing",
+            "",
+        )
+        settings = create_test_settings(
+            tracker_attachments_dir=str(tmp_path),
+            attachment_download_enabled=True,
+        )
+        mcp_server = create_mcp_server(
+            settings=settings,
+            lifespan=make_test_lifespan(mock_app_context),
+        )
+
+        async with safe_client_session(mcp_server) as client_session:
+            result = await client_session.call_tool(
+                "issue_download_attachment",
+                {
+                    "issue_id": "TEST-123",
+                    "attachment_id": "missing",
+                },
+            )
+
+        assert result.isError
+        mock_issues_protocol.issue_download_attachment.assert_not_called()
+
+    async def test_missing_mime_type_returns_none(
+        self,
+        mock_app_context: AppContext,
+        mock_issues_protocol: AsyncMock,
+        tmp_path: Path,
+    ) -> None:
+        attachment = IssueAttachment.model_construct(
+            id="7698",
+            name="image.png",
+            mimetype=None,
+        )
+        mock_issues_protocol.issue_get_attachment.return_value = attachment
+        mock_issues_protocol.issue_download_attachment.return_value = 4
+
+        settings = create_test_settings(
+            tracker_attachments_dir=str(tmp_path),
+            attachment_download_enabled=True,
+        )
+        mcp_server = create_mcp_server(
+            settings=settings,
+            lifespan=make_test_lifespan(mock_app_context),
+        )
+
+        async with safe_client_session(mcp_server) as client_session:
+            result = await client_session.call_tool(
+                "issue_download_attachment",
+                {
+                    "issue_id": "TEST-123",
+                    "attachment_id": "7698",
+                },
+            )
+
+        assert not result.isError
+        content = get_tool_result_content(result)
+        assert content["mime_type"] is None
+
+    async def test_multiple_attachments_correlate_by_ids_without_path_parsing(
+        self,
+        mock_app_context: AppContext,
+        mock_issues_protocol: AsyncMock,
+        tmp_path: Path,
+    ) -> None:
+        attachments_by_id = {
+            "100": IssueAttachment.model_construct(
+                id="100",
+                name="first.pdf",
+                mimetype="application/pdf",
+            ),
+            "200": IssueAttachment.model_construct(
+                id="200",
+                name="second.png",
+                mimetype="image/png",
+            ),
+        }
+
+        async def _fake_get_attachment(
+            issue_id: str,
+            attachment_id: str,
+            *,
+            auth: object | None = None,
+        ) -> IssueAttachment:
+            return attachments_by_id[attachment_id]
+
+        mock_issues_protocol.issue_get_attachment.side_effect = _fake_get_attachment
+
+        async def _fake_download(
+            issue_id: str,
+            attachment_id: str,
+            file_name: str,
+            destination: Path,
+            *,
+            auth: object | None = None,
+        ) -> int:
+            destination.write_bytes(f"{attachment_id}:{file_name}".encode())
+            return destination.stat().st_size
+
+        mock_issues_protocol.issue_download_attachment.side_effect = _fake_download
+        settings = create_test_settings(
+            tracker_attachments_dir=str(tmp_path),
+            attachment_download_enabled=True,
+        )
+        mcp_server = create_mcp_server(
+            settings=settings,
+            lifespan=make_test_lifespan(mock_app_context),
+        )
+
+        requests = [
+            {"issue_id": "TEST-1", "attachment_id": "100"},
+            {"issue_id": "TEST-1", "attachment_id": "200"},
+        ]
+
+        async with safe_client_session(mcp_server) as client_session:
+            results = [
+                await client_session.call_tool("issue_download_attachment", request)
+                for request in requests
+            ]
+
+        assert all(not result.isError for result in results)
+        downloaded = [get_tool_result_content(result) for result in results]
+
+        for request, content in zip(requests, downloaded, strict=True):
+            assert content["issue_id"] == request["issue_id"]
+            assert content["attachment_id"] == request["attachment_id"]
+
+        assert {item["attachment_id"] for item in downloaded} == {"100", "200"}
+        assert {item["original_name"] for item in downloaded} == {
+            "first.pdf",
+            "second.png",
+        }

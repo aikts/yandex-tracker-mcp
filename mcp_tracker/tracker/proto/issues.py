@@ -1,5 +1,6 @@
 import datetime
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 from .common import YandexAuth
@@ -128,6 +129,22 @@ class IssueProtocol(Protocol):
     async def issue_get_attachments(
         self, issue_id: str, *, auth: YandexAuth | None = None
     ) -> list[IssueAttachment]: ...
+    async def issue_get_attachment(
+        self,
+        issue_id: str,
+        attachment_id: str,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> IssueAttachment: ...
+    async def issue_download_attachment(
+        self,
+        issue_id: str,
+        attachment_id: str,
+        file_name: str,
+        destination: Path,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> int: ...
     async def issues_count(
         self, query: str, *, auth: YandexAuth | None = None
     ) -> int: ...

@@ -764,6 +764,12 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
     - `fields` (массив строк, опционально): Поля для включения по каждому вложению (поле `content` может быть большим). Если не указано - возвращаются все доступные поля
   - Возвращает список вложений с метаданными для указанной задачи
 
+- **`issue_download_attachment`**: Скачать содержимое файла вложения задачи (требует `TRACKER_ATTACHMENT_DOWNLOAD_ENABLED=true`)
+  - Параметры:
+    - `issue_id` (строка, формат: "QUEUE-123")
+    - `attachment_id` (строка): ID вложения из `issue_get_attachments`
+  - Сохраняется в `TRACKER_ATTACHMENTS_DIR/{YYYY-MM-DD}/{random}{suffix}` (suffix из оригинального имени в Трекере; файлы без расширения — без suffix; составные расширения берут только последний сегмент, например `archive.tar.gz` → `.gz`). Возвращает: `issue_id`, `attachment_id`, `local_path`, `name`, `original_name`, `mime_type`, `size`
+
 - **`issue_get_checklist`**: Получить элементы чек-листа задачи
   - Параметры: `issue_id` (строка, формат: "QUEUE-123")
   - Возвращает список элементов чек-листа, включая текст, статус, исполнителя и информацию о сроках
@@ -1242,6 +1248,11 @@ TRACKER_API_TIMEOUT=10                    # По умолчанию: 10 - Тай
 TRACKER_LIMIT_QUEUES=PROJ1,PROJ2,DEV      # Ключи очередей через запятую - список разрешённых очередей
 TRACKER_READ_ONLY_QUEUES=PROJ2            # Ключи очередей через запятую - доступны для чтения, но запись отклоняется (режим только для чтения по очередям)
 TRACKER_ENTITIES_ENABLED=true             # По умолчанию: false - регистрировать инструменты проектов/портфелей/целей (НЕ подчиняются ограничениям по очередям выше)
+
+# Скачивание вложений (опционально, по умолчанию выключено)
+TRACKER_ATTACHMENT_DOWNLOAD_ENABLED=true  # По умолчанию: false - Включить tool issue_download_attachment
+TRACKER_ATTACHMENTS_DIR=tmp/tracker-attachments  # По умолчанию: tmp/tracker-attachments - Песочница для сохранённых файлов
+TRACKER_MAX_ATTACHMENT_BYTES=52428800  # По умолчанию: 52428800 (50 MiB) - Максимальный размер скачиваемого вложения
 
 # Конфигурация сервера
 HOST=0.0.0.0                              # По умолчанию: 0.0.0.0

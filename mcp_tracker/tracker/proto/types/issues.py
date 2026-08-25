@@ -193,6 +193,25 @@ AttachmentFieldsEnum = Enum(  # type: ignore[misc]
 )
 
 
+class DownloadedIssueAttachment(BaseModel):
+    issue_id: str = Field(description="Issue key the attachment belongs to.")
+    attachment_id: str = Field(description="Attachment id from Yandex Tracker.")
+    local_path: str = Field(
+        description="Relative path of the saved file.",
+    )
+    name: str = Field(
+        description=(
+            "Saved file name (Path(local_path).name). "
+            "Format: {random}{suffix} under TRACKER_ATTACHMENTS_DIR/{YYYY-MM-DD}/."
+        ),
+    )
+    original_name: str = Field(
+        description="Original attachment basename from Yandex Tracker.",
+    )
+    mime_type: str | None
+    size: int
+
+
 class ChecklistItemDeadline(BaseModel):
     date: datetime.datetime
     deadline_type: str = Field(

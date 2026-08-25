@@ -767,6 +767,12 @@ All four tools respect `TRACKER_LIMIT_QUEUES`: templates bound to a restricted q
     - `fields` (array of strings, optional): Fields to include per attachment (the `content` field can be large). Not specifying this returns all available fields
   - Returns list of attachments with metadata for the specified issue
 
+- **`issue_download_attachment`**: Download attachment file content for an issue (requires `TRACKER_ATTACHMENT_DOWNLOAD_ENABLED=true`)
+  - Parameters:
+    - `issue_id` (string, format: "QUEUE-123")
+    - `attachment_id` (string): Attachment ID from `issue_get_attachments`
+  - Saved under `TRACKER_ATTACHMENTS_DIR/{YYYY-MM-DD}/{random}{suffix}` (suffix from the original Tracker name; files without an extension have no suffix; multi-part extensions use the last segment only, e.g. `archive.tar.gz` → `.gz`). Returns: `issue_id`, `attachment_id`, `local_path`, `name`, `original_name`, `mime_type`, `size`
+
 - **`issue_get_checklist`**: Get checklist items of an issue
   - Parameters: `issue_id` (string, format: "QUEUE-123")
   - Returns list of checklist items including text, status, assignee, and deadline information
@@ -1245,6 +1251,11 @@ TRACKER_API_TIMEOUT=10                    # Default: 10 - Per-request timeout in
 TRACKER_LIMIT_QUEUES=PROJ1,PROJ2,DEV      # Comma-separated queue keys - allow-list of accessible queues
 TRACKER_READ_ONLY_QUEUES=PROJ2            # Comma-separated queue keys - allowed for reads but reject writes (per-queue read-only)
 TRACKER_ENTITIES_ENABLED=true             # Default: false - Register project/portfolio/goal tools (NOT covered by the queue restrictions above)
+
+# Attachment download (optional, disabled by default)
+TRACKER_ATTACHMENT_DOWNLOAD_ENABLED=true  # Default: false - Enable issue_download_attachment tool
+TRACKER_ATTACHMENTS_DIR=tmp/tracker-attachments  # Default: tmp/tracker-attachments - Sandbox for saved files
+TRACKER_MAX_ATTACHMENT_BYTES=52428800  # Default: 52428800 (50 MiB) - Max attachment download size
 
 # Server Configuration
 HOST=0.0.0.0                              # Default: 0.0.0.0

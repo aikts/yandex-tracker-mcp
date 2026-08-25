@@ -6,8 +6,11 @@ import time
 from asyncio import CancelledError
 from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 from typing import Any, Literal
 
+import aiofiles
+import aiofiles.os
 import jwt
 import yandexcloud
 from aiohttp import ClientResponse, ClientSession, ClientTimeout
@@ -17,6 +20,7 @@ from yandex.cloud.iam.v1.iam_token_service_pb2_grpc import IamTokenServiceStub
 from yarl import URL
 
 from mcp_tracker.tracker.custom.errors import (
+    AttachmentNotFound,
     ChecklistItemNotFound,
     CommentTemplateNotFound,
     EntityLinksOnlyUpdate,
@@ -25,6 +29,10 @@ from mcp_tracker.tracker.custom.errors import (
     IssueVersionConflict,
     QueueNotFound,
     TrackerAPIError,
+)
+from mcp_tracker.tracker.custom.safe_identifiers import (
+    build_attachment_download_path,
+    build_attachment_path,
 )
 from mcp_tracker.tracker.proto.common import YandexAuth
 from mcp_tracker.tracker.proto.entities import EntitiesProtocol
@@ -272,6 +280,7 @@ class TrackerClient(
         cloud_org_id: str | None = None,
         base_url: str = "https://api.tracker.yandex.net",
         timeout: float = 10,
+        max_attachment_bytes: int = 52_428_800,  # 50 MiB
     ):
         self._token = token
         self._token_type = token_type
@@ -281,6 +290,7 @@ class TrackerClient(
         )
         self._org_id = org_id
         self._cloud_org_id = cloud_org_id
+        self._max_attachment_bytes = max_attachment_bytes
 
         self._session = ClientSession(
             base_url=base_url,
@@ -932,6 +942,88 @@ class TrackerClient(
                 raise IssueNotFound(issue_id)
             await self._raise_for_status(response)
             return IssueAttachmentList.model_validate_json(await response.read()).root
+
+    async def issue_get_attachment(
+        self,
+        issue_id: str,
+        attachment_id: str,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> IssueAttachment:
+        url = build_attachment_path(issue_id, attachment_id)
+        async with self._session.get(
+            url, headers=await self._build_headers(auth)
+        ) as response:
+            if response.status == 404:
+                raise AttachmentNotFound(issue_id, attachment_id, "")
+            await self._raise_for_status(response)
+            return IssueAttachment.model_validate_json(await response.read())
+
+    async def issue_download_attachment(
+        self,
+        issue_id: str,
+        attachment_id: str,
+        file_name: str,
+        destination: Path,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> int:
+        url = build_attachment_download_path(issue_id, attachment_id, file_name)
+        async with self._session.get(
+            url,
+            headers=await self._build_headers(auth),
+        ) as response:
+            if response.status == 404:
+                raise AttachmentNotFound(issue_id, attachment_id, file_name)
+            response.raise_for_status()
+            return await self._stream_response_to_path(response, destination)
+
+    async def _stream_response_to_path(
+        self,
+        response: ClientResponse,
+        destination: Path,
+        *,
+        chunk_size: int = 64 * 1024,
+    ) -> int:
+        max_bytes = self._max_attachment_bytes
+        content_length = response.content_length
+        if content_length is not None and content_length > max_bytes:
+            raise ValueError(
+                f"Attachment size {content_length} bytes exceeds limit of "
+                f"{max_bytes} bytes"
+            )
+
+        async def cleanup() -> None:
+            try:
+                await aiofiles.os.remove(destination)
+            except FileNotFoundError:
+                pass
+
+        total = 0
+        try:
+            async with aiofiles.open(destination, "xb") as file_obj:
+                async for chunk in response.content.iter_chunked(chunk_size):
+                    total += len(chunk)
+                    if total > max_bytes:
+                        raise ValueError(
+                            f"Attachment exceeds limit of {max_bytes} bytes "
+                            f"(received at least {total} bytes)"
+                        )
+                    await file_obj.write(chunk)
+        except FileExistsError as e:
+            msg = f"Attachment file already exists: {destination}"
+            raise ValueError(msg) from e
+        except ValueError:
+            await cleanup()
+            raise
+        except OSError as e:
+            await cleanup()
+            msg = f"Failed to write attachment file {destination}: {e}"
+            raise ValueError(msg) from e
+        except Exception:
+            await cleanup()
+            raise
+        return total
 
     async def users_list(
         self, per_page: int = 50, page: int = 1, *, auth: YandexAuth | None = None
