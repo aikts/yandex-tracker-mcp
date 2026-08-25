@@ -33,7 +33,7 @@ uv run mcp-tracker # Run the server
   - `__init__.py`: Exports `register_all_tools()` which orchestrates tool registration
   - `*_write.py` modules are only registered when `settings.tracker_read_only=False`
   - project/portfolio/goal modules are only registered when `settings.tracker_entities_enabled=True`
-  - `issue_download_attachment` is only registered when `settings.tracker_attachment_download_enabled=True`
+  - `issue_download_attachment` lives in `issue_write.py` and is only registered when `settings.tracker_attachment_download_enabled=True`
 - **Settings** (`mcp_tracker/settings.py`): Pydantic settings from environment variables
 - All protocol methods accept optional `auth: YandexAuth | None` parameter for OAuth support.
 - All Pydantic models for Yandex Tracker entities inherit from `BaseTrackerEntity`.
@@ -116,7 +116,7 @@ For paginated methods, use `side_effect` for sequential returns: `mock.method.si
    - Global field/metadata tools → `field.py`
    - Issue/comment template tools → `template.py`
    - Issue read-only tools → `issue_read.py`
-   - Issue write tools → `issue_write.py`
+   - Issue write tools → `issue_write.py` (`issue_download_attachment` is registered separately via `TRACKER_ATTACHMENT_DOWNLOAD_ENABLED`)
    - User tools → `user.py`
    - Project read-only tools → `project.py`; write tools → `project_write.py`
    - Portfolio read-only tools → `portfolio.py`; write tools → `portfolio_write.py`

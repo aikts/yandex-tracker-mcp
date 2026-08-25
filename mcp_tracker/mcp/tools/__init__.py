@@ -6,7 +6,8 @@ This package organizes MCP tools by category:
 - field.py: Global field and metadata tools (read-only)
 - template.py: Issue and comment template tools (read-only)
 - issue_read.py: Issue read-only tools
-- issue_write.py: Issue write tools (conditional on read-only mode)
+- issue_write.py: Issue write tools (conditional on read-only mode; also hosts
+  issue_download_attachment, gated by TRACKER_ATTACHMENT_DOWNLOAD_ENABLED)
 - user.py: User-related tools (read-only)
 - project.py: Project entity tools (read-only)
 - project_write.py: Project entity write tools (conditional on read-only mode)
@@ -23,11 +24,11 @@ from mcp.server import FastMCP
 from mcp_tracker.mcp.tools.field import register_field_tools
 from mcp_tracker.mcp.tools.goal import register_goal_tools
 from mcp_tracker.mcp.tools.goal_write import register_goal_write_tools
-from mcp_tracker.mcp.tools.issue_read import (
+from mcp_tracker.mcp.tools.issue_read import register_issue_read_tools
+from mcp_tracker.mcp.tools.issue_write import (
     register_issue_attachment_download_tool,
-    register_issue_read_tools,
+    register_issue_write_tools,
 )
-from mcp_tracker.mcp.tools.issue_write import register_issue_write_tools
 from mcp_tracker.mcp.tools.portfolio import register_portfolio_tools
 from mcp_tracker.mcp.tools.portfolio_write import register_portfolio_write_tools
 from mcp_tracker.mcp.tools.project import register_project_tools

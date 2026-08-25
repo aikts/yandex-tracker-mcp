@@ -1,6 +1,5 @@
 """Issue read-only MCP tools."""
 
-from pathlib import Path
 from typing import Annotated, Any
 
 from mcp.server import FastMCP
@@ -21,7 +20,6 @@ from mcp_tracker.mcp.params import (
 from mcp_tracker.mcp.tools._access import check_issue_access
 from mcp_tracker.mcp.utils import (
     get_yandex_auth,
-    resolve_issue_attachment_local_path,
     set_non_needed_fields_null,
 )
 from mcp_tracker.settings import Settings
@@ -31,7 +29,6 @@ from mcp_tracker.tracker.proto.types.issues import (
     ChecklistItem,
     CommentFieldsEnum,
     CommentsPage,
-    DownloadedIssueAttachment,
     Issue,
     IssueAttachment,
     IssueLink,
@@ -355,80 +352,4 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             field=field,
             type=type,
             auth=get_yandex_auth(ctx),
-        )
-
-
-def register_issue_attachment_download_tool(
-    settings: Settings, mcp: FastMCP[Any]
-) -> None:
-    """Register issue attachment download tool (opt-in via settings)."""
-
-    @mcp.tool(
-        title="Download Issue Attachment",
-        description=(
-            "Download a Yandex Tracker issue attachment and write it to a file on the MCP server disk "
-            "(sandbox directory TRACKER_ATTACHMENTS_DIR). "
-            "The file is saved as {issue_id}-{attachment_id}{suffix}, where suffix is Path(file_name).suffix "
-            "(e.g. archive.tar.gz → .gz). "
-            "Returns issue_id, attachment_id, local_path (relative to TRACKER_ATTACHMENTS_DIR), "
-            "name (disk basename), original_name (Tracker basename), mime_type, and size."
-        ),
-        annotations=ToolAnnotations(readOnlyHint=False),
-    )
-    async def issue_download_attachment(
-        ctx: Context[Any, AppContext],
-        issue_id: IssueID,
-        attachment_id: str,
-        file_name: str,
-        save_directory: Annotated[
-            str,
-            Field(
-                description=(
-                    "Directory to save the downloaded file. "
-                    "Must be inside TRACKER_ATTACHMENTS_DIR (server sandbox). "
-                    "Use an absolute path within the allowed base directory, "
-                    "for example /path/to/project/tmp/tracker-attachments/."
-                ),
-            ),
-        ],
-    ) -> DownloadedIssueAttachment:
-        check_issue_access(settings, issue_id)
-
-        safe_file_name = Path(file_name).name
-        local_path = await resolve_issue_attachment_local_path(
-            issue_id=issue_id,
-            attachment_id=attachment_id,
-            file_name=file_name,
-            save_directory=save_directory,
-            attachments_base_dir=settings.tracker_attachments_dir,
-        )
-        auth = get_yandex_auth(ctx)
-        attachments = (
-            await ctx.request_context.lifespan_context.issues.issue_get_attachments(
-                issue_id,
-                auth=auth,
-            )
-        )
-        attachment = next((a for a in attachments if a.id == attachment_id), None)
-        mime_type = attachment.mimetype if attachment else None
-
-        size = (
-            await ctx.request_context.lifespan_context.issues.issue_download_attachment(
-                issue_id,
-                attachment_id,
-                safe_file_name,
-                local_path,
-                auth=auth,
-            )
-        )
-
-        base_dir = Path(settings.tracker_attachments_dir).resolve()
-        return DownloadedIssueAttachment(
-            issue_id=issue_id,
-            attachment_id=attachment_id,
-            local_path=str(local_path.relative_to(base_dir)),
-            name=local_path.name,
-            original_name=safe_file_name,
-            mime_type=mime_type,
-            size=size,
         )
