@@ -1,4 +1,6 @@
+from collections.abc import AsyncGenerator
 from pathlib import Path
+from typing import Protocol
 from urllib.parse import quote
 
 import pytest
@@ -12,6 +14,29 @@ from mcp_tracker.tracker.proto.types.issues import IssueAttachment
 _DOWNLOAD_URL = (
     "https://api.tracker.yandex.net/v3/issues/TEST-123/attachments/7698/image.png"
 )
+
+
+class TrackerClientFactory(Protocol):
+    def __call__(self, *, max_attachment_bytes: int) -> TrackerClient: ...
+
+
+@pytest.fixture
+async def make_tracker_client() -> AsyncGenerator[TrackerClientFactory, None]:
+    clients: list[TrackerClient] = []
+
+    def _make(*, max_attachment_bytes: int) -> TrackerClient:
+        client = TrackerClient(
+            token="test-token",
+            org_id="test-org",
+            base_url="https://api.tracker.yandex.net",
+            max_attachment_bytes=max_attachment_bytes,
+        )
+        clients.append(client)
+        return client
+
+    yield _make
+    for client in clients:
+        await client.close()
 
 
 class TestIssueGetAttachments:
@@ -74,7 +99,6 @@ class TestIssueDownloadAttachment:
                 "7698",
                 "image.png",
                 destination,
-                max_bytes=10_000,
             )
 
             assert size == len(file_content)
@@ -97,7 +121,6 @@ class TestIssueDownloadAttachment:
                     "1",
                     "file.txt",
                     destination,
-                    max_bytes=1024,
                 )
 
             assert exc_info.value.issue_id == "NOTFOUND-123"
@@ -106,10 +129,11 @@ class TestIssueDownloadAttachment:
             assert not destination.exists()
 
     async def test_rejects_by_content_length(
-        self, tracker_client: TrackerClient, tmp_path: Path
+        self, make_tracker_client: TrackerClientFactory, tmp_path: Path
     ) -> None:
         destination = tmp_path / "TEST-123-7698.png"
         max_bytes = 100
+        client = make_tracker_client(max_attachment_bytes=max_bytes)
 
         with aioresponses() as m:
             m.get(
@@ -119,55 +143,54 @@ class TestIssueDownloadAttachment:
             )
 
             with pytest.raises(ValueError, match="exceeds limit"):
-                await tracker_client.issue_download_attachment(
+                await client.issue_download_attachment(
                     "TEST-123",
                     "7698",
                     "image.png",
                     destination,
-                    max_bytes=max_bytes,
                 )
 
             assert not destination.exists()
 
     async def test_rejects_mid_stream_without_content_length(
-        self, tracker_client: TrackerClient, tmp_path: Path
+        self, make_tracker_client: TrackerClientFactory, tmp_path: Path
     ) -> None:
         destination = tmp_path / "TEST-123-7698.png"
         max_bytes = 100
         body = b"y" * (max_bytes + 1)
+        client = make_tracker_client(max_attachment_bytes=max_bytes)
 
         with aioresponses() as m:
             m.get(_DOWNLOAD_URL, body=body)
 
             with pytest.raises(ValueError, match="exceeds limit"):
-                await tracker_client.issue_download_attachment(
+                await client.issue_download_attachment(
                     "TEST-123",
                     "7698",
                     "image.png",
                     destination,
-                    max_bytes=max_bytes,
                 )
 
             assert not destination.exists()
 
     async def test_cleans_up_partial_file_on_mid_stream_reject(
-        self, tracker_client: TrackerClient, tmp_path: Path
+        self, make_tracker_client: TrackerClientFactory, tmp_path: Path
     ) -> None:
         destination = tmp_path / "TEST-123-7698.png"
         max_bytes = 64
         # Larger than one 64 KiB chunk? No — use small max so first chunks exceed.
         body = b"z" * 200
+        client = make_tracker_client(max_attachment_bytes=max_bytes)
 
         with aioresponses() as m:
             m.get(_DOWNLOAD_URL, body=body)
 
             with pytest.raises(ValueError, match="exceeds limit"):
-                await tracker_client.issue_download_attachment(
+                await client.issue_download_attachment(
                     "TEST-123",
                     "7698",
                     "image.png",
                     destination,
-                    max_bytes=max_bytes,
                 )
 
             assert not destination.exists()
@@ -187,7 +210,6 @@ class TestIssueDownloadAttachment:
                     "7698",
                     "image.png",
                     destination,
-                    max_bytes=10_000,
                 )
 
             assert destination.read_bytes() == b"existing"
@@ -225,7 +247,6 @@ class TestIssueDownloadAttachment:
                 "7698",
                 file_name,
                 destination,
-                max_bytes=1024,
             )
 
             assert size == len(file_content)
@@ -255,7 +276,6 @@ class TestIssueDownloadAttachment:
                     attachment_id,
                     "file.txt",
                     destination,
-                    max_bytes=1024,
                 )
 
             assert not (m.requests or {})
@@ -275,7 +295,6 @@ class TestIssueDownloadAttachment:
                     "7698",
                     "image.png",
                     destination,
-                    max_bytes=1024,
                 )
 
             assert not destination.exists()
@@ -294,7 +313,6 @@ class TestIssueDownloadAttachment:
                     "7698",
                     "image.png",
                     destination,
-                    max_bytes=1024,
                 )
 
             assert not destination.exists()
@@ -312,7 +330,6 @@ class TestIssueDownloadAttachment:
                 "7698",
                 "image.png",
                 destination,
-                max_bytes=1024,
             )
 
             assert size == 0

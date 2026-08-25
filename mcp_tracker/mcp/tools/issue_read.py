@@ -418,7 +418,6 @@ def register_issue_attachment_download_tool(
                 attachment_id,
                 safe_file_name,
                 local_path,
-                settings.tracker_max_attachment_bytes,
                 auth=auth,
             )
         )

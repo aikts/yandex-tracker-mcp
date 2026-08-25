@@ -554,7 +554,6 @@ class TestIssueDownloadAttachment:
             attachment_id: str,
             file_name: str,
             destination: Path,
-            max_bytes: int,
             *,
             auth: object | None = None,
         ) -> int:
@@ -594,7 +593,6 @@ class TestIssueDownloadAttachment:
             "7698",
             "image.png",
             expected_path,
-            settings.tracker_max_attachment_bytes,
         )
         assert "auth" in call_args.kwargs
         content = get_tool_result_content(result)
@@ -903,7 +901,6 @@ class TestIssueDownloadAttachment:
             attachment_id: str,
             file_name: str,
             destination: Path,
-            max_bytes: int,
             *,
             auth: object | None = None,
         ) -> int:

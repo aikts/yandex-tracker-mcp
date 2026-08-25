@@ -167,7 +167,6 @@ class TestCachingIssuesProtocol:
             "7698",
             "image.png",
             destination,
-            1024,
         )
 
         mock_original.issue_download_attachment.assert_called_once_with(
@@ -175,7 +174,6 @@ class TestCachingIssuesProtocol:
             "7698",
             "image.png",
             destination,
-            1024,
             auth=None,
         )
         assert result == mock_original.issue_download_attachment.return_value

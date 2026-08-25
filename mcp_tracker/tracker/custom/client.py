@@ -277,6 +277,7 @@ class TrackerClient(
         cloud_org_id: str | None = None,
         base_url: str = "https://api.tracker.yandex.net",
         timeout: float = 10,
+        max_attachment_bytes: int = 52_428_800,  # 50 MiB
     ):
         self._token = token
         self._token_type = token_type
@@ -286,6 +287,7 @@ class TrackerClient(
         )
         self._org_id = org_id
         self._cloud_org_id = cloud_org_id
+        self._max_attachment_bytes = max_attachment_bytes
 
         self._session = ClientSession(
             base_url=base_url,
@@ -944,7 +946,6 @@ class TrackerClient(
         attachment_id: str,
         file_name: str,
         destination: Path,
-        max_bytes: int,
         *,
         auth: YandexAuth | None = None,
     ) -> int:
@@ -956,16 +957,16 @@ class TrackerClient(
             if response.status == 404:
                 raise AttachmentNotFound(issue_id, attachment_id, file_name)
             response.raise_for_status()
-            return await self._stream_response_to_path(response, destination, max_bytes)
+            return await self._stream_response_to_path(response, destination)
 
-    @staticmethod
     async def _stream_response_to_path(
+        self,
         response: ClientResponse,
         destination: Path,
-        max_bytes: int,
         *,
         chunk_size: int = 64 * 1024,
     ) -> int:
+        max_bytes = self._max_attachment_bytes
         content_length = response.content_length
         if content_length is not None and content_length > max_bytes:
             raise ValueError(

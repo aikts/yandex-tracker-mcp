@@ -326,7 +326,6 @@ def make_cached_protocols(
             attachment_id: str,
             file_name: str,
             destination: Path,
-            max_bytes: int,
             *,
             auth: YandexAuth | None = None,
         ) -> int:
@@ -335,7 +334,6 @@ def make_cached_protocols(
                 attachment_id,
                 file_name,
                 destination,
-                max_bytes,
                 auth=auth,
             )
 

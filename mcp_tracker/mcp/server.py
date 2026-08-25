@@ -78,6 +78,7 @@ def make_tracker_lifespan(settings: Settings) -> Lifespan:
             cloud_org_id=settings.tracker_cloud_org_id,
             org_id=settings.tracker_org_id,
             timeout=settings.tracker_api_timeout,
+            max_attachment_bytes=settings.tracker_max_attachment_bytes,
         )
 
         queues: QueuesProtocol = tracker

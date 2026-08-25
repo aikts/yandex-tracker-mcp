@@ -135,7 +135,6 @@ class IssueProtocol(Protocol):
         attachment_id: str,
         file_name: str,
         destination: Path,
-        max_bytes: int,
         *,
         auth: YandexAuth | None = None,
     ) -> int: ...
