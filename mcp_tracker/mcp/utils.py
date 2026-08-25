@@ -1,4 +1,6 @@
+import uuid
 from collections.abc import Iterable
+from datetime import date
 from pathlib import Path
 from typing import Any, TypeVar, get_args
 
@@ -7,7 +9,6 @@ from mcp.server.fastmcp import Context
 from pydantic import BaseModel
 from starlette.requests import Request
 
-from mcp_tracker.tracker.custom.safe_identifiers import validate_safe_identifier
 from mcp_tracker.tracker.proto.common import YandexAuth
 
 T = TypeVar("T", bound=BaseModel)
@@ -77,7 +78,7 @@ def set_non_needed_fields_null(data: Iterable[T], needed_fields: set[str]) -> No
 
 def _mkdir_attachment_directory(directory: Path) -> None:
     if directory.is_file():
-        msg = f"save_directory is a file, expected directory: {directory}"
+        msg = f"save path is a file, expected directory: {directory}"
         raise ValueError(msg)
     try:
         directory.mkdir(parents=True, exist_ok=True)
@@ -88,31 +89,23 @@ def _mkdir_attachment_directory(directory: Path) -> None:
 
 def resolve_issue_attachment_local_path(
     *,
-    issue_id: str,
-    attachment_id: str,
-    file_name: str,
-    save_directory: str,
+    original_name: str,
     attachments_base_dir: str | Path,
 ) -> Path:
     """Resolve a sandbox-local path for a downloaded attachment.
 
-    File name is deterministic: ``{issue_id}-{attachment_id}{suffix}``.
-    If that path already exists, raises ``ValueError`` (no silent overwrite).
-    Bytes are written later by ``TrackerClient.issue_download_attachment``.
+    Layout: ``{base}/{YYYY-MM-DD}/{random}{suffix}``. Suffix comes from the
+    original Tracker name; the on-disk basename is a random hex id so the
+    caller cannot pick a path. If that path already exists, raises
+    ``ValueError`` (no silent overwrite). Bytes are written later by
+    ``TrackerClient.issue_download_attachment``.
     """
-    validate_safe_identifier(issue_id, field_name="issue_id")
-    validate_safe_identifier(attachment_id, field_name="attachment_id")
-
     base_dir = Path(attachments_base_dir).resolve()
-    directory = Path(save_directory).resolve()
-    if not directory.is_relative_to(base_dir):
-        msg = f"save_directory must be inside {base_dir}, got {directory}"
-        raise ValueError(msg)
-
+    directory = base_dir / date.today().isoformat()
     _mkdir_attachment_directory(directory)
 
-    safe_name = Path(file_name).name
-    local_path = directory / f"{issue_id}-{attachment_id}{Path(safe_name).suffix}"
+    suffix = Path(Path(original_name).name).suffix
+    local_path = directory / f"{uuid.uuid4().hex}{suffix}"
     if local_path.exists():
         msg = f"Attachment file already exists: {local_path}"
         raise ValueError(msg)

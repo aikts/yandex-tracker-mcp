@@ -1,5 +1,6 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import date
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock
@@ -1162,6 +1163,17 @@ class TestCreateUpdateSymmetry:
         assert mock_issues_protocol.issue_update.call_args.kwargs[field] == value
 
 
+def _assert_dated_random_path(
+    content: dict[str, Any], tmp_path: Path, suffix: str
+) -> Path:
+    name = str(content["name"])
+    day = date.today().isoformat()
+    assert content["local_path"] == f"{day}/{name}"
+    assert Path(name).suffix == suffix
+    assert len(Path(name).stem) == 32
+    return tmp_path.resolve() / str(content["local_path"])
+
+
 class TestIssueDownloadAttachment:
     async def test_saves_file_and_returns_metadata(
         self,
@@ -1189,7 +1201,6 @@ class TestIssueDownloadAttachment:
             return len(file_content)
 
         mock_issues_protocol.issue_download_attachment.side_effect = _fake_download
-        save_directory = tmp_path / "tracker-attachments"
         settings = create_test_settings(
             tracker_attachments_dir=str(tmp_path),
             attachment_download_enabled=True,
@@ -1205,36 +1216,29 @@ class TestIssueDownloadAttachment:
                 {
                     "issue_id": "TEST-123",
                     "attachment_id": "7698",
-                    "file_name": "image.png",
-                    "save_directory": str(save_directory),
                 },
             )
 
         assert not result.isError
-        expected_path = save_directory.resolve() / "TEST-123-7698.png"
-        expected_local_path = expected_path.relative_to(tmp_path.resolve())
         mock_issues_protocol.issue_get_attachments.assert_called_once()
         mock_issues_protocol.issue_download_attachment.assert_called_once()
         call_args = mock_issues_protocol.issue_download_attachment.call_args
-        assert call_args.args == (
-            "TEST-123",
-            "7698",
-            "image.png",
-            expected_path,
-        )
+        assert call_args.args[:3] == ("TEST-123", "7698", "image.png")
+        destination = call_args.args[3]
         assert "auth" in call_args.kwargs
         content = get_tool_result_content(result)
+        saved_path = _assert_dated_random_path(content, tmp_path, ".png")
+        assert destination == saved_path
         assert content == {
             "issue_id": "TEST-123",
             "attachment_id": "7698",
-            "local_path": str(expected_local_path),
-            "name": "TEST-123-7698.png",
+            "local_path": content["local_path"],
+            "name": content["name"],
             "original_name": "image.png",
             "mime_type": "image/png",
             "size": len(file_content),
         }
-        assert content["name"] == expected_path.name
-        assert expected_path.read_bytes() == file_content
+        assert saved_path.read_bytes() == file_content
 
     async def test_disk_name_matches_local_path_and_multi_suffix(
         self,
@@ -1250,7 +1254,6 @@ class TestIssueDownloadAttachment:
         mock_issues_protocol.issue_get_attachments.return_value = [attachment]
         mock_issues_protocol.issue_download_attachment.return_value = 3
 
-        save_directory = tmp_path / "tracker-attachments"
         settings = create_test_settings(
             tracker_attachments_dir=str(tmp_path),
             attachment_download_enabled=True,
@@ -1266,17 +1269,12 @@ class TestIssueDownloadAttachment:
                 {
                     "issue_id": "TEST-1",
                     "attachment_id": "42",
-                    "file_name": "archive.tar.gz",
-                    "save_directory": str(save_directory),
                 },
             )
 
         assert not result.isError
         content = get_tool_result_content(result)
-        expected_path = save_directory.resolve() / "TEST-1-42.gz"
-        expected_local_path = expected_path.relative_to(tmp_path.resolve())
-        assert content["local_path"] == str(expected_local_path)
-        assert content["name"] == "TEST-1-42.gz"
+        _assert_dated_random_path(content, tmp_path, ".gz")
         assert content["original_name"] == "archive.tar.gz"
         assert content["name"] == Path(content["local_path"]).name
 
@@ -1294,7 +1292,6 @@ class TestIssueDownloadAttachment:
         mock_issues_protocol.issue_get_attachments.return_value = [attachment]
         mock_issues_protocol.issue_download_attachment.return_value = 4
 
-        save_directory = tmp_path / "tracker-attachments"
         settings = create_test_settings(
             tracker_attachments_dir=str(tmp_path),
             attachment_download_enabled=True,
@@ -1310,8 +1307,6 @@ class TestIssueDownloadAttachment:
                 {
                     "issue_id": "TEST-123",
                     "attachment_id": "7698",
-                    "file_name": "image.png",
-                    "save_directory": str(save_directory),
                 },
             )
 
@@ -1333,7 +1328,6 @@ class TestIssueDownloadAttachment:
         mock_issues_protocol.issue_get_attachments.return_value = [attachment]
         mock_issues_protocol.issue_download_attachment.return_value = 4
 
-        save_directory = tmp_path / "tracker-attachments"
         settings = create_test_settings(
             tracker_attachments_dir=str(tmp_path),
             attachment_download_enabled=True,
@@ -1349,15 +1343,13 @@ class TestIssueDownloadAttachment:
                 {
                     "issue_id": "TEST-123",
                     "attachment_id": "7698",
-                    "file_name": "export",
-                    "save_directory": str(save_directory),
                 },
             )
 
         assert not result.isError
         content = get_tool_result_content(result)
+        _assert_dated_random_path(content, tmp_path, "")
         assert content["mime_type"] == "text/csv"
-        assert content["name"] == "TEST-123-7698"
         assert content["original_name"] == "export"
 
     async def test_restricted_queue_raises_error(
@@ -1366,7 +1358,6 @@ class TestIssueDownloadAttachment:
         mock_issues_protocol: AsyncMock,
         tmp_path: Path,
     ) -> None:
-        save_directory = tmp_path / "tracker-attachments"
         settings = create_test_settings(
             limit_queues=["ALLOWED", "PERMITTED"],
             tracker_attachments_dir=str(tmp_path),
@@ -1383,8 +1374,6 @@ class TestIssueDownloadAttachment:
                 {
                     "issue_id": "RESTRICTED-123",
                     "attachment_id": "7698",
-                    "file_name": "image.png",
-                    "save_directory": str(save_directory),
                 },
             )
 
@@ -1411,7 +1400,6 @@ class TestIssueDownloadAttachment:
             "image.png",
         )
 
-        save_directory = tmp_path / "tracker-attachments"
         settings = create_test_settings(
             tracker_attachments_dir=str(tmp_path),
             attachment_download_enabled=True,
@@ -1427,20 +1415,18 @@ class TestIssueDownloadAttachment:
                 {
                     "issue_id": "TEST-123",
                     "attachment_id": "7698",
-                    "file_name": "image.png",
-                    "save_directory": str(save_directory),
                 },
             )
 
         assert result.isError
 
-    async def test_path_resolve_error_propagates(
+    async def test_unknown_attachment_id_raises_error(
         self,
         mock_app_context: AppContext,
         mock_issues_protocol: AsyncMock,
         tmp_path: Path,
     ) -> None:
-        outside_sandbox = tmp_path.parent / f"outside-{tmp_path.name}"
+        mock_issues_protocol.issue_get_attachments.return_value = []
         settings = create_test_settings(
             tracker_attachments_dir=str(tmp_path),
             attachment_download_enabled=True,
@@ -1455,14 +1441,11 @@ class TestIssueDownloadAttachment:
                 "issue_download_attachment",
                 {
                     "issue_id": "TEST-123",
-                    "attachment_id": "7698",
-                    "file_name": "image.png",
-                    "save_directory": str(outside_sandbox),
+                    "attachment_id": "missing",
                 },
             )
 
         assert result.isError
-        mock_issues_protocol.issue_get_attachments.assert_not_called()
         mock_issues_protocol.issue_download_attachment.assert_not_called()
 
     async def test_missing_mime_type_returns_none(
@@ -1479,7 +1462,6 @@ class TestIssueDownloadAttachment:
         mock_issues_protocol.issue_get_attachments.return_value = [attachment]
         mock_issues_protocol.issue_download_attachment.return_value = 4
 
-        save_directory = tmp_path / "tracker-attachments"
         settings = create_test_settings(
             tracker_attachments_dir=str(tmp_path),
             attachment_download_enabled=True,
@@ -1495,8 +1477,6 @@ class TestIssueDownloadAttachment:
                 {
                     "issue_id": "TEST-123",
                     "attachment_id": "7698",
-                    "file_name": "image.png",
-                    "save_directory": str(save_directory),
                 },
             )
 
@@ -1536,7 +1516,6 @@ class TestIssueDownloadAttachment:
             return destination.stat().st_size
 
         mock_issues_protocol.issue_download_attachment.side_effect = _fake_download
-        save_directory = tmp_path / "tracker-attachments"
         settings = create_test_settings(
             tracker_attachments_dir=str(tmp_path),
             attachment_download_enabled=True,
@@ -1547,18 +1526,8 @@ class TestIssueDownloadAttachment:
         )
 
         requests = [
-            {
-                "issue_id": "TEST-1",
-                "attachment_id": "100",
-                "file_name": "first.pdf",
-                "save_directory": str(save_directory),
-            },
-            {
-                "issue_id": "TEST-1",
-                "attachment_id": "200",
-                "file_name": "second.png",
-                "save_directory": str(save_directory),
-            },
+            {"issue_id": "TEST-1", "attachment_id": "100"},
+            {"issue_id": "TEST-1", "attachment_id": "200"},
         ]
 
         async with safe_client_session(mcp_server) as client_session:
@@ -1573,7 +1542,6 @@ class TestIssueDownloadAttachment:
         for request, content in zip(requests, downloaded, strict=True):
             assert content["issue_id"] == request["issue_id"]
             assert content["attachment_id"] == request["attachment_id"]
-            assert content["original_name"] == Path(request["file_name"]).name
 
         assert {item["attachment_id"] for item in downloaded} == {"100", "200"}
         assert {item["original_name"] for item in downloaded} == {

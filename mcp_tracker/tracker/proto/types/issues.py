@@ -202,11 +202,11 @@ class DownloadedIssueAttachment(BaseModel):
     name: str = Field(
         description=(
             "Saved file name (Path(local_path).name). "
-            "Format: {issue_id}-{attachment_id}{suffix}."
+            "Format: {random}{suffix} under TRACKER_ATTACHMENTS_DIR/{YYYY-MM-DD}/."
         ),
     )
     original_name: str = Field(
-        description="Original attachment basename from Yandex Tracker (Path(file_name).name).",
+        description="Original attachment basename from Yandex Tracker.",
     )
     mime_type: str | None
     size: int

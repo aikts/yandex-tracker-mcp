@@ -172,6 +172,18 @@ class TestToolRegistration:
         assert tool.annotations is not None
         assert tool.annotations.readOnlyHint is False
 
+    async def test_attachment_download_tool_does_not_accept_client_path(
+        self,
+        client_session_attachment_download_enabled: ClientSession,
+    ) -> None:
+        result = await client_session_attachment_download_enabled.list_tools()
+
+        tool = next(t for t in result.tools if t.name == "issue_download_attachment")
+        properties = tool.inputSchema["properties"]
+        assert "file_name" not in properties
+        assert "save_directory" not in properties
+        assert set(properties) == {"issue_id", "attachment_id"}
+
 
 class TestReadOnlyModeToolRegistration:
     """Test tool registration in read-only mode."""

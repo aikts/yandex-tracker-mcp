@@ -768,9 +768,7 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
   - Параметры:
     - `issue_id` (строка, формат: "QUEUE-123")
     - `attachment_id` (строка): ID вложения из `issue_get_attachments`
-    - `file_name` (строка): имя файла из `issue_get_attachments`
-    - `save_directory` (строка): каталог для сохранения файла
-  - Сохраняется как `{issue_id}-{attachment_id}{suffix}` (файлы без расширения — без suffix, например `TEST-123-7698`; составные расширения берут только последний сегмент, например `archive.tar.gz` → `.gz`). Возвращает: `issue_id`, `attachment_id`, `local_path`, `name`, `original_name`, `mime_type`, `size`
+  - Сохраняется в `TRACKER_ATTACHMENTS_DIR/{YYYY-MM-DD}/{random}{suffix}` (suffix из оригинального имени в Трекере; файлы без расширения — без suffix; составные расширения берут только последний сегмент, например `archive.tar.gz` → `.gz`). Возвращает: `issue_id`, `attachment_id`, `local_path`, `name`, `original_name`, `mime_type`, `size`
 
 - **`issue_get_checklist`**: Получить элементы чек-листа задачи
   - Параметры: `issue_id` (строка, формат: "QUEUE-123")

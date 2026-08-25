@@ -26,6 +26,7 @@ from mcp_tracker.mcp.params import (
 from mcp_tracker.mcp.tools._access import check_issue_access, check_queue_access
 from mcp_tracker.mcp.utils import get_yandex_auth, resolve_issue_attachment_local_path
 from mcp_tracker.settings import Settings
+from mcp_tracker.tracker.custom.errors import AttachmentNotFound
 from mcp_tracker.tracker.proto.types.inputs import (
     IssuePriorityRef,
     IssueTypeRef,
@@ -738,7 +739,8 @@ def register_issue_attachment_download_tool(
         title="Download Issue Attachment",
         description=(
             "Download a Yandex Tracker issue attachment. "
-            "Saved as {issue_id}-{attachment_id}{suffix}, where suffix is Path(file_name).suffix "
+            "Saved under TRACKER_ATTACHMENTS_DIR/{YYYY-MM-DD}/{random}{suffix}, "
+            "where suffix is taken from the original attachment name "
             "(e.g. archive.tar.gz → .gz). "
             "Returns issue_id, attachment_id, local_path, name, original_name, mime_type, and size."
         ),
@@ -748,24 +750,9 @@ def register_issue_attachment_download_tool(
         ctx: Context[Any, AppContext],
         issue_id: IssueID,
         attachment_id: str,
-        file_name: str,
-        save_directory: Annotated[
-            str,
-            Field(
-                description="Directory to save the downloaded file.",
-            ),
-        ],
     ) -> DownloadedIssueAttachment:
         check_issue_access(settings, issue_id)
 
-        safe_file_name = Path(file_name).name
-        local_path = resolve_issue_attachment_local_path(
-            issue_id=issue_id,
-            attachment_id=attachment_id,
-            file_name=file_name,
-            save_directory=save_directory,
-            attachments_base_dir=settings.tracker_attachments_dir,
-        )
         auth = get_yandex_auth(ctx)
         attachments = (
             await ctx.request_context.lifespan_context.issues.issue_get_attachments(
@@ -774,7 +761,14 @@ def register_issue_attachment_download_tool(
             )
         )
         attachment = next((a for a in attachments if a.id == attachment_id), None)
-        mime_type = attachment.mimetype if attachment else None
+        if attachment is None:
+            raise AttachmentNotFound(issue_id, attachment_id, "")
+
+        safe_file_name = Path(attachment.name).name
+        local_path = resolve_issue_attachment_local_path(
+            original_name=safe_file_name,
+            attachments_base_dir=settings.tracker_attachments_dir,
+        )
 
         size = (
             await ctx.request_context.lifespan_context.issues.issue_download_attachment(
@@ -793,6 +787,6 @@ def register_issue_attachment_download_tool(
             local_path=str(local_path.relative_to(base_dir)),
             name=local_path.name,
             original_name=safe_file_name,
-            mime_type=mime_type,
+            mime_type=attachment.mimetype,
             size=size,
         )
