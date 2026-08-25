@@ -357,11 +357,11 @@ class TestSetNonNeededFieldsNull:
 
 
 class TestResolveIssueAttachmentLocalPath:
-    async def test_resolves_path_inside_sandbox(self, tmp_path: Path) -> None:
+    def test_resolves_path_inside_sandbox(self, tmp_path: Path) -> None:
         base_dir = tmp_path / "sandbox"
         save_directory = base_dir / "attachments"
 
-        local_path = await resolve_issue_attachment_local_path(
+        local_path = resolve_issue_attachment_local_path(
             issue_id="HELPDESK-1054",
             attachment_id="7699",
             file_name="image.png",
@@ -373,7 +373,7 @@ class TestResolveIssueAttachmentLocalPath:
         assert save_directory.resolve().is_dir()
         assert not local_path.exists()
 
-    async def test_rejects_existing_local_path(self, tmp_path: Path) -> None:
+    def test_rejects_existing_local_path(self, tmp_path: Path) -> None:
         base_dir = tmp_path / "sandbox"
         save_directory = base_dir / "attachments"
         existing = save_directory / "TEST-1-42.png"
@@ -381,7 +381,7 @@ class TestResolveIssueAttachmentLocalPath:
         existing.write_bytes(b"old")
 
         with pytest.raises(ValueError, match="Attachment file already exists"):
-            await resolve_issue_attachment_local_path(
+            resolve_issue_attachment_local_path(
                 issue_id="TEST-1",
                 attachment_id="42",
                 file_name="image.png",
@@ -389,14 +389,14 @@ class TestResolveIssueAttachmentLocalPath:
                 attachments_base_dir=base_dir,
             )
 
-    async def test_rejects_save_directory_that_is_file(self, tmp_path: Path) -> None:
+    def test_rejects_save_directory_that_is_file(self, tmp_path: Path) -> None:
         base_dir = tmp_path / "sandbox"
         save_directory = base_dir / "not-a-dir"
         base_dir.mkdir(parents=True)
         save_directory.write_bytes(b"blocker")
 
         with pytest.raises(ValueError, match="save_directory is a file"):
-            await resolve_issue_attachment_local_path(
+            resolve_issue_attachment_local_path(
                 issue_id="TEST-1",
                 attachment_id="1",
                 file_name="file.txt",
@@ -404,10 +404,10 @@ class TestResolveIssueAttachmentLocalPath:
                 attachments_base_dir=base_dir,
             )
 
-    async def test_uses_basename_only(self, tmp_path: Path) -> None:
+    def test_uses_basename_only(self, tmp_path: Path) -> None:
         base_dir = tmp_path / "sandbox"
 
-        local_path = await resolve_issue_attachment_local_path(
+        local_path = resolve_issue_attachment_local_path(
             issue_id="TEST-1",
             attachment_id="1",
             file_name="../../etc/passwd",
@@ -426,14 +426,14 @@ class TestResolveIssueAttachmentLocalPath:
             ("noextension", ""),
         ],
     )
-    async def test_preserves_file_suffix(
+    def test_preserves_file_suffix(
         self,
         tmp_path: Path,
         file_name: str,
         expected_suffix: str,
     ) -> None:
         base_dir = tmp_path / "sandbox"
-        local_path = await resolve_issue_attachment_local_path(
+        local_path = resolve_issue_attachment_local_path(
             issue_id="TEST-1",
             attachment_id="42",
             file_name=file_name,
@@ -451,7 +451,7 @@ class TestResolveIssueAttachmentLocalPath:
             ("TEST 1", "42"),
         ],
     )
-    async def test_rejects_unsafe_identifiers(
+    def test_rejects_unsafe_identifiers(
         self,
         tmp_path: Path,
         issue_id: str,
@@ -459,7 +459,7 @@ class TestResolveIssueAttachmentLocalPath:
     ) -> None:
         base_dir = tmp_path / "sandbox"
         with pytest.raises(ValueError):
-            await resolve_issue_attachment_local_path(
+            resolve_issue_attachment_local_path(
                 issue_id=issue_id,
                 attachment_id=attachment_id,
                 file_name="report.pdf",
@@ -467,11 +467,11 @@ class TestResolveIssueAttachmentLocalPath:
                 attachments_base_dir=base_dir,
             )
 
-    async def test_allows_path_inside_base(self, tmp_path: Path) -> None:
+    def test_allows_path_inside_base(self, tmp_path: Path) -> None:
         base_dir = tmp_path / "sandbox"
         save_directory = base_dir / "nested" / "dir"
 
-        local_path = await resolve_issue_attachment_local_path(
+        local_path = resolve_issue_attachment_local_path(
             issue_id="TEST-1",
             attachment_id="1",
             file_name="file.txt",
@@ -497,7 +497,7 @@ class TestResolveIssueAttachmentLocalPath:
             "traversal_after_resolve",
         ],
     )
-    async def test_rejects_path_outside_base(
+    def test_rejects_path_outside_base(
         self,
         tmp_path: Path,
         save_directory: str,
@@ -506,7 +506,7 @@ class TestResolveIssueAttachmentLocalPath:
         base_dir.mkdir(parents=True)
 
         with pytest.raises(ValueError, match="save_directory must be inside"):
-            await resolve_issue_attachment_local_path(
+            resolve_issue_attachment_local_path(
                 issue_id="TEST-1",
                 attachment_id="1",
                 file_name="file.txt",
@@ -514,20 +514,20 @@ class TestResolveIssueAttachmentLocalPath:
                 attachments_base_dir=base_dir,
             )
 
-    async def test_wraps_oserror_from_mkdir(
+    def test_wraps_oserror_from_mkdir(
         self,
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         base_dir = tmp_path / "sandbox"
 
-        async def _raise_oserror(*args: object, **kwargs: object) -> None:
+        def _raise_oserror(self: Path, *args: object, **kwargs: object) -> None:
             raise OSError(13, "Permission denied")
 
-        monkeypatch.setattr("aiofiles.os.makedirs", _raise_oserror)
+        monkeypatch.setattr(Path, "mkdir", _raise_oserror)
 
         with pytest.raises(ValueError, match="Failed to create save directory"):
-            await resolve_issue_attachment_local_path(
+            resolve_issue_attachment_local_path(
                 issue_id="TEST-1",
                 attachment_id="1",
                 file_name="file.txt",

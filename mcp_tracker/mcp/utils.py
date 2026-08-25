@@ -2,7 +2,6 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any, TypeVar, get_args
 
-import aiofiles.os
 from mcp.server.auth.middleware.auth_context import get_access_token
 from mcp.server.fastmcp import Context
 from pydantic import BaseModel
@@ -76,18 +75,18 @@ def set_non_needed_fields_null(data: Iterable[T], needed_fields: set[str]) -> No
             setattr(item, field, None)
 
 
-async def _mkdir_attachment_directory(directory: Path) -> None:
-    if await aiofiles.os.path.isfile(directory):
+def _mkdir_attachment_directory(directory: Path) -> None:
+    if directory.is_file():
         msg = f"save_directory is a file, expected directory: {directory}"
         raise ValueError(msg)
     try:
-        await aiofiles.os.makedirs(directory, exist_ok=True)
+        directory.mkdir(parents=True, exist_ok=True)
     except OSError as e:
         msg = f"Failed to create save directory {directory}: {e}"
         raise ValueError(msg) from e
 
 
-async def resolve_issue_attachment_local_path(
+def resolve_issue_attachment_local_path(
     *,
     issue_id: str,
     attachment_id: str,
@@ -110,11 +109,11 @@ async def resolve_issue_attachment_local_path(
         msg = f"save_directory must be inside {base_dir}, got {directory}"
         raise ValueError(msg)
 
-    await _mkdir_attachment_directory(directory)
+    _mkdir_attachment_directory(directory)
 
     safe_name = Path(file_name).name
     local_path = directory / f"{issue_id}-{attachment_id}{Path(safe_name).suffix}"
-    if await aiofiles.os.path.exists(local_path):
+    if local_path.exists():
         msg = f"Attachment file already exists: {local_path}"
         raise ValueError(msg)
     return local_path
