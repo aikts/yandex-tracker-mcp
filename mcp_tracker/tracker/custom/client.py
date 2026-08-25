@@ -9,6 +9,8 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Literal
 
+import aiofiles
+import aiofiles.os
 import jwt
 import yandexcloud
 from aiohttp import ClientResponse, ClientSession, ClientTimeout
@@ -971,9 +973,15 @@ class TrackerClient(
                 f"{max_bytes} bytes"
             )
 
+        async def cleanup() -> None:
+            try:
+                await aiofiles.os.remove(destination)
+            except FileNotFoundError:
+                pass
+
         total = 0
         try:
-            with destination.open("xb") as file_obj:
+            async with aiofiles.open(destination, "xb") as file_obj:
                 async for chunk in response.content.iter_chunked(chunk_size):
                     total += len(chunk)
                     if total > max_bytes:
@@ -981,19 +989,19 @@ class TrackerClient(
                             f"Attachment exceeds limit of {max_bytes} bytes "
                             f"(received at least {total} bytes)"
                         )
-                    file_obj.write(chunk)
+                    await file_obj.write(chunk)
         except FileExistsError as e:
             msg = f"Attachment file already exists: {destination}"
             raise ValueError(msg) from e
         except ValueError:
-            destination.unlink(missing_ok=True)
+            await cleanup()
             raise
         except OSError as e:
-            destination.unlink(missing_ok=True)
+            await cleanup()
             msg = f"Failed to write attachment file {destination}: {e}"
             raise ValueError(msg) from e
         except Exception:
-            destination.unlink(missing_ok=True)
+            await cleanup()
             raise
         return total
 
