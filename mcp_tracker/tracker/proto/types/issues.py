@@ -197,13 +197,11 @@ class DownloadedIssueAttachment(BaseModel):
     issue_id: str = Field(description="Issue key the attachment belongs to.")
     attachment_id: str = Field(description="Attachment id from Yandex Tracker.")
     local_path: str = Field(
-        description=(
-            "Path to the saved file relative to TRACKER_ATTACHMENTS_DIR sandbox root."
-        ),
+        description="Relative path of the saved file.",
     )
     name: str = Field(
         description=(
-            "Basename of the saved file on disk (Path(local_path).name). "
+            "Saved file name (Path(local_path).name). "
             "Format: {issue_id}-{attachment_id}{suffix}."
         ),
     )

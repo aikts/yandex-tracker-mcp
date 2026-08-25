@@ -772,8 +772,8 @@ All four tools respect `TRACKER_LIMIT_QUEUES`: templates bound to a restricted q
     - `issue_id` (string, format: "QUEUE-123")
     - `attachment_id` (string): Attachment ID from `issue_get_attachments`
     - `file_name` (string): Attachment file name from `issue_get_attachments`
-    - `save_directory` (string): Directory to save the file (absolute or relative path, e.g. `tmp/tracker-attachments/`)
-  - Saves the file locally as `{issue_id}-{attachment_id}{suffix}` (files without an extension are saved without suffix, e.g. `TEST-123-7698`; multi-part extensions use the last segment only, e.g. `archive.tar.gz` → `.gz`) and returns metadata: `local_path` (relative to `TRACKER_ATTACHMENTS_DIR`), `name` (disk basename), `original_name` (Tracker basename), `mime_type`, `size`
+    - `save_directory` (string): Directory to save the file
+  - Saved as `{issue_id}-{attachment_id}{suffix}` (files without an extension are saved without suffix, e.g. `TEST-123-7698`; multi-part extensions use the last segment only, e.g. `archive.tar.gz` → `.gz`). Returns: `issue_id`, `attachment_id`, `local_path`, `name`, `original_name`, `mime_type`, `size`
 
 - **`issue_get_checklist`**: Get checklist items of an issue
   - Parameters: `issue_id` (string, format: "QUEUE-123")

@@ -737,12 +737,10 @@ def register_issue_attachment_download_tool(
     @mcp.tool(
         title="Download Issue Attachment",
         description=(
-            "Download a Yandex Tracker issue attachment and write it to a file on the MCP server disk "
-            "(sandbox directory TRACKER_ATTACHMENTS_DIR). "
-            "The file is saved as {issue_id}-{attachment_id}{suffix}, where suffix is Path(file_name).suffix "
+            "Download a Yandex Tracker issue attachment. "
+            "Saved as {issue_id}-{attachment_id}{suffix}, where suffix is Path(file_name).suffix "
             "(e.g. archive.tar.gz → .gz). "
-            "Returns issue_id, attachment_id, local_path (relative to TRACKER_ATTACHMENTS_DIR), "
-            "name (disk basename), original_name (Tracker basename), mime_type, and size."
+            "Returns issue_id, attachment_id, local_path, name, original_name, mime_type, and size."
         ),
         annotations=ToolAnnotations(readOnlyHint=False),
     )
@@ -754,12 +752,7 @@ def register_issue_attachment_download_tool(
         save_directory: Annotated[
             str,
             Field(
-                description=(
-                    "Directory to save the downloaded file. "
-                    "Must be inside TRACKER_ATTACHMENTS_DIR (server sandbox). "
-                    "Use an absolute path within the allowed base directory, "
-                    "for example /path/to/project/tmp/tracker-attachments/."
-                ),
+                description="Directory to save the downloaded file.",
             ),
         ],
     ) -> DownloadedIssueAttachment:

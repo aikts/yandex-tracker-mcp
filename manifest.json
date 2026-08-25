@@ -326,7 +326,7 @@
     },
     {
       "name": "issue_download_attachment",
-      "description": "Download a Yandex Tracker issue attachment and save it to a local directory"
+      "description": "Download a Yandex Tracker issue attachment"
     },
     {
       "name": "issue_get_checklist",
