@@ -1,8 +1,8 @@
-import asyncio
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any, TypeVar, get_args
 
+import aiofiles.os
 from mcp.server.auth.middleware.auth_context import get_access_token
 from mcp.server.fastmcp import Context
 from pydantic import BaseModel
@@ -76,26 +76,14 @@ def set_non_needed_fields_null(data: Iterable[T], needed_fields: set[str]) -> No
             setattr(item, field, None)
 
 
-def _mkdir_attachment_directory(directory: Path) -> None:
-    if directory.exists() and directory.is_file():
+async def _mkdir_attachment_directory(directory: Path) -> None:
+    if await aiofiles.os.path.isfile(directory):
         msg = f"save_directory is a file, expected directory: {directory}"
         raise ValueError(msg)
     try:
-        directory.mkdir(parents=True, exist_ok=True)
+        await aiofiles.os.makedirs(directory, exist_ok=True)
     except OSError as e:
         msg = f"Failed to create save directory {directory}: {e}"
-        raise ValueError(msg) from e
-
-
-def _write_bytes_exclusive(path: Path, data: bytes) -> None:
-    try:
-        with path.open("xb") as file_obj:
-            file_obj.write(data)
-    except FileExistsError as e:
-        msg = f"Attachment file already exists: {path}"
-        raise ValueError(msg) from e
-    except OSError as e:
-        msg = f"Failed to write attachment file {path}: {e}"
         raise ValueError(msg) from e
 
 
@@ -111,6 +99,7 @@ async def resolve_issue_attachment_local_path(
 
     File name is deterministic: ``{issue_id}-{attachment_id}{suffix}``.
     If that path already exists, raises ``ValueError`` (no silent overwrite).
+    Bytes are written later by ``TrackerClient.issue_download_attachment``.
     """
     validate_safe_identifier(issue_id, field_name="issue_id")
     validate_safe_identifier(attachment_id, field_name="attachment_id")
@@ -121,31 +110,11 @@ async def resolve_issue_attachment_local_path(
         msg = f"save_directory must be inside {base_dir}, got {directory}"
         raise ValueError(msg)
 
-    await asyncio.to_thread(_mkdir_attachment_directory, directory)
+    await _mkdir_attachment_directory(directory)
 
     safe_name = Path(file_name).name
     local_path = directory / f"{issue_id}-{attachment_id}{Path(safe_name).suffix}"
-    if local_path.exists():
+    if await aiofiles.os.path.exists(local_path):
         msg = f"Attachment file already exists: {local_path}"
         raise ValueError(msg)
-    return local_path
-
-
-async def save_issue_attachment_file(
-    data: bytes,
-    *,
-    issue_id: str,
-    attachment_id: str,
-    file_name: str,
-    save_directory: str,
-    attachments_base_dir: str | Path,
-) -> Path:
-    local_path = await resolve_issue_attachment_local_path(
-        issue_id=issue_id,
-        attachment_id=attachment_id,
-        file_name=file_name,
-        save_directory=save_directory,
-        attachments_base_dir=attachments_base_dir,
-    )
-    await asyncio.to_thread(_write_bytes_exclusive, local_path, data)
     return local_path

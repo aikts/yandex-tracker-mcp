@@ -8,7 +8,6 @@ from pytest_mock import MockerFixture
 from mcp_tracker.mcp.utils import (
     get_yandex_auth,
     resolve_issue_attachment_local_path,
-    save_issue_attachment_file,
     set_non_needed_fields_null,
 )
 from mcp_tracker.tracker.proto.common import YandexAuth
@@ -405,61 +404,10 @@ class TestResolveIssueAttachmentLocalPath:
                 attachments_base_dir=base_dir,
             )
 
-
-class TestSaveIssueAttachmentFile:
-    async def test_saves_file_with_issue_and_attachment_id(
-        self, tmp_path: Path
-    ) -> None:
-        data = b"file content"
-        base_dir = tmp_path / "sandbox"
-        save_directory = base_dir / "attachments"
-
-        local_path = await save_issue_attachment_file(
-            data,
-            issue_id="HELPDESK-1054",
-            attachment_id="7699",
-            file_name="image.png",
-            save_directory=str(save_directory),
-            attachments_base_dir=base_dir,
-        )
-
-        assert local_path == save_directory.resolve() / "HELPDESK-1054-7699.png"
-        assert local_path.read_bytes() == data
-
-    async def test_does_not_overwrite_existing_file(self, tmp_path: Path) -> None:
-        base_dir = tmp_path / "sandbox"
-        save_directory = base_dir / "attachments"
-        original = b"original"
-        replacement = b"replacement"
-
-        await save_issue_attachment_file(
-            original,
-            issue_id="TEST-1",
-            attachment_id="1",
-            file_name="file.txt",
-            save_directory=str(save_directory),
-            attachments_base_dir=base_dir,
-        )
-
-        with pytest.raises(ValueError, match="Attachment file already exists"):
-            await save_issue_attachment_file(
-                replacement,
-                issue_id="TEST-1",
-                attachment_id="1",
-                file_name="file.txt",
-                save_directory=str(save_directory),
-                attachments_base_dir=base_dir,
-            )
-
-        local_path = save_directory.resolve() / "TEST-1-1.txt"
-        assert local_path.read_bytes() == original
-
     async def test_uses_basename_only(self, tmp_path: Path) -> None:
-        data = b"safe content"
         base_dir = tmp_path / "sandbox"
 
-        local_path = await save_issue_attachment_file(
-            data,
+        local_path = await resolve_issue_attachment_local_path(
             issue_id="TEST-1",
             attachment_id="1",
             file_name="../../etc/passwd",
@@ -468,7 +416,7 @@ class TestSaveIssueAttachmentFile:
         )
 
         assert local_path.name == "TEST-1-1"
-        assert local_path.read_bytes() == data
+        assert not local_path.exists()
 
     @pytest.mark.parametrize(
         ("file_name", "expected_suffix"),
@@ -485,8 +433,7 @@ class TestSaveIssueAttachmentFile:
         expected_suffix: str,
     ) -> None:
         base_dir = tmp_path / "sandbox"
-        local_path = await save_issue_attachment_file(
-            b"x",
+        local_path = await resolve_issue_attachment_local_path(
             issue_id="TEST-1",
             attachment_id="42",
             file_name=file_name,
@@ -512,8 +459,7 @@ class TestSaveIssueAttachmentFile:
     ) -> None:
         base_dir = tmp_path / "sandbox"
         with pytest.raises(ValueError):
-            await save_issue_attachment_file(
-                b"x",
+            await resolve_issue_attachment_local_path(
                 issue_id=issue_id,
                 attachment_id=attachment_id,
                 file_name="report.pdf",
@@ -525,8 +471,7 @@ class TestSaveIssueAttachmentFile:
         base_dir = tmp_path / "sandbox"
         save_directory = base_dir / "nested" / "dir"
 
-        local_path = await save_issue_attachment_file(
-            b"inside",
+        local_path = await resolve_issue_attachment_local_path(
             issue_id="TEST-1",
             attachment_id="1",
             file_name="file.txt",
@@ -535,7 +480,7 @@ class TestSaveIssueAttachmentFile:
         )
 
         assert local_path.is_relative_to(base_dir.resolve())
-        assert local_path.read_bytes() == b"inside"
+        assert local_path == save_directory.resolve() / "TEST-1-1.txt"
 
     @pytest.mark.parametrize(
         "save_directory",
@@ -561,8 +506,7 @@ class TestSaveIssueAttachmentFile:
         base_dir.mkdir(parents=True)
 
         with pytest.raises(ValueError, match="save_directory must be inside"):
-            await save_issue_attachment_file(
-                b"x",
+            await resolve_issue_attachment_local_path(
                 issue_id="TEST-1",
                 attachment_id="1",
                 file_name="file.txt",
@@ -577,14 +521,13 @@ class TestSaveIssueAttachmentFile:
     ) -> None:
         base_dir = tmp_path / "sandbox"
 
-        def _raise_oserror(self: Path, *args: object, **kwargs: object) -> None:
+        async def _raise_oserror(*args: object, **kwargs: object) -> None:
             raise OSError(13, "Permission denied")
 
-        monkeypatch.setattr(Path, "mkdir", _raise_oserror)
+        monkeypatch.setattr("aiofiles.os.makedirs", _raise_oserror)
 
         with pytest.raises(ValueError, match="Failed to create save directory"):
-            await save_issue_attachment_file(
-                b"x",
+            await resolve_issue_attachment_local_path(
                 issue_id="TEST-1",
                 attachment_id="1",
                 file_name="file.txt",
