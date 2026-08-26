@@ -771,6 +771,30 @@ All four tools respect `TRACKER_LIMIT_QUEUES`: templates bound to a restricted q
   - Parameters: `issue_id` (string, format: "QUEUE-123")
   - Returns list of checklist items including text, status, assignee, and deadline information
 
+- **`issue_add_checklist_items`**: Add one or more items to the checklist of an issue (creates the checklist if the issue has none)
+  - Parameters:
+    - `issue_id` (string, required, format: "QUEUE-123")
+    - `items` (array, required): Items to append, in order. Each item takes `text` (string, required), `checked` (boolean, optional), `assignee` (login or uid, optional) and `deadline` (object, optional: `{"date": "2026-08-20T00:00:00", "deadline_type": "date"}`)
+  - Returns the issue's checklist after the items were added
+  - Note: Tracker accepts one item per request, so a batch is sent as one request per item, in the given order
+
+- **`issue_update_checklist_item`**: Update a single checklist item of an issue, e.g. to mark it as checked
+  - Parameters:
+    - `issue_id` (string, required, format: "QUEUE-123")
+    - `checklist_item_id` (string, required): Item ID as returned by `issue_get_checklist`
+    - `text` (string, optional): New item text; omit to keep the current one
+    - `checked` (boolean, optional)
+    - `assignee` (string, optional): Login or uid
+    - `deadline` (object, optional): `{"date": "2026-08-20T00:00:00", "deadline_type": "date"}`
+  - Only the fields you pass are changed; the ones you omit keep their current value
+  - Returns the issue's checklist after the change
+
+- **`issue_delete_checklist_item`**: Delete a single item from the checklist of an issue
+  - Parameters:
+    - `issue_id` (string, required, format: "QUEUE-123")
+    - `checklist_item_id` (string, required): Item ID as returned by `issue_get_checklist`
+  - Returns the issue's checklist after the deletion
+
 - **`issue_get_transitions`**: Get possible status transitions for an issue
   - Parameters: `issue_id` (string, format: "QUEUE-123")
   - Returns list of available transitions that can be performed on the issue

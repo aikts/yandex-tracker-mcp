@@ -14,6 +14,8 @@ from mcp_tracker.tracker.proto.types.entities import (
     ProjectPortfolioStatus,
 )
 from mcp_tracker.tracker.proto.types.inputs import (
+    ChecklistItemDeadlineInput,
+    ChecklistItemInput,
     EntityChecklistItemUpdateInput,
     EntityParentEntityInput,
     GoalLinkInput,
@@ -522,6 +524,58 @@ EntityChecklistItemsParam = Annotated[
         "*_add_checklist_item / *_delete_checklist_item for that. "
         "Example: [{'id': '5f8b2c1e4c3a2d001a7e9b1c', 'text': 'Get sign-off', "
         "'checked': false}]."
+    ),
+]
+
+
+IssueChecklistItemIDParam = Annotated[
+    str,
+    Field(
+        description="Checklist item ID, as returned in the `id` field of an item by "
+        "issue_get_checklist. Example: '5f8b2c1e4c3a2d001a7e9b1c'."
+    ),
+]
+
+IssueChecklistItemsParam = Annotated[
+    list[ChecklistItemInput],
+    Field(
+        description="Checklist items to add, in order. Each item requires `text` and may "
+        "optionally include `checked`, `assignee` (login or uid) and `deadline` "
+        "({'date': '2026-08-20T00:00:00', 'deadline_type': 'date'}). Items are appended to "
+        "the issue's checklist, which is created if the issue has none. "
+        "Example: [{'text': 'Get sign-off from legal'}, {'text': 'Deploy', 'checked': false}]."
+    ),
+]
+
+IssueChecklistItemTextParam = Annotated[
+    str | None,
+    Field(
+        description="New checklist item text (Markdown/YFM supported). Omit to leave the "
+        "current text unchanged. Example: 'Get sign-off from legal.'"
+    ),
+]
+
+IssueChecklistItemCheckedParam = Annotated[
+    bool | None,
+    Field(
+        description="Whether the checklist item is checked off. Omit to leave unchanged. "
+        "Example: true"
+    ),
+]
+
+IssueChecklistItemAssigneeParam = Annotated[
+    str | int | None,
+    Field(
+        description="User login or ID (uid) to assign the checklist item to. Omit to leave "
+        "unchanged. Example: 'i.ivanov'"
+    ),
+]
+
+IssueChecklistItemDeadlineParam = Annotated[
+    ChecklistItemDeadlineInput | None,
+    Field(
+        description="Deadline for the checklist item. Omit to leave unchanged. Example: "
+        "{'date': '2026-08-20T00:00:00', 'deadline_type': 'date'}."
     ),
 ]
 

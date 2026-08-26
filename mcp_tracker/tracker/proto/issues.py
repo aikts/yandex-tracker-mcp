@@ -4,6 +4,8 @@ from typing import Any, Protocol, runtime_checkable
 
 from .common import YandexAuth
 from .types.inputs import (
+    ChecklistItemDeadlineInput,
+    ChecklistItemInput,
     IssueComponentRef,
     IssueFollowerRef,
     IssueParentRef,
@@ -133,6 +135,31 @@ class IssueProtocol(Protocol):
     ) -> int: ...
     async def issue_get_checklist(
         self, issue_id: str, *, auth: YandexAuth | None = None
+    ) -> list[ChecklistItem]: ...
+    async def issue_add_checklist_items(
+        self,
+        issue_id: str,
+        *,
+        items: list[ChecklistItemInput],
+        auth: YandexAuth | None = None,
+    ) -> list[ChecklistItem]: ...
+    async def issue_update_checklist_item(
+        self,
+        issue_id: str,
+        checklist_item_id: str,
+        *,
+        text: str | None = None,
+        checked: bool | None = None,
+        assignee: str | int | None = None,
+        deadline: ChecklistItemDeadlineInput | None = None,
+        auth: YandexAuth | None = None,
+    ) -> list[ChecklistItem]: ...
+    async def issue_delete_checklist_item(
+        self,
+        issue_id: str,
+        checklist_item_id: str,
+        *,
+        auth: YandexAuth | None = None,
     ) -> list[ChecklistItem]: ...
     async def issue_create(
         self,

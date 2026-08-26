@@ -23,6 +23,8 @@ from mcp_tracker.tracker.proto.types.entities import (
 )
 from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
 from mcp_tracker.tracker.proto.types.inputs import (
+    ChecklistItemDeadlineInput,
+    ChecklistItemInput,
     EntityChecklistItemUpdateInput,
     EntityParentEntityInput,
     GoalLinkInput,
@@ -330,6 +332,53 @@ def make_cached_protocols(
             self, issue_id: str, *, auth: YandexAuth | None = None
         ) -> list[ChecklistItem]:
             return await self._original.issue_get_checklist(issue_id, auth=auth)
+
+        async def issue_add_checklist_items(
+            self,
+            issue_id: str,
+            *,
+            items: list[ChecklistItemInput],
+            auth: YandexAuth | None = None,
+        ) -> list[ChecklistItem]:
+            return await self._original.issue_add_checklist_items(
+                issue_id,
+                items=items,
+                auth=auth,
+            )
+
+        async def issue_update_checklist_item(
+            self,
+            issue_id: str,
+            checklist_item_id: str,
+            *,
+            text: str | None = None,
+            checked: bool | None = None,
+            assignee: str | int | None = None,
+            deadline: ChecklistItemDeadlineInput | None = None,
+            auth: YandexAuth | None = None,
+        ) -> list[ChecklistItem]:
+            return await self._original.issue_update_checklist_item(
+                issue_id,
+                checklist_item_id,
+                text=text,
+                checked=checked,
+                assignee=assignee,
+                deadline=deadline,
+                auth=auth,
+            )
+
+        async def issue_delete_checklist_item(
+            self,
+            issue_id: str,
+            checklist_item_id: str,
+            *,
+            auth: YandexAuth | None = None,
+        ) -> list[ChecklistItem]:
+            return await self._original.issue_delete_checklist_item(
+                issue_id,
+                checklist_item_id,
+                auth=auth,
+            )
 
         async def issue_create(
             self,
