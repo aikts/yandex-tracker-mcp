@@ -212,14 +212,16 @@ class ChecklistItem(BaseTrackerEntity):
         None,
         validation_alias=AliasChoices("textHtml", "text_html"),
         serialization_alias="textHtml",
+        exclude_if=none_excluder,
     )
     checked: bool = False
-    assignee: UserReference | None = None
-    deadline: ChecklistItemDeadline | None = None
+    assignee: UserReference | None = NoneExcludedField
+    deadline: ChecklistItemDeadline | None = NoneExcludedField
     checklist_item_type: str | None = Field(
         None,
         validation_alias=AliasChoices("checklistItemType", "checklist_item_type"),
         serialization_alias="checklistItemType",
+        exclude_if=none_excluder,
     )
 
 

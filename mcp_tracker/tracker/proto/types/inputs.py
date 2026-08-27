@@ -171,19 +171,19 @@ class EntityChecklistItemUpdateInput(BaseModel):
 
 
 class ChecklistItemDeadlineInput(BaseModel):
-    """Deadline of an issue checklist item.
+    """Deadline of an issue checklist item."""
 
-    Tracker wants the date as `YYYY-MM-DDThh:mm:ss.sss±hhmm`; the client
-    formats it, so callers pass a plain datetime here (UTC is assumed when it
-    carries no timezone).
-    """
+    # The docstring and the field descriptions here are what the tool schema
+    # shows the model, so the wire format stays out of them: the client
+    # reformats `date` to Tracker's `YYYY-MM-DDThh:mm:ss.sss±hhmm`, reading a
+    # naive datetime as UTC.
 
     date: datetime.datetime = Field(..., description="Deadline date and time")
     deadline_type: str = Field("date", description="Deadline type, e.g. 'date'")
 
 
 class ChecklistItemInput(BaseModel):
-    """Single checklist item to add to an issue."""
+    """Checklist item to add to an issue."""
 
     text: str = Field(..., description="Checklist item text")
     checked: bool | None = Field(

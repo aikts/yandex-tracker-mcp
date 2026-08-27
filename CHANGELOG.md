@@ -11,6 +11,11 @@ All notable changes to this project will be documented in this file.
   - `issue_update_checklist_item` changes a single item — text, `checked`, assignee, deadline — leaving out what you don't pass. Tracker requires `text` on every edit, so an update that omits it resends the item's current text instead of failing
   - `issue_delete_checklist_item` removes one item
   - All three return the issue's checklist after the change, and are registered only when `TRACKER_READ_ONLY` is off; `TRACKER_LIMIT_QUEUES` / `TRACKER_READ_ONLY_QUEUES` apply as they do to the other issue write tools
+  - A batch that fails partway through raises an error saying how many items landed, since the successful ones are not rolled back and a blind retry would duplicate them
+
+### Bug Fixes
+
+- Checklist items no longer serialize their unset fields as explicit nulls (`textHtml`, `assignee`, `deadline`, `checklistItemType`), halving the response size of `issue_get_checklist` and of the checklist write tools
 
 ## [0.8.0] - 2026-08-19
 

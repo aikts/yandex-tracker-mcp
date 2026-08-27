@@ -17,6 +17,7 @@ from yandex.cloud.iam.v1.iam_token_service_pb2_grpc import IamTokenServiceStub
 from yarl import URL
 
 from mcp_tracker.tracker.custom.errors import (
+    ChecklistBatchPartiallyAdded,
     ChecklistItemNotFound,
     CommentTemplateNotFound,
     EntityLinksOnlyUpdate,
@@ -1020,24 +1021,33 @@ class TrackerClient(
         headers = await self._build_headers(auth)
         checklist: list[ChecklistItem] = []
 
-        for item in items:
+        for added, item in enumerate(items):
             body = self._build_checklist_item_body(
                 text=item.text,
                 checked=item.checked,
                 assignee=item.assignee,
                 deadline=self._checklist_item_deadline_body(item.deadline),
             )
-            async with self._session.post(
-                f"v3/issues/{issue_id}/checklistItems",
-                headers=headers,
-                json=body,
-            ) as response:
-                if response.status == 404:
-                    raise IssueNotFound(issue_id)
-                await self._raise_for_status(response)
-                checklist = _IssueChecklist.model_validate_json(
-                    await response.read()
-                ).checklistItems
+            try:
+                async with self._session.post(
+                    f"v3/issues/{issue_id}/checklistItems",
+                    headers=headers,
+                    json=body,
+                ) as response:
+                    if response.status == 404:
+                        raise IssueNotFound(issue_id)
+                    await self._raise_for_status(response)
+                    checklist = _IssueChecklist.model_validate_json(
+                        await response.read()
+                    ).checklistItems
+            except Exception as exc:
+                # Nothing landed yet on the first item, so let that error speak
+                # for itself; past it, say how much of the batch went through.
+                if added == 0:
+                    raise
+                raise ChecklistBatchPartiallyAdded(
+                    issue_id, added, len(items), exc
+                ) from exc
 
         return checklist
 

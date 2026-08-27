@@ -7,6 +7,7 @@ from aioresponses import aioresponses
 
 from mcp_tracker.tracker.custom.client import TrackerClient
 from mcp_tracker.tracker.custom.errors import (
+    ChecklistBatchPartiallyAdded,
     ChecklistItemNotFound,
     IssueNotFound,
     TrackerAPIError,
@@ -126,6 +127,35 @@ class TestIssueAddChecklistItems:
                 await tracker_client.issue_add_checklist_items("TEST-123", items=[])
                 == []
             )
+
+    async def test_partial_failure_reports_what_landed(
+        self, tracker_client: TrackerClient
+    ) -> None:
+        """A batch is N requests, so a failure partway through is not a no-op."""
+        with aioresponses() as m:
+            m.post(
+                CHECKLIST_ITEMS_URL,
+                payload=_issue_data([{"id": "item-1", "text": "First"}]),
+            )
+            m.post(
+                CHECKLIST_ITEMS_URL,
+                status=422,
+                payload={"errorMessages": ["Checklist item text is empty"]},
+            )
+
+            with pytest.raises(ChecklistBatchPartiallyAdded) as exc_info:
+                await tracker_client.issue_add_checklist_items(
+                    "TEST-123",
+                    items=[
+                        ChecklistItemInput(text="First"),
+                        ChecklistItemInput(text="Second"),
+                        ChecklistItemInput(text="Third"),
+                    ],
+                )
+
+        assert exc_info.value.added == 1
+        assert exc_info.value.total == 3
+        assert "Checklist item text is empty" in str(exc_info.value)
 
     async def test_not_found(self, tracker_client: TrackerClient) -> None:
         with aioresponses() as m:

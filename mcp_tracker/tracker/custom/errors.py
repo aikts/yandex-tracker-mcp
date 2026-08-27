@@ -122,6 +122,28 @@ class ChecklistItemNotFound(YandexTrackerError):
         self.checklist_item_id = checklist_item_id
 
 
+class ChecklistBatchPartiallyAdded(YandexTrackerError):
+    """Raised when a batch of checklist items fails partway through.
+
+    Tracker takes one item per request, so a batch is several requests and the
+    ones that already succeeded are not rolled back. A bare error would leave
+    the caller unable to tell how much of the batch landed, and a naive retry
+    would duplicate those items.
+    """
+
+    def __init__(self, issue_id: str, added: int, total: int, cause: Exception):
+        super().__init__(
+            f"Added {added} of {total} checklist items to '{issue_id}' before the "
+            f"request failed: {cause} The items already added were kept - read the "
+            f"checklist with issue_get_checklist and retry only what is missing, "
+            f"or the successful ones will be duplicated."
+        )
+        self.issue_id = issue_id
+        self.added = added
+        self.total = total
+        self.cause = cause
+
+
 class EntityLinksOnlyUpdate(YandexTrackerError):
     """Raised for an entity update that would only change links.
 

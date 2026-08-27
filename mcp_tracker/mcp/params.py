@@ -539,10 +539,7 @@ IssueChecklistItemIDParam = Annotated[
 IssueChecklistItemsParam = Annotated[
     list[ChecklistItemInput],
     Field(
-        description="Checklist items to add, in order. Each item requires `text` and may "
-        "optionally include `checked`, `assignee` (login or uid) and `deadline` "
-        "({'date': '2026-08-20T00:00:00', 'deadline_type': 'date'}). Items are appended to "
-        "the issue's checklist, which is created if the issue has none. "
+        description="Checklist items to append, in order. "
         "Example: [{'text': 'Get sign-off from legal'}, {'text': 'Deploy', 'checked': false}]."
     ),
 ]
