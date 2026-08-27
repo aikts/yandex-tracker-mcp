@@ -22,6 +22,7 @@ Documentation in Russian is available [here](README_ru.md) / Документа�
 - **Full Issue Lifecycle**: Create, read, update, and manage issues with support for custom fields, attachments, and workflow transitions
 - **Status Workflow Management**: Execute status transitions, close issues with resolutions, and navigate complex workflows
 - **Field Management**: Access global fields, queue-specific local fields, statuses, issue types, priorities, and resolutions
+- **Boards and Sprints**: List agile boards and their sprints to find sprint IDs for issue planning
 - **Advanced Query Language**: Full Yandex Tracker Query Language support with complex filtering, sorting, and date functions
 - **Performance Caching**: Optional Redis caching layer for improved response times
 - **Security Controls**: Configurable queue access restrictions and secure token handling
@@ -668,6 +669,49 @@ All four tools respect `TRACKER_LIMIT_QUEUES`: templates bound to a restricted q
 </details>
 
 <details>
+<summary><strong>Boards and Sprints</strong></summary>
+
+- **`boards_get_all`**: Get the agile boards available in the organization
+  - Parameters:
+    - `queue` (string, optional): Return only the boards that collect issues of that queue, like `"SOMEPROJECT"`
+    - `fields` (array of strings, optional): Fields to include in the response. Selecting `["id", "name"]` while looking for a board keeps the answer ~30x smaller
+    - `cursor` (integer, optional): The `next_cursor` from the previous call, which is the id of the last board it returned. Leave empty for the first page
+    - `per_page` (integer, optional, default: 25): Boards per page
+  - Returns `{boards, next_cursor}`; each board carries id, name, version, columns, settings and creation metadata. Pass `next_cursor` back as `cursor` until it comes back null
+  - **Finding the board of a project**: a board has no queue field of its own - it collects whatever its `autoFilterSettings` matches - so `queue` is matched against that filter. Tracker offers no server-side filter here, so the tool matches as it walks the listing, and `per_page` counts matches rather than boards read - a queue whose only board sits past the first page still comes back. The match is case-insensitive, a board collecting several queues matches any of them, and an inverted condition ("queue is not X") is not a match. Boards whose filter names no queue at all cannot be matched this way and are left out when `queue` is set, and how many of those an organization has depends entirely on how its boards are set up. To catch them, read a few issues of the queue with `issues_find` and look at their `boards` field: Tracker fills it in from the boards' own filters, so a personal board collecting one assignee's issues shows up there even though it names no queue.
+  - `queue` respects `TRACKER_LIMIT_QUEUES`: scoping to a restricted queue is rejected
+  - Use the returned board `id` with `board_get`, `board_get_columns` and `board_get_sprints`
+  - Paging is by cursor rather than by page number because that is what `GET /v3/boards/_paginate` offers: boards come back ordered by id, and the next page starts after the last id of the previous one. Setting `queue` still means reading every board, since a match can be anywhere, but that is done by walking the pages rather than by asking for the whole organization in one request - a request that grows with the Tracker it is pointed at is one no `TRACKER_API_TIMEOUT` value fits, while a page is the same size whatever the organization.
+
+- **`board_get`**: Get a single agile board with its settings
+  - Parameters:
+    - `board_id` (integer, board identifier as returned by `boards_get_all`)
+    - `fields` (array of strings, optional): Fields to include in the response
+  - `autoFilterSettings` is the board's own filter and says which issues the board collects - read it to learn which queue a board is about. `addFilterSettings` describes what lands on the board, `removeFilterSettings` what leaves it; a condition is either a fixed value (a queue, an issue type) or a macro such as `empty()` / `notEmpty()`
+  - Also returns `estimateBy` (the field issues are estimated by), `useRanking`, and the working `calendar` used to count working days in a sprint
+  - An unknown `board_id` is reported as a board-not-found error
+
+- **`board_get_columns`**: Get the columns of an agile board with the statuses mapped onto them
+  - Parameters: `board_id` (integer, board identifier as returned by `boards_get_all`)
+  - Returns each column with `id`, `name` and the issue `statuses` that land in it - use it to find out which status an issue has to be in to show up in a given column
+  - Richer than the columns nested in `boards_get_all` / `board_get`, which carry no statuses
+
+- **`board_get_sprints`**: Get all sprints of a specific agile board
+  - Parameters:
+    - `board_id` (integer, board identifier as returned by `boards_get_all`)
+    - `fields` (array of strings, optional): Fields to include in the response
+  - A board that is not a scrum board has no sprints and the API rejects the call with "У доски этого типа не может быть спринтов."; an unknown `board_id` is reported as a board-not-found error
+  - Returns list of sprints with id, name, status, archived flag, planned dates (`startDate`, `endDate`) and actual dates (`startDateTime`, `endDateTime`)
+  - Sprint status is one of `draft`, `in_progress`, `released` or `archived` — the currently running sprint is the one with status `in_progress`
+  - Use the returned sprint `id` to place an issue into a sprint with `issue_create` or `issue_update`
+
+**Board tools and `TRACKER_LIMIT_QUEUES`.** A board is organization-wide and has no queue of its own, so - unlike queues, issues and templates - boards are not filtered by the allow-list, and filtering them would take away what these tools are for. A restricted queue can therefore still be named in what they return: `boards_get_all` without `queue` lists every board of the organization along with the `autoFilterSettings` that carry queue keys and display names, and `board_get` / `board_get_columns` / `board_get_sprints` answer for any board id. The one check that does apply is on the `queue` argument of `boards_get_all`, which is rejected for a restricted queue. If the allow-list is your only boundary - a shared MCP gateway, for one - expect the board tools to expose the keys and names of queues outside it.
+
+An issue returned by `issue_get` / `issues_find` carries a `boards` field naming the boards it shows up on (`{"id": 2, "name": "..."}`) - feed that `id` straight into the tools above. Tracker fills `boards` in from the boards' own filters, so it is read-only: an issue is not assigned to a board directly, it matches the board's filter.
+
+</details>
+
+<details>
 <summary><strong>Issue Operations</strong></summary>
 
 - **`issue_get`**: Read one issue (task, ticket, bug) by its key/ID
@@ -1281,7 +1325,9 @@ Access to queues can be scoped at three levels, from coarse to fine-grained:
 - **`TRACKER_LIMIT_QUEUES`** — allow-list of queue keys. Queues outside the list
   are treated as *not found / not allowed* for both reads and writes. Keys are
   matched ignoring case, here and in `TRACKER_READ_ONLY_QUEUES`, so `dev` and
-  `DEV` name the same queue.
+  `DEV` name the same queue. The one exception is the board tools: a board belongs to the organization rather than to
+  a queue, so they are not filtered and can name a restricted queue in a board's
+  settings — see *Board tools and `TRACKER_LIMIT_QUEUES`* above.
 - **`TRACKER_READ_ONLY`** — when `true`, all write tools are unregistered, so the
   whole instance is read-only.
 - **`TRACKER_READ_ONLY_QUEUES`** — per-queue read-only allow-list. Write tools stay

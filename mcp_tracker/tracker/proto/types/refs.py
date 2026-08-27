@@ -33,6 +33,26 @@ class SprintReference(BaseReference):
     display: str | None = None
 
 
+class BoardReference(BaseReference):
+    display: str | None = None
+
+
+class IssueBoardReference(BaseTrackerEntity):
+    """A board an issue shows up on, as nested in an issue record.
+
+    Tracker spells this one differently from its other references: `name`
+    instead of `display`, and a numeric id. That id is what `board_get`,
+    `board_get_columns` and `board_get_sprints` take.
+    """
+
+    id: int | None = Field(
+        None,
+        description="Board identifier, as taken by the `board_get`, "
+        "`board_get_columns` and `board_get_sprints` tools",
+    )
+    name: str | None = Field(None, description="Board name")
+
+
 class UserReference(BaseReference):
     display: str | None = None
     cloud_uid: str | None = Field(
