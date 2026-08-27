@@ -2,7 +2,7 @@
   "cli_version": "0.8.42",
   "checkpoint_id": "54336713159d",
   "strategy": "manual-commit",
-  "branch": "rebuild",
+  "branch": "rebuild2",
   "checkpoints_count": 1,
   "files_touched": [
     "mcp_tracker/mcp/params.py",
@@ -19,9 +19,9 @@
   ],
   "token_usage": {
     "input_tokens": 4,
-    "cache_creation_tokens": 1662,
-    "cache_read_tokens": 592248,
-    "output_tokens": 769,
+    "cache_creation_tokens": 1825,
+    "cache_read_tokens": 854028,
+    "output_tokens": 433,
     "api_call_count": 2
   }
 }
