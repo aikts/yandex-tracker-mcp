@@ -116,14 +116,12 @@ class TestBoardsList:
 
 
 class TestBoardsListTimeout:
-    """A timeout has to say so.
+    """This endpoint is the one that made a timeout worth naming.
 
-    `str(TimeoutError())` is the empty string, so a timeout used to reach the
-    caller as `Error executing tool boards_get_all:` with nothing after the
-    colon - no hint that time, rather than the request, was the problem. It
-    took a bad endpoint to expose that: `/v3/boards` returned the whole
-    organization in 7-16s against a 10s budget. Paging removed the cause; the
-    message stays, because no budget covers every organization.
+    `/v3/boards` answered with the whole organization in 7-16s against a 10s
+    budget; paging removed the cause. What the message has to say is asserted in
+    `tests/tracker/custom/test_request.py` - here, only that `boards_list` goes
+    through the funnel that says it.
     """
 
     async def test_a_timeout_says_so(self, tracker_client: TrackerClient) -> None:
@@ -133,13 +131,8 @@ class TestBoardsListTimeout:
                 exception=TimeoutError(),
             )
 
-            with pytest.raises(TrackerAPITimeout) as exc_info:
+            with pytest.raises(TrackerAPITimeout):
                 await tracker_client.boards_list()
-
-        message = str(exc_info.value)
-        assert message, "a timeout must not reach the caller as an empty message"
-        assert "v3/boards" in message
-        assert "TRACKER_API_TIMEOUT" in message
 
 
 class TestBoardsListPaging:
