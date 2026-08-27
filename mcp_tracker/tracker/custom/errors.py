@@ -110,16 +110,34 @@ class ChecklistItemNotFound(YandexTrackerError):
     The edit endpoints can only change items that already exist - they have no
     way to add one - so an unknown id here means the caller wanted an
     *_add_checklist_item(s) tool instead.
+
+    `ambiguous` is set where the id came back as a 404 from an item-scoped path
+    (`.../checklistItems/{itemId}`), which Tracker answers the same way for an
+    unknown issue as for an unknown item: the message then names both causes
+    instead of asserting the one it cannot tell apart. Where the checklist was
+    read first, the entity is known to exist and the message stays specific.
     """
 
-    def __init__(self, entity_id: str, checklist_item_id: str):
-        super().__init__(
-            f"Checklist item '{checklist_item_id}' was not found on "
-            f"'{entity_id}'. Only items that already exist can be edited - "
-            f"use an *_add_checklist_item(s) tool to add a new one."
-        )
+    def __init__(
+        self, entity_id: str, checklist_item_id: str, *, ambiguous: bool = False
+    ):
+        if ambiguous:
+            message = (
+                f"Checklist item '{checklist_item_id}' was not found on "
+                f"'{entity_id}'. Tracker answers the same 404 when the issue "
+                f"itself does not exist, so check both the id of the issue and "
+                f"the id of the item - issue_get_checklist lists the current ones."
+            )
+        else:
+            message = (
+                f"Checklist item '{checklist_item_id}' was not found on "
+                f"'{entity_id}'. Only items that already exist can be edited - "
+                f"use an *_add_checklist_item(s) tool to add a new one."
+            )
+        super().__init__(message)
         self.entity_id = entity_id
         self.checklist_item_id = checklist_item_id
+        self.ambiguous = ambiguous
 
 
 class ChecklistBatchPartiallyAdded(YandexTrackerError):

@@ -574,7 +574,8 @@ IssueChecklistItemDeadlineParam = Annotated[
     ChecklistItemDeadlineInput | None,
     Field(
         description="Deadline for the checklist item. Omit to leave unchanged - an "
-        "existing deadline cannot be removed through this tool. Example: "
+        "existing deadline cannot be removed through this tool. `deadline_type` "
+        "(or `deadlineType`) is 'date' or 'quarter'. Example: "
         "{'date': '2026-08-20T00:00:00', 'deadline_type': 'date'}."
     ),
 ]

@@ -163,7 +163,7 @@ def _ref_body(value: BaseModel | str | int) -> Any:
 
 
 def _tracker_datetime(value: datetime.datetime) -> str:
-    """Format a datetime the way Tracker wants it: `YYYY-MM-DDThh:mm:ss.sss+0000`.
+    """Format a datetime the way Tracker wants it: `YYYY-MM-DDThh:mm:ss.ffffff+0000`.
 
     A naive datetime is read as UTC, and the offset is emitted without a colon -
     the form the API accepts.
@@ -995,8 +995,9 @@ class TrackerClient(
             await self._raise_for_status(response)
             return ChecklistItemList.model_validate_json(await response.read()).root
 
+    @staticmethod
     def _checklist_item_deadline_body(
-        self, deadline: ChecklistItemDeadlineInput | None
+        deadline: ChecklistItemDeadlineInput | None,
     ) -> dict[str, Any] | None:
         if deadline is None:
             return None
@@ -1018,6 +1019,9 @@ class TrackerClient(
         пункты отправляются последовательно, в переданном порядке; возвращается
         чеклист задачи после добавления последнего пункта.
         """
+        if not items:
+            return await self.issue_get_checklist(issue_id, auth=auth)
+
         headers = await self._build_headers(auth)
         checklist: list[ChecklistItem] = []
 
@@ -1066,8 +1070,15 @@ class TrackerClient(
 
         `text` обязателен в теле запроса, поэтому, когда его не передали (частый
         случай — просто отметить пункт выполненным), текущий текст читается из
-        чеклиста задачи и отправляется без изменений.
+        чеклиста задачи и отправляется без изменений. Между этим чтением и PATCH
+        есть окно: если текст пункта поменяют параллельно, эта правка будет
+        отменена отправленным PATCH.
         """
+        if text is None and checked is None and assignee is None and deadline is None:
+            raise ValueError(
+                "issue_update_checklist_item requires at least one of "
+                "text, checked, assignee, deadline"
+            )
         if text is None:
             text = await self._checklist_item_text(
                 issue_id, checklist_item_id, auth=auth
@@ -1085,7 +1096,9 @@ class TrackerClient(
             json=body,
         ) as response:
             if response.status == 404:
-                raise IssueNotFound(issue_id)
+                # Item-scoped path: the 404 means an unknown issue *or* an
+                # unknown item, and the caller is told to check both.
+                raise ChecklistItemNotFound(issue_id, checklist_item_id, ambiguous=True)
             await self._raise_for_status(response)
             return _IssueChecklist.model_validate_json(
                 await response.read()
@@ -1104,7 +1117,7 @@ class TrackerClient(
             headers=await self._build_headers(auth),
         ) as response:
             if response.status == 404:
-                raise IssueNotFound(issue_id)
+                raise ChecklistItemNotFound(issue_id, checklist_item_id, ambiguous=True)
             await self._raise_for_status(response)
             return _IssueChecklist.model_validate_json(
                 await response.read()

@@ -242,16 +242,49 @@ class TestIssueUpdateChecklistItem:
 
         assert exc_info.value.checklist_item_id == "missing"
 
-    async def test_not_found(self, tracker_client: TrackerClient) -> None:
+    async def test_unknown_item_id_raises_the_same_error_with_text(
+        self, tracker_client: TrackerClient
+    ) -> None:
+        """Passing `text` must not change which error an unknown item id gives:
+        without it the id is checked against the checklist, with it Tracker
+        answers 404, and both have to arrive as ChecklistItemNotFound."""
+        with aioresponses() as m:
+            m.patch(
+                re.compile(
+                    r"^https://api\.tracker\.yandex\.net/v3/issues/TEST-123/"
+                    r"checklistItems/missing$"
+                ),
+                status=404,
+            )
+
+            with pytest.raises(ChecklistItemNotFound) as exc_info:
+                await tracker_client.issue_update_checklist_item(
+                    "TEST-123", "missing", text="New text"
+                )
+
+        assert exc_info.value.checklist_item_id == "missing"
+
+    async def test_not_found_names_both_causes(
+        self, tracker_client: TrackerClient
+    ) -> None:
+        with aioresponses() as m:
+            m.delete(CHECKLIST_ITEM_URL, status=404)
+
+            with pytest.raises(ChecklistItemNotFound) as exc_info:
+                await tracker_client.issue_delete_checklist_item("TEST-123", "item-1")
+
+        assert exc_info.value.checklist_item_id == "item-1"
         with aioresponses() as m:
             m.patch(CHECKLIST_ITEM_URL, status=404)
 
-            with pytest.raises(IssueNotFound) as exc_info:
+            with pytest.raises(ChecklistItemNotFound) as exc_info:
                 await tracker_client.issue_update_checklist_item(
                     "TEST-123", "item-1", text="New text"
                 )
 
-        assert exc_info.value.issue_id == "TEST-123"
+        assert exc_info.value.checklist_item_id == "item-1"
+        assert exc_info.value.entity_id == "TEST-123"
+        assert "does not exist" in str(exc_info.value)
 
 
 class TestIssueDeleteChecklistItem:
@@ -285,11 +318,13 @@ class TestIssueDeleteChecklistItem:
                 == []
             )
 
-    async def test_not_found(self, tracker_client: TrackerClient) -> None:
+    async def test_not_found_names_both_causes(
+        self, tracker_client: TrackerClient
+    ) -> None:
         with aioresponses() as m:
             m.delete(CHECKLIST_ITEM_URL, status=404)
 
-            with pytest.raises(IssueNotFound) as exc_info:
+            with pytest.raises(ChecklistItemNotFound) as exc_info:
                 await tracker_client.issue_delete_checklist_item("TEST-123", "item-1")
 
-        assert exc_info.value.issue_id == "TEST-123"
+        assert exc_info.value.checklist_item_id == "item-1"

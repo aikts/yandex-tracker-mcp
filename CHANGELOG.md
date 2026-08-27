@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
   - An omitted argument means "leave as is", so the update tool cannot clear a field — its description says so, since "only the fields you pass are changed" otherwise reads as if `null` would remove an assignee or a deadline
   - All three return the issue's checklist after the change, and are registered only when `TRACKER_READ_ONLY` is off; `TRACKER_LIMIT_QUEUES` / `TRACKER_READ_ONLY_QUEUES` apply as they do to the other issue write tools
   - A batch that fails partway through raises an error saying how many items landed, since the successful ones are not rolled back and a blind retry would duplicate them
+  - A 404 on a single item is reported as `ChecklistItemNotFound` naming both possible causes, since Tracker answers item-scoped paths the same way for an unknown issue as for an unknown item
 
 ### Bug Fixes
 
