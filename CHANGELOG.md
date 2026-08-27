@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
   - `issue_add_checklist_items` appends items to an issue's checklist, creating it when the issue has none. Tracker takes one item per request, so a batch is sent as one request per item, in the given order
   - `issue_update_checklist_item` changes a single item — text, `checked`, assignee, deadline — leaving out what you don't pass. Tracker requires `text` on every edit, so an update that omits it resends the item's current text instead of failing
   - `issue_delete_checklist_item` removes one item
+  - An omitted argument means "leave as is", so the update tool cannot clear a field — its description says so, since "only the fields you pass are changed" otherwise reads as if `null` would remove an assignee or a deadline
   - All three return the issue's checklist after the change, and are registered only when `TRACKER_READ_ONLY` is off; `TRACKER_LIMIT_QUEUES` / `TRACKER_READ_ONLY_QUEUES` apply as they do to the other issue write tools
   - A batch that fails partway through raises an error saying how many items landed, since the successful ones are not rolled back and a blind retry would duplicate them
 

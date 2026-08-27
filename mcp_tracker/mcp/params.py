@@ -539,8 +539,9 @@ IssueChecklistItemIDParam = Annotated[
 IssueChecklistItemsParam = Annotated[
     list[ChecklistItemInput],
     Field(
+        min_length=1,
         description="Checklist items to append, in order. "
-        "Example: [{'text': 'Get sign-off from legal'}, {'text': 'Deploy', 'checked': false}]."
+        "Example: [{'text': 'Get sign-off from legal'}, {'text': 'Deploy', 'checked': false}].",
     ),
 ]
 
@@ -564,14 +565,16 @@ IssueChecklistItemAssigneeParam = Annotated[
     str | int | None,
     Field(
         description="User login or ID (uid) to assign the checklist item to. Omit to leave "
-        "unchanged. Example: 'i.ivanov'"
+        "unchanged - an existing assignee cannot be removed through this tool. "
+        "Example: 'i.ivanov'"
     ),
 ]
 
 IssueChecklistItemDeadlineParam = Annotated[
     ChecklistItemDeadlineInput | None,
     Field(
-        description="Deadline for the checklist item. Omit to leave unchanged. Example: "
+        description="Deadline for the checklist item. Omit to leave unchanged - an "
+        "existing deadline cannot be removed through this tool. Example: "
         "{'date': '2026-08-20T00:00:00', 'deadline_type': 'date'}."
     ),
 ]

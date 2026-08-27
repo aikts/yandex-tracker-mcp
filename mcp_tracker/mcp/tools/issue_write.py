@@ -748,9 +748,6 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
     ) -> list[ChecklistItem]:
         check_issue_access(settings, issue_id, write=True)
 
-        if not items:
-            raise TrackerError("Provide at least one checklist item to add.")
-
         return (
             await ctx.request_context.lifespan_context.issues.issue_add_checklist_items(
                 issue_id,
@@ -763,7 +760,10 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         title="Update Issue Checklist Item",
         description="Update a single checklist item of a Yandex Tracker issue, e.g. to "
         "mark it as checked. Only the fields you pass are changed - the ones you omit "
-        "keep their current value. Use issue_get_checklist to get the item IDs. "
+        "keep their current value, so this tool cannot clear a field: passing null (or "
+        "an empty value) for `assignee` or `deadline` leaves it as it is instead of "
+        "removing it. Delete and re-add the item to drop an assignee or a deadline. "
+        "Use issue_get_checklist to get the item IDs. "
         "Returns the issue's checklist after the change.",
         annotations=ToolAnnotations(readOnlyHint=False),
     )

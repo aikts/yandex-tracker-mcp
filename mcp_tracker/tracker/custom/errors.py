@@ -134,7 +134,7 @@ class ChecklistBatchPartiallyAdded(YandexTrackerError):
     def __init__(self, issue_id: str, added: int, total: int, cause: Exception):
         super().__init__(
             f"Added {added} of {total} checklist items to '{issue_id}' before the "
-            f"request failed: {cause} The items already added were kept - read the "
+            f"request failed: {cause}. The items already added were kept - read the "
             f"checklist with issue_get_checklist and retry only what is missing, "
             f"or the successful ones will be duplicated."
         )

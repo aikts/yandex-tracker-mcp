@@ -12,9 +12,9 @@ When both `id` and `key` are given, Tracker resolves by `id` and ignores the
 """
 
 import datetime
-from typing import Any, Self
+from typing import Any, Literal, Self
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import AliasChoices, BaseModel, Field, model_validator
 
 from mcp_tracker.tracker.proto.types.entities import (
     GoalLinkRelationship,
@@ -179,7 +179,11 @@ class ChecklistItemDeadlineInput(BaseModel):
     # naive datetime as UTC.
 
     date: datetime.datetime = Field(..., description="Deadline date and time")
-    deadline_type: str = Field("date", description="Deadline type, e.g. 'date'")
+    deadline_type: Literal["date", "quarter"] = Field(
+        "date",
+        description="Deadline type",
+        validation_alias=AliasChoices("deadline_type", "deadlineType"),
+    )
 
 
 class ChecklistItemInput(BaseModel):
