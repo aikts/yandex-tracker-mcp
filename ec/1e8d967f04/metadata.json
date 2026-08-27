@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "ec1e8d967f04",
+  "strategy": "manual-commit",
+  "branch": "rebuild",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "AGENTS.md",
+    "README.md",
+    "README_ru.md",
+    "mcp_tracker/mcp/tools/_access.py",
+    "mcp_tracker/settings.py",
+    "tests/mcp/conftest.py",
+    "tests/mcp/tools/test_access.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ec/1e8d967f04/0/metadata.json",
+      "transcript": "/ec/1e8d967f04/0/full.jsonl",
+      "compact_transcript": "/ec/1e8d967f04/0/transcript.jsonl",
+      "content_hash": "/ec/1e8d967f04/0/content_hash.txt",
+      "prompt": "/ec/1e8d967f04/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 6,
+    "cache_creation_tokens": 13859,
+    "cache_read_tokens": 851749,
+    "output_tokens": 7968,
+    "api_call_count": 3
+  }
+}
