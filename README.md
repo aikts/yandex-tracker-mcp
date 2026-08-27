@@ -1279,7 +1279,9 @@ TRACKER_READ_ONLY=true                    # Default: false - Disable all write t
 Access to queues can be scoped at three levels, from coarse to fine-grained:
 
 - **`TRACKER_LIMIT_QUEUES`** — allow-list of queue keys. Queues outside the list
-  are treated as *not found / not allowed* for both reads and writes.
+  are treated as *not found / not allowed* for both reads and writes. Keys are
+  matched ignoring case, here and in `TRACKER_READ_ONLY_QUEUES`, so `dev` and
+  `DEV` name the same queue.
 - **`TRACKER_READ_ONLY`** — when `true`, all write tools are unregistered, so the
   whole instance is read-only.
 - **`TRACKER_READ_ONLY_QUEUES`** — per-queue read-only allow-list. Write tools stay

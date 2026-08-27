@@ -168,7 +168,7 @@ Organization (one required):
 - `TRACKER_ORG_ID`: For on-premise
 
 Optional:
-- `TRACKER_LIMIT_QUEUES`: Restrict access to specific queues (allow-list, reads and writes)
+- `TRACKER_LIMIT_QUEUES`: Restrict access to specific queues (allow-list, reads and writes). Both queue lists are normalised on load by `Settings.decode_queue_keys` into a set of upper-cased keys, so a check is `queue.upper() in ...` - one lookup, which the listing tools run per row, and the variable's casing stops mattering. `model_construct` skips validators, so `create_test_settings` calls it explicitly.
 - `TRACKER_READ_ONLY`: When `true`, disables all write tools (the `*_write.py` modules)
 - `TRACKER_READ_ONLY_QUEUES`: Per-queue read-only allow-list. Write tools stay registered, but mutating calls targeting a listed queue are rejected via `check_*_access(..., write=True)` in `_access.py`; reads still work.
 - `TRACKER_ENTITIES_ENABLED`: When `true`, registers the project/portfolio/goal tools (`project*.py`, `portfolio*.py`, `goal*.py`). Default `false`: they add a large tool manifest and are not covered by the queue restrictions above, since an entity isn't mappable to a single queue.

@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from typing import Annotated, Any, Literal
 
 from aiocache import Cache
@@ -25,9 +26,12 @@ class Settings(BaseSettings):
     tracker_iam_token: str | None = None
     tracker_cloud_org_id: str | None = None
     tracker_org_id: str | None = None
-    tracker_limit_queues: Annotated[list[str] | None, NoDecode] = None
+    # Both queue lists are normalised on load: a set of upper-cased keys, so a
+    # check is one hash lookup and the casing of the environment variable stops
+    # mattering. See `decode_queue_keys` below.
+    tracker_limit_queues: Annotated[set[str] | None, NoDecode] = None
     tracker_read_only: bool = False
-    tracker_read_only_queues: Annotated[list[str] | None, NoDecode] = None
+    tracker_read_only_queues: Annotated[set[str] | None, NoDecode] = None
     # Project/portfolio/goal tools are opt-in: they add a large tool manifest and
     # are not subject to the queue restrictions (an entity has no single queue).
     tracker_entities_enabled: bool = False
@@ -90,16 +94,28 @@ class Settings(BaseSettings):
 
     @field_validator("tracker_limit_queues", "tracker_read_only_queues", mode="before")
     @classmethod
-    def decode_numbers(cls, v: str | None) -> list[str] | None:
+    def decode_queue_keys(cls, v: Any) -> set[str] | None:
+        """Parse a queue allow-list into a set of upper-cased keys.
+
+        Upper-casing here rather than at every comparison is what makes the
+        casing of the environment variable irrelevant: Tracker's queue keys are
+        upper-case but the variable is written by hand, and comparing both sides
+        as spelled turned a mis-cased entry into a silently wrong policy rather
+        than an error (`TRACKER_LIMIT_QUEUES=dev` locked out `DEV` along with
+        every other queue). A set also keeps the check a hash lookup, so a long
+        allow-list costs a listing tool nothing per row.
+        """
         if v is None:
             return None
-        if isinstance(v, list):
-            return v
 
-        if not isinstance(v, str):
-            raise TypeError(f"Expected str, list or None, got {type(v)}")
+        if isinstance(v, str):
+            keys: Iterable[str] = v.split(",")
+        elif isinstance(v, (list, set, tuple, frozenset)):
+            keys = v
+        else:
+            raise TypeError(f"Expected str, list, set or None, got {type(v)}")
 
-        return [x.strip() for x in v.split(",") if x.strip()]
+        return {key.strip().upper() for key in keys if key.strip()}
 
     def cache_kwargs(self) -> dict[str, Any]:
         return {
