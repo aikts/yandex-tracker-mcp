@@ -8,7 +8,8 @@ from mcp_tracker.tracker.custom.errors import IssueNotFound
 def _is_read_only_queue(settings: Settings, queue: str) -> bool:
     """Return True if the given queue is configured as read-only."""
     return bool(
-        settings.tracker_read_only_queues and queue in settings.tracker_read_only_queues
+        settings.tracker_read_only_queues
+        and queue.upper() in settings.tracker_read_only_queues
     )
 
 
@@ -16,9 +17,15 @@ def is_queue_allowed(settings: Settings, queue: str) -> bool:
     """Return True if the queue is reachable under ``TRACKER_LIMIT_QUEUES``.
 
     The raising `check_*_access` helpers below and the tools that filter whole
-    listings share this one definition of the allow-list.
+    listings share this one definition of the allow-list. Both settings hold a
+    set of upper-cased keys (see `Settings.decode_queue_keys`), so the casing of
+    the configuration does not matter and the check stays a hash lookup - which
+    is what a listing tool does per row.
     """
-    return not settings.tracker_limit_queues or queue in settings.tracker_limit_queues
+    return (
+        not settings.tracker_limit_queues
+        or queue.upper() in settings.tracker_limit_queues
+    )
 
 
 def check_issue_access(

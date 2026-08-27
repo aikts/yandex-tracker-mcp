@@ -81,14 +81,19 @@ def create_test_settings(
     read_only_queues: list[str] | None = None,
     entities_enabled: bool = True,
 ) -> Settings:
-    """Create Settings for testing with minimal required configuration."""
+    """Create Settings for testing with minimal required configuration.
+
+    `model_construct` skips validation, so the queue lists go through
+    `decode_queue_keys` explicitly - tests must see the same normalised sets a
+    real load produces, not the raw lists they were written with.
+    """
     return Settings.model_construct(
         tracker_token="test-token",
         tracker_org_id="test-org",
         tracker_cloud_org_id=None,
-        tracker_limit_queues=limit_queues,
+        tracker_limit_queues=Settings.decode_queue_keys(limit_queues),
         tracker_read_only=read_only,
-        tracker_read_only_queues=read_only_queues,
+        tracker_read_only_queues=Settings.decode_queue_keys(read_only_queues),
         tracker_entities_enabled=entities_enabled,
         tools_cache_enabled=False,
         oauth_enabled=False,
