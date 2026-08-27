@@ -43,18 +43,15 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Get Issue",
-        description="Get a Yandex Tracker issue by its id: read one issue (task, ticket, bug) "
-        "with a known key like 'QUEUE-123' and return its full record - summary, description, "
-        "status, type, priority, assignee, author, tags, components, sprint, epic, parent, "
-        "deadline, start date, story points, estimation, spent time, votes, created/updated "
-        "timestamps and users, the issue's current `version`, and any queue-local or custom "
-        "fields Tracker returns. "
-        "Use it to open, view, inspect or check the details, state or fields of a single issue "
-        "you can already name, and to read a fresh `version` immediately before `issue_update` "
-        "for optimistic locking. "
-        "To search for issues instead of reading a known one, use `issues_find`. "
-        "Comments, links, attachments, worklogs, checklist, change history and available status "
-        "transitions are not part of this response - each has its own `issue_get_*` tool.",
+        description="Get a Yandex Tracker issue by its id: read one issue (task, "
+        "ticket, bug) with a known key like 'QUEUE-123' and return its full record - "
+        "summary, description, status, type, priority, assignee, dates, tags, "
+        "components, sprint, parent, estimates, the current `version` and any "
+        "queue-local or custom fields. Use it to inspect a single issue you can "
+        "already name, and to read a fresh `version` right before `issue_update`. To "
+        "search instead of reading a known issue, use `issues_find`. Comments, links, "
+        "attachments, worklogs, checklist, changelog and transitions are not included "
+        "- each has its own `issue_get_*` tool.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def issue_get(
@@ -83,9 +80,8 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
     @mcp.tool(
         title="Get Issue Comments",
         description="Get a page of comments of a Yandex Tracker issue by its id. "
-        "Returns the comments plus 'next_cursor'. To fetch the next page, pass "
-        "'next_cursor' from the previous result as the 'cursor' argument; when "
-        "'next_cursor' is null there are no more comments.",
+        "Returns the comments plus `next_cursor` - pass it back as `cursor` until it "
+        "is null.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def issue_get_comments(
@@ -96,9 +92,8 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         fields: Annotated[
             list[CommentFieldsEnum] | None,
             Field(
-                description="Fields to include in each comment. In order to not pollute the context "
-                "window - select only the fields you need (comment text/text_html can be large). "
-                "Not specifying this returns all available fields.",
+                description="Fields to include in each comment; omit to get all. "
+                "text/text_html can be large, so select only what you need.",
             ),
         ] = None,
     ) -> CommentsPage:
@@ -152,12 +147,12 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         fields: Annotated[
             list[str] | None,
             Field(
-                description="Fields to return, in Tracker's own spelling (`storyPoints`, not "
-                "`story_points`); the standard ones are those of this tool's output schema. For a "
-                "queue's local or the organization's custom fields, pass the field `id` from "
-                "`queue_get_fields`. A name Tracker does not know is dropped silently rather than "
-                "reported, so check that tool if a field comes back missing. Omitting this returns "
-                "ALL fields, including the queue's local ones."
+                description="Fields to return, in Tracker's own spelling "
+                "(`storyPoints`, not `story_points`); the standard ones are in this "
+                "tool's output schema. For a queue's local or the organization's "
+                "custom fields, pass the field `id` from `queue_get_fields`. An "
+                "unknown name is dropped silently, so check there if a field comes "
+                "back missing. Omitting this returns ALL fields."
             ),
         ] = None,
         page: PageParam = 1,
@@ -218,9 +213,8 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         fields: Annotated[
             list[WorklogFieldsEnum] | None,
             Field(
-                description="Fields to include in each worklog entry. In order to not pollute the "
-                "context window - select only the fields you need. "
-                "Not specifying this returns all available fields.",
+                description="Fields to include in each worklog entry; omit to get all. "
+                "Select only what you need.",
             ),
         ] = None,
     ) -> dict[str, list[Worklog]]:
@@ -252,9 +246,8 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         fields: Annotated[
             list[AttachmentFieldsEnum] | None,
             Field(
-                description="Fields to include in each attachment. In order to not pollute the "
-                "context window - select only the fields you need (the 'content' field can be large). "
-                "Not specifying this returns all available fields.",
+                description="Fields to include in each attachment; omit to get all. "
+                "The 'content' field can be large, so select only what you need.",
             ),
         ] = None,
     ) -> list[IssueAttachment]:
@@ -307,12 +300,10 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Get Issue Changelog",
-        description="Get the change history (changelog) of a Yandex Tracker issue by its id: "
+        description="Get the change history (changelog) of a Yandex Tracker issue: "
         "status transitions, field edits (who changed what from -> to and when), "
-        "comment changes and executed triggers. "
-        "Returns a page of entries plus 'next_cursor'. To fetch the next page, pass "
-        "'next_cursor' from the previous result as the 'cursor' argument; when "
-        "'next_cursor' is null there are no more pages.",
+        "comment changes and executed triggers. Returns a page of entries plus "
+        "`next_cursor` - pass it back as `cursor` until it is null.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def issue_get_changelog(

@@ -2,12 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.8.1-dev] - unreleased
+## [0.8.1] - unreleased
+
+### Features
+
+- **Agile board and sprint tools**, read-only ([#42](https://github.com/aikts/yandex-tracker-mcp/issues/42))
+  - `boards_get_all` finds the board, `board_get` reads its settings, `board_get_columns` the columns with the issue statuses mapped onto each of them, and `board_get_sprints` the sprints — take the one with `status == "in_progress"` and pass its id to `issue_create` / `issue_update`. Sprints could already be set on write, but nothing could discover a sprint id
+- An issue's **`boards`** is a typed field now. Tracker always returned it, but unmodelled: `extra="allow"` leaked it into answers while `outputSchema` never mentioned it and `fields` could not select it. The board id an issue names now feeds straight into the board tools
+- **`TrackerAPITimeout`** — a request that runs out of its budget says which request timed out after how long and that `TRACKER_API_TIMEOUT` raises it, instead of surfacing as `Error executing tool <name>:` with nothing after the colon (`str(TimeoutError())` is the empty string)
 
 ### Bug Fixes
 
+- **The queue allow-lists match ignoring case.** `TRACKER_LIMIT_QUEUES` / `TRACKER_READ_ONLY_QUEUES` were compared to the queue key exactly, and nothing upper-cased either side: Tracker's keys are upper-case, the variables are written by hand. A mis-cased entry did not fail, it quietly meant something else — `TRACKER_LIMIT_QUEUES=dev` locked out `DEV-1` along with every other queue, and `TRACKER_READ_ONLY_QUEUES=dev` left `DEV` writable while the configuration read as if it were protected
+  - Both variables are normalised once on load into a set of upper-cased keys (`decode_queue_keys`), so a check is one hash lookup rather than a pass over the list per row; entries differing only in case collapse, and a list, set or tuple passed programmatically is normalised the same way
 - With `TOOLS_CACHE_ENABLED=true`, the caller's raw OAuth/IAM token no longer ends up in the Redis cache key. aiocache builds keys by stringifying the cached method's arguments, so `YandexAuth`'s repr wrote the token verbatim into a namespace visible to `KEYS`/`SCAN`/`MONITOR`, RDB dumps and per-key metrics; secret fields now render as a SHA-256 fingerprint, which keeps entries distinct per caller and stops the token leaking into logs and tracebacks too
   - Cache entries written by earlier versions become misses and expire by TTL
+
+### Documentation
+
+- The server instructions described a read-only server: they listed only browsing and querying, though 14 write tools had landed since, and said nothing about the traps an agent walks into first. They now cover that writing exists, that `version` goes stale on its own because triggers and automation bump it right after `issue_create`, that no write tool takes a template id (read the template and pass its values), that `summonees` is what notifies a user where a plain `@login` notifies nobody, that `fields` keeps a large listing out of the context window, and that a missing write tool or a rejected queue may be this server's configuration rather than missing data
+- `tests/mcp/server/test_instructions.py` fails if the instructions name a tool that is not registered or promise an argument a tool does not take, which is what let this drift unnoticed
+- The tool descriptions, the server instructions and the two READMEs are shorter. The board, template and project/portfolio/goal entries had grown into essays on how the tools work inside - why the board listing is walked page by page, which call answers 500 on a partial checklist. What a caller acts on stays (arguments, what comes back, the traps); the rationale belongs in the code and the commit history
 
 ## [0.8.0] - 2026-08-19
 

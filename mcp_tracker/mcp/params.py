@@ -512,16 +512,13 @@ EntityChecklistItemBeforeParam = Annotated[
 EntityChecklistItemsParam = Annotated[
     list[EntityChecklistItemUpdateInput],
     Field(
-        description="Edits to the entity's EXISTING checklist items. Each item requires "
-        "`id` (an existing checklist item ID) and `text`, and may optionally include "
-        "`checked`, `assignee`, `deadline`. "
-        "Only the items you list here are changed - any other item on the checklist is left "
-        "untouched, and any optional field you leave out of a listed item keeps its current "
-        "value rather than being cleared. An `id` that doesn't exist on the entity is "
-        "rejected with a clear error. This tool cannot add or remove items: use "
-        "*_add_checklist_item / *_delete_checklist_item for that. "
-        "Example: [{'id': '5f8b2c1e4c3a2d001a7e9b1c', 'text': 'Get sign-off', "
-        "'checked': false}]."
+        description="Edits to the entity's EXISTING checklist items. Each item needs "
+        "`id` and `text` and may add `checked`, `assignee`, `deadline`. Only the "
+        "listed items change, and a field left out of a listed item keeps its current "
+        "value. An `id` the entity does not have is rejected. Items cannot be added or "
+        "removed here - use *_add_checklist_item / *_delete_checklist_item. Example: "
+        "[{'id': '5f8b2c1e4c3a2d001a7e9b1c', 'text': 'Get sign-off', 'checked': "
+        "false}]."
     ),
 ]
 
@@ -529,10 +526,9 @@ BoardQueueFilter = Annotated[
     str | None,
     Field(
         description="Optional queue key (Project ID) to scope the boards to, like "
-        "'SOMEPROJECT'. A board has no queue field of its own - it is matched by the "
-        "queue in its own auto-filter, i.e. the queue whose issues the board collects. "
-        "Boards whose filter names no queue at all cannot be matched this way and are "
-        "left out when this is set.",
+        "'SOMEPROJECT'. A board has no queue field - it is matched by the queue in its "
+        "own auto-filter, so boards whose filter names no queue are left out when this "
+        "is set.",
     ),
 ]
 
@@ -600,70 +596,41 @@ YTQuery = Annotated[
 
 instructions = """Tools for interacting with Yandex Tracker issue tracking system.
 Use these tools to:
-- Search and browse queues and issues
+- Search and browse queues and issues, with Yandex Query Language (YQL)
 - Search and manage projects, portfolios, and goals (project-management entities, distinct from queues)
-- View issue details, comments, attachments, and worklogs
-- Get information about users, statuses, and issue types
-- Query issues using Yandex Query Language (YQL)
+- View issue details, comments, attachments, worklogs and change history
+- Get information about users, statuses and issue types
 - Look up agile boards, their columns and their sprints
 - Create and edit issues, comments, worklogs and links (unless the server runs read-only)
 
-In russian Yandex Tracker is called "Яндекс Трекер", "Трекер".
-Queues may be called "Очереди".
-Tasks may be called "Задачи", "Issues", "Таски", "ишью".
-Projects may be called "Проекты".
-Portfolios may be called "Портфели".
-Goals may be called "Цели".
+In russian Yandex Tracker is called "Яндекс Трекер", "Трекер"; queues - "Очереди"; issues - "Задачи", "Таски", "ишью"; projects - "Проекты"; portfolios - "Портфели"; goals - "Цели"; boards - "доски"; sprints - "спринты".
 
-Boards ("доски") have no queue field - a board collects whatever its own filter matches. To find the boards of a queue, try both ways: `boards_get_all` with `queue` matches the board's own filter, and misses the boards that filter by something else (personal boards filtering by assignee, for one); reading a few issues of the queue with `issues_find` and looking at their `boards` field catches exactly those.
+Boards have no queue field - a board collects whatever its own filter matches. To find the boards of a queue, try both ways: `boards_get_all` with `queue` matches the board's own filter, while reading a few issues of the queue with `issues_find` and looking at their `boards` field catches the boards that filter by something else (personal boards, for one).
 
-Writing: `issue_update` takes an optional `version` for optimistic locking. Tracker bumps the version on every change, including the queue triggers and automation that fire right after an issue is created, so the version returned by `issue_create` is routinely stale already - re-read it with `issue_get` before retrying, or omit `version` to update the latest version unconditionally.
+Writing:
+- `issue_update` takes an optional `version` for optimistic locking. Every change bumps it, including the queue triggers that fire right after creation, so the version returned by `issue_create` is routinely stale - re-read it with `issue_get`, or omit `version` to update the latest version unconditionally.
+- Templates are read-only helpers: no write tool takes a template id. Read the template with `issue_template_get` / `comment_template_get` and pass its values as the write tool's own arguments.
+- To mention or call users, use the `summonees` argument of the comment tools - a plain `@login` in the text notifies nobody.
 
-Templates are read-only helpers: Tracker cannot create an issue or a comment *from* a template, so no write tool takes a template id. Read the template with `issue_template_get` / `comment_template_get` and pass its values as the write tool's own arguments.
+Tools that accept a `fields` argument return only the fields you select. Use it to keep a large listing out of the context window while searching, then re-read the one record you need in full.
 
-To mention or call users on an issue, use the `summonees` argument of `issue_add_comment` / `issue_update_comment` - a plain `@login` in the comment text notifies nobody.
-
-Tools that accept a `fields` argument (`issues_find`, `queues_get_all`, `boards_get_all`, `board_get`, `board_get_sprints`, ...) return only the fields you select. Use it to keep a large listing out of the context window while searching, then re-read the one record you need in full.
-
-The server may be configured to be read-only, or to allow only some queues: a write tool that is missing, a rejected write, or a queue reported as "not found or not allowed" can be that configuration rather than missing data. Say so instead of retrying.
+The server may be configured read-only, or to allow only some queues: a write tool that is missing, a rejected write, or a queue reported as "not found or not allowed" can be that configuration rather than missing data. Say so instead of retrying.
 
 ## Queues vs. projects/portfolios/goals
 
-A "queue" (e.g. `SOMEPROJECT` in an issue key like `SOMEPROJECT-1`) is where issues live and get
-numbered - use `queues_get_all`, `issues_find`, etc. A "project"/"portfolio"/"goal" (`project_*`,
-`portfolio_*`, `goal_*` tools) is a separate project-management entity used to group and track
-progress across issues from possibly many queues. Don't confuse a queue key with an entity id: entity
-ids come from `project_find`/`portfolio_find`/`goal_find`/`*_get` results, not from issue keys.
-Entity tools are also not covered by the server's queue restrictions, since an entity has no single queue.
+A "queue" (e.g. `SOMEPROJECT` in an issue key like `SOMEPROJECT-1`) is where issues live and get numbered - use `queues_get_all`, `issues_find`, etc. A "project"/"portfolio"/"goal" (`project_*`, `portfolio_*`, `goal_*` tools) is a separate project-management entity grouping progress across issues from possibly many queues. Entity ids come from `*_find` / `*_get` results, never from issue keys. Entity tools are also not covered by the server's queue restrictions, since an entity has no single queue.
 
 ## Linking issues, projects, portfolios, and goals together
 
-- Issue -> project: set the issue's `project` field (on `issue_create`/`issue_update`) to
-  `{"primary": <project shortId>, "secondary": [<other project shortIds>]}`. The project's `shortId`
-  comes from `project_get`/`project_find`. There is no direct issue-to-portfolio or issue-to-goal link;
-  portfolios/goals track progress via the projects (and, for goals, other goals) linked into them.
-- Project/portfolio -> portfolio (containment, "included in portfolio"): set `parent_entity` on
-  `project_create`/`project_update`/`portfolio_create`/`portfolio_update` to
-  `{"primary": <portfolio id>, "secondary": [<other portfolio ids>]}`.
-- Goal -> parent goal (containment): set `parent_entity.primary` on `goal_create`/`goal_update` to the
-  parent goal's id.
-- Cross-entity relationships that aren't containment (e.g. a project "depends on" another project, or
-  "works towards" a goal): use the `links` param on `project_create`/`portfolio_create`/`goal_create`/
-  `*_update`, e.g. `[{"relationship": "works towards", "entity": <goal id>}]`. `links` ADDS links and
-  never replaces them: pass only the new ones, since linking an already-linked pair fails. Links are
-  write-only in the Tracker API - no tool can read an entity's current links (there is no `links` value
-  for the `fields` selector), and this server cannot delete a link; removing one is a manual step in
-  the Tracker UI. On `*_update`, links are applied only when the same call also changes a field or
-  carries a `comment`: Tracker ignores a links-only update, so this server rejects it with an error
-  rather than reporting a success that did nothing.
+- Issue -> project: set the issue's `project` field (on `issue_create`/`issue_update`) to `{"primary": <project shortId>, "secondary": [<other shortIds>]}`; the `shortId` comes from `project_get`/`project_find`. There is no issue-to-portfolio or issue-to-goal link; portfolios and goals track progress through the projects (and, for goals, other goals) linked into them.
+- Containment - project/portfolio into a portfolio, goal into a parent goal: set `parent_entity` on the entity's create/update tool to `{"primary": <id>, "secondary": [<other ids>]}`.
+- Other relationships (a project "depends on" another project, or "works towards" a goal): use the `links` param on `*_create`/`*_update`, e.g. `[{"relationship": "works towards", "entity": <goal id>}]`. `links` ADDS links and never replaces them: pass only new ones, since linking an already-linked pair fails. Links are write-only in the Tracker API - no tool can read or delete them (removing one is a manual step in the Tracker UI) - and on `*_update` they are applied only when the call also changes a field or carries a `comment`, so a links-only update is rejected.
 
-## Selecting entity fields
+## Fields and pagination
 
-Every `project_*`/`portfolio_*`/`goal_*` read tool takes a `fields` selector. Ask only for the fields
-you need - omitting it returns that tool's default subset, which is deliberately small. Custom
-(organization-defined) attributes cannot be requested through these tools.
+Every `project_*`/`portfolio_*`/`goal_*` read tool takes a `fields` selector; omitting it returns that tool's default subset, which is deliberately small. Custom (organization-defined) attributes cannot be requested through these tools.
 
-When using tools that accept `page` and/or `per_page` parameters and when the task is to find something in the result set (or to receive all available data) - always call the tool as many times as needed increasing the `page` parameter until the result set is exhausted. Tools answering with `{values, hits, pages}` tell you when to stop: the current page is the last one when `page` equals `pages`. A null `pages` means no total is available, so keep paging until a page comes back empty. If you stumble with the context size limit — try to change the `per_page` parameter to a lower value and restart the search from the `page=1`.
+With `page`/`per_page` tools, keep increasing `page` until the result set is exhausted. Tools answering with `{values, hits, pages}` tell you when to stop: the current page is the last one when `page` equals `pages`, and a null `pages` means no total is available, so keep paging until a page comes back empty. If you hit the context size limit, lower `per_page` and restart from `page=1`.
 
-Some tools use cursor pagination instead of `page` (`boards_get_all`, `issue_get_changelog` and every `*_get_comments` tool): they accept a `cursor` argument and return a `next_cursor` value. To get all data, keep calling the tool passing the previous `next_cursor` as `cursor` until `next_cursor` is null. Do not change `per_page` mid-pagination; if you must, restart with `cursor` empty.
+`boards_get_all`, `issue_get_changelog` and every `*_get_comments` tool use cursor pagination instead: pass the previous `next_cursor` as `cursor` until it is null. Do not change `per_page` mid-pagination; if you must, restart with `cursor` empty.
 """

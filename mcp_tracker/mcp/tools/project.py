@@ -80,10 +80,9 @@ def register_project_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Get Project Comments",
-        description="Get a page of comments of a Yandex Tracker project by its id or shortId, "
-        "e.g. 'abc123'. Returns the comments plus 'next_cursor'. To fetch the next "
-        "page, pass 'next_cursor' from the previous result as the 'cursor' argument; when "
-        "'next_cursor' is null there are no more comments.",
+        description="Get a page of comments of a Yandex Tracker project by its id or "
+        "shortId, e.g. 'abc123'. Returns the comments plus `next_cursor` - pass it "
+        "back as `cursor` until it is null.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def project_get_comments(
@@ -94,9 +93,8 @@ def register_project_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
         fields: Annotated[
             list[CommentFieldsEnum] | None,
             Field(
-                description="Fields to include in each comment. In order to not pollute the context "
-                "window - select only the fields you need (comment text/text_html can be large). "
-                "Not specifying this returns all available fields.",
+                description="Fields to include in each comment; omit to get all. "
+                "text/text_html can be large, so select only what you need.",
             ),
         ] = None,
     ) -> CommentsPage:

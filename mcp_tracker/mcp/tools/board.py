@@ -26,30 +26,25 @@ from mcp_tracker.tracker.proto.types.boards import (
     SprintFieldsEnum,
 )
 
-# Page size for the walk `queue` needs. Walking a real organization's 415
-# boards measured about the same total either way - 17 requests at 25, 9 at 50,
-# 5 at 100 - with a per-request maximum that moved with the API's own variance
-# rather than with the page size (9.1s at 50 against 3.5s at 100 in the same
-# run). Fewest round trips for the same bytes is the only thing that separates
-# them, so: 100.
+# Page size for the walk `queue` needs. On a real organization's 415 boards,
+# 25 / 50 / 100 per page cost about the same in total, so take the fewest round
+# trips: 100.
 BOARDS_SCAN_PAGE = 100
 
 BoardFieldsParam = Annotated[
     list[BoardFieldsEnum] | None,
     Field(
-        description="Fields to include in the response. In order to not pollute the "
-        "context window - select appropriate fields beforehand. Not specifying fields "
-        "will return all available. When looking for a board, id and name are usually "
-        "enough; read the full record of the one board you need with `board_get`.",
+        description="Fields to include in the response; omit to get all. id and name "
+        "are usually enough while searching - read the one board you need in full with "
+        "`board_get`.",
     ),
 ]
 
 SprintFieldsParam = Annotated[
     list[SprintFieldsEnum] | None,
     Field(
-        description="Fields to include in the response. In order to not pollute the "
-        "context window - select appropriate fields beforehand. Not specifying fields "
-        "will return all available. Most of the time id, name and status are enough.",
+        description="Fields to include in the response; omit to get all. id, name and "
+        "status are usually enough.",
     ),
 ]
 
@@ -58,9 +53,8 @@ def board_queue_keys(board: Board) -> set[str]:
     """Queue keys a board collects issues from, read off its own auto-filter.
 
     A board carries no queue field: what lands on it is whatever
-    `addFilterSettings` matches, so the queue has to be read out of that filter.
-    An inverted condition ("queue is not X") says which queue the board is
-    *not* about and is therefore not a match.
+    `addFilterSettings` matches. An inverted condition ("queue is not X") says
+    which queue the board is *not* about, so it is not a match.
     """
     settings = board.autoFilterSettings
     add = settings.addFilterSettings if settings is not None else None
@@ -89,21 +83,15 @@ def register_board_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Get All Boards",
-        description="Get the agile boards (in russian - 'доски') available in Yandex Tracker. "
-        "Use the returned board id with the `board_get`, `board_get_columns` and "
-        "`board_get_sprints` tools. "
-        "Pass `queue` to get only the boards that collect issues of that queue - "
-        "that is the way to answer 'which board does this project use'. It matches "
-        "the board's own filter, so it misses boards filtering by something else "
-        "(personal boards, for one); to catch those, read a few issues of the queue "
-        "with `issues_find` and look at their `boards` field. "
-        "An organization can have hundreds of boards, so the listing is paginated: "
-        "it returns a page of boards plus `next_cursor`, which you pass back as "
-        "`cursor` to get the next one until it comes back null. Pass `fields` to "
-        "keep the answer small while searching for the board you need. "
-        "Boards are organization-wide and are NOT filtered by the server's queue "
-        "allow-list: a board's settings can name a queue this server otherwise "
-        "refuses to talk about.",
+        description="Get the agile boards (in russian - 'доски') available in Yandex "
+        "Tracker. Pass `queue` for the boards collecting issues of that queue - that "
+        "answers 'which board does this project use'. It matches the board's own "
+        "filter, so it misses boards filtering by something else (personal boards, for "
+        "one); to catch those, read a few issues of the queue with `issues_find` and "
+        "look at their `boards` field. Paginated: pass `next_cursor` back as `cursor` "
+        "until it is null, and use `fields` to keep the listing small. Feed a board id "
+        "to `board_get`, `board_get_columns` and `board_get_sprints`. Boards are "
+        "organization-wide and are NOT filtered by the server's queue allow-list.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def boards_get_all(
@@ -127,13 +115,10 @@ def register_board_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             # the cursor for the next page; a short page means there is none.
             next_cursor = boards[-1].id if len(boards) == per_page and boards else None
         else:
-            # Tracker offers no server-side filter here - a board has no queue
-            # field, it is matched by the queue in its own auto-filter - so a
-            # match can be anywhere and the listing has to be walked. Walking it
-            # a page at a time rather than asking for all of it at once is what
-            # keeps every request the same size whatever the organization: the
-            # unpaged endpoint is one request that grows without bound, and no
-            # timeout covers both a small Tracker and a large one.
+            # No server-side filter here - a board is matched by the queue in
+            # its own auto-filter - so the listing has to be walked. A page at a
+            # time, not the unpaged endpoint: that request grows without bound,
+            # and no timeout covers both a small Tracker and a large one.
             # `board_queue_keys` upper-cases what it reads, so the match ignores
             # case the way the allow-list check does.
             wanted = queue.upper()
@@ -161,10 +146,9 @@ def register_board_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
     @mcp.tool(
         title="Get Board",
         description="Get a single Yandex Tracker agile board (in russian - 'доска') "
-        "with its settings. `autoFilterSettings` is the board's own filter and tells "
-        "which issues the board collects - read it to learn which queue a board is about. "
-        "Also returns the columns, the field issues are estimated by and the working "
-        "calendar the board uses.",
+        "with its settings, columns, the field issues are estimated by and the working "
+        "calendar. `autoFilterSettings` is the board's own filter and tells which "
+        "issues it collects - read it to learn which queue a board is about.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def board_get(
@@ -184,11 +168,10 @@ def register_board_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Get Board Columns",
-        description="Get the columns of a Yandex Tracker agile board together with the "
-        "issue statuses mapped onto each of them. Use it to find out which status an "
-        "issue has to be in to show up in a given column of the board. "
-        "Richer than the columns nested in `boards_get_all` / `board_get`, which carry "
-        "no statuses.",
+        description="Get the columns of a Yandex Tracker agile board with the issue "
+        "statuses mapped onto each - use it to see which status an issue needs to show "
+        "up in a given column. Richer than the columns in `boards_get_all` / "
+        "`board_get`, which carry no statuses.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def board_get_columns(

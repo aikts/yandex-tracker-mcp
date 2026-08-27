@@ -33,9 +33,8 @@ def register_user_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
         fields: Annotated[
             list[UserFieldsEnum] | None,
             Field(
-                description="Fields to include in each user. In order to not pollute the context "
-                "window - select only the fields you need. "
-                "Not specifying this returns all available fields.",
+                description="Fields to include in each user; omit to get all. Select "
+                "only what you need.",
             ),
         ] = None,
     ) -> PaginatedResult[User]:
