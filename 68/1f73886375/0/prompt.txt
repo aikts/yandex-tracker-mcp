@@ -1,0 +1,2 @@
+я увидел что есть метод для пагинации бордов - https://yandex.ru/support/tracker/en/api-ref/boards/get-boards-paginate
+нужно переделать на него вместо пагинации на стороне сервера
