@@ -20,6 +20,12 @@ class QueueNotFound(YandexTrackerError):
         self.queue_id = queue_id
 
 
+class BoardNotFound(YandexTrackerError):
+    def __init__(self, board_id: int):
+        super().__init__(f"Board with ID '{board_id}' not found.")
+        self.board_id = board_id
+
+
 class IssueTemplateNotFound(YandexTrackerError):
     def __init__(self, template_id: str):
         super().__init__(f"Issue template with ID '{template_id}' not found.")
@@ -51,6 +57,26 @@ class IssueVersionConflict(YandexTrackerError):
         )
         self.issue_id = issue_id
         self.version = version
+
+
+class TrackerAPITimeout(YandexTrackerError):
+    """A request to the Yandex Tracker API ran out of its time budget.
+
+    Worth a class of its own only because the alternative is unreadable:
+    `str(TimeoutError())` is the empty string, so a timeout reaches the caller
+    as `Error executing tool <name>:` with nothing after the colon and no hint
+    that time, rather than the request, was the problem.
+    """
+
+    def __init__(self, *, method: str, url: str, timeout: float):
+        self.method = method
+        self.url = url
+        self.timeout = timeout
+        super().__init__(
+            f"Yandex Tracker API request {method} {url} timed out after "
+            f"{timeout:g}s. Raise TRACKER_API_TIMEOUT if this endpoint is "
+            f"slow for this organization."
+        )
 
 
 class TrackerAPIError(YandexTrackerError):

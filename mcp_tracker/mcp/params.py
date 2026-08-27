@@ -525,6 +525,34 @@ EntityChecklistItemsParam = Annotated[
     ),
 ]
 
+BoardQueueFilter = Annotated[
+    str | None,
+    Field(
+        description="Optional queue key (Project ID) to scope the boards to, like "
+        "'SOMEPROJECT'. A board has no queue field of its own - it is matched by the "
+        "queue in its own auto-filter, i.e. the queue whose issues the board collects. "
+        "Boards whose filter names no queue at all cannot be matched this way and are "
+        "left out when this is set.",
+    ),
+]
+
+BoardCursorParam = Annotated[
+    int | None,
+    Field(
+        description="Cursor for the next page: the `next_cursor` value returned by "
+        "the previous call, which is the id of the last board it returned. Leave "
+        "empty for the first page.",
+        ge=1,
+    ),
+]
+
+BoardID = Annotated[
+    int,
+    Field(
+        description="Agile board identifier, as returned by the `boards_get_all` tool"
+    ),
+]
+
 
 YTQuery = Annotated[
     str,
@@ -577,6 +605,7 @@ Use these tools to:
 - View issue details, comments, attachments, and worklogs
 - Get information about users, statuses, and issue types
 - Query issues using Yandex Query Language (YQL)
+- Look up agile boards, their columns and their sprints
 
 In russian Yandex Tracker is called "Яндекс Трекер", "Трекер".
 Queues may be called "Очереди".
@@ -584,6 +613,8 @@ Tasks may be called "Задачи", "Issues", "Таски", "ишью".
 Projects may be called "Проекты".
 Portfolios may be called "Портфели".
 Goals may be called "Цели".
+
+Boards ("доски") have no queue field - a board collects whatever its own filter matches. To find the boards of a queue, try both ways: `boards_get_all` with `queue` matches the board's own filter, and misses the boards that filter by something else (personal boards filtering by assignee, for one); reading a few issues of the queue with `issues_find` and looking at their `boards` field catches exactly those.
 
 ## Queues vs. projects/portfolios/goals
 
@@ -623,5 +654,5 @@ you need - omitting it returns that tool's default subset, which is deliberately
 
 When using tools that accept `page` and/or `per_page` parameters and when the task is to find something in the result set (or to receive all available data) - always call the tool as many times as needed increasing the `page` parameter until the result set is exhausted. Tools answering with `{values, hits, pages}` tell you when to stop: the current page is the last one when `page` equals `pages`. A null `pages` means no total is available, so keep paging until a page comes back empty. If you stumble with the context size limit — try to change the `per_page` parameter to a lower value and restart the search from the `page=1`.
 
-Some tools use cursor pagination instead of `page` (e.g. `issue_get_changelog` and every `*_get_comments` tool): they accept a `cursor` argument and return a `next_cursor` value. To get all data, keep calling the tool passing the previous `next_cursor` as `cursor` until `next_cursor` is null. Do not change `per_page` mid-pagination; if you must, restart with `cursor` empty.
+Some tools use cursor pagination instead of `page` (`boards_get_all`, `issue_get_changelog` and every `*_get_comments` tool): they accept a `cursor` argument and return a `next_cursor` value. To get all data, keep calling the tool passing the previous `next_cursor` as `cursor` until `next_cursor` is null. Do not change `per_page` mid-pagination; if you must, restart with `cursor` empty.
 """

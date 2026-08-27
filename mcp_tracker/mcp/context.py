@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from mcp_tracker.tracker.proto.boards import BoardsProtocol
 from mcp_tracker.tracker.proto.entities import EntitiesProtocol
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
@@ -16,3 +17,4 @@ class AppContext:
     templates: TemplatesProtocol
     users: UsersProtocol
     entities: EntitiesProtocol
+    boards: BoardsProtocol

@@ -269,6 +269,22 @@
       "description": "Get a single Yandex Tracker comment template by its id"
     },
     {
+      "name": "boards_get_all",
+      "description": "Get the agile boards available in the organization, optionally only those collecting issues of a given queue"
+    },
+    {
+      "name": "board_get",
+      "description": "Get a single agile board with its settings, including the auto-filter that says which issues the board collects"
+    },
+    {
+      "name": "board_get_columns",
+      "description": "Get the columns of an agile board together with the issue statuses mapped onto each of them"
+    },
+    {
+      "name": "board_get_sprints",
+      "description": "Get all sprints of a specific agile board"
+    },
+    {
       "name": "issue_get",
       "description": "Read one issue (task, ticket, bug) by its key/ID and return its full record"
     },

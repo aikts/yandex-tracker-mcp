@@ -17,6 +17,7 @@ from yandex.cloud.iam.v1.iam_token_service_pb2_grpc import IamTokenServiceStub
 from yarl import URL
 
 from mcp_tracker.tracker.custom.errors import (
+    BoardNotFound,
     ChecklistItemNotFound,
     CommentTemplateNotFound,
     EntityLinksOnlyUpdate,
@@ -25,13 +26,16 @@ from mcp_tracker.tracker.custom.errors import (
     IssueVersionConflict,
     QueueNotFound,
     TrackerAPIError,
+    TrackerAPITimeout,
 )
+from mcp_tracker.tracker.proto.boards import BoardsProtocol
 from mcp_tracker.tracker.proto.common import YandexAuth
 from mcp_tracker.tracker.proto.entities import EntitiesProtocol
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
 from mcp_tracker.tracker.proto.templates import TemplatesProtocol
+from mcp_tracker.tracker.proto.types.boards import Board, BoardColumnDetail, Sprint
 from mcp_tracker.tracker.proto.types.entities import (
     DEFAULT_ENTITY_FIELDS_PARAM,
     GoalEntity,
@@ -132,6 +136,9 @@ CommentTemplateList = RootModel[list[CommentTemplate]]
 UserList = RootModel[list[User]]
 IssueTransitionList = RootModel[list[IssueTransition]]
 ChangelogList = RootModel[list[ChangelogEntry]]
+BoardList = RootModel[list[Board]]
+BoardColumnList = RootModel[list[BoardColumnDetail]]
+SprintList = RootModel[list[Sprint]]
 
 
 logger = logging.getLogger(__name__)
@@ -253,6 +260,10 @@ class ServiceAccountStore:
         return IAMTokenInfo(token=iam_token.iam_token)
 
 
+# `GET /v3/boards/_paginate` documents `perPage` as no more than 500.
+BOARDS_PAGE_MAX = 500
+
+
 class TrackerClient(
     QueuesProtocol,
     IssueProtocol,
@@ -260,6 +271,7 @@ class TrackerClient(
     TemplatesProtocol,
     UsersProtocol,
     EntitiesProtocol,
+    BoardsProtocol,
 ):
     def __init__(
         self,
@@ -282,6 +294,7 @@ class TrackerClient(
         self._org_id = org_id
         self._cloud_org_id = cloud_org_id
 
+        self._timeout = timeout
         self._session = ClientSession(
             base_url=base_url,
             timeout=ClientTimeout(total=timeout),
@@ -2639,3 +2652,79 @@ class TrackerClient(
                 "portfolio", entity_id, fields=fields, auth=auth
             )
         )
+
+    async def boards_list(
+        self,
+        *,
+        per_page: int = 100,
+        cursor: int | None = None,
+        auth: YandexAuth | None = None,
+    ) -> list[Board]:
+        """One page of boards, ascending by id.
+
+        `cursor` is the id of the last board of the previous page and is
+        exclusive; a page shorter than `per_page` is the last one.
+
+        This is the only way boards are read. `/v3/boards` returns the whole
+        organization in one response - 1.4 MB and 7-16s for 415 boards, in a
+        different order every call - and no timeout fits that, because the
+        request grows with the Tracker it is pointed at: generous for one
+        organization is not enough for the next. A page is bounded by `per_page`
+        instead, so what the budget has to cover stops depending on how large
+        the organization is. It does not make the API's own variance go away,
+        which is what `TRACKER_API_TIMEOUT` and the error below are for.
+        """
+        params: dict[str, Any] = {"perPage": min(per_page, BOARDS_PAGE_MAX)}
+        if cursor is not None:
+            params["id"] = cursor
+
+        try:
+            async with self._session.get(
+                "v3/boards/_paginate",
+                headers=await self._build_headers(auth),
+                params=params,
+            ) as response:
+                await self._raise_for_status(response)
+                return BoardList.model_validate_json(await response.read()).root
+        except TimeoutError as exc:
+            # `str(TimeoutError())` is empty, so left alone this reaches an
+            # agent as `Error executing tool boards_get_all:` and nothing else.
+            raise TrackerAPITimeout(
+                method="GET", url="v3/boards/_paginate", timeout=self._timeout
+            ) from exc
+
+    async def board_get(
+        self, board_id: int, *, auth: YandexAuth | None = None
+    ) -> Board:
+        async with self._session.get(
+            f"v3/boards/{board_id}", headers=await self._build_headers(auth)
+        ) as response:
+            if response.status == 404:
+                raise BoardNotFound(board_id)
+            await self._raise_for_status(response)
+            return Board.model_validate_json(await response.read())
+
+    async def board_get_columns(
+        self, board_id: int, *, auth: YandexAuth | None = None
+    ) -> list[BoardColumnDetail]:
+        async with self._session.get(
+            f"v3/boards/{board_id}/columns", headers=await self._build_headers(auth)
+        ) as response:
+            if response.status == 404:
+                raise BoardNotFound(board_id)
+            await self._raise_for_status(response)
+            return BoardColumnList.model_validate_json(await response.read()).root
+
+    async def board_get_sprints(
+        self, board_id: int, *, auth: YandexAuth | None = None
+    ) -> list[Sprint]:
+        async with self._session.get(
+            f"v3/boards/{board_id}/sprints", headers=await self._build_headers(auth)
+        ) as response:
+            if response.status == 404:
+                raise BoardNotFound(board_id)
+            # A board that is not a scrum board answers 400 with
+            # "У доски этого типа не может быть спринтов." - that explanation only
+            # reaches the caller through _raise_for_status.
+            await self._raise_for_status(response)
+            return SprintList.model_validate_json(await response.read()).root
