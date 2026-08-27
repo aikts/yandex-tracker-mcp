@@ -1,0 +1,99 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "6cdf8a6b433d",
+  "session_id": "3c49384c-0fab-480e-9cd8-06c24b696c27",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-27T15:23:55.564727Z",
+  "branch": "main",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "CHANGELOG.md"
+  ],
+  "agent": "Claude Code",
+  "model": "",
+  "turn_id": "40467099d049",
+  "checkpoint_transcript_start": 1134,
+  "transcript_lines_at_start": 1134,
+  "compact_transcript_start": 151,
+  "token_usage": {
+    "input_tokens": 30,
+    "cache_creation_tokens": 35126,
+    "cache_read_tokens": 3980494,
+    "output_tokens": 6787,
+    "api_call_count": 15
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-simplify-2026-08-27T15:04:31.351842Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "simplify"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "8ad0f1af68e9",
+      "timestamp": "2026-08-27T15:04:31.351842Z",
+      "native": {
+        "command": "/simplify"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/simplify",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-release-2026-08-27T15:21:30.567791Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "release"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "40467099d049",
+      "timestamp": "2026-08-27T15:21:30.567791Z",
+      "native": {
+        "command": "/release"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/release",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 17
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-27T15:23:55.479839Z",
+    "agent_lines": 2,
+    "agent_removed": 1,
+    "human_added": 6,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 8,
+    "total_lines_changed": 15,
+    "agent_percentage": 20,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 60,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 60
+      }
+    }
+  ]
+}
