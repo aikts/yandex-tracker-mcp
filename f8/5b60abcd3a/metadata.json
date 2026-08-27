@@ -1,0 +1,54 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "f85b60abcd3a",
+  "strategy": "manual-commit",
+  "branch": "rebuild",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "AGENTS.md",
+    "README.md",
+    "README_ru.md",
+    "manifest.json",
+    "mcp_tracker/mcp/context.py",
+    "mcp_tracker/mcp/params.py",
+    "mcp_tracker/mcp/server.py",
+    "mcp_tracker/mcp/tools/__init__.py",
+    "mcp_tracker/mcp/tools/board.py",
+    "mcp_tracker/tracker/caching/client.py",
+    "mcp_tracker/tracker/custom/client.py",
+    "mcp_tracker/tracker/custom/errors.py",
+    "mcp_tracker/tracker/proto/boards.py",
+    "mcp_tracker/tracker/proto/types/boards.py",
+    "mcp_tracker/tracker/proto/types/issues.py",
+    "mcp_tracker/tracker/proto/types/refs.py",
+    "tests/mcp/conftest.py",
+    "tests/mcp/server/test_server_creation.py",
+    "tests/mcp/tools/conftest.py",
+    "tests/mcp/tools/test_board_tools.py",
+    "tests/tracker/caching/test_boards_protocol.py",
+    "tests/tracker/caching/test_protocol_conformance.py",
+    "tests/tracker/custom/boards/__init__.py",
+    "tests/tracker/custom/boards/conftest.py",
+    "tests/tracker/custom/boards/test_board_get.py",
+    "tests/tracker/custom/boards/test_board_get_columns.py",
+    "tests/tracker/custom/boards/test_board_get_sprints.py",
+    "tests/tracker/custom/boards/test_boards_list.py",
+    "tests/tracker/proto/test_issue_board_refs.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/f8/5b60abcd3a/0/metadata.json",
+      "transcript": "/f8/5b60abcd3a/0/full.jsonl",
+      "compact_transcript": "/f8/5b60abcd3a/0/transcript.jsonl",
+      "content_hash": "/f8/5b60abcd3a/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4,
+    "cache_creation_tokens": 1685,
+    "cache_read_tokens": 588247,
+    "output_tokens": 2159,
+    "api_call_count": 2
+  }
+}
