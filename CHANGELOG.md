@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.8.1] - unreleased
+## [0.8.1] - 2026-08-27
 
 ### Features
 
@@ -22,6 +22,7 @@ All notable changes to this project will be documented in this file.
 
 - The server instructions described a read-only server: they listed only browsing and querying, though 14 write tools had landed since, and said nothing about the traps an agent walks into first. They now cover that writing exists, that `version` goes stale on its own because triggers and automation bump it right after `issue_create`, that no write tool takes a template id (read the template and pass its values), that `summonees` is what notifies a user where a plain `@login` notifies nobody, that `fields` keeps a large listing out of the context window, and that a missing write tool or a rejected queue may be this server's configuration rather than missing data
 - `tests/mcp/server/test_instructions.py` fails if the instructions name a tool that is not registered or promise an argument a tool does not take, which is what let this drift unnoticed
+- The README examples could not work as printed: every client configuration set `TRACKER_CLOUD_ORG_ID` and `TRACKER_ORG_ID` at once, which makes every call raise "Only one of org_id or cloud_org_id should be provided.", and the Docker examples published port 8000 without `TRANSPORT`, so the container came up on the stdio default and listened on nothing. The English README also called the entity tools read-only, and both pointed at tool names this server has never had (`get_queue_metadata`, `queue_get_local_fields`)
 - The tool descriptions, the server instructions and the two READMEs are shorter. The board, template and project/portfolio/goal entries had grown into essays on how the tools work inside - why the board listing is walked page by page, which call answers 500 on a partial checklist. What a caller acts on stays (arguments, what comes back, the traps); the rationale belongs in the code and the commit history
 
 ### Internal
