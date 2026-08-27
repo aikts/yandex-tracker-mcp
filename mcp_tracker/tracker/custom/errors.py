@@ -162,6 +162,22 @@ class ChecklistBatchPartiallyAdded(YandexTrackerError):
         self.cause = cause
 
 
+class ChecklistItemEmptyUpdate(YandexTrackerError):
+    """Raised for a checklist item update that would change nothing.
+
+    Verified against the live API: Tracker answers an empty PATCH body with 200
+    and leaves the item untouched, so such a call is a silent no-op round-trip.
+    It is refused here rather than reported back as a success.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            "A checklist item update must change something: pass at least one of "
+            "`text`, `checked`, `assignee` or `deadline`. An omitted field keeps "
+            "its current value - this call cannot clear one."
+        )
+
+
 class EntityLinksOnlyUpdate(YandexTrackerError):
     """Raised for an entity update that would only change links.
 

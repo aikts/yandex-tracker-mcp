@@ -763,10 +763,9 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         "keep their current value, so this tool cannot clear a field: passing null (or "
         "an empty value) for `assignee` or `deadline` leaves it as it is instead of "
         "removing it. Delete and re-add the item to drop an assignee or a deadline. "
-        "At least one of text/checked/assignee/deadline must be passed. Use "
-        "issue_get_checklist to get the item IDs. When text is omitted, it is read "
-        "from the current checklist and sent back unchanged - a concurrent edit to "
-        "the item's text in that window would be overwritten. "
+        "At least one of text/checked/assignee/deadline must be passed. Omitting "
+        "text keeps the item's current text - you do not need to resend it. Use "
+        "issue_get_checklist to get the item IDs. "
         "Returns the issue's checklist after the change.",
         annotations=ToolAnnotations(readOnlyHint=False),
     )

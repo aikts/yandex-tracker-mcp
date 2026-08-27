@@ -18,6 +18,7 @@ from yarl import URL
 
 from mcp_tracker.tracker.custom.errors import (
     ChecklistBatchPartiallyAdded,
+    ChecklistItemEmptyUpdate,
     ChecklistItemNotFound,
     CommentTemplateNotFound,
     EntityLinksOnlyUpdate,
@@ -1068,21 +1069,13 @@ class TrackerClient(
     ) -> list[ChecklistItem]:
         """Изменить один пункт чеклиста задачи.
 
-        `text` обязателен в теле запроса, поэтому, когда его не передали (частый
-        случай — просто отметить пункт выполненным), текущий текст читается из
-        чеклиста задачи и отправляется без изменений. Между этим чтением и PATCH
-        есть окно: если текст пункта поменяют параллельно, эта правка будет
-        отменена отправленным PATCH.
+        Отправляются только переданные поля. Вопреки документации, `text` в теле
+        не обязателен: проверено на живом API — `PATCH` с одним лишь `checked`
+        (или `assignee`) отвечает 200 и сохраняет текущий текст пункта, так что
+        дочитывать и переотправлять его не нужно.
         """
         if text is None and checked is None and assignee is None and deadline is None:
-            raise ValueError(
-                "issue_update_checklist_item requires at least one of "
-                "text, checked, assignee, deadline"
-            )
-        if text is None:
-            text = await self._checklist_item_text(
-                issue_id, checklist_item_id, auth=auth
-            )
+            raise ChecklistItemEmptyUpdate()
 
         body = self._build_checklist_item_body(
             text=text,
@@ -1122,14 +1115,6 @@ class TrackerClient(
             return _IssueChecklist.model_validate_json(
                 await response.read()
             ).checklistItems
-
-    async def _checklist_item_text(
-        self, issue_id: str, checklist_item_id: str, *, auth: YandexAuth | None = None
-    ) -> str:
-        for item in await self.issue_get_checklist(issue_id, auth=auth):
-            if item.id == checklist_item_id:
-                return item.text
-        raise ChecklistItemNotFound(issue_id, checklist_item_id)
 
     async def issues_count(self, query: str, *, auth: YandexAuth | None = None) -> int:
         body: dict[str, Any] = {

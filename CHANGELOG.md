@@ -14,10 +14,8 @@ All notable changes to this project will be documented in this file.
   - All three return the issue's checklist after the change, and are registered only when `TRACKER_READ_ONLY` is off; `TRACKER_LIMIT_QUEUES` / `TRACKER_READ_ONLY_QUEUES` apply as they do to the other issue write tools
   - A batch that fails partway through raises an error saying how many items landed, since the successful ones are not rolled back and a blind retry would duplicate them
   - A 404 on a single item is reported as `ChecklistItemNotFound` naming both possible causes, since Tracker answers item-scoped paths the same way for an unknown issue as for an unknown item
-
-### Bug Fixes
-
-- Checklist items no longer serialize their unset fields as explicit nulls (`textHtml`, `assignee`, `deadline`, `checklistItemType`), halving the response size of `issue_get_checklist` and of the checklist write tools
+  - An update that changes nothing is refused with `ChecklistItemEmptyUpdate` instead of rewriting the item's current text over itself, and `deadline_type` is validated against `date` / `quarter` up front rather than by a 422 from Tracker (the camelCase `deadlineType` spelling is accepted too)
+  - Checklist items no longer serialize their unset fields as explicit nulls (`textHtml`, `assignee`, `deadline`, `checklistItemType`), halving the response size of `issue_get_checklist` and of the checklist write tools
 
 ## [0.8.0] - 2026-08-19
 

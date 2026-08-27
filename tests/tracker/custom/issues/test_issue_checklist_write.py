@@ -2,12 +2,14 @@ import datetime
 import re
 from typing import Any
 
+import pydantic
 import pytest
 from aioresponses import aioresponses
 
 from mcp_tracker.tracker.custom.client import TrackerClient
 from mcp_tracker.tracker.custom.errors import (
     ChecklistBatchPartiallyAdded,
+    ChecklistItemEmptyUpdate,
     ChecklistItemNotFound,
     IssueNotFound,
     TrackerAPIError,
@@ -118,15 +120,56 @@ class TestIssueAddChecklistItems:
             }
         )
 
-    async def test_empty_items_makes_no_request(
+    async def test_deadline_type_accepts_camel_case_alias(
         self, tracker_client: TrackerClient
     ) -> None:
-        # No mock registered: any request would fail the test.
-        with aioresponses():
-            assert (
-                await tracker_client.issue_add_checklist_items("TEST-123", items=[])
-                == []
+        capture = RequestCapture(payload=_issue_data([{"id": "item-1", "text": "Do"}]))
+
+        with aioresponses() as m:
+            m.post(CHECKLIST_ITEMS_URL, callback=capture.callback)
+
+            await tracker_client.issue_add_checklist_items(
+                "TEST-123",
+                items=[
+                    ChecklistItemInput(
+                        text="Do",
+                        deadline=ChecklistItemDeadlineInput.model_validate(
+                            {
+                                "date": datetime.datetime(
+                                    2026, 8, 20, tzinfo=datetime.timezone.utc
+                                ),
+                                "deadlineType": "quarter",
+                            }
+                        ),
+                    )
+                ],
             )
+
+        assert (
+            capture.last_request.get_json_body()["deadline"]["deadlineType"]
+            == "quarter"
+        )
+
+    def test_deadline_type_rejects_unknown_value(self) -> None:
+        with pytest.raises(pydantic.ValidationError):
+            ChecklistItemDeadlineInput(
+                date=datetime.datetime(2026, 8, 20, tzinfo=datetime.timezone.utc),
+                deadline_type="year",  # type: ignore[arg-type]
+            )
+
+    async def test_empty_items_returns_current_checklist(
+        self, tracker_client: TrackerClient
+    ) -> None:
+        with aioresponses() as m:
+            m.get(
+                CHECKLIST_ITEMS_URL,
+                payload=[{"id": "item-1", "text": "Existing", "checked": False}],
+            )
+            result = await tracker_client.issue_add_checklist_items(
+                "TEST-123", items=[]
+            )
+        assert len(result) == 1
+        assert result[0].id == "item-1"
 
     async def test_partial_failure_reports_what_landed(
         self, tracker_client: TrackerClient
@@ -204,10 +247,21 @@ class TestIssueUpdateChecklistItem:
         capture.last_request.assert_json_body({"text": "New text", "checked": True})
         assert result[0].checked is True
 
-    async def test_reads_current_text_when_omitted(
+    async def test_no_fields_raises_without_a_request(
         self, tracker_client: TrackerClient
     ) -> None:
-        """`text` is required by the API, so it is refilled from the checklist."""
+        # No mock registered: no request at all may leave the client.
+        with aioresponses(), pytest.raises(ChecklistItemEmptyUpdate):
+            await tracker_client.issue_update_checklist_item("TEST-123", "item-1")
+
+    async def test_omitted_text_is_not_sent_and_not_read_back(
+        self, tracker_client: TrackerClient
+    ) -> None:
+        """Verified live: Tracker keeps the current text when `text` is omitted.
+
+        The single captured PATCH is the assertion - an extra GET to refill
+        `text` would be an unmocked request and fail the test.
+        """
         patch_capture = RequestCapture(
             payload=_issue_data(
                 [{"id": "item-1", "text": "Do the thing", "checked": True}]
@@ -215,39 +269,26 @@ class TestIssueUpdateChecklistItem:
         )
 
         with aioresponses() as m:
-            m.get(
-                CHECKLIST_ITEMS_URL,
-                payload=[{"id": "item-1", "text": "Do the thing", "checked": False}],
-            )
             m.patch(CHECKLIST_ITEM_URL, callback=patch_capture.callback)
 
             result = await tracker_client.issue_update_checklist_item(
                 "TEST-123", "item-1", checked=True
             )
 
-        patch_capture.last_request.assert_json_body(
-            {"text": "Do the thing", "checked": True}
-        )
+        patch_capture.assert_request_count(1)
+        patch_capture.last_request.assert_json_body({"checked": True})
+        assert result[0].text == "Do the thing"
         assert result[0].checked is True
 
-    async def test_unknown_item_id_raises(self, tracker_client: TrackerClient) -> None:
-        with aioresponses() as m:
-            # No PATCH mock: the client must not reach the API with an unknown id.
-            m.get(CHECKLIST_ITEMS_URL, payload=[{"id": "item-1", "text": "Do"}])
-
-            with pytest.raises(ChecklistItemNotFound) as exc_info:
-                await tracker_client.issue_update_checklist_item(
-                    "TEST-123", "missing", checked=True
-                )
-
-        assert exc_info.value.checklist_item_id == "missing"
-
-    async def test_unknown_item_id_raises_the_same_error_with_text(
-        self, tracker_client: TrackerClient
+    @pytest.mark.parametrize(
+        "fields",
+        [{"checked": True}, {"text": "New text"}],
+        ids=["without-text", "with-text"],
+    )
+    async def test_unknown_item_id_raises(
+        self, tracker_client: TrackerClient, fields: dict[str, Any]
     ) -> None:
-        """Passing `text` must not change which error an unknown item id gives:
-        without it the id is checked against the checklist, with it Tracker
-        answers 404, and both have to arrive as ChecklistItemNotFound."""
+        """Whether `text` is passed must not change the error an unknown id gives."""
         with aioresponses() as m:
             m.patch(
                 re.compile(
@@ -259,7 +300,7 @@ class TestIssueUpdateChecklistItem:
 
             with pytest.raises(ChecklistItemNotFound) as exc_info:
                 await tracker_client.issue_update_checklist_item(
-                    "TEST-123", "missing", text="New text"
+                    "TEST-123", "missing", **fields
                 )
 
         assert exc_info.value.checklist_item_id == "missing"

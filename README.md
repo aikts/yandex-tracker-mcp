@@ -785,8 +785,10 @@ All four tools respect `TRACKER_LIMIT_QUEUES`: templates bound to a restricted q
     - `text` (string, optional): New item text; omit to keep the current one
     - `checked` (boolean, optional)
     - `assignee` (string, optional): Login or uid
-    - `deadline` (object, optional): `{"date": "2026-08-20T00:00:00", "deadline_type": "date"}`
+    - `deadline` (object, optional): `{"date": "2026-08-20T00:00:00", "deadline_type": "date"}` — `deadline_type` is `"date"` or `"quarter"`
+  - At least one of `text`, `checked`, `assignee` or `deadline` must be passed; a call that changes nothing is refused
   - Only the fields you pass are changed; the ones you omit keep their current value. Clearing is not supported: passing `null` for `assignee` or `deadline` leaves the current value in place rather than removing it — delete and re-add the item to drop one
+  - Omitting `text` keeps the item's current text — it does not need to be resent
   - Returns the issue's checklist after the change
 
 - **`issue_delete_checklist_item`**: Delete a single item from the checklist of an issue

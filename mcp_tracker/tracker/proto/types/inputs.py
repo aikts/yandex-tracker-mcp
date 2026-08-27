@@ -175,8 +175,8 @@ class ChecklistItemDeadlineInput(BaseModel):
 
     # The docstring and the field descriptions here are what the tool schema
     # shows the model, so the wire format stays out of them: the client
-    # reformats `date` to Tracker's `YYYY-MM-DDThh:mm:ss.sss±hhmm`, reading a
-    # naive datetime as UTC.
+    # reformats `date` through `_tracker_datetime`, reading a naive datetime as
+    # UTC and emitting the offset without a colon.
 
     date: datetime.datetime = Field(..., description="Deadline date and time")
     deadline_type: Literal["date", "quarter"] = Field(
