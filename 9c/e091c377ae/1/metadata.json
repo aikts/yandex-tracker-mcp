@@ -1,0 +1,97 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "9ce091c377ae",
+  "session_id": "738b3076-ab15-497b-ac82-7fe12aeafceb",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-27T14:39:50.298423Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "CHANGELOG.md",
+    "README.md",
+    "README_ru.md"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5[1m]",
+  "turn_id": "51e1ec916e08",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 128,
+    "cache_creation_tokens": 182993,
+    "cache_read_tokens": 8105023,
+    "output_tokens": 56397,
+    "api_call_count": 64
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-27T14:39:50.247722Z",
+    "agent_lines": 0,
+    "agent_removed": 167,
+    "human_added": 0,
+    "human_modified": 225,
+    "human_removed": 78,
+    "total_committed": 1,
+    "total_lines_changed": 788,
+    "agent_percentage": 21.19289340101523,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 75,
+      "user_lines_removed": 1,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 60,
+        "CHANGELOG.md": 15
+      },
+      "user_removed_per_file": {
+        "CHANGELOG.md": 1
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 275,
+      "user_lines_removed": 302,
+      "agent_lines_added": 94,
+      "agent_lines_removed": 168,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 60,
+        "mcp_tracker/mcp/params.py": 29,
+        "mcp_tracker/mcp/tools/board.py": 21,
+        "mcp_tracker/mcp/tools/field.py": 5,
+        "mcp_tracker/mcp/tools/goal.py": 5,
+        "mcp_tracker/mcp/tools/goal_write.py": 4,
+        "mcp_tracker/mcp/tools/issue_read.py": 26,
+        "mcp_tracker/mcp/tools/issue_write.py": 63,
+        "mcp_tracker/mcp/tools/portfolio.py": 5,
+        "mcp_tracker/mcp/tools/portfolio_write.py": 9,
+        "mcp_tracker/mcp/tools/project.py": 5,
+        "mcp_tracker/mcp/tools/project_write.py": 9,
+        "mcp_tracker/mcp/tools/queue.py": 16,
+        "mcp_tracker/mcp/tools/template.py": 16,
+        "mcp_tracker/mcp/tools/user.py": 2
+      },
+      "user_removed_per_file": {
+        "mcp_tracker/mcp/params.py": 62,
+        "mcp_tracker/mcp/tools/board.py": 31,
+        "mcp_tracker/mcp/tools/field.py": 5,
+        "mcp_tracker/mcp/tools/goal.py": 7,
+        "mcp_tracker/mcp/tools/goal_write.py": 6,
+        "mcp_tracker/mcp/tools/issue_read.py": 35,
+        "mcp_tracker/mcp/tools/issue_write.py": 78,
+        "mcp_tracker/mcp/tools/portfolio.py": 7,
+        "mcp_tracker/mcp/tools/portfolio_write.py": 11,
+        "mcp_tracker/mcp/tools/project.py": 7,
+        "mcp_tracker/mcp/tools/project_write.py": 11,
+        "mcp_tracker/mcp/tools/queue.py": 17,
+        "mcp_tracker/mcp/tools/template.py": 22,
+        "mcp_tracker/mcp/tools/user.py": 3
+      }
+    }
+  ]
+}
