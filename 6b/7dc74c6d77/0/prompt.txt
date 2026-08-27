@@ -1,0 +1,32 @@
+я не понимаю а как используется allow_statuses? как будто это мертвая ветка или нет?
+
+---
+
+ок
+
+---
+
+все ок
+
+---
+
+/simplify
+
+---
+
+<agent-message from="efficiency">
+Efficiency review of the _request() refactor: nothing worth changing — all three candidate costs measure as noise against an HTTP round trip.
+
+1. mcp_tracker/tracker/custom/client.py, 34 call sites (e.g. :471 queues_get_local_fields, :1318 issue_update) — exception instances constructed eagerly on every call via not_found= / conflict=.
+Cost: measured IssueNotFound("TEST-1") at 0.149 us, QueueNotFound at 0.148 us, and the long-message IssueVersionConflict("TEST-1", 3) at 0.231 us. Every __init__ in errors.py is just an f-string, and Python attaches no traceback until `raise`, so nothing large is captured. The one constructor that does real work — TrackerAPIError, which json.loads the body — is still built only on the failure path inside _raise_for_status.
+Cheaper alternative: pass a factory callable instead of an instance. That costs a closure allocation per call to save 0.15 us. Not worth it — leave as is.
+
+2. client.py:379-443 (_request) and :444-464 (_read) — extra indirection per request.
+Cost: measured the @asynccontextmanager wrapper at ~0.84 us over a plain coroutine, plus ~0.04 us for _read's extra frame; roughly 4 extra short-lived objects per request, all freed at block exit. self._session.request(method, ...) is exactly what session.get()/.post() dispatch to internally, so the verb-as-string change is free, and aiohttp falsy-skips params=None / json=None, so always passing them adds nothing. allow_statuses=(404,) at client.py:1027 is a constant tuple in co_consts, not a per-call allocation.
+Cheaper alternative: none that is worth the loss of the single funnel. ~1 us against a request measured in tens of milliseconds is ~0.001%.
+
+3. client.py — five DELETE methods now read a body they previously discarded: issue_delete_link (:722), issue_delete_comment (:828), issue_delete_worklog (:984), _entity_delete (:1654), _entity_delete_comment (:2048). They went from raise_for_status + return None to await self._read(...), which reads and throws the bytes away.
+Cost: I checked whether skipping the read had been buying connection reuse (aiohttp 3.14.3): against a local server, 5 DELETEs with and without read() both leave exactly 1 pooled connection. So this is one extra await over already-buffered bytes on a tiny body — neither a win nor a regression. No change needed.
+
+No redundant I/O or repeated computation introduced: _raise_for_status raises before _read's response.read() can run, so there is no double body read; _build_headers is still called exactly once per request, and it is correctly hoisted outside the try so a service-account IAM fetch cannot be misreported as a Tracker timeout. grep confirms one funnel, 61 call sites through it, and zero remaining direct self._session.<verb> calls.
+</agent-message>

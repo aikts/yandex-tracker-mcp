@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "6b7dc74c6d77",
+  "strategy": "manual-commit",
+  "branch": "refactor/tracker-request-funnel",
+  "checkpoints_count": 13,
+  "files_touched": [
+    "AGENTS.md",
+    "CHANGELOG.md",
+    "mcp_tracker/tracker/custom/client.py",
+    "tests/tracker/custom/boards/test_boards_list.py",
+    "tests/tracker/custom/test_request.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/6b/7dc74c6d77/0/metadata.json",
+      "transcript": "/6b/7dc74c6d77/0/full.jsonl",
+      "compact_transcript": "/6b/7dc74c6d77/0/transcript.jsonl",
+      "content_hash": "/6b/7dc74c6d77/0/content_hash.txt",
+      "prompt": "/6b/7dc74c6d77/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 182,
+    "cache_creation_tokens": 110430,
+    "cache_read_tokens": 17923986,
+    "output_tokens": 48396,
+    "api_call_count": 91
+  }
+}
