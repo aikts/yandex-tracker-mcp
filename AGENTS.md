@@ -41,23 +41,12 @@ uv run mcp-tracker # Run the server
 ### Writing to the Tracker API
 
 - **Reference fields** (`type`, `priority`, `parent`, `sprint`, `followers`, `components`, `project`) use the shared models in `mcp_tracker/tracker/proto/types/inputs.py` (`Issue*Ref`), serialized by `_ref_body()` in the client. How Tracker resolves a bare value is per field, so check before widening a parameter: `type` / `priority` accept an id or a key and resolve a numeric string as an id (verified against the API), `followers` accept a uid or a login the same way, and a 422 from these means the referenced entity does not exist. `components` are the exception - a bare string there is a *name*, which makes a numeric-looking name ambiguous (this is what `components: ["694"]` answered 422 for), hence `IssueComponentRef` requiring exactly one of `id` / `name`. Create and update must accept and send the same value the same way - the API takes a bare key or id on both, so a parameter widened on one has to be widened on the other, or an agent that created an issue with a scalar hits a schema error when it updates the same way.
-- **Errors**: use `await self._raise_for_status(response)` instead of `response.raise_for_status()` so Tracker's own `errorMessages` / `errors` end up in the raised `TrackerAPIError` (a bare "Unprocessable Entity" tells the caller nothing). Status codes with an actionable meaning get a dedicated error: 404 → `IssueNotFound` on issue-scoped paths, `QueueNotFound` on queue-scoped ones (`v3/queues/{queue}/...`) and `BoardNotFound` on board-scoped ones (`v3/boards/{board}/...`), 409 on update → `IssueVersionConflict`. A dedicated error applies to *every* method scoped to that entity, not just to newly added ones.
+- **Errors**: use `await self._raise_for_status(response)` instead of `response.raise_for_status()` so Tracker's own `errorMessages` / `errors` end up in the raised `TrackerAPIError` (a bare "Unprocessable Entity" tells the caller nothing). Status codes with an actionable meaning get a dedicated error: 404 → `IssueNotFound` on issue-scoped paths, `QueueNotFound` on queue-scoped ones (`v3/queues/{queue}/...`) and similar error on other paths, 409 on update → `IssueVersionConflict`. A dedicated error applies to *every* method scoped to that entity, not just to newly added ones.
 - **Field names on the wire**: a model may use a snake_case Python name, but it must accept *and emit* Tracker's own name - set `serialization_alias` next to every `validation_alias` (`story_points` reads and writes `storyPoints`). Responses are what callers feed back into `fields`, so the two spellings have to match; `tests/tracker/proto/test_model_aliases.py` fails if a new field forgets this.
 - **`fields` maps**: `issue_create` / `issue_update` take the free-form map as an explicit `fields` parameter, never as `**kwargs` - a key naming a dedicated parameter used to raise `TypeError: got multiple values`. The client merges it into the body last, so an entry overrides the dedicated parameter and an explicit `null` clears the field (a dedicated parameter left as `None` is simply not sent).
 - **Reference inputs**: every `Issue*Ref` validates that it carries something to resolve (`IssueComponentRef` wants exactly one of `id` / `name`, the others at least one of `id` / `key`); Tracker answers an empty object with an unhelpful 400/422, and when both `id` and `key` are set it resolves by `id`.
 - **Issue `version`**: it is bumped by every change, including queue triggers and automation that fire right after creation, so the version returned by `issue_create` is routinely stale. Tools that accept `version` must say so and point at `issue_get` for a fresh read.
 - **Templates are not applied on write** (decided 2026-08-17, not yet implemented): `POST /v3/issues` has no `templateId` parameter, so `issue_create` cannot take one without expanding the template client-side. Callers read `issue_template_get` and fill the arguments themselves. Adding a `template_id` parameter later means merging `fieldTemplates` under the explicit arguments (which win) and mapping its reference values onto the `Issue*Ref` models - the template returns them as objects like `{"id": "1", "key": "bug"}`, and `components` in particular need the id-or-name form (see the reference-fields note above). `checklistItems` / `metricItems` cannot be sent at creation at all and would need a follow-up request.
-
-### Reading boards
-
-- **List boards through `/v3/boards/_paginate`, never `/v3/boards`.** The latter ignores `page` / `perPage`, answers with the whole organization (415 boards / 1.4 MB / 7-16s against a 10s `TRACKER_API_TIMEOUT`, so it failed on a coin flip) and in a *different order every call*. `_paginate` is the same data by the page - 25 boards is 88 KB in 1-2s - ordered by id, `perPage` capped at 500, and `id` is an exclusive cursor. `boards_get_all` therefore takes `cursor` / `next_cursor` like the changelog and comment tools rather than a page number. Filtering by `queue` has to see every board (a match can be anywhere) and walks the pages to do it (`BOARDS_SCAN_PAGE`) rather than asking the old endpoint for all of them at once - one request that grows with the Tracker it is pointed at is one no timeout fits, while a page is bounded by `per_page` whatever the organization's size. It does not remove the API's own variance, so a timeout becomes `TrackerAPITimeout` and names `TRACKER_API_TIMEOUT`: `str(TimeoutError())` is empty, which reaches an agent as `Error executing tool boards_get_all:` and nothing else.
-- **Boards are deliberately outside `TRACKER_LIMIT_QUEUES`** (decided 2026-08-27): a board has no queue, so filtering the listing on `board_queue_keys()` would take away what the tools are for. Only the `queue` argument of `boards_get_all` is checked. The leak is documented in both READMEs instead - a board's `autoFilterSettings` can name a queue the rest of the server refuses to talk about.
-- **A board has no queue field.** What lands on it is whatever `autoFilterSettings` matches, so "boards of queue X" is answered by reading the queue out of that filter (`board_queue_keys()` in `mcp/tools/board.py`), and `?queue=` on the endpoint is ignored like the paging parameters. Boards whose filter names no queue cannot be found this way at all - how many depends on the organization (a third of them where this was checked) - so a queue-scoped listing has to say it may be incomplete. The second route catches them: an issue's `boards` is filled in from the boards' own filters (`DEVOPSOBR`: 2 boards by filter, 6 through its issues), and the server `instructions` tell agents to try both.
-- **Board settings live on the board record**, not on a sub-resource: `autoFilterSettings` (the board's filter - which issues it collects), `estimateBy`, `useRanking`, `country`, `calendar`. `/v3/boards/{id}/filter` and `/settings` do not exist. `autoFilterSettings` is present in the *listing* too, which is why `fields` matters there.
-- **A filter condition is not always a reference.** `autoFilterSettings.…​.liveFilter.fieldValues[].value[]` carries either `fixed` (an object for most fields, but a bare string for enumerated ones like `statusType`) or `macro` (`empty()` / `notEmpty()`), so `fixed` is typed `BoardFilterValueRef | str | None`. `filterFieldsOrder` repeats the same fields for display order and is deliberately not modelled.
-- **`GET /v3/boards/{id}/columns` is a different shape** from the columns nested in a board: `id` is a number and the label is `name`, against a string `id` and `display` when nested. Only this endpoint carries the `statuses` mapped onto a column.
-- **404 on a board-scoped path** means the board does not exist; a board that is not a scrum board answers **400** "У доски этого типа не может быть спринтов." on `/sprints`, so both need `_raise_for_status` to stay diagnosable.
-- **An issue names its boards** in `boards` (`{"id": <int>, "name": ...}` - `name`, not `display`, unlike Tracker's other references). It is derived from the boards' filters and so read-only; the id is what the board tools take. Neighbouring ids are not all ints: `sprint` on an issue and `Sprint.board.id` come back as *strings* (`BaseReference.id` is `Any`) against the ints `Sprint.id` / `IssueSprintRef.id` / `BoardID` - said in the field description, since the schema cannot.
 
 ## Testing
 
@@ -138,22 +127,22 @@ For paginated methods, use `side_effect` for sequential returns: `mock.method.si
 
 ### Tool Categories
 
-| Category | Module | Read-Only |
-|----------|--------|-----------|
-| Queue | `queue.py` | Yes |
-| Queue Write | `queue_write.py` | No |
-| Field | `field.py` | Yes |
-| Template | `template.py` | Yes |
-| Board | `board.py` | Yes |
-| Issue Read | `issue_read.py` | Yes |
-| Issue Write | `issue_write.py` | No |
-| User | `user.py` | Yes |
-| Project | `project.py` | Yes |
-| Project Write | `project_write.py` | No |
-| Portfolio | `portfolio.py` | Yes |
-| Portfolio Write | `portfolio_write.py` | No |
-| Goal | `goal.py` | Yes |
-| Goal Write | `goal_write.py` | No |
+| Category        | Module               | Read-Only |
+|-----------------|----------------------|-----------|
+| Queue           | `queue.py`           | Yes       |
+| Queue Write     | `queue_write.py`     | No        |
+| Field           | `field.py`           | Yes       |
+| Template        | `template.py`        | Yes       |
+| Board           | `board.py`           | Yes       |
+| Issue Read      | `issue_read.py`      | Yes       |
+| Issue Write     | `issue_write.py`     | No        |
+| User            | `user.py`            | Yes       |
+| Project         | `project.py`         | Yes       |
+| Project Write   | `project_write.py`   | No        |
+| Portfolio       | `portfolio.py`       | Yes       |
+| Portfolio Write | `portfolio_write.py` | No        |
+| Goal            | `goal.py`            | Yes       |
+| Goal Write      | `goal_write.py`      | No        |
 
 **Write tools** (`*_write.py`) are only registered when `settings.tracker_read_only=False`.
 
@@ -182,7 +171,7 @@ Organization (one required):
 - `TRACKER_ORG_ID`: For on-premise
 
 Optional:
-- `TRACKER_LIMIT_QUEUES`: Restrict access to specific queues (allow-list, reads and writes). Both queue lists are normalised on load by `Settings.decode_queue_keys` into a set of upper-cased keys, so a check is `queue.upper() in ...` - one lookup, which the listing tools run per row, and the variable's casing stops mattering. `model_construct` skips validators, so `create_test_settings` calls it explicitly.
+- `TRACKER_LIMIT_QUEUES`: Restrict access to specific queues (allow-list, reads and writes).
 - `TRACKER_READ_ONLY`: When `true`, disables all write tools (the `*_write.py` modules)
 - `TRACKER_READ_ONLY_QUEUES`: Per-queue read-only allow-list. Write tools stay registered, but mutating calls targeting a listed queue are rejected via `check_*_access(..., write=True)` in `_access.py`; reads still work.
 - `TRACKER_ENTITIES_ENABLED`: When `true`, registers the project/portfolio/goal tools (`project*.py`, `portfolio*.py`, `goal*.py`). Default `false`: they add a large tool manifest and are not covered by the queue restrictions above, since an entity isn't mappable to a single queue.
