@@ -79,16 +79,13 @@ def register_template_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Get Issue Templates",
-        description="Get the issue templates configured in Yandex Tracker. "
-        "Templates hold the issue structure a team actually uses for bugs, incidents and other "
-        "recurring work. Use this before creating an issue so that its summary and description "
-        "follow the team's current template instead of an invented structure. "
-        "Pass `queue` to get only the templates usable in that queue - the templates of that "
-        "queue plus the ones not bound to any queue, which are usable everywhere. "
-        "The issue body of each template is in `fieldTemplates.description`, not in the "
-        "template's own `description`, which describes the template itself. "
-        "Every page is retrieved by default; pass `page` to get a single page when the result "
-        "does not fit the context window.",
+        description="Get the issue templates configured in Yandex Tracker - the "
+        "structure a team uses for bugs, incidents and other recurring work. Read one "
+        "before creating an issue instead of inventing a structure. Pass `queue` for "
+        "the templates of that queue plus those bound to no queue, which are usable "
+        "everywhere. The issue body is in `fieldTemplates.description`; the template's "
+        "own `description` describes the template. All pages are fetched by default; "
+        "pass `page` for a single one.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def issue_templates_get_all(
@@ -116,10 +113,10 @@ def register_template_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Get Issue Template",
-        description="Get a single Yandex Tracker issue template by its id, including the field "
-        "values it prefills. Use `issue_templates_get_all` first to find the template id. "
-        "The issue body lives in `fieldTemplates.description`; the template's own `description` "
-        "describes the template itself and is usually empty.",
+        description="Get a single Yandex Tracker issue template by its id, with the "
+        "field values it prefills; find the id with `issue_templates_get_all`. The "
+        "issue body is in `fieldTemplates.description`, not the template's own "
+        "`description`.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def issue_template_get(
@@ -137,14 +134,11 @@ def register_template_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Get Comment Templates",
-        description="Get the comment templates configured in Yandex Tracker. "
-        "Templates hold the wording a team reuses when replying on issues, together with the "
-        "users and mailing lists such a comment summons. Use this before adding a comment so it "
-        "follows the team's current template instead of an invented one. "
-        "Pass `queue` to get only the templates usable in that queue - the templates of that "
-        "queue plus the ones not bound to any queue, which are usable everywhere. "
-        "Every page is retrieved by default; pass `page` to get a single page when the result "
-        "does not fit the context window.",
+        description="Get the comment templates configured in Yandex Tracker - the "
+        "wording a team reuses when replying, with the users and mailing lists such a "
+        "comment summons. Read one before adding a comment. Pass `queue` for the "
+        "templates of that queue plus those bound to no queue. All pages are fetched "
+        "by default; pass `page` for a single one.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def comment_templates_get_all(

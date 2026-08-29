@@ -1,5 +1,20 @@
+import datetime
+
 import pytest
 
+from mcp_tracker.tracker.proto.types.boards import (
+    Board,
+    BoardAutoFilterSettings,
+    BoardColumn,
+    BoardColumnDetail,
+    BoardColumnStatus,
+    BoardFilterField,
+    BoardFilterFieldValue,
+    BoardFilterSettings,
+    BoardFilterValueRef,
+    BoardLiveFilter,
+    Sprint,
+)
 from mcp_tracker.tracker.proto.types.entities import (
     GoalEntity,
     GoalFields,
@@ -31,6 +46,7 @@ from mcp_tracker.tracker.proto.types.issues import (
 from mcp_tracker.tracker.proto.types.priorities import Priority
 from mcp_tracker.tracker.proto.types.queues import Queue, QueueVersion
 from mcp_tracker.tracker.proto.types.refs import (
+    BoardReference,
     IssueReference,
     IssueTypeReference,
     PriorityReference,
@@ -590,6 +606,190 @@ def sample_user() -> User:
         external=False,
         dismissed=False,
     )
+
+
+# Board fixtures
+@pytest.fixture
+def sample_board() -> Board:
+    """Sample agile board for testing."""
+    return Board.model_construct(
+        id=1,
+        version=1,
+        name="Development board",
+        createdBy=UserReference.model_construct(
+            id="user123",
+            display="Test User",
+        ),
+        columns=[
+            BoardColumn.model_construct(id="1", display="Open"),
+            BoardColumn.model_construct(id="2", display="In Progress"),
+        ],
+    )
+
+
+@pytest.fixture
+def sample_board_with_settings() -> Board:
+    """A board carrying the settings `board_get` is there to expose."""
+    return Board.model_construct(
+        id=1,
+        version=1,
+        name="Development board",
+        useRanking=False,
+        estimateBy=BoardFilterValueRef.model_construct(
+            id="storyPoints", display="Story Points"
+        ),
+        autoFilterSettings=BoardAutoFilterSettings.model_construct(
+            addFilterSettings=BoardFilterSettings.model_construct(
+                enabled=True,
+                liveFilter=BoardLiveFilter.model_construct(
+                    fieldValues=[
+                        BoardFilterField.model_construct(
+                            id="queue",
+                            key="queue",
+                            name="Очередь",
+                            fieldType="queue",
+                            value=[
+                                BoardFilterFieldValue.model_construct(
+                                    fixed=BoardFilterValueRef.model_construct(
+                                        id="88", key="LEVELARM", display="Строители"
+                                    ),
+                                    invert=False,
+                                )
+                            ],
+                        )
+                    ]
+                ),
+            )
+        ),
+    )
+
+
+def make_board_on_queues(
+    board_id: int,
+    name: str,
+    *queues: str,
+    invert: bool = False,
+    field_id: str | None = "queue",
+    field_key: str | None = "queue",
+) -> Board:
+    """A board whose auto-filter collects the given queues.
+
+    `field_id` / `field_key` are how the filter names the queue field. Captured
+    payloads carry both, so either alone has to be enough to recognise it.
+    """
+    return Board.model_construct(
+        id=board_id,
+        name=name,
+        autoFilterSettings=BoardAutoFilterSettings.model_construct(
+            addFilterSettings=BoardFilterSettings.model_construct(
+                liveFilter=BoardLiveFilter.model_construct(
+                    fieldValues=[
+                        BoardFilterField.model_construct(
+                            id=field_id,
+                            key=field_key,
+                            value=[
+                                BoardFilterFieldValue.model_construct(
+                                    fixed=BoardFilterValueRef.model_construct(
+                                        id=str(i), key=queue, display=queue
+                                    ),
+                                    invert=invert,
+                                )
+                                for i, queue in enumerate(queues)
+                            ],
+                        )
+                    ]
+                )
+            )
+        ),
+    )
+
+
+@pytest.fixture
+def boards_across_queues() -> list[Board]:
+    """A listing mixing boards bound to queues with boards that name none."""
+    return [
+        make_board_on_queues(1, "Level ARM", "LEVELARM"),
+        make_board_on_queues(2, "Smartbot", "SMARTBOTSITE", "SMARTBOTGOALS"),
+        make_board_on_queues(3, "Not Level ARM", "LEVELARM", invert=True),
+        Board.model_construct(id=4, name="Личная доска"),
+    ]
+
+
+@pytest.fixture
+def sample_board_columns() -> list[BoardColumnDetail]:
+    """Columns as `GET /v3/boards/{id}/columns` returns them, with statuses."""
+    return [
+        BoardColumnDetail.model_construct(
+            id=1,
+            name="Открыт",
+            statuses=[
+                BoardColumnStatus.model_construct(id="1", key="open", display="Открыт"),
+                BoardColumnStatus.model_construct(id="20", key="new", display="Новый"),
+            ],
+        ),
+        BoardColumnDetail.model_construct(
+            id=2,
+            name="В работе",
+            statuses=[
+                BoardColumnStatus.model_construct(
+                    id="3", key="inProgress", display="В работе"
+                )
+            ],
+        ),
+    ]
+
+
+@pytest.fixture
+def sample_boards(sample_board: Board) -> list[Board]:
+    """Sample list of agile boards for testing."""
+    return [
+        sample_board,
+        Board.model_construct(
+            id=2,
+            version=1,
+            name="Support board",
+        ),
+    ]
+
+
+# Sprint fixtures
+@pytest.fixture
+def sample_sprint() -> Sprint:
+    """Sample sprint (currently running) for testing."""
+    return Sprint.model_construct(
+        id=44,
+        version=1,
+        name="Sprint 1",
+        board=BoardReference.model_construct(id="1", display="Development board"),
+        status="in_progress",
+        archived=False,
+        startDate=datetime.date(2015, 6, 1),
+        endDate=datetime.date(2015, 6, 14),
+    )
+
+
+@pytest.fixture
+def sample_sprints(sample_sprint: Sprint) -> list[Sprint]:
+    """Sample list of sprints for testing."""
+    return [
+        Sprint.model_construct(
+            id=43,
+            version=1,
+            name="Sprint 0",
+            board=BoardReference.model_construct(id="1", display="Development board"),
+            status="released",
+            archived=False,
+        ),
+        sample_sprint,
+        Sprint.model_construct(
+            id=45,
+            version=1,
+            name="Sprint 2",
+            board=BoardReference.model_construct(id="1", display="Development board"),
+            status="draft",
+            archived=False,
+        ),
+    ]
 
 
 @pytest.fixture

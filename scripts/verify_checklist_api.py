@@ -28,14 +28,26 @@ import sys
 from typing import Any
 
 import aiohttp
-from dotenv import load_dotenv
 
 BASE_URL = "https://api.tracker.yandex.net"
 ENV_FILE = pathlib.Path(__file__).resolve().parent.parent / ".env"
 
 
+def load_env_file(path: pathlib.Path) -> None:
+    """Load `KEY=VALUE` lines into `os.environ`, without pulling in a dependency
+    for the two variables this script reads from a gitignored `.env`."""
+    if not path.is_file():
+        return
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        os.environ.setdefault(key.strip(), value.strip().strip("'\""))
+
+
 def auth_header() -> dict[str, str]:
-    load_dotenv(ENV_FILE)
+    load_env_file(ENV_FILE)
     token = os.environ.get("TRACKER_TOKEN")
     iam_token = os.environ.get("TRACKER_IAM_TOKEN")
     if token:
@@ -183,13 +195,13 @@ class Probe:
             print("\n[3] Is `text` required on PATCH?")
             status, body = await self.request("PATCH", item_path, {"checked": True})
             self.check(
-                "PATCH without `text` is rejected (justifies the refill read)",
-                status != 200,
+                "PATCH without `text` is accepted (no refill needed)",
+                status == 200,
                 f"HTTP {status}"
                 + (
-                    " - accepted, the refill read is unnecessary"
+                    ""
                     if status == 200
-                    else ""
+                    else " - rejected, `text` is required again, bring the refill back"
                 ),
             )
 

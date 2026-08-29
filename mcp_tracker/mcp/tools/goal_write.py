@@ -138,9 +138,8 @@ def register_goal_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
     @mcp.tool(
         title="Add Goal Comment",
         description="Add a comment to a Yandex Tracker goal, e.g. entity_id='ghi789'. "
-        "IMPORTANT: If you need to mention/call people to the discussion (so they get "
-        "notifications), do NOT rely on '@login' in the text — use the `summonees` "
-        "parameter instead.",
+        "To mention or call people so they get notified, use `summonees` - '@login' in "
+        "the text notifies nobody.",
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def goal_add_comment(
@@ -160,9 +159,8 @@ def register_goal_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Update Goal Comment",
-        description="Update an existing comment on a Yandex Tracker goal. "
-        "IMPORTANT: If you need to mention/call people (notifications), use the "
-        "`summonees` parameter.",
+        description="Update an existing comment on a Yandex Tracker goal. To mention "
+        "or call people, use `summonees`, not '@login' in the text.",
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def goal_update_comment(

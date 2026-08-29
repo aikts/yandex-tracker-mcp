@@ -8,14 +8,41 @@ All notable changes to this project will be documented in this file.
 
 - **Checklist write tools** — issue checklists were read-only ([#44](https://github.com/aikts/yandex-tracker-mcp/issues/44))
   - `issue_add_checklist_items` appends items to an issue's checklist, creating it when the issue has none. Tracker takes one item per request, so a batch is sent as one request per item, in the given order
-  - `issue_update_checklist_item` changes a single item — text, `checked`, assignee, deadline — leaving out what you don't pass. Tracker requires `text` on every edit, so an update that omits it resends the item's current text instead of failing
+  - `issue_update_checklist_item` changes a single item — text, `checked`, assignee, deadline — leaving out what you don't pass. Tracker does not require `text` on an edit, so an update that omits it leaves the item's text as is
   - `issue_delete_checklist_item` removes one item
   - An omitted argument means "leave as is", so the update tool cannot clear a field — its description says so, since "only the fields you pass are changed" otherwise reads as if `null` would remove an assignee or a deadline
   - All three return the issue's checklist after the change, and are registered only when `TRACKER_READ_ONLY` is off; `TRACKER_LIMIT_QUEUES` / `TRACKER_READ_ONLY_QUEUES` apply as they do to the other issue write tools
   - A batch that fails partway through raises an error saying how many items landed, since the successful ones are not rolled back and a blind retry would duplicate them
   - A 404 on a single item is reported as `ChecklistItemNotFound` naming both possible causes, since Tracker answers item-scoped paths the same way for an unknown issue as for an unknown item
-  - An update that changes nothing is refused with `ChecklistItemEmptyUpdate` instead of rewriting the item's current text over itself, and `deadline_type` is validated against `date` / `quarter` up front rather than by a 422 from Tracker (the camelCase `deadlineType` spelling is accepted too)
+  - An update that changes nothing is refused with `ChecklistItemEmptyUpdate`, and `deadline_type` is validated against `date` / `quarter` up front rather than by a 422 from Tracker (the camelCase `deadlineType` spelling is accepted too)
   - Checklist items no longer serialize their unset fields as explicit nulls (`textHtml`, `assignee`, `deadline`, `checklistItemType`), halving the response size of `issue_get_checklist` and of the checklist write tools
+
+## [0.9.0] - 2026-08-27
+
+### Features
+
+- **Agile board and sprint tools**, read-only ([#42](https://github.com/aikts/yandex-tracker-mcp/issues/42))
+  - `boards_get_all` finds the board, `board_get` reads its settings, `board_get_columns` the columns with the issue statuses mapped onto each of them, and `board_get_sprints` the sprints — take the one with `status == "in_progress"` and pass its id to `issue_create` / `issue_update`. Sprints could already be set on write, but nothing could discover a sprint id
+- An issue's **`boards`** is a typed field now. Tracker always returned it, but unmodelled: `extra="allow"` leaked it into answers while `outputSchema` never mentioned it and `fields` could not select it. The board id an issue names now feeds straight into the board tools
+- **`TrackerAPITimeout`** — a request that runs out of its budget says which request timed out after how long and that `TRACKER_API_TIMEOUT` raises it, instead of surfacing as `Error executing tool <name>:` with nothing after the colon (`str(TimeoutError())` is the empty string). Every Tracker request answers a timeout this way, the boards listing it was written for included
+
+### Bug Fixes
+
+- **The queue allow-lists match ignoring case.** `TRACKER_LIMIT_QUEUES` / `TRACKER_READ_ONLY_QUEUES` were compared to the queue key exactly, and nothing upper-cased either side: Tracker's keys are upper-case, the variables are written by hand. A mis-cased entry did not fail, it quietly meant something else — `TRACKER_LIMIT_QUEUES=dev` locked out `DEV-1` along with every other queue, and `TRACKER_READ_ONLY_QUEUES=dev` left `DEV` writable while the configuration read as if it were protected
+  - Both variables are normalised once on load into a set of upper-cased keys (`decode_queue_keys`), so a check is one hash lookup rather than a pass over the list per row; entries differing only in case collapse, and a list, set or tuple passed programmatically is normalised the same way
+- With `TOOLS_CACHE_ENABLED=true`, the caller's raw OAuth/IAM token no longer ends up in the Redis cache key. aiocache builds keys by stringifying the cached method's arguments, so `YandexAuth`'s repr wrote the token verbatim into a namespace visible to `KEYS`/`SCAN`/`MONITOR`, RDB dumps and per-key metrics; secret fields now render as a SHA-256 fingerprint, which keeps entries distinct per caller and stops the token leaking into logs and tracebacks too
+  - Cache entries written by earlier versions become misses and expire by TTL
+
+### Documentation
+
+- The server instructions described a read-only server: they listed only browsing and querying, though 14 write tools had landed since, and said nothing about the traps an agent walks into first. They now cover that writing exists, that `version` goes stale on its own because triggers and automation bump it right after `issue_create`, that no write tool takes a template id (read the template and pass its values), that `summonees` is what notifies a user where a plain `@login` notifies nobody, that `fields` keeps a large listing out of the context window, and that a missing write tool or a rejected queue may be this server's configuration rather than missing data
+- `tests/mcp/server/test_instructions.py` fails if the instructions name a tool that is not registered or promise an argument a tool does not take, which is what let this drift unnoticed
+- The README examples could not work as printed: every client configuration set `TRACKER_CLOUD_ORG_ID` and `TRACKER_ORG_ID` at once, which makes every call raise "Only one of org_id or cloud_org_id should be provided.", and the Docker examples published port 8000 without `TRANSPORT`, so the container came up on the stdio default and listened on nothing. The English README also called the entity tools read-only, and both pointed at tool names this server has never had (`get_queue_metadata`, `queue_get_local_fields`)
+- The tool descriptions, the server instructions and the two READMEs are shorter. The board, template and project/portfolio/goal entries had grown into essays on how the tools work inside - why the board listing is walked page by page, which call answers 500 on a partial checklist. What a caller acts on stays (arguments, what comes back, the traps); the rationale belongs in the code and the commit history
+
+### Internal
+
+- Every client request goes through one `_request()` context manager: auth headers, timeout translation, `_raise_for_status` and the 404/409 → domain error mapping were sixty copies of the same lines, and had drifted
 
 ## [0.8.0] - 2026-08-19
 

@@ -4,7 +4,7 @@ from mcp.shared.auth import OAuthClientInformationFull, OAuthToken
 from pydantic import AnyHttpUrl
 from pytest_mock import MockerFixture
 
-from mcp_tracker.mcp.oauth.stores.crypto import hash_token
+from mcp_tracker.crypto import hash_token
 from mcp_tracker.mcp.oauth.stores.memory import InMemoryOAuthStore
 from mcp_tracker.mcp.oauth.types import YandexOauthAuthorizationCode, YandexOAuthState
 

@@ -153,10 +153,9 @@ def register_project_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None
 
     @mcp.tool(
         title="Add Project Comment",
-        description="Add a comment to a Yandex Tracker project, e.g. entity_id='abc123'. "
-        "IMPORTANT: If you need to mention/call people to the discussion (so they get "
-        "notifications), do NOT rely on '@login' in the text — use the `summonees` "
-        "parameter instead.",
+        description="Add a comment to a Yandex Tracker project, e.g. "
+        "entity_id='abc123'. To mention or call people so they get notified, use "
+        "`summonees` - '@login' in the text notifies nobody.",
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def project_add_comment(
@@ -176,9 +175,8 @@ def register_project_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None
 
     @mcp.tool(
         title="Update Project Comment",
-        description="Update an existing comment on a Yandex Tracker project. "
-        "IMPORTANT: If you need to mention/call people (notifications), use the "
-        "`summonees` parameter.",
+        description="Update an existing comment on a Yandex Tracker project. To "
+        "mention or call people, use `summonees`, not '@login' in the text.",
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def project_update_comment(
@@ -311,10 +309,10 @@ def register_project_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None
 
     @mcp.tool(
         title="Update Project Checklist",
-        description="Edit one or more existing checklist items of a Yandex Tracker project "
-        "by id. Only the fields set on each item change; items you don't mention, and "
-        "fields left unset on ones you do, are left as-is. Use *_add_checklist_item / "
-        "*_delete_checklist_item to add or remove items.",
+        description="Edit existing checklist items of a Yandex Tracker project by id. "
+        "Only the fields you set change; unlisted items and unset fields stay as they "
+        "are. Use *_add_checklist_item / *_delete_checklist_item to add or remove "
+        "items.",
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def project_update_checklist(

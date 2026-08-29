@@ -28,6 +28,7 @@ uv run mcp-tracker # Run the server
   - `queue.py` / `queue_write.py`: Queue read-only / write tools
   - `field.py`: Global field and metadata tools (read-only)
   - `template.py`: Issue and comment template tools (read-only)
+  - `board.py`: Board and sprint tools (read-only)
   - `issue_read.py` / `issue_write.py`: Issue read-only / write tools
   - `user.py`: User tools (read-only)
   - `__init__.py`: Exports `register_all_tools()` which orchestrates tool registration
@@ -37,10 +38,11 @@ uv run mcp-tracker # Run the server
 - All protocol methods accept optional `auth: YandexAuth | None` parameter for OAuth support.
 - All Pydantic models for Yandex Tracker entities inherit from `BaseTrackerEntity`.
 
-### Writing to the Tracker API
+### Talking to the Tracker API
 
 - **Reference fields** (`type`, `priority`, `parent`, `sprint`, `followers`, `components`, `project`) use the shared models in `mcp_tracker/tracker/proto/types/inputs.py` (`Issue*Ref`), serialized by `_ref_body()` in the client. How Tracker resolves a bare value is per field, so check before widening a parameter: `type` / `priority` accept an id or a key and resolve a numeric string as an id (verified against the API), `followers` accept a uid or a login the same way, and a 422 from these means the referenced entity does not exist. `components` are the exception - a bare string there is a *name*, which makes a numeric-looking name ambiguous (this is what `components: ["694"]` answered 422 for), hence `IssueComponentRef` requiring exactly one of `id` / `name`. Create and update must accept and send the same value the same way - the API takes a bare key or id on both, so a parameter widened on one has to be widened on the other, or an agent that created an issue with a scalar hits a schema error when it updates the same way.
-- **Errors**: use `await self._raise_for_status(response)` instead of `response.raise_for_status()` so Tracker's own `errorMessages` / `errors` end up in the raised `TrackerAPIError` (a bare "Unprocessable Entity" tells the caller nothing). Status codes with an actionable meaning get a dedicated error: 404 → `IssueNotFound` on issue-scoped paths and `QueueNotFound` on queue-scoped ones (`v3/queues/{queue}/...`), 409 on update → `IssueVersionConflict`. A dedicated error applies to *every* method scoped to that entity, not just to newly added ones.
+- **Every request goes through `self._request()`** - or `self._read()`, which is `_request` plus reading the body and is what a method wanting nothing but the body uses. Nothing calls `self._session` directly: the funnel is what builds the auth headers, translates a `TimeoutError` into `TrackerAPITimeout` (`str(TimeoutError())` is the empty string, so an untranslated timeout reaches an agent as a message with nothing in it) and puts every response through `_raise_for_status`, so Tracker's own `errorMessages` / `errors` end up in the raised `TrackerAPIError` instead of a bare "Unprocessable Entity". The funnel exists because these were sixty copies of the same lines and the copies drifted; a method added beside it rather than through it starts that again.
+- **Errors**: statuses with an actionable meaning are passed to the funnel as `not_found=` / `conflict=`, ready to raise: 404 → `IssueNotFound` on issue-scoped paths, `QueueNotFound` on queue-scoped ones (`v3/queues/{queue}/...`), `BoardNotFound` on board-scoped ones and the similar error on other paths, 409 on update → `IssueVersionConflict`. A dedicated error applies to *every* method scoped to that entity, not just to newly added ones. `allow_statuses=` is the way out for a status that is an answer rather than a failure - `user_get` reads a 404 as `None`; an allowed status skips `not_found` / `conflict` / `_raise_for_status` alike and reaches the caller as an ordinary response.
 - **Field names on the wire**: a model may use a snake_case Python name, but it must accept *and emit* Tracker's own name - set `serialization_alias` next to every `validation_alias` (`story_points` reads and writes `storyPoints`). Responses are what callers feed back into `fields`, so the two spellings have to match; `tests/tracker/proto/test_model_aliases.py` fails if a new field forgets this.
 - **`fields` maps**: `issue_create` / `issue_update` take the free-form map as an explicit `fields` parameter, never as `**kwargs` - a key naming a dedicated parameter used to raise `TypeError: got multiple values`. The client merges it into the body last, so an entry overrides the dedicated parameter and an explicit `null` clears the field (a dedicated parameter left as `None` is simply not sent).
 - **Reference inputs**: every `Issue*Ref` validates that it carries something to resolve (`IssueComponentRef` wants exactly one of `id` / `name`, the others at least one of `id` / `key`); Tracker answers an empty object with an unhelpful 400/422, and when both `id` and `key` are set it resolves by `id`.
@@ -108,13 +110,14 @@ For paginated methods, use `side_effect` for sequential returns: `mock.method.si
 ### Implementation Checklist
 
 1. **Protocol**: Add method signature to the matching `mcp_tracker/tracker/proto/*.py` (a new protocol also needs a `*ProtocolWrap` base, a `CacheCollection` slot, an `AppContext` field and wiring in `make_tracker_lifespan`)
-2. **Client**: Implement in `mcp_tracker/tracker/custom/client.py`
+2. **Client**: Implement in `mcp_tracker/tracker/custom/client.py`, through `self._request()` / `self._read()` - see *Talking to the Tracker API* above (this holds for read-only methods too)
 3. **Caching**: Add wrapper in `mcp_tracker/tracker/caching/client.py`
 4. **Tool**: Add function to appropriate module in `mcp_tracker/mcp/tools/`:
    - Queue read-only tools → `queue.py`
    - Queue write tools → `queue_write.py`
    - Global field/metadata tools → `field.py`
    - Issue/comment template tools → `template.py`
+   - Board/sprint tools → `board.py`
    - Issue read-only tools → `issue_read.py`
    - Issue write tools → `issue_write.py`
    - User tools → `user.py`
@@ -126,21 +129,22 @@ For paginated methods, use `side_effect` for sequential returns: `mock.method.si
 
 ### Tool Categories
 
-| Category | Module | Read-Only |
-|----------|--------|-----------|
-| Queue | `queue.py` | Yes |
-| Queue Write | `queue_write.py` | No |
-| Field | `field.py` | Yes |
-| Template | `template.py` | Yes |
-| Issue Read | `issue_read.py` | Yes |
-| Issue Write | `issue_write.py` | No |
-| User | `user.py` | Yes |
-| Project | `project.py` | Yes |
-| Project Write | `project_write.py` | No |
-| Portfolio | `portfolio.py` | Yes |
-| Portfolio Write | `portfolio_write.py` | No |
-| Goal | `goal.py` | Yes |
-| Goal Write | `goal_write.py` | No |
+| Category        | Module               | Read-Only |
+|-----------------|----------------------|-----------|
+| Queue           | `queue.py`           | Yes       |
+| Queue Write     | `queue_write.py`     | No        |
+| Field           | `field.py`           | Yes       |
+| Template        | `template.py`        | Yes       |
+| Board           | `board.py`           | Yes       |
+| Issue Read      | `issue_read.py`      | Yes       |
+| Issue Write     | `issue_write.py`     | No        |
+| User            | `user.py`            | Yes       |
+| Project         | `project.py`         | Yes       |
+| Project Write   | `project_write.py`   | No        |
+| Portfolio       | `portfolio.py`       | Yes       |
+| Portfolio Write | `portfolio_write.py` | No        |
+| Goal            | `goal.py`            | Yes       |
+| Goal Write      | `goal_write.py`      | No        |
 
 **Write tools** (`*_write.py`) are only registered when `settings.tracker_read_only=False`.
 
@@ -169,7 +173,7 @@ Organization (one required):
 - `TRACKER_ORG_ID`: For on-premise
 
 Optional:
-- `TRACKER_LIMIT_QUEUES`: Restrict access to specific queues (allow-list, reads and writes)
+- `TRACKER_LIMIT_QUEUES`: Restrict access to specific queues (allow-list, reads and writes).
 - `TRACKER_READ_ONLY`: When `true`, disables all write tools (the `*_write.py` modules)
 - `TRACKER_READ_ONLY_QUEUES`: Per-queue read-only allow-list. Write tools stay registered, but mutating calls targeting a listed queue are rejected via `check_*_access(..., write=True)` in `_access.py`; reads still work.
 - `TRACKER_ENTITIES_ENABLED`: When `true`, registers the project/portfolio/goal tools (`project*.py`, `portfolio*.py`, `goal*.py`). Default `false`: they add a large tool manifest and are not covered by the queue restrictions above, since an entity isn't mappable to a single queue.

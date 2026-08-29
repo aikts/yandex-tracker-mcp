@@ -13,6 +13,7 @@ from mcp.types import CallToolResult
 from mcp_tracker.mcp.context import AppContext
 from mcp_tracker.mcp.server import Lifespan, create_mcp_server
 from mcp_tracker.settings import Settings
+from mcp_tracker.tracker.proto.boards import BoardsProtocol
 from mcp_tracker.tracker.proto.entities import EntitiesProtocol
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
@@ -81,14 +82,19 @@ def create_test_settings(
     read_only_queues: list[str] | None = None,
     entities_enabled: bool = True,
 ) -> Settings:
-    """Create Settings for testing with minimal required configuration."""
+    """Create Settings for testing with minimal required configuration.
+
+    `model_construct` skips validation, so the queue lists go through
+    `decode_queue_keys` explicitly - tests must see the same normalised sets a
+    real load produces, not the raw lists they were written with.
+    """
     return Settings.model_construct(
         tracker_token="test-token",
         tracker_org_id="test-org",
         tracker_cloud_org_id=None,
-        tracker_limit_queues=limit_queues,
+        tracker_limit_queues=Settings.decode_queue_keys(limit_queues),
         tracker_read_only=read_only,
-        tracker_read_only_queues=read_only_queues,
+        tracker_read_only_queues=Settings.decode_queue_keys(read_only_queues),
         tracker_entities_enabled=entities_enabled,
         tools_cache_enabled=False,
         oauth_enabled=False,
@@ -152,6 +158,12 @@ def mock_entities_protocol() -> AsyncMock:
 
 
 @pytest.fixture
+def mock_boards_protocol() -> AsyncMock:
+    """Create a mock BoardsProtocol."""
+    return AsyncMock(spec=BoardsProtocol)
+
+
+@pytest.fixture
 def mock_app_context(
     mock_queues_protocol: AsyncMock,
     mock_issues_protocol: AsyncMock,
@@ -159,6 +171,7 @@ def mock_app_context(
     mock_templates_protocol: AsyncMock,
     mock_users_protocol: AsyncMock,
     mock_entities_protocol: AsyncMock,
+    mock_boards_protocol: AsyncMock,
 ) -> AppContext:
     """Create AppContext with mock protocols."""
     return AppContext(
@@ -168,6 +181,7 @@ def mock_app_context(
         templates=mock_templates_protocol,
         users=mock_users_protocol,
         entities=mock_entities_protocol,
+        boards=mock_boards_protocol,
     )
 
 

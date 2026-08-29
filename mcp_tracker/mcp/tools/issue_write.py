@@ -98,11 +98,9 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Execute Issue Transition",
-        description="Execute a status transition for a Yandex Tracker issue. "
-        "IMPORTANT: You MUST first call issue_get_transitions to retrieve available transitions for the issue. "
-        "Only pass a transition_id that was returned by issue_get_transitions. "
-        "Do NOT use arbitrary transition IDs - the API will reject invalid transition IDs. "
-        "Returns a list of new transitions available for the issue in its new status.",
+        description="Execute a status transition for a Yandex Tracker issue. Call "
+        "`issue_get_transitions` first and pass one of the ids it returned - the API "
+        "rejects anything else. Returns the transitions available in the new status.",
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def issue_execute_transition(
@@ -141,15 +139,11 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Close Issue",
-        description="Close a Yandex Tracker issue with a resolution. "
-        "This is a convenience tool that automatically finds a transition to a 'done' status "
-        "and executes it with the specified resolution. "
-        "IMPORTANT: Before closing, you MUST: "
-        "1) Call issue_get to retrieve the issue's type field. "
-        "2) Call queue_get_metadata with expand=['issueTypesConfig'] to get available resolutions. "
-        "3) Choose a resolution from the issueTypesConfig entry matching the issue's type - "
-        "each issue type has its own set of valid resolutions. "
-        "Returns a list of transitions available for the issue in its new (closed) status.",
+        description="Close a Yandex Tracker issue with a resolution: finds a "
+        "transition to a 'done' status and executes it. The resolution has to be one "
+        "the issue's type allows - read the type with `issue_get`, then call "
+        "`queue_get_metadata` with expand=['issueTypesConfig'] for the resolutions of "
+        "that type. Returns the transitions available in the new (closed) status.",
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def issue_close(
@@ -187,18 +181,15 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Create Issue",
-        description="Create a new issue in a Yandex Tracker queue. "
-        "Check the queue's issue templates first (`issue_templates_get_all` with `queue` set): "
-        "there is no `template_id` parameter, so a template is applied by copying its "
-        "`fieldTemplates` values and description into the parameters below instead of inventing "
-        "a structure of your own. Copy them field by field rather than wholesale: `assignee` comes "
-        "as a user object, while this tool takes a login or uid, and Tracker does not expand the "
-        "UI macros a template may contain (`{{today}}` and friends arrive literally). "
-        "Prefer the dedicated parameters below over the `fields` map: they are sent in the "
-        "same format issue_update uses, so a value that works here works there too. "
-        "Note that the returned issue's `version` can be outdated as soon as it is returned - "
-        "queue triggers and automation run right after creation and bump it - so do not reuse it "
-        "for a follow-up issue_update; re-read the issue with issue_get or omit `version`.",
+        description="Create a new issue in a Yandex Tracker queue. There is no "
+        "`template_id` parameter: check the queue's templates first "
+        "(`issue_templates_get_all` with `queue` set) and copy their `fieldTemplates` "
+        "values into the parameters below field by field - `assignee` arrives as a "
+        "user object while this tool takes a login or uid, and template macros such as "
+        "`{{today}}` arrive literally. Prefer the dedicated parameters over the "
+        "`fields` map. The returned `version` goes stale immediately, as queue "
+        "triggers run right after creation: re-read the issue with `issue_get` instead "
+        "of feeding it to `issue_update`.",
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def issue_create(
@@ -238,17 +229,15 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         fields: Annotated[
             dict[str, Any] | None,
             Field(
-                description="Additional fields to set during issue creation, for fields without a "
-                "dedicated parameter above. "
-                "Call `queue_get_fields` for the fields configured on the queue (schema.required=true "
-                "marks the mandatory ones) and `get_global_fields` for the whole registry - system "
-                "fields such as `parent` or `estimation` are settable but may be missing from the "
-                "queue listing. "
-                "Keys are Tracker field ids as those tools return them (camelCase, e.g. 'storyPoints'), "
-                "which is also how they come back in issue responses. "
-                "An entry here overrides the dedicated parameter of the same name. "
-                "Values are sent to Tracker as-is: reference fields expect numeric IDs as numbers "
-                "(or {'id': ...} objects), because a bare string may be resolved as a name."
+                description="Additional fields to set, for those without a dedicated "
+                "parameter above. Field ids come from `queue_get_fields` "
+                "(schema.required=true marks the mandatory ones) or "
+                "`get_global_fields`, which also lists system fields such as `parent` "
+                "or `estimation` that the queue listing may omit. Keys are Tracker's "
+                "own camelCase ids, e.g. 'storyPoints'. An entry here overrides the "
+                "dedicated parameter of the same name. Values are sent as-is: "
+                "reference fields want numeric IDs as numbers or {'id': ...} objects, "
+                "since a bare string may be read as a name."
             ),
         ] = None,
     ) -> Issue:
@@ -273,13 +262,11 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Update Issue",
-        description="Update an existing Yandex Tracker issue. "
-        "Only fields that are provided will be updated; omitted fields remain unchanged. "
-        "Use queue_get_fields to discover available fields before updating. "
-        "The `version` parameter is optional optimistic locking: pass it only when you have a "
-        "version read moments ago (issue_get), and never the one returned by issue_create - "
-        "queue triggers and automation bump the version right after creation, which makes the "
-        "update fail with an editing conflict.",
+        description="Update an existing Yandex Tracker issue. Only the parameters you "
+        "pass change; the rest stay as they are. Use `queue_get_fields` to discover "
+        "the queue's fields. `version` is optional optimistic locking - pass one read "
+        "moments earlier with `issue_get`, never the one `issue_create` returned, "
+        "since triggers bump it right after creation.",
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def issue_update(
@@ -323,27 +310,27 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         version: Annotated[
             int | None,
             Field(
-                description="Issue version for optimistic locking; changes are only applied when it is "
-                "the issue's current version, otherwise the call fails with an editing conflict. "
-                "Read it with issue_get immediately before updating, and omit it when you just want the "
-                "update to land on whatever the latest version is. The version returned by issue_create "
-                "is not safe to use here: queue triggers and automation bump it right after creation."
+                description="Issue version for optimistic locking: the change lands "
+                "only if this is the issue's current version, otherwise the call fails "
+                "with an editing conflict. Read it with `issue_get` right before "
+                "updating, or omit it to update whatever the latest version is. The "
+                "version `issue_create` returned is not safe here - triggers bump it "
+                "right after creation."
             ),
         ] = None,
         fields: Annotated[
             dict[str, Any] | None,
             Field(
-                description="Additional fields to update, for fields without a dedicated parameter above. "
-                "Call `queue_get_fields` for the fields configured on the queue and `get_global_fields` "
-                "for the whole registry - system fields such as `parent` or `estimation` are settable "
-                "but may be missing from the queue listing. "
-                "Keys are Tracker field ids as those tools return them (camelCase, e.g. 'storyPoints'), "
-                "which is also how they come back in issue responses. "
-                "An entry here overrides the dedicated parameter of the same name, which is how a field "
-                "is cleared: pass null (e.g. {'assignee': null, 'parent': null}), since a dedicated "
-                "parameter left unset simply is not sent. "
-                "Values are sent to Tracker as-is: reference fields expect numeric IDs as numbers "
-                "(or {'id': ...} objects), because a bare string may be resolved as a name."
+                description="Additional fields to update, for those without a "
+                "dedicated parameter above. Field ids come from `queue_get_fields` or "
+                "`get_global_fields`, which also lists system fields such as `parent` "
+                "or `estimation` that the queue listing may omit. Keys are Tracker's "
+                "own camelCase ids, e.g. 'storyPoints'. An entry here overrides the "
+                "dedicated parameter of the same name, which is how a field is "
+                "cleared: pass null (e.g. {'assignee': null}), since a dedicated "
+                "parameter left unset is simply not sent. Values are sent as-is: "
+                "reference fields want numeric IDs as numbers or {'id': ...} objects, "
+                "since a bare string may be read as a name."
             ),
         ] = None,
     ) -> Issue:
@@ -468,13 +455,11 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Add Issue Comment",
-        description="Add a comment to a Yandex Tracker issue. "
-        "Check the queue's comment templates first (`comment_templates_get_all` with `queue` set): "
-        "there is no `template_id` parameter, so a template is applied by copying its `template` "
-        "text into `text` and its `summonees` / `maillistSummonees` into the parameters below "
-        "instead of inventing wording of your own. "
-        "IMPORTANT: If you need to mention/call people to the discussion (so they get notifications), "
-        "do NOT rely on '@login' in the text — use the `summonees` parameter instead.",
+        description="Add a comment to a Yandex Tracker issue. There is no "
+        "`template_id` parameter: check `comment_templates_get_all` (with `queue` set) "
+        "first and copy the template's `template` text into `text` and its summonees "
+        "into the parameters below. To mention or call people so they get notified, "
+        "use `summonees` - '@login' in the text notifies nobody.",
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def issue_add_comment(
@@ -487,9 +472,9 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         summonees: Annotated[
             list[str] | None,
             Field(
-                description="Optional list of summoned users (logins or IDs). "
-                "These users will be invited to the discussion and receive notifications "
-                "(this is the API way to 'mention/call' someone in Yandex Tracker comments)."
+                description="Users to summon (logins or IDs): they are invited to the "
+                "discussion and notified. This is the API way to 'mention/call' "
+                "someone in a Yandex Tracker comment."
             ),
         ] = None,
         maillist_summonees: Annotated[
@@ -526,8 +511,8 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Update Issue Comment",
-        description="Update an existing comment in a Yandex Tracker issue. "
-        "IMPORTANT: If you need to mention/call people (notifications), use the `summonees` parameter.",
+        description="Update an existing comment in a Yandex Tracker issue. To mention "
+        "or call people, use `summonees`, not '@login' in the text.",
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def issue_update_comment(
@@ -544,8 +529,9 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         summonees: Annotated[
             list[str] | None,
             Field(
-                description="Optional list of summoned users (logins or IDs). "
-                "These users will be invited to the discussion and receive notifications."
+                description="Users to summon (logins or IDs): they are invited to the "
+                "discussion and notified. This is the API way to 'mention/call' "
+                "someone in a Yandex Tracker comment."
             ),
         ] = None,
         maillist_summonees: Annotated[
@@ -680,10 +666,9 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
     @mcp.tool(
         title="Add Issue Link",
         description="Create a link between a Yandex Tracker issue and another issue. "
-        "The `relationship` describes how the current issue (issue_id) relates to the "
-        "linked issue. For example, 'depends on' means issue_id depends on the linked "
-        "issue, while 'is dependent by' means the linked issue depends on issue_id. "
-        "Use 'relates' for a simple connection. Returns the created link.",
+        "`relationship` reads from the current issue: 'depends on' means issue_id "
+        "depends on the linked issue, 'is dependent by' is the reverse, 'relates' is a "
+        "plain connection.",
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def issue_add_link(

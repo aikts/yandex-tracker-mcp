@@ -87,18 +87,71 @@ class TestCheckQueueAccess:
             check_queue_access(settings, "OTHER")
 
 
+class TestAllowListsIgnoreCase:
+    """Tracker's queue keys are upper-case; the env vars are written by hand.
+
+    Comparing the two exactly made a mis-cased entry silently wrong instead of
+    rejected - an allow-list of `dev` locked out `DEV-1` along with everything
+    else, and a read-only list of `dev` left `DEV` writable.
+    """
+
+    @pytest.mark.parametrize("configured", ["ALLOWED", "allowed", "Allowed"])
+    @pytest.mark.parametrize("requested", ["ALLOWED", "allowed", "Allowed"])
+    def test_limit_queues_matches_whatever_the_case(
+        self, configured: str, requested: str
+    ) -> None:
+        settings = create_test_settings(limit_queues=[configured])
+
+        check_queue_access(settings, requested)
+        check_issue_access(settings, f"{requested}-1")
+
+    @pytest.mark.parametrize("configured", ["OTHER", "other"])
+    def test_a_queue_outside_the_list_is_still_rejected(self, configured: str) -> None:
+        settings = create_test_settings(limit_queues=[configured])
+
+        with pytest.raises(TrackerError, match="not found or not allowed"):
+            check_queue_access(settings, "ALLOWED")
+        with pytest.raises(IssueNotFound):
+            check_issue_access(settings, "ALLOWED-1")
+
+    @pytest.mark.parametrize("configured", ["READONLY", "readonly", "ReadOnly"])
+    @pytest.mark.parametrize("requested", ["READONLY", "readonly", "ReadOnly"])
+    def test_read_only_queues_match_whatever_the_case(
+        self, configured: str, requested: str
+    ) -> None:
+        settings = create_test_settings(read_only_queues=[configured])
+
+        check_queue_access(settings, requested)
+        with pytest.raises(TrackerError, match="read-only"):
+            check_queue_access(settings, requested, write=True)
+        with pytest.raises(TrackerError, match="read-only"):
+            check_issue_access(settings, f"{requested}-1", write=True)
+
+
 class TestSettingsParsing:
     @pytest.mark.parametrize(
         "raw,expected",
         [
-            ("READONLY", ["READONLY"]),
-            ("A,B,C", ["A", "B", "C"]),
-            (" A , B ,, C ", ["A", "B", "C"]),
+            ("READONLY", {"READONLY"}),
+            ("A,B,C", {"A", "B", "C"}),
+            (" A , B ,, C ", {"A", "B", "C"}),
+            # The casing of the variable is settled here, once, rather than at
+            # every comparison.
+            ("readonly", {"READONLY"}),
+            ("a, B ,c", {"A", "B", "C"}),
+            # A list is what a programmatic caller passes; it is normalised the
+            # same way, and duplicates that differ only in case collapse.
+            (["A", "b"], {"A", "B"}),
+            (["DEV", "dev"], {"DEV"}),
             (None, None),
         ],
     )
-    def test_read_only_queues_parsing(
-        self, raw: str | None, expected: list[str] | None
+    def test_queue_keys_parsing(
+        self, raw: str | list[str] | None, expected: set[str] | None
     ) -> None:
-        parsed = Settings.decode_numbers(raw)
+        parsed = Settings.decode_queue_keys(raw)
         assert parsed == expected
+
+    def test_an_unsupported_type_is_rejected(self) -> None:
+        with pytest.raises(TypeError):
+            Settings.decode_queue_keys(42)

@@ -35,9 +35,9 @@ def register_queue_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Get All Queues",
-        description="Find all Yandex Tracker queues available to the user (queue is a project in some sense). "
-        "Unlike other list tools, `page` here defaults to None and fetches ALL pages automatically - "
-        "pass an explicit page number only if you hit the context size limit and want one page at a time.",
+        description="Find all Yandex Tracker queues available to the user (a queue is "
+        "a project in some sense). `page` defaults to None and fetches ALL pages; pass "
+        "a page number only when the result does not fit the context window.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def queues_get_all(
@@ -45,10 +45,9 @@ def register_queue_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         fields: Annotated[
             list[QueueFieldsEnum] | None,
             Field(
-                description="Fields to include in the response. In order to not pollute context window - "
-                "select appropriate fields beforehand. Not specifying fields returns ALL available fields "
-                "(unlike project_find/portfolio_find/goal_find, which default to a small field subset). "
-                "Most of the time one needs key and name only.",
+                description="Fields to include in the response; omitting returns ALL "
+                "of them (unlike project_find/portfolio_find/goal_find, which default "
+                "to a small subset). key and name are usually enough.",
             ),
         ] = None,
         page: PageOrAllParam = None,
@@ -112,12 +111,12 @@ def register_queue_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Get Queue Fields",
-        description="Get the fields configured on a specific Yandex Tracker queue, plus its local "
-        "(queue-specific) fields by default. "
-        "The schema.required property indicates whether a field is mandatory. "
-        "Use this before creating an issue with issue_create - but note it is not the whole registry: "
-        "system fields such as `parent`, `estimation` or `originalEstimation` are settable without "
-        "appearing here, and `get_global_fields` lists every field the organization has.",
+        description="Get the fields configured on a specific Yandex Tracker queue, its "
+        "local (queue-specific) ones included by default. `schema.required` marks the "
+        "mandatory fields. Use it before `issue_create` - but it is not the whole "
+        "registry: system fields such as `parent` or `estimation` are settable without "
+        "appearing here, and `get_global_fields` lists every field the organization "
+        "has.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def queue_get_fields(
@@ -150,10 +149,10 @@ def register_queue_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Get Queue Metadata",
-        description="Get detailed metadata about a specific Yandex Tracker queue. "
-        "Returns queue information including name, description, default type/priority, "
-        "and optionally expanded data like issue types with their resolutions, workflows, team members, etc. "
-        "Use expand=['issueTypesConfig'] to get available resolutions for issue_close tool.",
+        description="Get detailed metadata about a specific Yandex Tracker queue: "
+        "name, description, default type and priority, plus the sections named in "
+        "`expand` (issue types with their resolutions, workflows, team, ...). Use "
+        "expand=['issueTypesConfig'] for the resolutions `issue_close` needs.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def queue_get_metadata(

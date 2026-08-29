@@ -152,9 +152,13 @@ class TestIssueAddChecklistItems:
 
     def test_deadline_type_rejects_unknown_value(self) -> None:
         with pytest.raises(pydantic.ValidationError):
-            ChecklistItemDeadlineInput(
-                date=datetime.datetime(2026, 8, 20, tzinfo=datetime.timezone.utc),
-                deadline_type="year",  # type: ignore[arg-type]
+            ChecklistItemDeadlineInput.model_validate(
+                {
+                    "date": datetime.datetime(
+                        2026, 8, 20, tzinfo=datetime.timezone.utc
+                    ),
+                    "deadline_type": "year",
+                }
             )
 
     async def test_empty_items_returns_current_checklist(
@@ -308,13 +312,6 @@ class TestIssueUpdateChecklistItem:
     async def test_not_found_names_both_causes(
         self, tracker_client: TrackerClient
     ) -> None:
-        with aioresponses() as m:
-            m.delete(CHECKLIST_ITEM_URL, status=404)
-
-            with pytest.raises(ChecklistItemNotFound) as exc_info:
-                await tracker_client.issue_delete_checklist_item("TEST-123", "item-1")
-
-        assert exc_info.value.checklist_item_id == "item-1"
         with aioresponses() as m:
             m.patch(CHECKLIST_ITEM_URL, status=404)
 

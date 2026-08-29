@@ -13,6 +13,7 @@ from mcp_tracker.tracker.proto.types.mixins import CreatedMixin, CreatedUpdatedM
 from mcp_tracker.tracker.proto.types.refs import (
     BaseReference,
     ComponentReference,
+    IssueBoardReference,
     IssueReference,
     IssueTypeReference,
     PriorityReference,
@@ -52,7 +53,21 @@ class Issue(CreatedUpdatedMixin, BaseTrackerEntity):
     )
     tags: list[str] | None = NoneExcludedField
     votes: int | None = NoneExcludedField
-    sprint: list[SprintReference] | None = NoneExcludedField
+    sprint: list[SprintReference] | None = Field(
+        None,
+        exclude_if=none_excluder,
+        description="Sprints the issue is in. Use `board_get_sprints` to look up "
+        "the sprints of a board, and pass a sprint id to `issue_update` to move "
+        "the issue between them.",
+    )
+    boards: list[IssueBoardReference] | None = Field(
+        None,
+        exclude_if=none_excluder,
+        description="Agile boards the issue shows up on. Tracker fills this in "
+        "from the boards' own filters - an issue is not assigned to a board "
+        "directly, so this is read-only. Use the board id with `board_get`, "
+        "`board_get_columns` or `board_get_sprints`.",
+    )
     epic: IssueReference | None = NoneExcludedField
     parent: IssueReference | None = NoneExcludedField
     estimation: str | None = NoneExcludedField

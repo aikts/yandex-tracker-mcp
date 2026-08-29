@@ -4,8 +4,9 @@ import logging
 import random
 import time
 from asyncio import CancelledError
-from collections.abc import Sequence
+from collections.abc import AsyncIterator, Collection, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import asynccontextmanager
 from typing import Any, Literal
 
 import jwt
@@ -17,6 +18,7 @@ from yandex.cloud.iam.v1.iam_token_service_pb2_grpc import IamTokenServiceStub
 from yarl import URL
 
 from mcp_tracker.tracker.custom.errors import (
+    BoardNotFound,
     ChecklistBatchPartiallyAdded,
     ChecklistItemEmptyUpdate,
     ChecklistItemNotFound,
@@ -27,13 +29,17 @@ from mcp_tracker.tracker.custom.errors import (
     IssueVersionConflict,
     QueueNotFound,
     TrackerAPIError,
+    TrackerAPITimeout,
+    YandexTrackerError,
 )
+from mcp_tracker.tracker.proto.boards import BoardsProtocol
 from mcp_tracker.tracker.proto.common import YandexAuth
 from mcp_tracker.tracker.proto.entities import EntitiesProtocol
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
 from mcp_tracker.tracker.proto.templates import TemplatesProtocol
+from mcp_tracker.tracker.proto.types.boards import Board, BoardColumnDetail, Sprint
 from mcp_tracker.tracker.proto.types.entities import (
     DEFAULT_ENTITY_FIELDS_PARAM,
     GoalEntity,
@@ -146,6 +152,9 @@ CommentTemplateList = RootModel[list[CommentTemplate]]
 UserList = RootModel[list[User]]
 IssueTransitionList = RootModel[list[IssueTransition]]
 ChangelogList = RootModel[list[ChangelogEntry]]
+BoardList = RootModel[list[Board]]
+BoardColumnList = RootModel[list[BoardColumnDetail]]
+SprintList = RootModel[list[Sprint]]
 
 
 logger = logging.getLogger(__name__)
@@ -278,6 +287,10 @@ class ServiceAccountStore:
         return IAMTokenInfo(token=iam_token.iam_token)
 
 
+# `GET /v3/boards/_paginate` documents `perPage` as no more than 500.
+BOARDS_PAGE_MAX = 500
+
+
 class TrackerClient(
     QueuesProtocol,
     IssueProtocol,
@@ -285,6 +298,7 @@ class TrackerClient(
     TemplatesProtocol,
     UsersProtocol,
     EntitiesProtocol,
+    BoardsProtocol,
 ):
     def __init__(
         self,
@@ -307,6 +321,7 @@ class TrackerClient(
         self._org_id = org_id
         self._cloud_org_id = cloud_org_id
 
+        self._timeout = timeout
         self._session = ClientSession(
             base_url=base_url,
             timeout=ClientTimeout(total=timeout),
@@ -387,6 +402,76 @@ class TrackerClient(
             body=body,
         )
 
+    @asynccontextmanager
+    async def _request(
+        self,
+        method: str,
+        url: str,
+        *,
+        auth: YandexAuth | None,
+        params: Mapping[str, Any] | None = None,
+        json: Any = None,
+        not_found: YandexTrackerError | None = None,
+        conflict: YandexTrackerError | None = None,
+        allow_statuses: Collection[int] = (),
+    ) -> AsyncIterator[ClientResponse]:
+        """Every request to the Tracker API goes through here.
+
+        What is handled once here used to be repeated at each of the sixty call
+        sites, which is one forgotten line away from a method that reports a
+        failure worse than the rest: the timeout below reached the caller from a
+        single method until this existed, and a missing `not_found` turns "no
+        such issue" back into a bare 404.
+
+        `allow_statuses` hands a status back to the caller instead of raising -
+        for the one method that answers a 404 with `None` rather than an error.
+        """
+        # Built before the `try`: the service account's IAM fetch is not a
+        # Tracker request and must not be reported as one timing out.
+        headers = await self._build_headers(auth)
+
+        try:
+            async with self._session.request(
+                method, url, headers=headers, params=params, json=json
+            ) as response:
+                if response.status not in allow_statuses:
+                    if not_found is not None and response.status == 404:
+                        raise not_found
+                    if conflict is not None and response.status == 409:
+                        raise conflict
+                    await self._raise_for_status(response)
+                yield response
+        except TimeoutError as exc:
+            # A body read that times out lands here too: it runs inside the
+            # caller's `async with`, and that exception is thrown back in at the
+            # `yield` above.
+            raise TrackerAPITimeout(
+                method=method, url=url, timeout=self._timeout
+            ) from exc
+
+    async def _read(
+        self,
+        method: str,
+        url: str,
+        *,
+        auth: YandexAuth | None,
+        params: Mapping[str, Any] | None = None,
+        json: Any = None,
+        not_found: YandexTrackerError | None = None,
+        conflict: YandexTrackerError | None = None,
+    ) -> bytes:
+        """The body of a request whose caller needs nothing else from the response."""
+        async with self._request(
+            method,
+            url,
+            auth=auth,
+            params=params,
+            json=json,
+            not_found=not_found,
+            conflict=conflict,
+        ) as response:
+            return await response.read()
+
     async def queues_list(
         self, per_page: int = 100, page: int = 1, *, auth: YandexAuth | None = None
     ) -> PaginatedResult[Queue]:
@@ -394,10 +479,9 @@ class TrackerClient(
             "perPage": per_page,
             "page": page,
         }
-        async with self._session.get(
-            "v3/queues", headers=await self._build_headers(auth), params=params
+        async with self._request(
+            "GET", "v3/queues", auth=auth, params=params
         ) as response:
-            await self._raise_for_status(response)
             return self._paginated(
                 response, QueueList.model_validate_json(await response.read()).root
             )
@@ -405,35 +489,38 @@ class TrackerClient(
     async def queues_get_local_fields(
         self, queue_id: str, *, auth: YandexAuth | None = None
     ) -> list[LocalField]:
-        async with self._session.get(
-            f"v3/queues/{queue_id}/localFields", headers=await self._build_headers(auth)
-        ) as response:
-            if response.status == 404:
-                raise QueueNotFound(queue_id)
-            await self._raise_for_status(response)
-            return LocalFieldList.model_validate_json(await response.read()).root
+        return LocalFieldList.model_validate_json(
+            await self._read(
+                "GET",
+                f"v3/queues/{queue_id}/localFields",
+                auth=auth,
+                not_found=QueueNotFound(queue_id),
+            )
+        ).root
 
     async def queues_get_tags(
         self, queue_id: str, *, auth: YandexAuth | None = None
     ) -> list[str]:
-        async with self._session.get(
-            f"v3/queues/{queue_id}/tags", headers=await self._build_headers(auth)
-        ) as response:
-            if response.status == 404:
-                raise QueueNotFound(queue_id)
-            await self._raise_for_status(response)
-            return QueueTagList.model_validate_json(await response.read()).root
+        return QueueTagList.model_validate_json(
+            await self._read(
+                "GET",
+                f"v3/queues/{queue_id}/tags",
+                auth=auth,
+                not_found=QueueNotFound(queue_id),
+            )
+        ).root
 
     async def queues_get_versions(
         self, queue_id: str, *, auth: YandexAuth | None = None
     ) -> list[QueueVersion]:
-        async with self._session.get(
-            f"v3/queues/{queue_id}/versions", headers=await self._build_headers(auth)
-        ) as response:
-            if response.status == 404:
-                raise QueueNotFound(queue_id)
-            await self._raise_for_status(response)
-            return VersionList.model_validate_json(await response.read()).root
+        return VersionList.model_validate_json(
+            await self._read(
+                "GET",
+                f"v3/queues/{queue_id}/versions",
+                auth=auth,
+                not_found=QueueNotFound(queue_id),
+            )
+        ).root
 
     async def queue_create_version(
         self,
@@ -453,24 +540,21 @@ class TrackerClient(
         if due_date is not None:
             body["dueDate"] = due_date.isoformat()
 
-        async with self._session.post(
-            "v3/versions/",
-            headers=await self._build_headers(auth),
-            json=body,
-        ) as response:
-            await self._raise_for_status(response)
-            return QueueVersion.model_validate_json(await response.read())
+        return QueueVersion.model_validate_json(
+            await self._read("POST", "v3/versions/", auth=auth, json=body)
+        )
 
     async def queues_get_fields(
         self, queue_id: str, *, auth: YandexAuth | None = None
     ) -> list[GlobalField]:
-        async with self._session.get(
-            f"v3/queues/{queue_id}/fields", headers=await self._build_headers(auth)
-        ) as response:
-            if response.status == 404:
-                raise QueueNotFound(queue_id)
-            await self._raise_for_status(response)
-            return GlobalFieldList.model_validate_json(await response.read()).root
+        return GlobalFieldList.model_validate_json(
+            await self._read(
+                "GET",
+                f"v3/queues/{queue_id}/fields",
+                auth=auth,
+                not_found=QueueNotFound(queue_id),
+            )
+        ).root
 
     async def queue_get(
         self,
@@ -483,56 +567,46 @@ class TrackerClient(
         if expand:
             params["expand"] = ",".join(expand)
 
-        async with self._session.get(
-            f"v3/queues/{queue_id}",
-            headers=await self._build_headers(auth),
-            params=params if params else None,
-        ) as response:
-            if response.status == 404:
-                raise QueueNotFound(queue_id)
-            await self._raise_for_status(response)
-            return Queue.model_validate_json(await response.read())
+        return Queue.model_validate_json(
+            await self._read(
+                "GET",
+                f"v3/queues/{queue_id}",
+                auth=auth,
+                params=params,
+                not_found=QueueNotFound(queue_id),
+            )
+        )
 
     async def get_global_fields(
         self, *, auth: YandexAuth | None = None
     ) -> list[GlobalField]:
-        async with self._session.get(
-            "v3/fields", headers=await self._build_headers(auth)
-        ) as response:
-            await self._raise_for_status(response)
-            return GlobalFieldList.model_validate_json(await response.read()).root
+        return GlobalFieldList.model_validate_json(
+            await self._read("GET", "v3/fields", auth=auth)
+        ).root
 
     async def get_statuses(self, *, auth: YandexAuth | None = None) -> list[Status]:
-        async with self._session.get(
-            "v3/statuses", headers=await self._build_headers(auth)
-        ) as response:
-            await self._raise_for_status(response)
-            return StatusList.model_validate_json(await response.read()).root
+        return StatusList.model_validate_json(
+            await self._read("GET", "v3/statuses", auth=auth)
+        ).root
 
     async def get_issue_types(
         self, *, auth: YandexAuth | None = None
     ) -> list[IssueType]:
-        async with self._session.get(
-            "v3/issuetypes", headers=await self._build_headers(auth)
-        ) as response:
-            await self._raise_for_status(response)
-            return IssueTypeList.model_validate_json(await response.read()).root
+        return IssueTypeList.model_validate_json(
+            await self._read("GET", "v3/issuetypes", auth=auth)
+        ).root
 
     async def get_priorities(self, *, auth: YandexAuth | None = None) -> list[Priority]:
-        async with self._session.get(
-            "v3/priorities", headers=await self._build_headers(auth)
-        ) as response:
-            await self._raise_for_status(response)
-            return PriorityList.model_validate_json(await response.read()).root
+        return PriorityList.model_validate_json(
+            await self._read("GET", "v3/priorities", auth=auth)
+        ).root
 
     async def get_resolutions(
         self, *, auth: YandexAuth | None = None
     ) -> list[Resolution]:
-        async with self._session.get(
-            "v3/resolutions", headers=await self._build_headers(auth)
-        ) as response:
-            await self._raise_for_status(response)
-            return ResolutionList.model_validate_json(await response.read()).root
+        return ResolutionList.model_validate_json(
+            await self._read("GET", "v3/resolutions", auth=auth)
+        ).root
 
     async def get_issue_templates(
         self,
@@ -553,12 +627,13 @@ class TrackerClient(
             "perPage": per_page,
             "page": page,
         }
-        async with self._session.get(
-            path, headers=await self._build_headers(auth), params=params
+        async with self._request(
+            "GET",
+            path,
+            auth=auth,
+            params=params,
+            not_found=QueueNotFound(queue) if queue is not None else None,
         ) as response:
-            if queue is not None and response.status == 404:
-                raise QueueNotFound(queue)
-            await self._raise_for_status(response)
             return self._paginated(
                 response,
                 IssueTemplateList.model_validate_json(await response.read()).root,
@@ -567,13 +642,14 @@ class TrackerClient(
     async def get_issue_template(
         self, template_id: str, *, auth: YandexAuth | None = None
     ) -> IssueTemplate:
-        async with self._session.get(
-            f"v3/issueTemplates/{template_id}", headers=await self._build_headers(auth)
-        ) as response:
-            if response.status == 404:
-                raise IssueTemplateNotFound(template_id)
-            await self._raise_for_status(response)
-            return IssueTemplate.model_validate_json(await response.read())
+        return IssueTemplate.model_validate_json(
+            await self._read(
+                "GET",
+                f"v3/issueTemplates/{template_id}",
+                auth=auth,
+                not_found=IssueTemplateNotFound(template_id),
+            )
+        )
 
     async def get_comment_templates(
         self,
@@ -594,12 +670,13 @@ class TrackerClient(
             "perPage": per_page,
             "page": page,
         }
-        async with self._session.get(
-            path, headers=await self._build_headers(auth), params=params
+        async with self._request(
+            "GET",
+            path,
+            auth=auth,
+            params=params,
+            not_found=QueueNotFound(queue) if queue is not None else None,
         ) as response:
-            if queue is not None and response.status == 404:
-                raise QueueNotFound(queue)
-            await self._raise_for_status(response)
             return self._paginated(
                 response,
                 CommentTemplateList.model_validate_json(await response.read()).root,
@@ -608,36 +685,38 @@ class TrackerClient(
     async def get_comment_template(
         self, template_id: str, *, auth: YandexAuth | None = None
     ) -> CommentTemplate:
-        async with self._session.get(
-            f"v3/commentTemplates/{template_id}",
-            headers=await self._build_headers(auth),
-        ) as response:
-            if response.status == 404:
-                raise CommentTemplateNotFound(template_id)
-            await self._raise_for_status(response)
-            return CommentTemplate.model_validate_json(await response.read())
+        return CommentTemplate.model_validate_json(
+            await self._read(
+                "GET",
+                f"v3/commentTemplates/{template_id}",
+                auth=auth,
+                not_found=CommentTemplateNotFound(template_id),
+            )
+        )
 
     async def issue_get(
         self, issue_id: str, *, auth: YandexAuth | None = None
     ) -> Issue:
-        async with self._session.get(
-            f"v3/issues/{issue_id}", headers=await self._build_headers(auth)
-        ) as response:
-            if response.status == 404:
-                raise IssueNotFound(issue_id)
-            await self._raise_for_status(response)
-            return Issue.model_validate_json(await response.read())
+        return Issue.model_validate_json(
+            await self._read(
+                "GET",
+                f"v3/issues/{issue_id}",
+                auth=auth,
+                not_found=IssueNotFound(issue_id),
+            )
+        )
 
     async def issues_get_links(
         self, issue_id: str, *, auth: YandexAuth | None = None
     ) -> list[IssueLink]:
-        async with self._session.get(
-            f"v3/issues/{issue_id}/links", headers=await self._build_headers(auth)
-        ) as response:
-            if response.status == 404:
-                raise IssueNotFound(issue_id)
-            await self._raise_for_status(response)
-            return IssueLinkList.model_validate_json(await response.read()).root
+        return IssueLinkList.model_validate_json(
+            await self._read(
+                "GET",
+                f"v3/issues/{issue_id}/links",
+                auth=auth,
+                not_found=IssueNotFound(issue_id),
+            )
+        ).root
 
     async def issue_add_link(
         self,
@@ -650,15 +729,15 @@ class TrackerClient(
         """Создать связь задачи с другой задачей."""
         body: dict[str, Any] = {"relationship": relationship, "issue": issue}
 
-        async with self._session.post(
-            f"v3/issues/{issue_id}/links",
-            headers=await self._build_headers(auth),
-            json=body,
-        ) as response:
-            if response.status == 404:
-                raise IssueNotFound(issue_id)
-            await self._raise_for_status(response)
-            return IssueLink.model_validate_json(await response.read())
+        return IssueLink.model_validate_json(
+            await self._read(
+                "POST",
+                f"v3/issues/{issue_id}/links",
+                auth=auth,
+                json=body,
+                not_found=IssueNotFound(issue_id),
+            )
+        )
 
     async def issue_delete_link(
         self,
@@ -668,14 +747,12 @@ class TrackerClient(
         auth: YandexAuth | None = None,
     ) -> None:
         """Удалить связь задачи с другой задачей."""
-        async with self._session.delete(
+        await self._read(
+            "DELETE",
             f"v3/issues/{issue_id}/links/{link_id}",
-            headers=await self._build_headers(auth),
-        ) as response:
-            if response.status == 404:
-                raise IssueNotFound(issue_id)
-            await self._raise_for_status(response)
-            return None
+            auth=auth,
+            not_found=IssueNotFound(issue_id),
+        )
 
     async def issue_get_comments(
         self,
@@ -690,14 +767,13 @@ class TrackerClient(
             # `id` is exclusive: the page starts after that comment.
             params["id"] = cursor
 
-        async with self._session.get(
+        async with self._request(
+            "GET",
             f"v3/issues/{issue_id}/comments",
-            headers=await self._build_headers(auth),
+            auth=auth,
             params=params,
+            not_found=IssueNotFound(issue_id),
         ) as response:
-            if response.status == 404:
-                raise IssueNotFound(issue_id)
-            await self._raise_for_status(response)
             comments = IssueCommentList.model_validate_json(await response.read()).root
             return CommentsPage(
                 comments=comments,
@@ -728,16 +804,16 @@ class TrackerClient(
         # Чтобы не менять URL (и поведение по умолчанию), передаём его только при false.
         params = {"isAddToFollowers": "false"} if not is_add_to_followers else None
 
-        async with self._session.post(
-            f"v3/issues/{issue_id}/comments",
-            headers=await self._build_headers(auth),
-            json=body,
-            params=params,
-        ) as response:
-            if response.status == 404:
-                raise IssueNotFound(issue_id)
-            await self._raise_for_status(response)
-            return IssueComment.model_validate_json(await response.read())
+        return IssueComment.model_validate_json(
+            await self._read(
+                "POST",
+                f"v3/issues/{issue_id}/comments",
+                auth=auth,
+                params=params,
+                json=body,
+                not_found=IssueNotFound(issue_id),
+            )
+        )
 
     async def issue_update_comment(
         self,
@@ -759,15 +835,15 @@ class TrackerClient(
         if markup_type is not None:
             body["markupType"] = markup_type
 
-        async with self._session.patch(
-            f"v3/issues/{issue_id}/comments/{comment_id}",
-            headers=await self._build_headers(auth),
-            json=body,
-        ) as response:
-            if response.status == 404:
-                raise IssueNotFound(issue_id)
-            await self._raise_for_status(response)
-            return IssueComment.model_validate_json(await response.read())
+        return IssueComment.model_validate_json(
+            await self._read(
+                "PATCH",
+                f"v3/issues/{issue_id}/comments/{comment_id}",
+                auth=auth,
+                json=body,
+                not_found=IssueNotFound(issue_id),
+            )
+        )
 
     async def issue_delete_comment(
         self,
@@ -777,14 +853,12 @@ class TrackerClient(
         auth: YandexAuth | None = None,
     ) -> None:
         """Удалить комментарий из задачи."""
-        async with self._session.delete(
+        await self._read(
+            "DELETE",
             f"v3/issues/{issue_id}/comments/{comment_id}",
-            headers=await self._build_headers(auth),
-        ) as response:
-            if response.status == 404:
-                raise IssueNotFound(issue_id)
-            await self._raise_for_status(response)
-            return None
+            auth=auth,
+            not_found=IssueNotFound(issue_id),
+        )
 
     async def issues_find(
         self,
@@ -810,13 +884,9 @@ class TrackerClient(
             "query": query,
         }
 
-        async with self._session.post(
-            "v3/issues/_search",
-            headers=await self._build_headers(auth),
-            json=body,
-            params=params,
+        async with self._request(
+            "POST", "v3/issues/_search", auth=auth, params=params, json=body
         ) as response:
-            await self._raise_for_status(response)
             return self._paginated(
                 response, IssueList.model_validate_json(await response.read()).root
             )
@@ -851,13 +921,14 @@ class TrackerClient(
     async def issue_get_worklogs(
         self, issue_id: str, *, auth: YandexAuth | None = None
     ) -> list[Worklog]:
-        async with self._session.get(
-            f"v3/issues/{issue_id}/worklog", headers=await self._build_headers(auth)
-        ) as response:
-            if response.status == 404:
-                raise IssueNotFound(issue_id)
-            await self._raise_for_status(response)
-            return WorklogList.model_validate_json(await response.read()).root
+        return WorklogList.model_validate_json(
+            await self._read(
+                "GET",
+                f"v3/issues/{issue_id}/worklog",
+                auth=auth,
+                not_found=IssueNotFound(issue_id),
+            )
+        ).root
 
     async def issue_add_worklog(
         self,
@@ -884,15 +955,15 @@ class TrackerClient(
             # Если tz отсутствует — считаем, что время задано в UTC.
             body["start"] = _tracker_datetime(start)
 
-        async with self._session.post(
-            f"v3/issues/{issue_id}/worklog",
-            headers=await self._build_headers(auth),
-            json=body,
-        ) as response:
-            if response.status == 404:
-                raise IssueNotFound(issue_id)
-            await self._raise_for_status(response)
-            return Worklog.model_validate_json(await response.read())
+        return Worklog.model_validate_json(
+            await self._read(
+                "POST",
+                f"v3/issues/{issue_id}/worklog",
+                auth=auth,
+                json=body,
+                not_found=IssueNotFound(issue_id),
+            )
+        )
 
     async def issue_update_worklog(
         self,
@@ -913,15 +984,15 @@ class TrackerClient(
         if start is not None:
             body["start"] = _tracker_datetime(start)
 
-        async with self._session.patch(
-            f"v3/issues/{issue_id}/worklog/{worklog_id}",
-            headers=await self._build_headers(auth),
-            json=body,
-        ) as response:
-            if response.status == 404:
-                raise IssueNotFound(issue_id)
-            await self._raise_for_status(response)
-            return Worklog.model_validate_json(await response.read())
+        return Worklog.model_validate_json(
+            await self._read(
+                "PATCH",
+                f"v3/issues/{issue_id}/worklog/{worklog_id}",
+                auth=auth,
+                json=body,
+                not_found=IssueNotFound(issue_id),
+            )
+        )
 
     async def issue_delete_worklog(
         self,
@@ -931,25 +1002,24 @@ class TrackerClient(
         auth: YandexAuth | None = None,
     ) -> None:
         """Удалить запись трудозатрат (worklog) из задачи."""
-        async with self._session.delete(
+        await self._read(
+            "DELETE",
             f"v3/issues/{issue_id}/worklog/{worklog_id}",
-            headers=await self._build_headers(auth),
-        ) as response:
-            if response.status == 404:
-                raise IssueNotFound(issue_id)
-            await self._raise_for_status(response)
-            return None
+            auth=auth,
+            not_found=IssueNotFound(issue_id),
+        )
 
     async def issue_get_attachments(
         self, issue_id: str, *, auth: YandexAuth | None = None
     ) -> list[IssueAttachment]:
-        async with self._session.get(
-            f"v3/issues/{issue_id}/attachments", headers=await self._build_headers(auth)
-        ) as response:
-            if response.status == 404:
-                raise IssueNotFound(issue_id)
-            await self._raise_for_status(response)
-            return IssueAttachmentList.model_validate_json(await response.read()).root
+        return IssueAttachmentList.model_validate_json(
+            await self._read(
+                "GET",
+                f"v3/issues/{issue_id}/attachments",
+                auth=auth,
+                not_found=IssueNotFound(issue_id),
+            )
+        ).root
 
     async def users_list(
         self, per_page: int = 50, page: int = 1, *, auth: YandexAuth | None = None
@@ -958,10 +1028,9 @@ class TrackerClient(
             "perPage": per_page,
             "page": page,
         }
-        async with self._session.get(
-            "v3/users", headers=await self._build_headers(auth), params=params
+        async with self._request(
+            "GET", "v3/users", auth=auth, params=params
         ) as response:
-            await self._raise_for_status(response)
             return self._paginated(
                 response, UserList.model_validate_json(await response.read()).root
             )
@@ -969,32 +1038,29 @@ class TrackerClient(
     async def user_get(
         self, user_id: str, *, auth: YandexAuth | None = None
     ) -> User | None:
-        async with self._session.get(
-            f"v3/users/{user_id}", headers=await self._build_headers(auth)
+        # An unknown user is an answer here, not an error, so the 404 is asked
+        # for rather than raised.
+        async with self._request(
+            "GET", f"v3/users/{user_id}", auth=auth, allow_statuses=(404,)
         ) as response:
             if response.status == 404:
                 return None
-            await self._raise_for_status(response)
             return User.model_validate_json(await response.read())
 
     async def user_get_current(self, *, auth: YandexAuth | None = None) -> User:
-        async with self._session.get(
-            "v3/myself", headers=await self._build_headers(auth)
-        ) as response:
-            await self._raise_for_status(response)
-            return User.model_validate_json(await response.read())
+        return User.model_validate_json(await self._read("GET", "v3/myself", auth=auth))
 
     async def issue_get_checklist(
         self, issue_id: str, *, auth: YandexAuth | None = None
     ) -> list[ChecklistItem]:
-        async with self._session.get(
-            f"v3/issues/{issue_id}/checklistItems",
-            headers=await self._build_headers(auth),
-        ) as response:
-            if response.status == 404:
-                raise IssueNotFound(issue_id)
-            await self._raise_for_status(response)
-            return ChecklistItemList.model_validate_json(await response.read()).root
+        return ChecklistItemList.model_validate_json(
+            await self._read(
+                "GET",
+                f"v3/issues/{issue_id}/checklistItems",
+                auth=auth,
+                not_found=IssueNotFound(issue_id),
+            )
+        ).root
 
     @staticmethod
     def _checklist_item_deadline_body(
@@ -1023,7 +1089,6 @@ class TrackerClient(
         if not items:
             return await self.issue_get_checklist(issue_id, auth=auth)
 
-        headers = await self._build_headers(auth)
         checklist: list[ChecklistItem] = []
 
         for added, item in enumerate(items):
@@ -1034,14 +1099,13 @@ class TrackerClient(
                 deadline=self._checklist_item_deadline_body(item.deadline),
             )
             try:
-                async with self._session.post(
+                async with self._request(
+                    "POST",
                     f"v3/issues/{issue_id}/checklistItems",
-                    headers=headers,
+                    auth=auth,
                     json=body,
+                    not_found=IssueNotFound(issue_id),
                 ) as response:
-                    if response.status == 404:
-                        raise IssueNotFound(issue_id)
-                    await self._raise_for_status(response)
                     checklist = _IssueChecklist.model_validate_json(
                         await response.read()
                     ).checklistItems
@@ -1083,16 +1147,17 @@ class TrackerClient(
             assignee=assignee,
             deadline=self._checklist_item_deadline_body(deadline),
         )
-        async with self._session.patch(
+        # Item-scoped path: the 404 means an unknown issue *or* an unknown
+        # item, and the caller is told to check both.
+        async with self._request(
+            "PATCH",
             f"v3/issues/{issue_id}/checklistItems/{checklist_item_id}",
-            headers=await self._build_headers(auth),
+            auth=auth,
             json=body,
+            not_found=ChecklistItemNotFound(
+                issue_id, checklist_item_id, ambiguous=True
+            ),
         ) as response:
-            if response.status == 404:
-                # Item-scoped path: the 404 means an unknown issue *or* an
-                # unknown item, and the caller is told to check both.
-                raise ChecklistItemNotFound(issue_id, checklist_item_id, ambiguous=True)
-            await self._raise_for_status(response)
             return _IssueChecklist.model_validate_json(
                 await response.read()
             ).checklistItems
@@ -1105,13 +1170,14 @@ class TrackerClient(
         auth: YandexAuth | None = None,
     ) -> list[ChecklistItem]:
         """Удалить один пункт из чеклиста задачи."""
-        async with self._session.delete(
+        async with self._request(
+            "DELETE",
             f"v3/issues/{issue_id}/checklistItems/{checklist_item_id}",
-            headers=await self._build_headers(auth),
+            auth=auth,
+            not_found=ChecklistItemNotFound(
+                issue_id, checklist_item_id, ambiguous=True
+            ),
         ) as response:
-            if response.status == 404:
-                raise ChecklistItemNotFound(issue_id, checklist_item_id, ambiguous=True)
-            await self._raise_for_status(response)
             return _IssueChecklist.model_validate_json(
                 await response.read()
             ).checklistItems
@@ -1121,10 +1187,9 @@ class TrackerClient(
             "query": query,
         }
 
-        async with self._session.post(
-            "v3/issues/_count", headers=await self._build_headers(auth), json=body
+        async with self._request(
+            "POST", "v3/issues/_count", auth=auth, json=body
         ) as response:
-            await self._raise_for_status(response)
             return int(await response.text())
 
     async def issue_create(
@@ -1179,22 +1244,21 @@ class TrackerClient(
         if fields:
             body.update(fields)
 
-        async with self._session.post(
-            "v3/issues", headers=await self._build_headers(auth), json=body
-        ) as response:
-            await self._raise_for_status(response)
-            return Issue.model_validate_json(await response.read())
+        return Issue.model_validate_json(
+            await self._read("POST", "v3/issues", auth=auth, json=body)
+        )
 
     async def issue_get_transitions(
         self, issue_id: str, *, auth: YandexAuth | None = None
     ) -> list[IssueTransition]:
-        async with self._session.get(
-            f"v2/issues/{issue_id}/transitions", headers=await self._build_headers(auth)
-        ) as response:
-            if response.status == 404:
-                raise IssueNotFound(issue_id)
-            await self._raise_for_status(response)
-            return IssueTransitionList.model_validate_json(await response.read()).root
+        return IssueTransitionList.model_validate_json(
+            await self._read(
+                "GET",
+                f"v2/issues/{issue_id}/transitions",
+                auth=auth,
+                not_found=IssueNotFound(issue_id),
+            )
+        ).root
 
     async def issue_get_changelog(
         self,
@@ -1214,14 +1278,13 @@ class TrackerClient(
         if type is not None:
             params["type"] = type
 
-        async with self._session.get(
+        async with self._request(
+            "GET",
             f"v3/issues/{issue_id}/changelog",
-            headers=await self._build_headers(auth),
+            auth=auth,
             params=params,
+            not_found=IssueNotFound(issue_id),
         ) as response:
-            if response.status == 404:
-                raise IssueNotFound(issue_id)
-            await self._raise_for_status(response)
             entries = ChangelogList.model_validate_json(await response.read()).root
             return ChangelogPage(
                 entries=entries,
@@ -1259,15 +1322,15 @@ class TrackerClient(
         if fields is not None:
             body.update(fields)
 
-        async with self._session.post(
-            f"v3/issues/{issue_id}/transitions/{transition_id}/_execute",
-            headers=await self._build_headers(auth),
-            json=body,
-        ) as response:
-            if response.status == 404:
-                raise IssueNotFound(issue_id)
-            await self._raise_for_status(response)
-            return IssueTransitionList.model_validate_json(await response.read()).root
+        return IssueTransitionList.model_validate_json(
+            await self._read(
+                "POST",
+                f"v3/issues/{issue_id}/transitions/{transition_id}/_execute",
+                auth=auth,
+                json=body,
+                not_found=IssueNotFound(issue_id),
+            )
+        ).root
 
     async def issue_close(
         self,
@@ -1383,18 +1446,17 @@ class TrackerClient(
         if version is not None:
             params["version"] = version
 
-        async with self._session.patch(
-            f"v3/issues/{issue_id}",
-            headers=await self._build_headers(auth),
-            json=body,
-            params=params if params else None,
-        ) as response:
-            if response.status == 404:
-                raise IssueNotFound(issue_id)
-            if response.status == 409:
-                raise IssueVersionConflict(issue_id, version)
-            await self._raise_for_status(response)
-            return Issue.model_validate_json(await response.read())
+        return Issue.model_validate_json(
+            await self._read(
+                "PATCH",
+                f"v3/issues/{issue_id}",
+                auth=auth,
+                params=params,
+                json=body,
+                not_found=IssueNotFound(issue_id),
+                conflict=IssueVersionConflict(issue_id, version),
+            )
+        )
 
     async def issue_move(
         self,
@@ -1417,15 +1479,15 @@ class TrackerClient(
         if initial_status:
             params["initialStatus"] = "true"
 
-        async with self._session.post(
-            f"v3/issues/{issue_id}/_move",
-            headers=await self._build_headers(auth),
-            params=params,
-        ) as response:
-            if response.status == 404:
-                raise IssueNotFound(issue_id)
-            await self._raise_for_status(response)
-            return Issue.model_validate_json(await response.read())
+        return Issue.model_validate_json(
+            await self._read(
+                "POST",
+                f"v3/issues/{issue_id}/_move",
+                auth=auth,
+                params=params,
+                not_found=IssueNotFound(issue_id),
+            )
+        )
 
     @staticmethod
     def _entity_fields_param(
@@ -1454,13 +1516,9 @@ class TrackerClient(
         auth: YandexAuth | None,
     ) -> bytes:
         params = {"fields": self._entity_fields_param(entity_type, fields)}
-        async with self._session.get(
-            f"v3/entities/{entity_type}/{entity_id}",
-            headers=await self._build_headers(auth),
-            params=params,
-        ) as response:
-            await self._raise_for_status(response)
-            return await response.read()
+        return await self._read(
+            "GET", f"v3/entities/{entity_type}/{entity_id}", auth=auth, params=params
+        )
 
     async def _entity_search(
         self,
@@ -1494,14 +1552,13 @@ class TrackerClient(
         if root_only is not None:
             body["rootOnly"] = root_only
 
-        async with self._session.post(
+        return await self._read(
+            "POST",
             f"v3/entities/{entity_type}/_search",
-            headers=await self._build_headers(auth),
-            json=body,
+            auth=auth,
             params=params,
-        ) as response:
-            await self._raise_for_status(response)
-            return await response.read()
+            json=body,
+        )
 
     async def project_get(
         self,
@@ -1678,14 +1735,13 @@ class TrackerClient(
         if links is not None:
             body["links"] = [link.model_dump(exclude_none=True) for link in links]
 
-        async with self._session.post(
+        return await self._read(
+            "POST",
             f"v3/entities/{entity_type}",
-            headers=await self._build_headers(auth),
-            json=body,
+            auth=auth,
             params={"fields": self._entity_fields_param(entity_type, fields)},
-        ) as response:
-            await self._raise_for_status(response)
-            return await response.read()
+            json=body,
+        )
 
     async def _entity_update(
         self,
@@ -1719,14 +1775,13 @@ class TrackerClient(
         if version is not None:
             params["version"] = version
 
-        async with self._session.patch(
+        return await self._read(
+            "PATCH",
             f"v3/entities/{entity_type}/{entity_id}",
-            headers=await self._build_headers(auth),
-            json=body,
+            auth=auth,
             params=params,
-        ) as response:
-            await self._raise_for_status(response)
-            return await response.read()
+            json=body,
+        )
 
     async def _entity_delete(
         self,
@@ -1737,13 +1792,9 @@ class TrackerClient(
         auth: YandexAuth | None,
     ) -> None:
         params = {"withBoard": "true"} if with_board else None
-        async with self._session.delete(
-            f"v3/entities/{entity_type}/{entity_id}",
-            headers=await self._build_headers(auth),
-            params=params,
-        ) as response:
-            await self._raise_for_status(response)
-            return None
+        await self._read(
+            "DELETE", f"v3/entities/{entity_type}/{entity_id}", auth=auth, params=params
+        )
 
     async def project_create(
         self,
@@ -2060,12 +2111,12 @@ class TrackerClient(
             # `from` is exclusive: the page starts after that comment.
             params["from"] = cursor
 
-        async with self._session.get(
+        async with self._request(
+            "GET",
             f"v3/entities/{entity_type}/{entity_id}/comments/_relative",
-            headers=await self._build_headers(auth),
+            auth=auth,
             params=params,
         ) as response:
-            await self._raise_for_status(response)
             page = EntityCommentsRelativePage.model_validate_json(await response.read())
             next_cursor: str | None = None
             if page.hasNext and page.comments:
@@ -2092,13 +2143,14 @@ class TrackerClient(
         if maillist_summonees is not None:
             body["maillistSummonees"] = maillist_summonees
 
-        async with self._session.post(
-            f"v3/entities/{entity_type}/{entity_id}/comments",
-            headers=await self._build_headers(auth),
-            json=body,
-        ) as response:
-            await self._raise_for_status(response)
-            return IssueComment.model_validate_json(await response.read())
+        return IssueComment.model_validate_json(
+            await self._read(
+                "POST",
+                f"v3/entities/{entity_type}/{entity_id}/comments",
+                auth=auth,
+                json=body,
+            )
+        )
 
     async def _entity_update_comment(
         self,
@@ -2117,13 +2169,14 @@ class TrackerClient(
         if maillist_summonees is not None:
             body["maillistSummonees"] = maillist_summonees
 
-        async with self._session.patch(
-            f"v3/entities/{entity_type}/{entity_id}/comments/{comment_id}",
-            headers=await self._build_headers(auth),
-            json=body,
-        ) as response:
-            await self._raise_for_status(response)
-            return IssueComment.model_validate_json(await response.read())
+        return IssueComment.model_validate_json(
+            await self._read(
+                "PATCH",
+                f"v3/entities/{entity_type}/{entity_id}/comments/{comment_id}",
+                auth=auth,
+                json=body,
+            )
+        )
 
     async def _entity_delete_comment(
         self,
@@ -2133,12 +2186,11 @@ class TrackerClient(
         *,
         auth: YandexAuth | None,
     ) -> None:
-        async with self._session.delete(
+        await self._read(
+            "DELETE",
             f"v3/entities/{entity_type}/{entity_id}/comments/{comment_id}",
-            headers=await self._build_headers(auth),
-        ) as response:
-            await self._raise_for_status(response)
-            return None
+            auth=auth,
+        )
 
     async def project_get_comments(
         self,
@@ -2351,14 +2403,13 @@ class TrackerClient(
         body = self._build_checklist_item_body(
             text=text, checked=checked, assignee=assignee, deadline=deadline
         )
-        async with self._session.post(
+        return await self._read(
+            "POST",
             f"v3/entities/{entity_type}/{entity_id}/checklistItems",
-            headers=await self._build_headers(auth),
-            json=body,
+            auth=auth,
             params={"fields": self._entity_fields_param(entity_type, fields)},
-        ) as response:
-            await self._raise_for_status(response)
-            return await response.read()
+            json=body,
+        )
 
     async def _entity_update_checklist_item(
         self,
@@ -2376,14 +2427,13 @@ class TrackerClient(
         body = self._build_checklist_item_body(
             text=text, checked=checked, assignee=assignee, deadline=deadline
         )
-        async with self._session.patch(
+        return await self._read(
+            "PATCH",
             f"v3/entities/{entity_type}/{entity_id}/checklistItems/{checklist_item_id}",
-            headers=await self._build_headers(auth),
-            json=body,
+            auth=auth,
             params={"fields": self._entity_fields_param(entity_type, fields)},
-        ) as response:
-            await self._raise_for_status(response)
-            return await response.read()
+            json=body,
+        )
 
     async def _entity_move_checklist_item(
         self,
@@ -2395,14 +2445,13 @@ class TrackerClient(
         fields: list[str] | None,
         auth: YandexAuth | None,
     ) -> bytes:
-        async with self._session.post(
+        return await self._read(
+            "POST",
             f"v3/entities/{entity_type}/{entity_id}/checklistItems/{checklist_item_id}/_move",
-            headers=await self._build_headers(auth),
-            json={"before": before},
+            auth=auth,
             params={"fields": self._entity_fields_param(entity_type, fields)},
-        ) as response:
-            await self._raise_for_status(response)
-            return await response.read()
+            json={"before": before},
+        )
 
     async def _entity_delete_checklist_item(
         self,
@@ -2413,13 +2462,12 @@ class TrackerClient(
         fields: list[str] | None,
         auth: YandexAuth | None,
     ) -> bytes:
-        async with self._session.delete(
+        return await self._read(
+            "DELETE",
             f"v3/entities/{entity_type}/{entity_id}/checklistItems/{checklist_item_id}",
-            headers=await self._build_headers(auth),
+            auth=auth,
             params={"fields": self._entity_fields_param(entity_type, fields)},
-        ) as response:
-            await self._raise_for_status(response)
-            return await response.read()
+        )
 
     async def _entity_update_checklist(
         self,
@@ -2431,14 +2479,13 @@ class TrackerClient(
         auth: YandexAuth | None,
     ) -> bytes:
         body = [item.model_dump(exclude_none=True) for item in items]
-        async with self._session.patch(
+        return await self._read(
+            "PATCH",
             f"v3/entities/{entity_type}/{entity_id}/checklistItems",
-            headers=await self._build_headers(auth),
-            json=body,
+            auth=auth,
             params={"fields": self._entity_fields_param(entity_type, fields)},
-        ) as response:
-            await self._raise_for_status(response)
-            return await response.read()
+            json=body,
+        )
 
     @staticmethod
     def _checklist_item_to_update_input(
@@ -2526,13 +2573,12 @@ class TrackerClient(
         fields: list[str] | None,
         auth: YandexAuth | None,
     ) -> bytes:
-        async with self._session.delete(
+        return await self._read(
+            "DELETE",
             f"v3/entities/{entity_type}/{entity_id}/checklistItems",
-            headers=await self._build_headers(auth),
+            auth=auth,
             params={"fields": self._entity_fields_param(entity_type, fields)},
-        ) as response:
-            await self._raise_for_status(response)
-            return await response.read()
+        )
 
     async def project_add_checklist_item(
         self,
@@ -2777,3 +2823,71 @@ class TrackerClient(
                 "portfolio", entity_id, fields=fields, auth=auth
             )
         )
+
+    async def boards_list(
+        self,
+        *,
+        per_page: int = 100,
+        cursor: int | None = None,
+        auth: YandexAuth | None = None,
+    ) -> list[Board]:
+        """One page of boards, ascending by id.
+
+        `cursor` is the id of the last board of the previous page and is
+        exclusive; a page shorter than `per_page` is the last one.
+
+        This is the only way boards are read. `/v3/boards` returns the whole
+        organization in one response - 1.4 MB and 7-16s for 415 boards, in a
+        different order every call - and no timeout fits that, because the
+        request grows with the Tracker it is pointed at: generous for one
+        organization is not enough for the next. A page is bounded by `per_page`
+        instead, so what the budget has to cover stops depending on how large
+        the organization is. It does not make the API's own variance go away,
+        which is what `TRACKER_API_TIMEOUT` and `TrackerAPITimeout` are for.
+        """
+        params: dict[str, Any] = {"perPage": min(per_page, BOARDS_PAGE_MAX)}
+        if cursor is not None:
+            params["id"] = cursor
+
+        return BoardList.model_validate_json(
+            await self._read("GET", "v3/boards/_paginate", auth=auth, params=params)
+        ).root
+
+    async def board_get(
+        self, board_id: int, *, auth: YandexAuth | None = None
+    ) -> Board:
+        return Board.model_validate_json(
+            await self._read(
+                "GET",
+                f"v3/boards/{board_id}",
+                auth=auth,
+                not_found=BoardNotFound(board_id),
+            )
+        )
+
+    async def board_get_columns(
+        self, board_id: int, *, auth: YandexAuth | None = None
+    ) -> list[BoardColumnDetail]:
+        return BoardColumnList.model_validate_json(
+            await self._read(
+                "GET",
+                f"v3/boards/{board_id}/columns",
+                auth=auth,
+                not_found=BoardNotFound(board_id),
+            )
+        ).root
+
+    async def board_get_sprints(
+        self, board_id: int, *, auth: YandexAuth | None = None
+    ) -> list[Sprint]:
+        # A board that is not a scrum board answers 400 with "У доски этого типа
+        # не может быть спринтов." - that explanation only reaches the caller
+        # because `_request` puts every response through `_raise_for_status`.
+        return SprintList.model_validate_json(
+            await self._read(
+                "GET",
+                f"v3/boards/{board_id}/sprints",
+                auth=auth,
+                not_found=BoardNotFound(board_id),
+            )
+        ).root

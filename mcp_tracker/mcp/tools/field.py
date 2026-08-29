@@ -58,11 +58,11 @@ def register_field_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Get Priorities",
-        description="Get the issue priority levels of Yandex Tracker - trivial, minor, normal, "
-        "critical, blocker and any others the organization configured - with the `id` and `key` "
-        "that `issue_create` and `issue_update` accept in their `priority` parameter. "
-        "Call this before setting or changing how urgent or severe an issue is. "
-        "Note the list is organization-wide: a queue may still reject a priority it does not use.",
+        description="Get the issue priority levels of Yandex Tracker - trivial, minor, "
+        "normal, critical, blocker and whatever else the organization configured - "
+        "with the `id` and `key` that `issue_create` and `issue_update` accept in "
+        "`priority`. The list is organization-wide: a queue may still reject a "
+        "priority it does not use.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def get_priorities(
