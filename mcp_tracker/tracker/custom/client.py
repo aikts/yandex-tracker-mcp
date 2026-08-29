@@ -132,14 +132,12 @@ class _ChecklistSnapshot(BaseModel):
     fields: _ChecklistSnapshotFields = Field(default_factory=_ChecklistSnapshotFields)
 
 
-class _IssueChecklist(BaseModel):
+class _IssueChecklist(_ChecklistSnapshotFields):
     """Minimal parse of the issue payload the issue checklist write endpoints
     answer with - only the resulting checklist is of interest to the caller.
 
     The key is absent once the last item is deleted, hence the default.
     """
-
-    checklistItems: list[ChecklistItem] = Field(default_factory=list)
 
 
 GlobalFieldList = RootModel[list[GlobalField]]
@@ -1106,9 +1104,7 @@ class TrackerClient(
                     json=body,
                     not_found=IssueNotFound(issue_id),
                 ) as response:
-                    checklist = _IssueChecklist.model_validate_json(
-                        await response.read()
-                    ).checklistItems
+                    raw = await response.read()
             except Exception as exc:
                 # Nothing landed yet on the first item, so let that error speak
                 # for itself; past it, say how much of the batch went through.
@@ -1117,6 +1113,11 @@ class TrackerClient(
                 raise ChecklistBatchPartiallyAdded(
                     issue_id, added, len(items), exc
                 ) from exc
+
+            # The request succeeded - the item exists now regardless of what
+            # follows, so a parse failure here must not be counted as "not
+            # added" the way a request failure above is.
+            checklist = _IssueChecklist.model_validate_json(raw).checklistItems
 
         return checklist
 
@@ -2494,7 +2495,7 @@ class TrackerClient(
         deadline: dict[str, Any] | None = None
         if item.deadline is not None:
             deadline = {
-                "date": item.deadline.date.isoformat(),
+                "date": _tracker_datetime(item.deadline.date),
                 "deadlineType": item.deadline.deadline_type,
             }
         return EntityChecklistItemUpdateInput(
