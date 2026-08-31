@@ -771,6 +771,25 @@ Boards belong to the organization rather than to a queue, so they are not filter
   - Parameters: `issue_id` (string, format: "QUEUE-123")
   - Returns list of checklist items including text, status, assignee, and deadline information
 
+- **`issue_add_checklist_items`**: Add items to an issue's checklist (creates it if the issue has none)
+  - Parameters:
+    - `issue_id` (string, required, format: "QUEUE-123")
+    - `items` (array, required): Items to append, in order. Each takes `text` (string, required), `checked` (boolean, optional), `assignee` (login or uid, optional), `deadline` (object, optional: `{"date": "2026-08-20T00:00:00", "deadline_type": "date"}`)
+  - Returns the issue's checklist after the change
+
+- **`issue_update_checklist_item`**: Update a single checklist item, e.g. to mark it checked
+  - Parameters:
+    - `issue_id` (string, required, format: "QUEUE-123")
+    - `checklist_item_id` (string, required): Item ID as returned by `issue_get_checklist`
+    - `text` (string, optional), `checked` (boolean, optional), `assignee` (login or uid, optional), `deadline` (object, optional: `deadline_type` is `"date"` or `"quarter"`)
+    - `clear_assignee` / `clear_deadline` (boolean, optional): remove the current assignee or deadline; cannot be combined with the field they clear
+  - At least one optional field is required; omitted fields keep their value
+  - Returns the issue's checklist after the change
+
+- **`issue_delete_checklist_item`**: Delete a single checklist item
+  - Parameters: `issue_id` (string, required, format: "QUEUE-123"), `checklist_item_id` (string, required)
+  - Returns the issue's checklist after the change
+
 - **`issue_get_transitions`**: Get possible status transitions for an issue
   - Parameters: `issue_id` (string, format: "QUEUE-123")
   - Returns list of available transitions that can be performed on the issue

@@ -88,6 +88,10 @@ ignore = [
     "C901", # too complex
 ]
 
+[tool.ruff.lint.per-file-ignores]
+# Standalone operator scripts report to a terminal, not through the server's logging.
+"scripts/*" = ["T20"]
+
 [tool.ruff.lint.isort]
 # Позволяет использовать as в комбинации с группировкой  (https://docs.astral.sh/ruff/settings/#isort-combine-as-imports)
 #from package import (

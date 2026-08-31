@@ -19,6 +19,9 @@ from yarl import URL
 
 from mcp_tracker.tracker.custom.errors import (
     BoardNotFound,
+    ChecklistBatchPartiallyAdded,
+    ChecklistItemClearConflict,
+    ChecklistItemEmptyUpdate,
     ChecklistItemNotFound,
     CommentTemplateNotFound,
     EntityLinksOnlyUpdate,
@@ -51,6 +54,8 @@ from mcp_tracker.tracker.proto.types.entities import (
 )
 from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
 from mcp_tracker.tracker.proto.types.inputs import (
+    ChecklistItemDeadlineInput,
+    ChecklistItemInput,
     EntityChecklistItemUpdateInput,
     EntityParentEntityInput,
     GoalLinkInput,
@@ -128,6 +133,14 @@ class _ChecklistSnapshot(BaseModel):
     fields: _ChecklistSnapshotFields = Field(default_factory=_ChecklistSnapshotFields)
 
 
+class _IssueChecklist(_ChecklistSnapshotFields):
+    """Minimal parse of the issue payload the issue checklist write endpoints
+    answer with - only the resulting checklist is of interest to the caller.
+
+    The key is absent once the last item is deleted, hence the default.
+    """
+
+
 GlobalFieldList = RootModel[list[GlobalField]]
 StatusList = RootModel[list[Status]]
 IssueTypeList = RootModel[list[IssueType]]
@@ -156,6 +169,17 @@ def _ref_body(value: BaseModel | str | int) -> Any:
     if isinstance(value, BaseModel):
         return value.model_dump(exclude_none=True)
     return value
+
+
+def _tracker_datetime(value: datetime.datetime) -> str:
+    """Format a datetime the way Tracker wants it: `YYYY-MM-DDThh:mm:ss.ffffff+0000`.
+
+    A naive datetime is read as UTC, and the offset is emitted without a colon -
+    the form the API accepts.
+    """
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=datetime.timezone.utc)
+    return value.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f%z")
 
 
 class ServiceAccountSettings(BaseModel):
@@ -928,11 +952,7 @@ class TrackerClient(
             body["comment"] = comment
         if start is not None:
             # Если tz отсутствует — считаем, что время задано в UTC.
-            if start.tzinfo is None:
-                start = start.replace(tzinfo=datetime.timezone.utc)
-            start_utc = start.astimezone(datetime.timezone.utc)
-            # Формат "+0000" (без двоеточия) совместим с API Трекера.
-            body["start"] = start_utc.strftime("%Y-%m-%dT%H:%M:%S.%f%z")
+            body["start"] = _tracker_datetime(start)
 
         return Worklog.model_validate_json(
             await self._read(
@@ -961,10 +981,7 @@ class TrackerClient(
         if comment is not None:
             body["comment"] = comment
         if start is not None:
-            if start.tzinfo is None:
-                start = start.replace(tzinfo=datetime.timezone.utc)
-            start_utc = start.astimezone(datetime.timezone.utc)
-            body["start"] = start_utc.strftime("%Y-%m-%dT%H:%M:%S.%f%z")
+            body["start"] = _tracker_datetime(start)
 
         return Worklog.model_validate_json(
             await self._read(
@@ -1043,6 +1060,148 @@ class TrackerClient(
                 not_found=IssueNotFound(issue_id),
             )
         ).root
+
+    @staticmethod
+    def _checklist_item_deadline_body(
+        deadline: ChecklistItemDeadlineInput | None,
+    ) -> dict[str, Any] | None:
+        if deadline is None:
+            return None
+        return {
+            "date": _tracker_datetime(deadline.date),
+            "deadlineType": deadline.deadline_type,
+        }
+
+    async def issue_add_checklist_items(
+        self,
+        issue_id: str,
+        *,
+        items: list[ChecklistItemInput],
+        auth: YandexAuth | None = None,
+    ) -> list[ChecklistItem]:
+        """Добавить пункты в чеклист задачи (чеклист создаётся, если его нет).
+
+        `POST .../checklistItems` принимает ровно один пункт за запрос, поэтому
+        пункты отправляются последовательно, в переданном порядке; возвращается
+        чеклист задачи после добавления последнего пункта.
+        """
+        if not items:
+            return await self.issue_get_checklist(issue_id, auth=auth)
+
+        checklist: list[ChecklistItem] = []
+
+        for added, item in enumerate(items):
+            body = self._build_checklist_item_body(
+                text=item.text,
+                checked=item.checked,
+                assignee=item.assignee,
+                deadline=self._checklist_item_deadline_body(item.deadline),
+            )
+            try:
+                async with self._request(
+                    "POST",
+                    f"v3/issues/{issue_id}/checklistItems",
+                    auth=auth,
+                    json=body,
+                    not_found=IssueNotFound(issue_id),
+                ) as response:
+                    raw = await response.read()
+            except Exception as exc:
+                # Nothing landed yet on the first item, so let that error speak
+                # for itself; past it, say how much of the batch went through.
+                if added == 0:
+                    raise
+                raise ChecklistBatchPartiallyAdded(
+                    issue_id, added, len(items), exc
+                ) from exc
+
+            # The request succeeded - the item exists now regardless of what
+            # follows, so a parse failure here must not be counted as "not
+            # added" the way a request failure above is.
+            checklist = _IssueChecklist.model_validate_json(raw).checklistItems
+
+        return checklist
+
+    async def issue_update_checklist_item(
+        self,
+        issue_id: str,
+        checklist_item_id: str,
+        *,
+        text: str | None = None,
+        checked: bool | None = None,
+        assignee: str | int | None = None,
+        deadline: ChecklistItemDeadlineInput | None = None,
+        clear_assignee: bool = False,
+        clear_deadline: bool = False,
+        auth: YandexAuth | None = None,
+    ) -> list[ChecklistItem]:
+        """Изменить один пункт чеклиста задачи.
+
+        Отправляются только переданные поля. Вопреки документации, `text` в теле
+        не обязателен: проверено на живом API — `PATCH` с одним лишь `checked`
+        (или `assignee`) отвечает 200 и сохраняет текущий текст пункта, так что
+        дочитывать и переотправлять его не нужно.
+
+        Исполнитель и дедлайн снимаются пустым объектом (`{}`) — тоже проверено
+        на живом API: `null` Трекер молча игнорирует (200, значение остаётся),
+        а `""` или `0` отвечают 422.
+        """
+        if clear_assignee and assignee is not None:
+            raise ChecklistItemClearConflict("assignee")
+        if clear_deadline and deadline is not None:
+            raise ChecklistItemClearConflict("deadline")
+        if (
+            text is None
+            and checked is None
+            and assignee is None
+            and deadline is None
+            and not clear_assignee
+            and not clear_deadline
+        ):
+            raise ChecklistItemEmptyUpdate()
+
+        body = self._build_checklist_item_body(
+            text=text,
+            checked=checked,
+            assignee={} if clear_assignee else assignee,
+            deadline={}
+            if clear_deadline
+            else self._checklist_item_deadline_body(deadline),
+        )
+        # Item-scoped path: the 404 means an unknown issue *or* an unknown
+        # item, and the caller is told to check both.
+        async with self._request(
+            "PATCH",
+            f"v3/issues/{issue_id}/checklistItems/{checklist_item_id}",
+            auth=auth,
+            json=body,
+            not_found=ChecklistItemNotFound(
+                issue_id, checklist_item_id, ambiguous=True
+            ),
+        ) as response:
+            return _IssueChecklist.model_validate_json(
+                await response.read()
+            ).checklistItems
+
+    async def issue_delete_checklist_item(
+        self,
+        issue_id: str,
+        checklist_item_id: str,
+        *,
+        auth: YandexAuth | None = None,
+    ) -> list[ChecklistItem]:
+        """Удалить один пункт из чеклиста задачи."""
+        async with self._request(
+            "DELETE",
+            f"v3/issues/{issue_id}/checklistItems/{checklist_item_id}",
+            auth=auth,
+            not_found=ChecklistItemNotFound(
+                issue_id, checklist_item_id, ambiguous=True
+            ),
+        ) as response:
+            return _IssueChecklist.model_validate_json(
+                await response.read()
+            ).checklistItems
 
     async def issues_count(self, query: str, *, auth: YandexAuth | None = None) -> int:
         body: dict[str, Any] = {
@@ -2236,7 +2395,7 @@ class TrackerClient(
         *,
         text: str | None,
         checked: bool | None,
-        assignee: str | None,
+        assignee: str | int | dict[str, Any] | None,
         deadline: dict[str, Any] | None,
     ) -> dict[str, Any]:
         body: dict[str, Any] = {}
@@ -2356,7 +2515,7 @@ class TrackerClient(
         deadline: dict[str, Any] | None = None
         if item.deadline is not None:
             deadline = {
-                "date": item.deadline.date.isoformat(),
+                "date": _tracker_datetime(item.deadline.date),
                 "deadlineType": item.deadline.deadline_type,
             }
         return EntityChecklistItemUpdateInput(

@@ -14,6 +14,7 @@ from mcp_tracker.tracker.proto.types.inputs import (
     IssueFollowerRef,
 )
 from mcp_tracker.tracker.proto.types.issues import (
+    ChecklistItem,
     Issue,
     IssueComment,
     IssueLink,
@@ -1150,3 +1151,190 @@ class TestCreateUpdateSymmetry:
 
         assert not result.isError
         assert mock_issues_protocol.issue_update.call_args.kwargs[field] == value
+
+
+class TestIssueAddChecklistItems:
+    async def test_adds_items(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_checklist: list[ChecklistItem],
+    ) -> None:
+        mock_issues_protocol.issue_add_checklist_items.return_value = sample_checklist
+
+        result = await client_session.call_tool(
+            "issue_add_checklist_items",
+            {
+                "issue_id": "TEST-123",
+                "items": [
+                    {"text": "Complete the implementation"},
+                    {"text": "Write unit tests", "checked": True},
+                ],
+            },
+        )
+
+        assert not result.isError
+        mock_issues_protocol.issue_add_checklist_items.assert_called_once()
+        call_args = mock_issues_protocol.issue_add_checklist_items.call_args
+        assert call_args.args[0] == "TEST-123"
+        items = call_args.kwargs["items"]
+        assert [item.text for item in items] == [
+            "Complete the implementation",
+            "Write unit tests",
+        ]
+        assert items[1].checked is True
+        content = get_tool_result_content(result)
+        assert isinstance(content, list)
+        assert content[0]["id"] == sample_checklist[0].id
+
+    async def test_empty_items_raises_error(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session.call_tool(
+            "issue_add_checklist_items",
+            {"issue_id": "TEST-123", "items": []},
+        )
+
+        assert result.isError
+        mock_issues_protocol.issue_add_checklist_items.assert_not_called()
+
+    async def test_restricted_queue_raises_error(
+        self,
+        client_session_with_limits: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session_with_limits.call_tool(
+            "issue_add_checklist_items",
+            {"issue_id": "RESTRICTED-123", "items": [{"text": "Do the thing"}]},
+        )
+
+        assert result.isError
+        mock_issues_protocol.issue_add_checklist_items.assert_not_called()
+
+
+class TestIssueUpdateChecklistItem:
+    async def test_updates_item(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_checklist: list[ChecklistItem],
+    ) -> None:
+        mock_issues_protocol.issue_update_checklist_item.return_value = sample_checklist
+
+        result = await client_session.call_tool(
+            "issue_update_checklist_item",
+            {
+                "issue_id": "TEST-123",
+                "checklist_item_id": "checklist-1",
+                "checked": True,
+                "deadline": {"date": "2026-08-20T00:00:00"},
+            },
+        )
+
+        assert not result.isError
+        call_args = mock_issues_protocol.issue_update_checklist_item.call_args
+        assert call_args.args == ("TEST-123", "checklist-1")
+        assert call_args.kwargs["checked"] is True
+        assert call_args.kwargs["text"] is None
+        assert call_args.kwargs["deadline"].deadline_type == "date"
+
+    async def test_omitted_parameters_are_passed_as_none(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_checklist: list[ChecklistItem],
+    ) -> None:
+        mock_issues_protocol.issue_update_checklist_item.return_value = sample_checklist
+
+        result = await client_session.call_tool(
+            "issue_update_checklist_item",
+            {
+                "issue_id": "TEST-123",
+                "checklist_item_id": "checklist-1",
+                "text": "New text",
+            },
+        )
+
+        assert not result.isError
+        call_kwargs = mock_issues_protocol.issue_update_checklist_item.call_args.kwargs
+        assert call_kwargs["text"] == "New text"
+        assert call_kwargs["checked"] is None
+        assert call_kwargs["assignee"] is None
+        assert call_kwargs["deadline"] is None
+        assert call_kwargs["clear_assignee"] is False
+        assert call_kwargs["clear_deadline"] is False
+
+    async def test_clear_flags_are_passed_through(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_checklist: list[ChecklistItem],
+    ) -> None:
+        mock_issues_protocol.issue_update_checklist_item.return_value = sample_checklist
+
+        result = await client_session.call_tool(
+            "issue_update_checklist_item",
+            {
+                "issue_id": "TEST-123",
+                "checklist_item_id": "checklist-1",
+                "clear_assignee": True,
+                "clear_deadline": True,
+            },
+        )
+
+        assert not result.isError
+        call_kwargs = mock_issues_protocol.issue_update_checklist_item.call_args.kwargs
+        assert call_kwargs["clear_assignee"] is True
+        assert call_kwargs["clear_deadline"] is True
+        assert call_kwargs["assignee"] is None
+        assert call_kwargs["deadline"] is None
+
+    async def test_restricted_queue_raises_error(
+        self,
+        client_session_with_limits: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session_with_limits.call_tool(
+            "issue_update_checklist_item",
+            {
+                "issue_id": "RESTRICTED-123",
+                "checklist_item_id": "checklist-1",
+                "checked": True,
+            },
+        )
+
+        assert result.isError
+        mock_issues_protocol.issue_update_checklist_item.assert_not_called()
+
+
+class TestIssueDeleteChecklistItem:
+    async def test_deletes_item(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        mock_issues_protocol.issue_delete_checklist_item.return_value = []
+
+        result = await client_session.call_tool(
+            "issue_delete_checklist_item",
+            {"issue_id": "TEST-123", "checklist_item_id": "checklist-1"},
+        )
+
+        assert not result.isError
+        call_args = mock_issues_protocol.issue_delete_checklist_item.call_args
+        assert call_args.args == ("TEST-123", "checklist-1")
+
+    async def test_restricted_queue_raises_error(
+        self,
+        client_session_with_limits: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session_with_limits.call_tool(
+            "issue_delete_checklist_item",
+            {"issue_id": "RESTRICTED-123", "checklist_item_id": "checklist-1"},
+        )
+
+        assert result.isError
+        mock_issues_protocol.issue_delete_checklist_item.assert_not_called()

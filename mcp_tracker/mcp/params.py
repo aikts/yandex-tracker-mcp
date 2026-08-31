@@ -14,6 +14,8 @@ from mcp_tracker.tracker.proto.types.entities import (
     ProjectPortfolioStatus,
 )
 from mcp_tracker.tracker.proto.types.inputs import (
+    ChecklistItemDeadlineInput,
+    ChecklistItemInput,
     EntityChecklistItemUpdateInput,
     EntityParentEntityInput,
     GoalLinkInput,
@@ -546,6 +548,75 @@ BoardID = Annotated[
     int,
     Field(
         description="Agile board identifier, as returned by the `boards_get_all` tool"
+    ),
+]
+
+
+IssueChecklistItemIDParam = Annotated[
+    str,
+    Field(
+        description="Checklist item ID, as returned in the `id` field of an item by "
+        "issue_get_checklist. Example: '5f8b2c1e4c3a2d001a7e9b1c'."
+    ),
+]
+
+IssueChecklistItemsParam = Annotated[
+    list[ChecklistItemInput],
+    Field(
+        min_length=1,
+        description="Checklist items to append, in order. "
+        "Example: [{'text': 'Get sign-off from legal'}, {'text': 'Deploy', 'checked': false}].",
+    ),
+]
+
+IssueChecklistItemTextParam = Annotated[
+    str | None,
+    Field(
+        description="New checklist item text (Markdown/YFM supported). Omit to leave the "
+        "current text unchanged. Example: 'Get sign-off from legal.'"
+    ),
+]
+
+IssueChecklistItemCheckedParam = Annotated[
+    bool | None,
+    Field(
+        description="Whether the checklist item is checked off. Omit to leave unchanged. "
+        "Example: true"
+    ),
+]
+
+IssueChecklistItemAssigneeParam = Annotated[
+    str | int | None,
+    Field(
+        description="User login or ID (uid) to assign the checklist item to. Omit to leave "
+        "unchanged; pass `clear_assignee` to remove the current one. "
+        "Example: 'i.ivanov'"
+    ),
+]
+
+IssueChecklistItemDeadlineParam = Annotated[
+    ChecklistItemDeadlineInput | None,
+    Field(
+        description="Deadline for the checklist item. Omit to leave unchanged; pass "
+        "`clear_deadline` to remove the current one. `deadline_type` "
+        "(or `deadlineType`) is 'date' or 'quarter'. Example: "
+        "{'date': '2026-08-20T00:00:00', 'deadline_type': 'date'}."
+    ),
+]
+
+IssueChecklistItemClearAssigneeParam = Annotated[
+    bool,
+    Field(
+        description="Remove the checklist item's assignee. Cannot be combined with "
+        "`assignee`. Example: true"
+    ),
+]
+
+IssueChecklistItemClearDeadlineParam = Annotated[
+    bool,
+    Field(
+        description="Remove the checklist item's deadline. Cannot be combined with "
+        "`deadline`. Example: true"
     ),
 ]
 

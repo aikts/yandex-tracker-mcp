@@ -543,6 +543,10 @@ class TestIssueGetChecklist:
         assert isinstance(content, list)
         assert len(content) == len(sample_checklist)
         assert content[0]["text"] == sample_checklist[0].text
+        assert "textHtml" not in content[0]
+        assert "assignee" not in content[0]
+        assert "deadline" not in content[0]
+        assert "checklistItemType" not in content[0]
 
 
 class TestIssueGetTransitions:

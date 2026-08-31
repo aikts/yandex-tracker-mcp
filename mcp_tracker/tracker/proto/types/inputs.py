@@ -11,9 +11,10 @@ When both `id` and `key` are given, Tracker resolves by `id` and ignores the
 `key`, which makes it safe to pass a reference copied straight out of an issue.
 """
 
-from typing import Any, Self
+import datetime
+from typing import Any, Literal, Self
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import AliasChoices, BaseModel, Field, model_validator
 
 from mcp_tracker.tracker.proto.types.entities import (
     GoalLinkRelationship,
@@ -166,4 +167,36 @@ class EntityChecklistItemUpdateInput(BaseModel):
         None,
         description="Deadline object. Example: "
         "{'date': '2026-08-20T00:00:00.000+0000', 'deadlineType': 'date'}",
+    )
+
+
+class ChecklistItemDeadlineInput(BaseModel):
+    """Deadline of an issue checklist item."""
+
+    # The docstring and the field descriptions here are what the tool schema
+    # shows the model, so the wire format stays out of them: the client
+    # reformats `date` through `_tracker_datetime`, reading a naive datetime as
+    # UTC and emitting the offset without a colon.
+
+    date: datetime.datetime = Field(..., description="Deadline date and time")
+    deadline_type: Literal["date", "quarter"] = Field(
+        "date",
+        description="Deadline type",
+        validation_alias=AliasChoices("deadline_type", "deadlineType"),
+    )
+
+
+class ChecklistItemInput(BaseModel):
+    """Checklist item to add to an issue."""
+
+    text: str = Field(..., description="Checklist item text")
+    checked: bool | None = Field(
+        None, description="Whether the item is already checked off"
+    )
+    assignee: str | int | None = Field(
+        None,
+        description="Assignee user ID (uid, e.g. 8000000000000034) or login",
+    )
+    deadline: ChecklistItemDeadlineInput | None = Field(
+        None, description="Checklist item deadline"
     )

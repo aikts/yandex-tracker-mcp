@@ -75,6 +75,9 @@ WRITE_TOOL_NAMES = [
     "issue_add_link",
     "issue_delete_link",
     "issue_move",
+    "issue_add_checklist_items",
+    "issue_update_checklist_item",
+    "issue_delete_checklist_item",
 ]
 
 # Entity write tools - require both write mode and TRACKER_ENTITIES_ENABLED

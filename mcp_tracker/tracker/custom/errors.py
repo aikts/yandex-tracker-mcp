@@ -130,22 +130,90 @@ def _parse_error_body(body: str) -> tuple[list[str], dict[str, str]]:
 
 
 class ChecklistItemNotFound(YandexTrackerError):
-    """Raised when *_update_checklist is asked to edit an id that isn't in the
-    entity's current checklist.
+    """Raised when a checklist edit names an id that isn't in the current
+    checklist of the issue or entity.
 
-    The bulk-edit endpoint can only edit items that already exist - it has no
-    way to add one - so an unknown id here means the caller wanted
-    *_add_checklist_item instead.
+    The edit endpoints can only change items that already exist - they have no
+    way to add one - so an unknown id here means the caller wanted an
+    *_add_checklist_item(s) tool instead.
+
+    `ambiguous` is set where the id came back as a 404 from an item-scoped path
+    (`.../checklistItems/{itemId}`), which Tracker answers the same way for an
+    unknown issue as for an unknown item: the message then names both causes
+    instead of asserting the one it cannot tell apart. Where the checklist was
+    read first, the entity is known to exist and the message stays specific.
     """
 
-    def __init__(self, entity_id: str, checklist_item_id: str):
-        super().__init__(
-            f"Checklist item '{checklist_item_id}' was not found on entity "
-            f"'{entity_id}'. *_update_checklist can only edit items that already "
-            f"exist - use *_add_checklist_item to add a new one."
-        )
+    def __init__(
+        self, entity_id: str, checklist_item_id: str, *, ambiguous: bool = False
+    ):
+        if ambiguous:
+            message = (
+                f"Checklist item '{checklist_item_id}' was not found on "
+                f"'{entity_id}'. Tracker answers the same 404 when the issue "
+                f"itself does not exist, so check both the id of the issue and "
+                f"the id of the item - issue_get_checklist lists the current ones."
+            )
+        else:
+            message = (
+                f"Checklist item '{checklist_item_id}' was not found on "
+                f"'{entity_id}'. Only items that already exist can be edited - "
+                f"use an *_add_checklist_item(s) tool to add a new one."
+            )
+        super().__init__(message)
         self.entity_id = entity_id
         self.checklist_item_id = checklist_item_id
+        self.ambiguous = ambiguous
+
+
+class ChecklistBatchPartiallyAdded(YandexTrackerError):
+    """Raised when a batch of checklist items fails partway through.
+
+    Tracker takes one item per request, so a batch is several requests and the
+    ones that already succeeded are not rolled back. A bare error would leave
+    the caller unable to tell how much of the batch landed, and a naive retry
+    would duplicate those items.
+    """
+
+    def __init__(self, issue_id: str, added: int, total: int, cause: Exception):
+        super().__init__(
+            f"Added {added} of {total} checklist items to '{issue_id}' before the "
+            f"request failed: {cause}. The items already added were kept - read the "
+            f"checklist with issue_get_checklist and retry only what is missing, "
+            f"or the successful ones will be duplicated."
+        )
+        self.issue_id = issue_id
+        self.added = added
+        self.total = total
+        self.cause = cause
+
+
+class ChecklistItemEmptyUpdate(YandexTrackerError):
+    """Raised for a checklist item update that would change nothing.
+
+    Verified against the live API: Tracker answers an empty PATCH body with 200
+    and leaves the item untouched, so such a call is a silent no-op round-trip.
+    It is refused here rather than reported back as a success.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            "A checklist item update must change something: pass at least one of "
+            "`text`, `checked`, `assignee`, `deadline`, `clear_assignee` or "
+            "`clear_deadline`. An omitted field keeps its current value; use the "
+            "`clear_*` flags to remove one."
+        )
+
+
+class ChecklistItemClearConflict(YandexTrackerError):
+    """Raised when an update both sets and clears the same checklist item field."""
+
+    def __init__(self, field: str) -> None:
+        super().__init__(
+            f"`{field}` and `clear_{field}` cannot be passed together: pass "
+            f"`{field}` to set a new value, or `clear_{field}` to remove the "
+            f"current one."
+        )
 
 
 class EntityLinksOnlyUpdate(YandexTrackerError):
