@@ -1,0 +1,43 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "1955ca61d19d",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 9,
+  "files_touched": [
+    "AGENTS.md",
+    "mcp_tracker/mcp/tools/board.py",
+    "mcp_tracker/mcp/tools/goal_write.py",
+    "mcp_tracker/mcp/tools/issue_read.py",
+    "mcp_tracker/mcp/tools/issue_write.py",
+    "mcp_tracker/mcp/tools/portfolio_write.py",
+    "mcp_tracker/mcp/tools/project_write.py",
+    "mcp_tracker/mcp/tools/queue.py",
+    "mcp_tracker/mcp/tools/template.py",
+    "rules/README.md",
+    "rules/changelog.md",
+    "rules/docs.md",
+    "rules/tool-descriptions.md",
+    "rules/tool-naming.md",
+    "tests/mcp/server/test_readme_coverage.py",
+    "tests/mcp/server/test_tool_conventions.py",
+    "tests/mcp/server/tool_listing.py",
+    "tests/test_release_metadata.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/19/55ca61d19d/0/metadata.json",
+      "transcript": "/19/55ca61d19d/0/full.jsonl",
+      "compact_transcript": "/19/55ca61d19d/0/transcript.jsonl",
+      "content_hash": "/19/55ca61d19d/0/content_hash.txt",
+      "prompt": "/19/55ca61d19d/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 216,
+    "cache_creation_tokens": 589023,
+    "cache_read_tokens": 22991101,
+    "output_tokens": 123221,
+    "api_call_count": 108
+  }
+}
