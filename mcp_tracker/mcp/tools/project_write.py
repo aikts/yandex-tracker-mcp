@@ -51,7 +51,8 @@ def register_project_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None
 
     @mcp.tool(
         title="Create Project",
-        description="Create a new Yandex Tracker project.",
+        description="Create a Yandex Tracker project (in russian - 'проект') - an entity of "
+        "the projects API, not a queue.",
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def project_create(
@@ -137,7 +138,8 @@ def register_project_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None
 
     @mcp.tool(
         title="Delete Project",
-        description="Delete a Yandex Tracker project.",
+        description="Delete a Yandex Tracker project (in russian - 'проект'), optionally with "
+        "its board. Cannot be undone.",
         annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True),
     )
     async def project_delete(

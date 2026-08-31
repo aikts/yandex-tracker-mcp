@@ -79,13 +79,11 @@ def register_template_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Get Issue Templates",
-        description="Get the issue templates configured in Yandex Tracker - the "
-        "structure a team uses for bugs, incidents and other recurring work. Read one "
-        "before creating an issue instead of inventing a structure. Pass `queue` for "
-        "the templates of that queue plus those bound to no queue, which are usable "
-        "everywhere. The issue body is in `fieldTemplates.description`; the template's "
-        "own `description` describes the template. All pages are fetched by default; "
-        "pass `page` for a single one.",
+        description="Get the issue templates (in russian - 'шаблоны задач') configured "
+        "in Yandex Tracker, optionally scoped to a `queue` - read one before "
+        "`issue_create` instead of inventing a structure. The issue body is in "
+        "`fieldTemplates.description`; the template's own `description` describes the "
+        "template.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def issue_templates_get_all(

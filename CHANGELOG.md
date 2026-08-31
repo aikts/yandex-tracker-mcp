@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- **`rules/`** — guidelines for tool naming, tool and parameter descriptions and the documentation, with the tests that enforce them
 - Both READMEs list the tools as one table per category instead of restating the JSON schema argument by argument
 
 ## [0.9.0] - 2026-08-27

@@ -183,15 +183,11 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Create Issue",
-        description="Create a new issue in a Yandex Tracker queue. There is no "
-        "`template_id` parameter: check the queue's templates first "
-        "(`issue_templates_get_all` with `queue` set) and copy their `fieldTemplates` "
-        "values into the parameters below field by field - `assignee` arrives as a "
-        "user object while this tool takes a login or uid, and template macros such as "
-        "`{{today}}` arrive literally. Prefer the dedicated parameters over the "
-        "`fields` map. The returned `version` goes stale immediately, as queue "
-        "triggers run right after creation: re-read the issue with `issue_get` instead "
-        "of feeding it to `issue_update`.",
+        description="Create an issue (in russian - 'задача') in a Yandex Tracker "
+        "queue. There is no template argument: read a template with "
+        "`issue_templates_get_all` and copy its `fieldTemplates` values into these "
+        "arguments field by field. The returned `version` goes stale at once, as queue "
+        "triggers bump it - re-read it with `issue_get`.",
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def issue_create(
@@ -745,14 +741,11 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Update Issue Checklist Item",
-        description="Update a single checklist item of a Yandex Tracker issue, e.g. to "
-        "mark it as checked. Only the fields you pass are changed - the ones you omit "
-        "keep their current value. To remove an assignee or a deadline, pass "
-        "clear_assignee or clear_deadline; passing null for the field itself leaves "
-        "it as it is. At least one of text/checked/assignee/deadline/clear_assignee/"
-        "clear_deadline must be passed. Omitting text keeps the item's current text - "
-        "you do not need to resend it. Use issue_get_checklist to get the item IDs. "
-        "Returns the issue's checklist after the change.",
+        description="Update one checklist item of a Yandex Tracker issue - to check it "
+        "off, rename it, or set an assignee or a deadline. Only the fields you pass "
+        "change, and null leaves a field as it is: use `clear_assignee` / "
+        "`clear_deadline` to remove a value. Item ids come from `issue_get_checklist`. "
+        "Returns the whole checklist.",
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def issue_update_checklist_item(

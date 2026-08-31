@@ -4,7 +4,8 @@ description: add new MCP tools to the Yandex Tracker MCP server
 ---
 
 # Task
-Add new MCP tools to the Yandex Tracker MCP server. When adding a tool follow the instructions in @CLAUDE.md carefully.
+Add new MCP tools to the Yandex Tracker MCP server. When adding a tool follow the instructions in @CLAUDE.md carefully,
+and the conventions in @rules/tool-naming.md, @rules/tool-descriptions.md, @rules/docs.md and @rules/changelog.md.
 You may run multiple parallel tasks to edit non-overlapping parts of the codebase. Always add tests for any added
 new functionality.
 

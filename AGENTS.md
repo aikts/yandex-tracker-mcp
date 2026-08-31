@@ -2,6 +2,10 @@
 
 This file provides guidance to AI coding agents (Claude Code, Cursor, etc.) when working with code in this repository.
 
+## Rules
+
+Before naming a tool, writing a description, a CHANGELOG entry or a README section, read the rule that covers it - [`rules/README.md`](rules/README.md) indexes them, and each names the test that enforces it. This file covers the rest: architecture, the Tracker API's behaviour, and how to test.
+
 ## Project Overview
 
 MCP Yandex Tracker is a Model Context Protocol (MCP) server that provides tools for interacting with Yandex Tracker API. It implements a FastMCP server with protocol-based architecture and optional Redis caching.
@@ -112,7 +116,7 @@ For paginated methods, use `side_effect` for sequential returns: `mock.method.si
 1. **Protocol**: Add method signature to the matching `mcp_tracker/tracker/proto/*.py` (a new protocol also needs a `*ProtocolWrap` base, a `CacheCollection` slot, an `AppContext` field and wiring in `make_tracker_lifespan`)
 2. **Client**: Implement in `mcp_tracker/tracker/custom/client.py`, through `self._request()` / `self._read()` - see *Talking to the Tracker API* above (this holds for read-only methods too)
 3. **Caching**: Add wrapper in `mcp_tracker/tracker/caching/client.py`
-4. **Tool**: Add function to appropriate module in `mcp_tracker/mcp/tools/`:
+4. **Tool**: Add function to appropriate module in `mcp_tracker/mcp/tools/` - named and described per [`rules/tool-naming.md`](rules/tool-naming.md) and [`rules/tool-descriptions.md`](rules/tool-descriptions.md):
    - Queue read-only tools → `queue.py`
    - Queue write tools → `queue_write.py`
    - Global field/metadata tools → `field.py`
@@ -125,7 +129,7 @@ For paginated methods, use `side_effect` for sequential returns: `mock.method.si
    - Portfolio read-only tools → `portfolio.py`; write tools → `portfolio_write.py`
    - Goal read-only tools → `goal.py`; write tools → `goal_write.py`
 5. **Tests**: Add to appropriate `tests/mcp/tools/test_*_tools.py`
-6. **Docs**: Update `README.md`, `README_ru.md`, and `manifest.json`
+6. **Docs**: Update `README.md`, `README_ru.md`, `manifest.json` and `CHANGELOG.md` - see [`rules/docs.md`](rules/docs.md) and [`rules/changelog.md`](rules/changelog.md)
 
 ### Tool Categories
 
@@ -160,6 +164,7 @@ For paginated methods, use `side_effect` for sequential returns: `mock.method.si
   - Read-only tools → `READ_ONLY_TOOL_NAMES`
   - Write tools → `WRITE_TOOL_NAMES`
 - For write tools, add test with `client_session_read_only` to verify not registered
+- The name, the description budget, the README coverage and the version sync are checked by `tests/mcp/server/test_tool_conventions.py`, `tests/mcp/server/test_readme_coverage.py` and `tests/test_release_metadata.py` - a new tool passes them without an exception being added
 
 ## Configuration
 

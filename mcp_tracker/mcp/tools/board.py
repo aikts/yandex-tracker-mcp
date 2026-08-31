@@ -83,15 +83,11 @@ def register_board_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Get All Boards",
-        description="Get the agile boards (in russian - 'доски') available in Yandex "
-        "Tracker. Pass `queue` for the boards collecting issues of that queue - that "
-        "answers 'which board does this project use'. It matches the board's own "
-        "filter, so it misses boards filtering by something else (personal boards, for "
-        "one); to catch those, read a few issues of the queue with `issues_find` and "
-        "look at their `boards` field. Paginated: pass `next_cursor` back as `cursor` "
-        "until it is null, and use `fields` to keep the listing small. Feed a board id "
-        "to `board_get`, `board_get_columns` and `board_get_sprints`. Boards are "
-        "organization-wide and are NOT filtered by the server's queue allow-list.",
+        description="Get the agile boards (in russian - 'доски') of the organization; "
+        "pass `queue` for the boards collecting issues of that queue. Matching is done "
+        "on the board's own filter, so boards filtering by something else are missed - "
+        "read a few issues with `issues_find` and look at their `boards` field for "
+        "those.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def boards_get_all(

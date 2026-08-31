@@ -43,15 +43,11 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Get Issue",
-        description="Get a Yandex Tracker issue by its id: read one issue (task, "
-        "ticket, bug) with a known key like 'QUEUE-123' and return its full record - "
-        "summary, description, status, type, priority, assignee, dates, tags, "
-        "components, sprint, parent, estimates, the current `version` and any "
-        "queue-local or custom fields. Use it to inspect a single issue you can "
-        "already name, and to read a fresh `version` right before `issue_update`. To "
-        "search instead of reading a known issue, use `issues_find`. Comments, links, "
-        "attachments, worklogs, checklist, changelog and transitions are not included "
-        "- each has its own `issue_get_*` tool.",
+        description="Read one Yandex Tracker issue (task, ticket, bug; in russian - "
+        "'задача') by its key and return its full record, the current `version` "
+        "included. To search instead, use `issues_find`. Comments, "
+        "links, attachments, worklogs, checklist, changelog and transitions each have "
+        "their own `issue_get_*` tool.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def issue_get(

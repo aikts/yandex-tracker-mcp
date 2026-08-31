@@ -51,7 +51,8 @@ def register_portfolio_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> No
 
     @mcp.tool(
         title="Create Portfolio",
-        description="Create a new Yandex Tracker portfolio.",
+        description="Create a Yandex Tracker portfolio (in russian - 'портфель') - the entity "
+        "that groups projects and other portfolios.",
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def portfolio_create(
@@ -137,7 +138,8 @@ def register_portfolio_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> No
 
     @mcp.tool(
         title="Delete Portfolio",
-        description="Delete a Yandex Tracker portfolio.",
+        description="Delete a Yandex Tracker portfolio (in russian - 'портфель'), optionally "
+        "with its board. Cannot be undone.",
         annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True),
     )
     async def portfolio_delete(

@@ -111,12 +111,11 @@ def register_queue_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Get Queue Fields",
-        description="Get the fields configured on a specific Yandex Tracker queue, its "
-        "local (queue-specific) ones included by default. `schema.required` marks the "
-        "mandatory fields. Use it before `issue_create` - but it is not the whole "
-        "registry: system fields such as `parent` or `estimation` are settable without "
-        "appearing here, and `get_global_fields` lists every field the organization "
-        "has.",
+        description="Get the fields configured on a Yandex Tracker queue (in russian - "
+        "'поля очереди'), its local ones included; `schema.required` marks the "
+        "mandatory ones. Not the whole registry: system fields such as `parent` or "
+        "`estimation` are settable without appearing here, and `get_global_fields` "
+        "lists every organization field.",
         annotations=ToolAnnotations(readOnlyHint=True),
     )
     async def queue_get_fields(

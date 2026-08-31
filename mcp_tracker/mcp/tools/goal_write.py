@@ -41,7 +41,8 @@ def register_goal_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Create Goal",
-        description="Create a new Yandex Tracker goal.",
+        description="Create a Yandex Tracker goal (in russian - 'цель') - an entity of the "
+        "goals API, unrelated to queues and issues.",
         annotations=ToolAnnotations(readOnlyHint=False),
     )
     async def goal_create(
@@ -123,7 +124,7 @@ def register_goal_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
 
     @mcp.tool(
         title="Delete Goal",
-        description="Delete a Yandex Tracker goal.",
+        description="Delete a Yandex Tracker goal (in russian - 'цель'). Cannot be undone.",
         annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True),
     )
     async def goal_delete(
