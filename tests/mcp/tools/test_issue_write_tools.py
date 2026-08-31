@@ -1263,6 +1263,33 @@ class TestIssueUpdateChecklistItem:
         assert call_kwargs["checked"] is None
         assert call_kwargs["assignee"] is None
         assert call_kwargs["deadline"] is None
+        assert call_kwargs["clear_assignee"] is False
+        assert call_kwargs["clear_deadline"] is False
+
+    async def test_clear_flags_are_passed_through(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_checklist: list[ChecklistItem],
+    ) -> None:
+        mock_issues_protocol.issue_update_checklist_item.return_value = sample_checklist
+
+        result = await client_session.call_tool(
+            "issue_update_checklist_item",
+            {
+                "issue_id": "TEST-123",
+                "checklist_item_id": "checklist-1",
+                "clear_assignee": True,
+                "clear_deadline": True,
+            },
+        )
+
+        assert not result.isError
+        call_kwargs = mock_issues_protocol.issue_update_checklist_item.call_args.kwargs
+        assert call_kwargs["clear_assignee"] is True
+        assert call_kwargs["clear_deadline"] is True
+        assert call_kwargs["assignee"] is None
+        assert call_kwargs["deadline"] is None
 
     async def test_restricted_queue_raises_error(
         self,

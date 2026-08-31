@@ -20,6 +20,7 @@ from yarl import URL
 from mcp_tracker.tracker.custom.errors import (
     BoardNotFound,
     ChecklistBatchPartiallyAdded,
+    ChecklistItemClearConflict,
     ChecklistItemEmptyUpdate,
     ChecklistItemNotFound,
     CommentTemplateNotFound,
@@ -1130,6 +1131,8 @@ class TrackerClient(
         checked: bool | None = None,
         assignee: str | int | None = None,
         deadline: ChecklistItemDeadlineInput | None = None,
+        clear_assignee: bool = False,
+        clear_deadline: bool = False,
         auth: YandexAuth | None = None,
     ) -> list[ChecklistItem]:
         """Изменить один пункт чеклиста задачи.
@@ -1138,15 +1141,32 @@ class TrackerClient(
         не обязателен: проверено на живом API — `PATCH` с одним лишь `checked`
         (или `assignee`) отвечает 200 и сохраняет текущий текст пункта, так что
         дочитывать и переотправлять его не нужно.
+
+        Исполнитель и дедлайн снимаются пустым объектом (`{}`) — тоже проверено
+        на живом API: `null` Трекер молча игнорирует (200, значение остаётся),
+        а `""` или `0` отвечают 422.
         """
-        if text is None and checked is None and assignee is None and deadline is None:
+        if clear_assignee and assignee is not None:
+            raise ChecklistItemClearConflict("assignee")
+        if clear_deadline and deadline is not None:
+            raise ChecklistItemClearConflict("deadline")
+        if (
+            text is None
+            and checked is None
+            and assignee is None
+            and deadline is None
+            and not clear_assignee
+            and not clear_deadline
+        ):
             raise ChecklistItemEmptyUpdate()
 
         body = self._build_checklist_item_body(
             text=text,
             checked=checked,
-            assignee=assignee,
-            deadline=self._checklist_item_deadline_body(deadline),
+            assignee={} if clear_assignee else assignee,
+            deadline={}
+            if clear_deadline
+            else self._checklist_item_deadline_body(deadline),
         )
         # Item-scoped path: the 404 means an unknown issue *or* an unknown
         # item, and the caller is told to check both.
@@ -2375,7 +2395,7 @@ class TrackerClient(
         *,
         text: str | None,
         checked: bool | None,
-        assignee: str | int | None,
+        assignee: str | int | dict[str, Any] | None,
         deadline: dict[str, Any] | None,
     ) -> dict[str, Any]:
         body: dict[str, Any] = {}

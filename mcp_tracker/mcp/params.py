@@ -589,7 +589,7 @@ IssueChecklistItemAssigneeParam = Annotated[
     str | int | None,
     Field(
         description="User login or ID (uid) to assign the checklist item to. Omit to leave "
-        "unchanged - an existing assignee cannot be removed through this tool. "
+        "unchanged; pass `clear_assignee` to remove the current one. "
         "Example: 'i.ivanov'"
     ),
 ]
@@ -597,10 +597,26 @@ IssueChecklistItemAssigneeParam = Annotated[
 IssueChecklistItemDeadlineParam = Annotated[
     ChecklistItemDeadlineInput | None,
     Field(
-        description="Deadline for the checklist item. Omit to leave unchanged - an "
-        "existing deadline cannot be removed through this tool. `deadline_type` "
+        description="Deadline for the checklist item. Omit to leave unchanged; pass "
+        "`clear_deadline` to remove the current one. `deadline_type` "
         "(or `deadlineType`) is 'date' or 'quarter'. Example: "
         "{'date': '2026-08-20T00:00:00', 'deadline_type': 'date'}."
+    ),
+]
+
+IssueChecklistItemClearAssigneeParam = Annotated[
+    bool,
+    Field(
+        description="Remove the checklist item's assignee. Cannot be combined with "
+        "`assignee`. Example: true"
+    ),
+]
+
+IssueChecklistItemClearDeadlineParam = Annotated[
+    bool,
+    Field(
+        description="Remove the checklist item's deadline. Cannot be combined with "
+        "`deadline`. Example: true"
     ),
 ]
 

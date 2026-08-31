@@ -6,16 +6,10 @@ All notable changes to this project will be documented in this file.
 
 ### Features
 
-- **Checklist write tools** — issue checklists were read-only ([#44](https://github.com/aikts/yandex-tracker-mcp/issues/44))
-  - `issue_add_checklist_items` appends items to an issue's checklist, creating it when the issue has none. Tracker takes one item per request, so a batch is sent as one request per item, in the given order
-  - `issue_update_checklist_item` changes a single item — text, `checked`, assignee, deadline — leaving out what you don't pass. Tracker does not require `text` on an edit, so an update that omits it leaves the item's text as is
-  - `issue_delete_checklist_item` removes one item
-  - An omitted argument means "leave as is", so the update tool cannot clear a field — its description says so, since "only the fields you pass are changed" otherwise reads as if `null` would remove an assignee or a deadline
-  - All three return the issue's checklist after the change, and are registered only when `TRACKER_READ_ONLY` is off; `TRACKER_LIMIT_QUEUES` / `TRACKER_READ_ONLY_QUEUES` apply as they do to the other issue write tools
-  - A batch that fails partway through raises an error saying how many items landed, since the successful ones are not rolled back and a blind retry would duplicate them
-  - A 404 on a single item is reported as `ChecklistItemNotFound` naming both possible causes, since Tracker answers item-scoped paths the same way for an unknown issue as for an unknown item
-  - An update that changes nothing is refused with `ChecklistItemEmptyUpdate`, and `deadline_type` is validated against `date` / `quarter` up front rather than by a 422 from Tracker (the camelCase `deadlineType` spelling is accepted too)
-  - Checklist items no longer serialize their unset fields as explicit nulls (`textHtml`, `assignee`, `deadline`, `checklistItemType`), halving the response size of `issue_get_checklist` and of the checklist write tools
+- **Checklist write tools for issues** — checklists were read-only ([#44](https://github.com/aikts/yandex-tracker-mcp/issues/44))
+  - `issue_add_checklist_items`, `issue_update_checklist_item`, `issue_delete_checklist_item`
+  - All three return the issue's checklist after the change; registered only when `TRACKER_READ_ONLY` is off, and `TRACKER_LIMIT_QUEUES` / `TRACKER_READ_ONLY_QUEUES` apply as to the other issue write tools
+  - An update changes only the fields you pass; omitted ones keep their value, and `clear_assignee` / `clear_deadline` remove one
 
 ## [0.9.0] - 2026-08-27
 

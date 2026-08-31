@@ -13,6 +13,8 @@ from mcp_tracker.mcp.errors import TrackerError
 from mcp_tracker.mcp.params import (
     IssueChecklistItemAssigneeParam,
     IssueChecklistItemCheckedParam,
+    IssueChecklistItemClearAssigneeParam,
+    IssueChecklistItemClearDeadlineParam,
     IssueChecklistItemDeadlineParam,
     IssueChecklistItemIDParam,
     IssueChecklistItemsParam,
@@ -745,12 +747,11 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         title="Update Issue Checklist Item",
         description="Update a single checklist item of a Yandex Tracker issue, e.g. to "
         "mark it as checked. Only the fields you pass are changed - the ones you omit "
-        "keep their current value, so this tool cannot clear a field: passing null (or "
-        "an empty value) for `assignee` or `deadline` leaves it as it is instead of "
-        "removing it. Delete and re-add the item to drop an assignee or a deadline. "
-        "At least one of text/checked/assignee/deadline must be passed. Omitting "
-        "text keeps the item's current text - you do not need to resend it. Use "
-        "issue_get_checklist to get the item IDs. "
+        "keep their current value. To remove an assignee or a deadline, pass "
+        "clear_assignee or clear_deadline; passing null for the field itself leaves "
+        "it as it is. At least one of text/checked/assignee/deadline/clear_assignee/"
+        "clear_deadline must be passed. Omitting text keeps the item's current text - "
+        "you do not need to resend it. Use issue_get_checklist to get the item IDs. "
         "Returns the issue's checklist after the change.",
         annotations=ToolAnnotations(readOnlyHint=False),
     )
@@ -762,6 +763,8 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         checked: IssueChecklistItemCheckedParam = None,
         assignee: IssueChecklistItemAssigneeParam = None,
         deadline: IssueChecklistItemDeadlineParam = None,
+        clear_assignee: IssueChecklistItemClearAssigneeParam = False,
+        clear_deadline: IssueChecklistItemClearDeadlineParam = False,
     ) -> list[ChecklistItem]:
         check_issue_access(settings, issue_id, write=True)
 
@@ -772,6 +775,8 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             checked=checked,
             assignee=assignee,
             deadline=deadline,
+            clear_assignee=clear_assignee,
+            clear_deadline=clear_deadline,
             auth=get_yandex_auth(ctx),
         )
 

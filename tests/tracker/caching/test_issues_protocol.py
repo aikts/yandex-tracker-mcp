@@ -212,6 +212,8 @@ class TestCachingIssuesProtocol:
             checked=True,
             assignee=None,
             deadline=None,
+            clear_assignee=False,
+            clear_deadline=False,
             auth=None,
         )
         assert result == mock_original.issue_update_checklist_item.return_value

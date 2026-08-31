@@ -199,8 +199,20 @@ class ChecklistItemEmptyUpdate(YandexTrackerError):
     def __init__(self) -> None:
         super().__init__(
             "A checklist item update must change something: pass at least one of "
-            "`text`, `checked`, `assignee` or `deadline`. An omitted field keeps "
-            "its current value - this call cannot clear one."
+            "`text`, `checked`, `assignee`, `deadline`, `clear_assignee` or "
+            "`clear_deadline`. An omitted field keeps its current value; use the "
+            "`clear_*` flags to remove one."
+        )
+
+
+class ChecklistItemClearConflict(YandexTrackerError):
+    """Raised when an update both sets and clears the same checklist item field."""
+
+    def __init__(self, field: str) -> None:
+        super().__init__(
+            f"`{field}` and `clear_{field}` cannot be passed together: pass "
+            f"`{field}` to set a new value, or `clear_{field}` to remove the "
+            f"current one."
         )
 
 

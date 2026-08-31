@@ -152,6 +152,8 @@ class IssueProtocol(Protocol):
         checked: bool | None = None,
         assignee: str | int | None = None,
         deadline: ChecklistItemDeadlineInput | None = None,
+        clear_assignee: bool = False,
+        clear_deadline: bool = False,
         auth: YandexAuth | None = None,
     ) -> list[ChecklistItem]: ...
     async def issue_delete_checklist_item(

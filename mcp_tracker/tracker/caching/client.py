@@ -358,6 +358,8 @@ def make_cached_protocols(
             checked: bool | None = None,
             assignee: str | int | None = None,
             deadline: ChecklistItemDeadlineInput | None = None,
+            clear_assignee: bool = False,
+            clear_deadline: bool = False,
             auth: YandexAuth | None = None,
         ) -> list[ChecklistItem]:
             return await self._original.issue_update_checklist_item(
@@ -367,6 +369,8 @@ def make_cached_protocols(
                 checked=checked,
                 assignee=assignee,
                 deadline=deadline,
+                clear_assignee=clear_assignee,
+                clear_deadline=clear_deadline,
                 auth=auth,
             )
 

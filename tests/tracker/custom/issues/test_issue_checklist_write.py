@@ -9,6 +9,7 @@ from aioresponses import aioresponses
 from mcp_tracker.tracker.custom.client import TrackerClient
 from mcp_tracker.tracker.custom.errors import (
     ChecklistBatchPartiallyAdded,
+    ChecklistItemClearConflict,
     ChecklistItemEmptyUpdate,
     ChecklistItemNotFound,
     IssueNotFound,
@@ -283,6 +284,63 @@ class TestIssueUpdateChecklistItem:
         patch_capture.last_request.assert_json_body({"checked": True})
         assert result[0].text == "Do the thing"
         assert result[0].checked is True
+
+    @pytest.mark.parametrize(
+        ("kwargs", "expected_body"),
+        [
+            ({"clear_assignee": True}, {"assignee": {}}),
+            ({"clear_deadline": True}, {"deadline": {}}),
+            (
+                {"clear_assignee": True, "clear_deadline": True},
+                {"assignee": {}, "deadline": {}},
+            ),
+        ],
+        ids=["assignee", "deadline", "both"],
+    )
+    async def test_clearing_sends_an_empty_object(
+        self,
+        tracker_client: TrackerClient,
+        kwargs: dict[str, Any],
+        expected_body: dict[str, Any],
+    ) -> None:
+        """Verified live: `{}` removes the field, while `null` is a silent no-op."""
+        capture = RequestCapture(
+            payload=_issue_data([{"id": "item-1", "text": "Do the thing"}])
+        )
+
+        with aioresponses() as m:
+            m.patch(CHECKLIST_ITEM_URL, callback=capture.callback)
+
+            result = await tracker_client.issue_update_checklist_item(
+                "TEST-123", "item-1", **kwargs
+            )
+
+        capture.assert_request_count(1)
+        capture.last_request.assert_json_body(expected_body)
+        assert result[0].assignee is None
+        assert result[0].deadline is None
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {"assignee": "i.ivanov", "clear_assignee": True},
+            {
+                "deadline": ChecklistItemDeadlineInput(
+                    date=datetime.datetime(2026, 8, 20), deadline_type="date"
+                ),
+                "clear_deadline": True,
+            },
+        ],
+        ids=["assignee", "deadline"],
+    )
+    async def test_setting_and_clearing_the_same_field_raises(
+        self, tracker_client: TrackerClient, kwargs: dict[str, Any]
+    ) -> None:
+        # No mock registered: no request at all may leave the client.
+        with aioresponses(), pytest.raises(ChecklistItemClearConflict):
+            await tracker_client.issue_update_checklist_item(
+                "TEST-123", "item-1", **kwargs
+            )
 
     @pytest.mark.parametrize(
         "fields",

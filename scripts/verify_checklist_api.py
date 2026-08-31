@@ -288,8 +288,52 @@ class Probe:
                         ),
                     )
 
+            # Can a field be cleared, or only overwritten?
+            print("\n[7] clearing assignee and deadline")
+
+            async def set_both() -> bool:
+                status, _ = await self.request(
+                    "PATCH",
+                    item_path,
+                    {
+                        "assignee": uid,
+                        "deadline": {
+                            "date": "2026-08-22T00:00:00.000000+0000",
+                            "deadlineType": "date",
+                        },
+                    },
+                )
+                return status == 200
+
+            for field, empty, label in (
+                ("assignee", None, "null"),
+                ("assignee", "", "empty string"),
+                ("assignee", {}, "empty object"),
+                ("assignee", 0, "0"),
+                ("assignee", "0", '"0"'),
+                ("deadline", None, "null"),
+                ("deadline", {}, "empty object"),
+            ):
+                if not await set_both():
+                    print(f"       skipped {field} = {label}: could not set it first")
+                    continue
+                status, body = await self.request("PATCH", item_path, {field: empty})
+                item = next((i for i in self.items_of(body) if i["id"] == item_id), {})
+                value = item.get(field, "<absent>")
+                cleared = status == 200 and value in (None, "<absent>")
+                print(
+                    f"  {'CLEARED' if cleared else 'kept   '}  {field} = {label}: "
+                    f"HTTP {status}"
+                    + (
+                        f", {field} is now "
+                        f"{json.dumps(value, ensure_ascii=False, default=str)}"
+                        if status == 200
+                        else f" - {json.dumps(body, ensure_ascii=False)[:160]}"
+                    )
+                )
+
             # 404 on an item-scoped path: unknown item vs unknown issue.
-            print("\n[7] 404 shape on item-scoped paths")
+            print("\n[8] 404 shape on item-scoped paths")
             status, _ = await self.request(
                 "PATCH",
                 f"/v3/issues/{self._issue}/checklistItems/000000000000000000000000",
@@ -302,7 +346,7 @@ class Probe:
             )
 
             # Deleting the last item: is checklistItems absent or empty?
-            print("\n[8] response after deleting the last item")
+            print("\n[9] response after deleting the last item")
             before = await self.checklist()
             if len(before) == len(created):
                 status, body = await self.request("DELETE", item_path)
