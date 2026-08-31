@@ -11,6 +11,10 @@ All notable changes to this project will be documented in this file.
   - All three return the issue's checklist after the change; registered only when `TRACKER_READ_ONLY` is off, and `TRACKER_LIMIT_QUEUES` / `TRACKER_READ_ONLY_QUEUES` apply as to the other issue write tools
   - An update changes only the fields you pass; omitted ones keep their value, and `clear_assignee` / `clear_deadline` remove one
 
+### Documentation
+
+- Both READMEs list the tools as one table per category instead of restating the JSON schema argument by argument
+
 ## [0.9.0] - 2026-08-27
 
 ### Features
