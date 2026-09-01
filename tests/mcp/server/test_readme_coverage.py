@@ -13,7 +13,7 @@ from tests.mcp.server.tool_listing import TOOL_NAMES
 
 ROOT = Path(__file__).parents[3]
 README_NAMES = ["README.md", "README_ru.md"]
-READMES = {name: (ROOT / name).read_text() for name in README_NAMES}
+READMES = {name: (ROOT / name).read_text(encoding="utf-8") for name in README_NAMES}
 
 TOOL_CELL_PATTERN = re.compile(r"^`([a-z][a-z0-9_]*)`$")
 

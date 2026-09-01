@@ -38,7 +38,7 @@ def load_env_file(path: pathlib.Path) -> None:
     for the two variables this script reads from a gitignored `.env`."""
     if not path.is_file():
         return
-    for line in path.read_text().splitlines():
+    for line in path.read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue

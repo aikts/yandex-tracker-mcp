@@ -12,12 +12,14 @@ import pytest
 
 ROOT = Path(__file__).parents[1]
 
-VERSION: str = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"][
-    "version"
-]
-MANIFEST: dict[str, Any] = json.loads((ROOT / "manifest.json").read_text())
-SERVER: dict[str, Any] = json.loads((ROOT / "server.json").read_text())
-CHANGELOG: str = (ROOT / "CHANGELOG.md").read_text()
+VERSION: str = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))[
+    "project"
+]["version"]
+MANIFEST: dict[str, Any] = json.loads(
+    (ROOT / "manifest.json").read_text(encoding="utf-8")
+)
+SERVER: dict[str, Any] = json.loads((ROOT / "server.json").read_text(encoding="utf-8"))
+CHANGELOG: str = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
 
 
 def test_manifest_carries_the_project_version() -> None:

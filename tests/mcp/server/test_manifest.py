@@ -19,7 +19,7 @@ MANIFEST_PATH = Path(__file__).parents[3] / "manifest.json"
 
 @pytest.fixture(scope="module")
 def manifest() -> dict[str, Any]:
-    return json.loads(MANIFEST_PATH.read_text())
+    return json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
 
 
 async def test_manifest_lists_every_registered_tool(
