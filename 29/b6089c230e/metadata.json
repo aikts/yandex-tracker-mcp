@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "29b6089c230e",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "scripts/verify_checklist_api.py",
+    "tests/mcp/server/test_manifest.py",
+    "tests/mcp/server/test_readme_coverage.py",
+    "tests/test_release_metadata.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/29/b6089c230e/0/metadata.json",
+      "transcript": "/29/b6089c230e/0/full.jsonl",
+      "compact_transcript": "/29/b6089c230e/0/transcript.jsonl",
+      "content_hash": "/29/b6089c230e/0/content_hash.txt",
+      "prompt": "/29/b6089c230e/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 34,
+    "cache_creation_tokens": 70138,
+    "cache_read_tokens": 1524718,
+    "output_tokens": 4423,
+    "api_call_count": 17
+  }
+}
