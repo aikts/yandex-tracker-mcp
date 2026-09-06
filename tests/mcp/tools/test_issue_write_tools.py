@@ -1,14 +1,24 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from mcp import Client
 from mcp.client import ClientRequestContext
-from mcp.server.mcpserver import MCPServer
-from mcp.types import ElicitRequestParams, ElicitResult, TextContent
+from mcp.server.mcpserver import Context, Elicit, MCPServer
+from mcp.types import (
+    ClientCapabilities,
+    ElicitationCapability,
+    ElicitRequestParams,
+    ElicitResult,
+    FormElicitationCapability,
+    TextContent,
+    UrlElicitationCapability,
+)
 
 from mcp_tracker.mcp.context import AppContext
+from mcp_tracker.mcp.tools.issue_write import IssueMoveOptions, _move_options_resolver
+from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.proto.types.inputs import (
     IssueComponentRef,
     IssueFollowerRef,
@@ -22,6 +32,21 @@ from mcp_tracker.tracker.proto.types.issues import (
     Worklog,
 )
 from tests.mcp.conftest import get_tool_result_content, safe_client_session
+
+# The shapes a client can declare `elicitation` in, oldest first: a bare `{}`
+# predates the form/url modes and means form support.
+_CAPS_BARE = ClientCapabilities(elicitation=ElicitationCapability())
+_CAPS_FORM = ClientCapabilities(
+    elicitation=ElicitationCapability(form=FormElicitationCapability())
+)
+_CAPS_URL_ONLY = ClientCapabilities(
+    elicitation=ElicitationCapability(url=UrlElicitationCapability())
+)
+_CAPS_FORM_AND_URL = ClientCapabilities(
+    elicitation=ElicitationCapability(
+        form=FormElicitationCapability(), url=UrlElicitationCapability()
+    )
+)
 
 
 def _elicitation_callback(result: ElicitResult):
@@ -986,6 +1011,105 @@ class TestIssueMoveToQueue:
         assert isinstance(error, TextContent)
         assert "cancelled by the user" in error.text
         mock_issues_protocol.issue_move.assert_not_called()
+
+    async def test_resolved_options_stay_out_of_the_input_schema(
+        self,
+        mcp_server: MCPServer[AppContext],
+    ) -> None:
+        """`options` is filled by the resolver, not by the caller: dropping the
+        `Resolve` annotation would expose an `ElicitationResult` to clients."""
+        tools = await mcp_server.list_tools()
+        tool = next(t for t in tools if t.name == "issue_move")
+
+        assert "options" not in tool.input_schema["properties"]
+        assert set(tool.input_schema["properties"]) == {
+            "issue_id",
+            "queue",
+            "notify",
+            "notify_author",
+            "move_all_fields",
+            "initial_status",
+        }
+
+    @pytest.mark.parametrize(
+        ("protocol_version", "can_send_request", "capabilities", "asks"),
+        [
+            # Modern connection: the question rides the tool result, a bare
+            # `elicitation: {}` (the pre-modes shape) counts as form support.
+            ("2026-07-28", False, _CAPS_BARE, True),
+            ("2026-07-28", False, _CAPS_FORM, True),
+            ("2026-07-28", False, _CAPS_FORM_AND_URL, True),
+            # Url-only elicitation cannot carry a form: the SDK would answer
+            # `Elicit` with MISSING_REQUIRED_CLIENT_CAPABILITY.
+            ("2026-07-28", False, _CAPS_URL_ONLY, False),
+            ("2026-07-28", False, ClientCapabilities(), False),
+            ("2026-07-28", False, None, False),
+            # Legacy connection with a back-channel (stdio, stateful SSE): asked
+            # through a standalone server->client request.
+            ("2025-11-25", True, _CAPS_BARE, True),
+            ("2025-06-18", True, _CAPS_FORM, True),
+            # Legacy connection without one - the stateless / JSON-response
+            # streamable-http this server runs: the SDK would raise
+            # NoBackChannelError, so the passed values are used instead.
+            ("2025-11-25", False, _CAPS_BARE, False),
+            ("2025-11-25", False, _CAPS_FORM, False),
+            (None, False, _CAPS_FORM, False),
+            ("2025-11-25", True, _CAPS_URL_ONLY, False),
+        ],
+        ids=[
+            "modern-bare",
+            "modern-form",
+            "modern-form-and-url",
+            "modern-url-only",
+            "modern-no-elicitation",
+            "modern-no-capabilities",
+            "legacy-back-channel-bare",
+            "legacy-back-channel-form",
+            "legacy-no-back-channel-bare",
+            "legacy-no-back-channel-form",
+            "no-version-no-back-channel",
+            "legacy-url-only",
+        ],
+    )
+    async def test_resolver_asks_only_when_the_client_can_be_asked(
+        self,
+        test_settings: Settings,
+        protocol_version: str | None,
+        can_send_request: bool,
+        capabilities: ClientCapabilities | None,
+        asks: bool,
+    ) -> None:
+        """The resolver returns `Elicit` only where the SDK could deliver it;
+        anywhere else it hands back the caller's values, which the SDK takes
+        without a capability check."""
+        ctx = Mock(spec=Context)
+        ctx.client_capabilities = capabilities
+        ctx.protocol_version = protocol_version
+        ctx.session = Mock(can_send_request=can_send_request)
+        resolver = _move_options_resolver(test_settings)
+
+        outcome = await resolver(
+            ctx,
+            issue_id="TEST-123",
+            queue="NEWQUEUE",
+            notify=False,
+            notify_author=True,
+            move_all_fields=True,
+            initial_status=False,
+        )
+
+        if asks:
+            assert isinstance(outcome, Elicit)
+            # The form is seeded with the caller's values.
+            assert outcome.schema.model_fields["notify"].default is False
+            assert outcome.schema.model_fields["notify_author"].default is True
+        else:
+            assert outcome == IssueMoveOptions(
+                notify=False,
+                notify_author=True,
+                move_all_fields=True,
+                initial_status=False,
+            )
 
     async def test_restricted_queue_is_refused_before_elicitation(
         self,

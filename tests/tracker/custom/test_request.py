@@ -9,6 +9,7 @@ empty message. These tests cover the funnel itself - that the sixty callers
 still behave is what the rest of the suite says.
 """
 
+import aiohttp
 import pytest
 from aioresponses import aioresponses
 
@@ -16,6 +17,7 @@ from mcp_tracker.tracker.custom.client import TrackerClient
 from mcp_tracker.tracker.custom.errors import (
     IssueNotFound,
     IssueVersionConflict,
+    TrackerAPIConnectionError,
     TrackerAPIError,
     TrackerAPITimeout,
 )
@@ -110,6 +112,52 @@ class TestRequestTimeout:
 
         assert str(exc_info.value)
         assert exc_info.value.url == PATH
+
+
+class TestRequestConnectionFailure:
+    """A request that never gets an answer.
+
+    aiohttp reports DNS, a refused connection or a dropped body as a
+    `ClientError`, which is not a `ToolError`: untranslated, the model would
+    see a bare `Error executing tool <name>` with no host and no reason.
+    """
+
+    @pytest.mark.parametrize(
+        "cause",
+        [
+            aiohttp.ClientConnectionError("Cannot connect to host"),
+            aiohttp.ClientPayloadError("Response payload is not completed"),
+        ],
+        ids=["connection", "payload"],
+    )
+    async def test_a_transport_failure_names_the_request_and_the_reason(
+        self, tracker_client: TrackerClient, cause: aiohttp.ClientError
+    ) -> None:
+        with aioresponses() as m:
+            m.get(URL, exception=cause)
+
+            with pytest.raises(TrackerAPIConnectionError) as exc_info:
+                async with tracker_client._request("GET", PATH, auth=None):
+                    pass  # pragma: no cover - the request never gets this far
+
+        error = exc_info.value
+        assert error.method == "GET"
+        assert error.url == PATH
+        assert error.cause is cause
+        assert PATH in str(error)
+        assert str(cause) in str(error)
+
+    async def test_an_aiohttp_timeout_is_still_a_timeout(
+        self, tracker_client: TrackerClient
+    ) -> None:
+        """aiohttp's own timeouts subclass `ClientError` *and* `TimeoutError`;
+        the time budget is the more useful thing to report."""
+        with aioresponses() as m:
+            m.get(URL, exception=aiohttp.ServerTimeoutError())
+
+            with pytest.raises(TrackerAPITimeout):
+                async with tracker_client._request("GET", PATH, auth=None):
+                    pass  # pragma: no cover - the request never gets this far
 
 
 class TestRequestStatusMapping:

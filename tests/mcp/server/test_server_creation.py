@@ -1,6 +1,8 @@
 import pytest
 from mcp import Client
 
+from tests.test_release_metadata import VERSION
+
 # Read-only tool names (35 tools) - always registered
 READ_ONLY_TOOL_NAMES = [
     # Queue tools (6)
@@ -263,6 +265,16 @@ class TestServerConfiguration:
         # server, and the first assert is what tells that apart from a rename.
         assert client_session.server_info is not None
         assert client_session.server_info.name == "Yandex Tracker MCP Server"
+
+    async def test_server_reports_the_package_version(
+        self,
+        client_session: Client,
+    ) -> None:
+        """`serverInfo.version` is read from the installed package metadata and
+        is deliberately empty when that is missing - so a distribution name
+        drifting from `pyproject.toml` would report "" with every test green."""
+        assert client_session.server_info is not None
+        assert client_session.server_info.version == VERSION
 
     async def test_server_has_instructions(
         self,

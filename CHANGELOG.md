@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Features
 
-- **`issue_move` confirms its options through the SDK's multi-round-trip elicitation** — works on clients speaking the 2026-07-28 protocol revision and on 2025-era clients alike; a client without elicitation gets the values passed to the tool
+- **`issue_move` confirms its options through the SDK's multi-round-trip elicitation** — works on clients speaking the 2026-07-28 protocol revision and on 2025-era clients alike; a client that cannot be asked (no form elicitation, or a 2025-era client over streamable-http, which has no channel for the question) gets the values passed to the tool
 
 ### Bug Fixes
 

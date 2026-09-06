@@ -1,6 +1,7 @@
 import json
 from collections.abc import Sequence
 
+import pytest
 from mcp import Client
 from mcp.types import TextResourceContents
 
@@ -48,14 +49,26 @@ class TestConfigurationResource:
         assert configuration["cloud_org_id"] is None
         assert configuration["org_id"] == "test-org"
 
+    @pytest.mark.parametrize(
+        ("query", "field", "other_field", "other_value"),
+        [
+            ("?cloudOrgId=from-uri", "cloud_org_id", "org_id", "test-org"),
+            ("?orgId=from-uri", "org_id", "cloud_org_id", None),
+        ],
+        ids=["cloudOrgId", "orgId"],
+    )
     async def test_query_variable_overrides_the_organization(
         self,
         client_session: Client,
+        query: str,
+        field: str,
+        other_field: str,
+        other_value: str | None,
     ) -> None:
-        """The resource is a template: `?cloudOrgId=` in the URI wins over settings."""
-        result = await client_session.read_resource(
-            f"{CONFIGURATION_URI}?cloudOrgId=from-uri"
-        )
+        """The resource is a template: a query variable in the URI wins over
+        settings, and the other organization field keeps its settings value."""
+        result = await client_session.read_resource(f"{CONFIGURATION_URI}{query}")
 
         configuration = json.loads(_configuration_text(result.contents))
-        assert configuration["cloud_org_id"] == "from-uri"
+        assert configuration[field] == "from-uri"
+        assert configuration[other_field] == other_value

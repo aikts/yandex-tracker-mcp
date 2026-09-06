@@ -109,6 +109,50 @@ class TrackerAPITimeout(YandexTrackerError):
         )
 
 
+class TrackerAPIConnectionError(YandexTrackerError):
+    """A request to the Yandex Tracker API never got an answer.
+
+    DNS, a refused connection, a TLS failure or a connection dropped mid-body
+    all surface from aiohttp as a `ClientError`, which is not a `ToolError`:
+    left untranslated, the model would see a bare `Error executing tool <name>`
+    with no hint of which host was unreachable or why.
+    """
+
+    def __init__(self, *, method: str, url: str, cause: Exception):
+        self.method = method
+        self.url = url
+        self.cause = cause
+        # Some aiohttp errors stringify to nothing; the class name is then the
+        # only clue left.
+        reason = str(cause) or type(cause).__name__
+        super().__init__(f"Yandex Tracker API request {method} {url} failed: {reason}")
+
+
+class TrackerAuthConfigError(YandexTrackerError):
+    """The request cannot be authenticated or attributed to one organization.
+
+    Raised per request rather than at startup because the token and the
+    organization can come from the HTTP request itself (OAuth passthrough,
+    `?orgId=` / `?cloudOrgId=`), so a bad combination is the caller's to fix.
+    """
+
+
+class NoDoneTransition(YandexTrackerError):
+    """`issue_close` found no transition into a status of type `done`.
+
+    The ids of the transitions that *are* available are what the caller needs
+    to fall back on `issue_execute_transition`, so they are part of the message.
+    """
+
+    def __init__(self, issue_id: str, transition_ids: list[str]):
+        super().__init__(
+            f"No transition to a 'done' status found for issue {issue_id}. "
+            f"Available transitions: {transition_ids}."
+        )
+        self.issue_id = issue_id
+        self.transition_ids = transition_ids
+
+
 class TrackerAPIError(YandexTrackerError):
     """A non-2xx response from the Yandex Tracker API.
 

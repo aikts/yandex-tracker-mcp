@@ -13,6 +13,7 @@ from mcp.server.mcpserver import (
     Resolve,
 )
 from mcp.types import ToolAnnotations
+from mcp.types.version import MODERN_PROTOCOL_VERSIONS
 from pydantic import BaseModel, Field, create_model
 
 from mcp_tracker.mcp.context import AppContext
@@ -105,16 +106,33 @@ def _move_options_resolver(
     ) -> IssueMoveOptions | Elicit[IssueMoveOptions]:
         """Confirm the boolean options of `issue_move` with the user.
 
-        When the client supports elicitation, the user is asked to confirm the
-        options before the (irreversible) move. The form is seeded with the values
-        passed by the caller so the user only adjusts what they need to. Clients
-        without elicitation support fall back to those values without a round-trip.
+        When the client can be asked, the user is asked to confirm the options
+        before the (irreversible) move. The form is seeded with the values passed
+        by the caller so the user only adjusts what they need to. A client that
+        cannot be asked gets those values without a round-trip - the SDK would
+        otherwise answer the whole call with a JSON-RPC error, which is not a
+        tool result the model can read:
+
+        - no form elicitation: the SDK's own gate counts a bare `elicitation: {}`
+          as form support and a url-only one as none, so the same rule is applied
+          here - a url-only client returning `Elicit` would be refused with
+          `MISSING_REQUIRED_CLIENT_CAPABILITY`;
+        - a legacy (< 2026-07-28) connection without a back-channel: below
+          2026-07-28 the question is a standalone server->client request, which
+          the stateless / JSON-response streamable-http transport this server
+          runs cannot deliver (`NoBackChannelError`). Modern connections carry
+          the question in the tool result instead and are not affected.
         """
         check_issue_access(settings, issue_id, write=True)
         check_queue_access(settings, queue, write=True)
 
         capabilities = ctx.client_capabilities
-        if capabilities is None or capabilities.elicitation is None:
+        elicitation = capabilities.elicitation if capabilities is not None else None
+        supports_form = elicitation is not None and (
+            elicitation.form is not None or elicitation.url is None
+        )
+        legacy = ctx.protocol_version not in MODERN_PROTOCOL_VERSIONS
+        if not supports_form or (legacy and not ctx.session.can_send_request):
             return IssueMoveOptions(
                 notify=notify,
                 notify_author=notify_author,

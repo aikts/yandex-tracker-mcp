@@ -4,7 +4,7 @@ import pytest
 from aioresponses import aioresponses
 
 from mcp_tracker.tracker.custom.client import TrackerClient
-from mcp_tracker.tracker.custom.errors import IssueNotFound
+from mcp_tracker.tracker.custom.errors import IssueNotFound, NoDoneTransition
 from mcp_tracker.tracker.proto.common import YandexAuth
 from mcp_tracker.tracker.proto.types.issues import IssueTransition
 from tests.aioresponses_utils import RequestCapture
@@ -420,10 +420,14 @@ class TestIssueClose:
                 payload=statuses_response,
             )
 
-            with pytest.raises(ValueError) as exc_info:
+            # A `ToolError`, so the transition ids the caller can fall back on
+            # with `issue_execute_transition` reach the model.
+            with pytest.raises(NoDoneTransition) as exc_info:
                 await tracker_client.issue_close("TEST-123", "fixed")
 
             assert "No transition to a 'done' status found" in str(exc_info.value)
+            assert exc_info.value.transition_ids == ["start"]
+            assert "['start']" in str(exc_info.value)
 
     async def test_with_auth(
         self,
