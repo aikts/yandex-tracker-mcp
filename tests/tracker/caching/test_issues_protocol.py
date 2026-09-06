@@ -70,6 +70,7 @@ class TestCachingIssuesProtocol:
             id=2,
             object=IssueReference(id="TEST-2", key="TEST-2", display="Linked Issue"),
         )
+        original.worklogs_search.return_value = [Worklog(id=1, comment="Search result")]
         return original
 
     @pytest.fixture
@@ -525,3 +526,37 @@ class TestCachingIssuesProtocol:
             initial_status=True,
             auth=yandex_auth,
         )
+
+    async def test_worklogs_search_calls_original(
+        self,
+        caching_issues_protocol: Any,
+        mock_original: AsyncMock,
+        yandex_auth: YandexAuth,
+    ) -> None:
+        result = await caching_issues_protocol.worklogs_search(
+            created_by="john.doe",
+            created_at_from="2024-01-01T00:00:00.000+0000",
+            created_at_to="2024-12-31T23:59:59.999+0000",
+            auth=yandex_auth,
+        )
+
+        mock_original.worklogs_search.assert_called_once_with(
+            created_by="john.doe",
+            created_at_from="2024-01-01T00:00:00.000+0000",
+            created_at_to="2024-12-31T23:59:59.999+0000",
+            auth=yandex_auth,
+        )
+        assert result == mock_original.worklogs_search.return_value
+
+    async def test_worklogs_search_calls_original_with_minimal_params(
+        self, caching_issues_protocol: Any, mock_original: AsyncMock
+    ) -> None:
+        result = await caching_issues_protocol.worklogs_search()
+
+        mock_original.worklogs_search.assert_called_once_with(
+            created_by=None,
+            created_at_from=None,
+            created_at_to=None,
+            auth=None,
+        )
+        assert result == mock_original.worklogs_search.return_value

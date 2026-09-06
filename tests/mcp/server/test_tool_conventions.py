@@ -32,6 +32,7 @@ TOOL_NAME_ENTITIES = frozenset(
         "queues",
         "user",
         "users",
+        "worklogs",
     }
 )
 

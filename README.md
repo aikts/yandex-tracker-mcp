@@ -650,10 +650,12 @@ Every tool here respects `TRACKER_LIMIT_QUEUES` and `TRACKER_READ_ONLY_QUEUES`; 
 | --- | --- | --- |
 | `issues_find` | Search issues with [Yandex Tracker Query Language](https://yandex.ru/support/tracker/ru/user/query-filter); returns `{values, hits, pages}` | `query`, `fields`, `include_description`, `page`, `per_page` |
 | `issues_count` | How many issues match a query; returns `{"count": N}` | `query` |
+| `worklogs_search` | Worklogs across every issue of the organization, filtered by author and creation date | `created_by`, `created_at_from`, `created_at_to` (ISO 8601, `2024-01-01T00:00:00.000+0000`) |
 
 - `fields` uses Tracker's own spelling (`storyPoints`, not `story_points`) and accepts any field name, a queue's local and the organization's custom fields included - pass the field `id` from `queue_get_fields`. A name Tracker does not know is dropped silently.
 - `include_description` is ignored when `description` is listed in `fields`: naming it there is an explicit request for it.
 - `per_page` defaults to 100 and can be lowered when a page does not fit the context window.
+- `worklogs_search` searches the organization, not a queue: `TRACKER_LIMIT_QUEUES` does not filter it, and the issues its worklogs name can be outside the allow-list. Omitting every filter returns every worklog the token may see - `issue_get_worklogs` is the issue-scoped read.
 
 </details>
 

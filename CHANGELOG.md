@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Features
+
+- **`worklogs_search`** — worklogs across every issue of the organization, filtered by author and creation date; not filtered by `TRACKER_LIMIT_QUEUES` ([#14](https://github.com/aikts/yandex-tracker-mcp/pull/14))
+
 ## [0.10.0] - 2026-09-06
 
 ### Features

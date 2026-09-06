@@ -249,6 +249,14 @@ class IssueProtocol(Protocol):
         initial_status: bool = False,
         auth: YandexAuth | None = None,
     ) -> Issue: ...
+    async def worklogs_search(
+        self,
+        *,
+        created_by: str | None = None,
+        created_at_from: str | None = None,
+        created_at_to: str | None = None,
+        auth: YandexAuth | None = None,
+    ) -> list[Worklog]: ...
 
 
 class IssueProtocolWrap(IssueProtocol):

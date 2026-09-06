@@ -689,3 +689,81 @@ class TestIssueGetChangelog:
 
         assert result.isError
         mock_issues_protocol.issue_get_changelog.assert_not_called()
+
+
+class TestWorklogsSearch:
+    async def test_returns_worklogs(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_worklogs: list[Worklog],
+    ) -> None:
+        mock_issues_protocol.worklogs_search.return_value = sample_worklogs
+
+        result = await client_session.call_tool("worklogs_search", {})
+
+        assert not result.isError
+        mock_issues_protocol.worklogs_search.assert_called_once()
+        content = get_tool_result_content(result)
+        assert isinstance(content, list)
+        assert len(content) == len(sample_worklogs)
+
+    async def test_with_created_by_filter(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_worklogs: list[Worklog],
+    ) -> None:
+        mock_issues_protocol.worklogs_search.return_value = sample_worklogs
+
+        result = await client_session.call_tool(
+            "worklogs_search", {"created_by": "john.doe"}
+        )
+
+        assert not result.isError
+        call_kwargs = mock_issues_protocol.worklogs_search.call_args.kwargs
+        assert call_kwargs["created_by"] == "john.doe"
+
+    async def test_with_date_range_filter(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_worklogs: list[Worklog],
+    ) -> None:
+        mock_issues_protocol.worklogs_search.return_value = sample_worklogs
+
+        result = await client_session.call_tool(
+            "worklogs_search",
+            {
+                "created_at_from": "2024-01-01T00:00:00.000+0000",
+                "created_at_to": "2024-12-31T23:59:59.999+0000",
+            },
+        )
+
+        assert not result.isError
+        call_kwargs = mock_issues_protocol.worklogs_search.call_args.kwargs
+        assert call_kwargs["created_at_from"] == "2024-01-01T00:00:00.000+0000"
+        assert call_kwargs["created_at_to"] == "2024-12-31T23:59:59.999+0000"
+
+    async def test_with_all_filters(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_worklogs: list[Worklog],
+    ) -> None:
+        mock_issues_protocol.worklogs_search.return_value = sample_worklogs
+
+        result = await client_session.call_tool(
+            "worklogs_search",
+            {
+                "created_by": "john.doe",
+                "created_at_from": "2024-01-01T00:00:00.000+0000",
+                "created_at_to": "2024-12-31T23:59:59.999+0000",
+            },
+        )
+
+        assert not result.isError
+        call_kwargs = mock_issues_protocol.worklogs_search.call_args.kwargs
+        assert call_kwargs["created_by"] == "john.doe"
+        assert call_kwargs["created_at_from"] == "2024-01-01T00:00:00.000+0000"
+        assert call_kwargs["created_at_to"] == "2024-12-31T23:59:59.999+0000"
