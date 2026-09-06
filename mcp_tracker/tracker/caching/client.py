@@ -7,12 +7,14 @@ from aiocache import cached
 
 from mcp_tracker.tracker.proto.boards import BoardsProtocolWrap
 from mcp_tracker.tracker.proto.common import YandexAuth
+from mcp_tracker.tracker.proto.components import ComponentsProtocolWrap
 from mcp_tracker.tracker.proto.entities import EntitiesProtocolWrap
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocolWrap
 from mcp_tracker.tracker.proto.issues import IssueProtocolWrap
 from mcp_tracker.tracker.proto.queues import QueuesProtocolWrap
 from mcp_tracker.tracker.proto.templates import TemplatesProtocolWrap
 from mcp_tracker.tracker.proto.types.boards import Board, BoardColumnDetail, Sprint
+from mcp_tracker.tracker.proto.types.components import Component
 from mcp_tracker.tracker.proto.types.entities import (
     GoalEntity,
     GoalSearchResult,
@@ -75,6 +77,7 @@ class CacheCollection:
     users: type[UsersProtocolWrap]
     entities: type[EntitiesProtocolWrap]
     boards: type[BoardsProtocolWrap]
+    components: type[ComponentsProtocolWrap]
 
 
 def make_cached_protocols(
@@ -106,6 +109,12 @@ def make_cached_protocols(
             self, queue_id: str, *, auth: YandexAuth | None = None
         ) -> list[QueueVersion]:
             return await self._original.queues_get_versions(queue_id, auth=auth)
+
+        # Not cached - see `CachingComponentsProtocol`.
+        async def queues_get_components(
+            self, queue_id: str, *, auth: YandexAuth | None = None
+        ) -> list[Component]:
+            return await self._original.queues_get_components(queue_id, auth=auth)
 
         async def queue_create_version(
             self,
@@ -1428,6 +1437,66 @@ def make_cached_protocols(
         ) -> list[Sprint]:
             return await self._original.board_get_sprints(board_id, auth=auth)
 
+    class CachingComponentsProtocol(ComponentsProtocolWrap):
+        # Component reads are not cached. The `component_update` /
+        # `component_delete` tools read through this protocol to get the
+        # `version` the API demands (428 without one) and to learn the queue,
+        # and there is no omit-version escape as there is for issues, so a
+        # cached read would feed the PATCH a stale version for the rest of the
+        # TTL. Every protocol method is still overridden - a wrapper that
+        # forgets one answers `None` for it under TOOLS_CACHE_ENABLED.
+        async def component_get(
+            self, component_id: int, *, auth: YandexAuth | None = None
+        ) -> Component:
+            return await self._original.component_get(component_id, auth=auth)
+
+        async def component_create(
+            self,
+            queue_id: str,
+            *,
+            name: str,
+            description: str | None = None,
+            lead: str | None = None,
+            assign_auto: bool | None = None,
+            auth: YandexAuth | None = None,
+        ) -> Component:
+            return await self._original.component_create(
+                queue_id,
+                name=name,
+                description=description,
+                lead=lead,
+                assign_auto=assign_auto,
+                auth=auth,
+            )
+
+        async def component_update(
+            self,
+            component_id: int,
+            *,
+            version: int,
+            name: str | None = None,
+            description: str | None = None,
+            lead: str | None = None,
+            assign_auto: bool | None = None,
+            clear_lead: bool = False,
+            auth: YandexAuth | None = None,
+        ) -> Component:
+            return await self._original.component_update(
+                component_id,
+                version=version,
+                name=name,
+                description=description,
+                lead=lead,
+                assign_auto=assign_auto,
+                clear_lead=clear_lead,
+                auth=auth,
+            )
+
+        async def component_delete(
+            self, component_id: int, *, auth: YandexAuth | None = None
+        ) -> None:
+            return await self._original.component_delete(component_id, auth=auth)
+
     return CacheCollection(
         queues=CachingQueuesProtocol,
         issues=CachingIssuesProtocol,
@@ -1436,4 +1505,5 @@ def make_cached_protocols(
         users=CachingUsersProtocol,
         entities=CachingEntitiesProtocol,
         boards=CachingBoardsProtocol,
+        components=CachingComponentsProtocol,
     )

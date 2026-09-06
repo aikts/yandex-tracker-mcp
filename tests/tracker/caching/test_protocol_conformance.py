@@ -6,6 +6,7 @@ import pytest
 
 from mcp_tracker.tracker.caching.client import make_cached_protocols
 from mcp_tracker.tracker.proto.boards import BoardsProtocol
+from mcp_tracker.tracker.proto.components import ComponentsProtocol
 from mcp_tracker.tracker.proto.entities import EntitiesProtocol
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
@@ -78,3 +79,11 @@ class TestCachingProtocolConformance:
         instance = cache_collection.boards(mock_original)
 
         assert isinstance(instance, BoardsProtocol)
+
+    def test_caching_components_implements_protocol(
+        self, cache_config: dict[str, int], mock_original: ComponentsProtocol
+    ) -> None:
+        cache_collection = make_cached_protocols(cache_config)
+        instance = cache_collection.components(mock_original)
+
+        assert isinstance(instance, ComponentsProtocol)

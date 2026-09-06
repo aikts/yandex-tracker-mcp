@@ -2,6 +2,7 @@ from unittest.mock import AsyncMock
 
 from mcp.client.session import ClientSession
 
+from mcp_tracker.tracker.proto.types.components import Component
 from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
 from mcp_tracker.tracker.proto.types.queues import Queue, QueueVersion
 from tests.mcp.conftest import get_tool_result_content, page
@@ -132,6 +133,48 @@ class TestQueueGetVersions:
 
         assert result.isError
         mock_queues_protocol.queues_get_versions.assert_not_called()
+
+
+class TestQueueGetComponents:
+    async def test_returns_components(
+        self,
+        client_session: ClientSession,
+        mock_queues_protocol: AsyncMock,
+        sample_components: list[Component],
+    ) -> None:
+        mock_queues_protocol.queues_get_components.return_value = sample_components
+
+        result = await client_session.call_tool(
+            "queue_get_components", {"queue_id": "TEST"}
+        )
+
+        assert not result.isError
+        mock_queues_protocol.queues_get_components.assert_called_once()
+        call_args = mock_queues_protocol.queues_get_components.call_args
+        assert call_args.args[0] == "TEST"
+        assert "auth" in call_args.kwargs
+
+        content = get_tool_result_content(result)
+        assert isinstance(content, list)
+        assert len(content) == len(sample_components)
+        assert content[0]["id"] == sample_components[0].id
+        assert content[0]["name"] == sample_components[0].name
+        assert content[0]["version"] == sample_components[0].version
+        assert content[0]["lead"]["id"] == "i.ivanov"
+        # The wire spelling, so the record can be fed back into a write call.
+        assert content[1]["assignAuto"] is True
+
+    async def test_restricted_queue_raises_error(
+        self,
+        client_session_with_limits: ClientSession,
+        mock_queues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session_with_limits.call_tool(
+            "queue_get_components", {"queue_id": "RESTRICTED"}
+        )
+
+        assert result.isError
+        mock_queues_protocol.queues_get_components.assert_not_called()
 
 
 class TestQueueGetFields:

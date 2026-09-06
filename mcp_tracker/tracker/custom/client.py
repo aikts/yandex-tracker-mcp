@@ -20,11 +20,14 @@ from yarl import URL
 from mcp_tracker.tracker.custom.errors import (
     BoardNotFound,
     ChecklistBatchPartiallyAdded,
-    ChecklistItemClearConflict,
     ChecklistItemEmptyUpdate,
     ChecklistItemNotFound,
     CommentTemplateNotFound,
+    ComponentEmptyUpdate,
+    ComponentNotFound,
+    ComponentVersionConflict,
     EntityLinksOnlyUpdate,
+    FieldClearConflict,
     IssueNotFound,
     IssueTemplateNotFound,
     IssueVersionConflict,
@@ -35,12 +38,14 @@ from mcp_tracker.tracker.custom.errors import (
 )
 from mcp_tracker.tracker.proto.boards import BoardsProtocol
 from mcp_tracker.tracker.proto.common import YandexAuth
+from mcp_tracker.tracker.proto.components import ComponentsProtocol
 from mcp_tracker.tracker.proto.entities import EntitiesProtocol
 from mcp_tracker.tracker.proto.fields import GlobalDataProtocol
 from mcp_tracker.tracker.proto.issues import IssueProtocol
 from mcp_tracker.tracker.proto.queues import QueuesProtocol
 from mcp_tracker.tracker.proto.templates import TemplatesProtocol
 from mcp_tracker.tracker.proto.types.boards import Board, BoardColumnDetail, Sprint
+from mcp_tracker.tracker.proto.types.components import Component
 from mcp_tracker.tracker.proto.types.entities import (
     DEFAULT_ENTITY_FIELDS_PARAM,
     GoalEntity,
@@ -99,6 +104,7 @@ QueueList = RootModel[list[Queue]]
 LocalFieldList = RootModel[list[LocalField]]
 QueueTagList = RootModel[list[str]]
 VersionList = RootModel[list[QueueVersion]]
+ComponentList = RootModel[list[Component]]
 IssueLinkList = RootModel[list[IssueLink]]
 IssueList = RootModel[list[Issue]]
 IssueCommentList = RootModel[list[IssueComment]]
@@ -298,6 +304,7 @@ class TrackerClient(
     UsersProtocol,
     EntitiesProtocol,
     BoardsProtocol,
+    ComponentsProtocol,
 ):
     def __init__(
         self,
@@ -422,6 +429,10 @@ class TrackerClient(
         single method until this existed, and a missing `not_found` turns "no
         such issue" back into a bare 404.
 
+        `conflict` covers 409 and 412 alike: an issue update answers a stale
+        `version` with 409, a component update with 412, and both mean the same
+        thing - the precondition the caller sent no longer holds.
+
         `allow_statuses` hands a status back to the caller instead of raising -
         for the one method that answers a 404 with `None` rather than an error.
         """
@@ -436,7 +447,7 @@ class TrackerClient(
                 if response.status not in allow_statuses:
                     if not_found is not None and response.status == 404:
                         raise not_found
-                    if conflict is not None and response.status == 409:
+                    if conflict is not None and response.status in (409, 412):
                         raise conflict
                     await self._raise_for_status(response)
                 yield response
@@ -516,6 +527,20 @@ class TrackerClient(
             await self._read(
                 "GET",
                 f"v3/queues/{queue_id}/versions",
+                auth=auth,
+                not_found=QueueNotFound(queue_id),
+            )
+        ).root
+
+    async def queues_get_components(
+        self, queue_id: str, *, auth: YandexAuth | None = None
+    ) -> list[Component]:
+        """The components of one queue, as full objects: the queue-scoped endpoint
+        is undocumented and not paginated - see AGENTS.md, *Queue components*."""
+        return ComponentList.model_validate_json(
+            await self._read(
+                "GET",
+                f"v3/queues/{queue_id}/components",
                 auth=auth,
                 not_found=QueueNotFound(queue_id),
             )
@@ -1147,9 +1172,9 @@ class TrackerClient(
         а `""` или `0` отвечают 422.
         """
         if clear_assignee and assignee is not None:
-            raise ChecklistItemClearConflict("assignee")
+            raise FieldClearConflict("assignee")
         if clear_deadline and deadline is not None:
-            raise ChecklistItemClearConflict("deadline")
+            raise FieldClearConflict("deadline")
         if (
             text is None
             and checked is None
@@ -2912,3 +2937,98 @@ class TrackerClient(
                 not_found=BoardNotFound(board_id),
             )
         ).root
+
+    async def component_get(
+        self, component_id: int, *, auth: YandexAuth | None = None
+    ) -> Component:
+        """One component by id; undocumented - see AGENTS.md, *Queue components*."""
+        return Component.model_validate_json(
+            await self._read(
+                "GET",
+                f"v3/components/{component_id}",
+                auth=auth,
+                not_found=ComponentNotFound(component_id),
+            )
+        )
+
+    async def component_create(
+        self,
+        queue_id: str,
+        *,
+        name: str,
+        description: str | None = None,
+        lead: str | None = None,
+        assign_auto: bool | None = None,
+        auth: YandexAuth | None = None,
+    ) -> Component:
+        """Create a component in a queue - see AGENTS.md, *Queue components*."""
+        body: dict[str, Any] = {"queue": queue_id, "name": name}
+        if description is not None:
+            body["description"] = description
+        if lead is not None:
+            body["lead"] = lead
+        if assign_auto is not None:
+            body["assignAuto"] = assign_auto
+
+        return Component.model_validate_json(
+            await self._read("POST", "v3/components", auth=auth, json=body)
+        )
+
+    async def component_update(
+        self,
+        component_id: int,
+        *,
+        version: int,
+        name: str | None = None,
+        description: str | None = None,
+        lead: str | None = None,
+        assign_auto: bool | None = None,
+        clear_lead: bool = False,
+        auth: YandexAuth | None = None,
+    ) -> Component:
+        """Change the fields of a component that are passed.
+
+        `version` is required: the API answers 428 without it and 412 for a
+        stale one. An empty body is a 200 no-op, so it is refused locally, and
+        `{}` is what clears the lead - see AGENTS.md, *Queue components*.
+        """
+        if clear_lead and lead is not None:
+            raise FieldClearConflict("lead")
+
+        body: dict[str, Any] = {}
+        if name is not None:
+            body["name"] = name
+        if description is not None:
+            body["description"] = description
+        if clear_lead:
+            body["lead"] = {}
+        elif lead is not None:
+            body["lead"] = lead
+        if assign_auto is not None:
+            body["assignAuto"] = assign_auto
+        if not body:
+            raise ComponentEmptyUpdate()
+
+        return Component.model_validate_json(
+            await self._read(
+                "PATCH",
+                f"v3/components/{component_id}",
+                auth=auth,
+                params={"version": version},
+                json=body,
+                not_found=ComponentNotFound(component_id),
+                conflict=ComponentVersionConflict(component_id, version),
+            )
+        )
+
+    async def component_delete(
+        self, component_id: int, *, auth: YandexAuth | None = None
+    ) -> None:
+        """Delete a component; undocumented, answers 204 and takes no `version` -
+        see AGENTS.md, *Queue components*."""
+        await self._read(
+            "DELETE",
+            f"v3/components/{component_id}",
+            auth=auth,
+            not_found=ComponentNotFound(component_id),
+        )

@@ -6,6 +6,8 @@ This package organizes MCP tools by category:
 - field.py: Global field and metadata tools (read-only)
 - template.py: Issue and comment template tools (read-only)
 - board.py: Board and sprint tools (read-only)
+- component.py: Queue component tools (read-only)
+- component_write.py: Queue component write tools (conditional on read-only mode)
 - issue_read.py: Issue read-only tools
 - issue_write.py: Issue write tools (conditional on read-only mode)
 - user.py: User-related tools (read-only)
@@ -22,6 +24,8 @@ from typing import Any
 from mcp.server import FastMCP
 
 from mcp_tracker.mcp.tools.board import register_board_tools
+from mcp_tracker.mcp.tools.component import register_component_tools
+from mcp_tracker.mcp.tools.component_write import register_component_write_tools
 from mcp_tracker.mcp.tools.field import register_field_tools
 from mcp_tracker.mcp.tools.goal import register_goal_tools
 from mcp_tracker.mcp.tools.goal_write import register_goal_write_tools
@@ -52,6 +56,7 @@ def register_all_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
     register_field_tools(settings, mcp)
     register_template_tools(settings, mcp)
     register_board_tools(settings, mcp)
+    register_component_tools(settings, mcp)
     register_issue_read_tools(settings, mcp)
     register_user_tools(settings, mcp)
 
@@ -63,6 +68,7 @@ def register_all_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
     # Only register write tools if not in read-only mode
     if not settings.tracker_read_only:
         register_queue_write_tools(settings, mcp)
+        register_component_write_tools(settings, mcp)
         register_issue_write_tools(settings, mcp)
 
         if settings.tracker_entities_enabled:

@@ -156,9 +156,9 @@ IssueFollowersUpdateParam = Annotated[
 
 _COMPONENTS_DESCRIPTION = (
     "Queue components. Array of objects with either 'id' (numeric component ID, "
-    "from queue_get_metadata with expand=['components']) or 'name' (component name). "
-    "Tracker resolves numbers as IDs and strings as names, so the object form is required "
-    "to avoid a 422 on a numeric-looking name."
+    "from queue_get_components or queue_get_metadata with expand=['components']) "
+    "or 'name' (component name). Tracker resolves numbers as IDs and strings as "
+    "names, so the object form is required to avoid a 422 on a numeric-looking name."
 )
 
 IssueComponentsParam = Annotated[
@@ -551,6 +551,74 @@ BoardID = Annotated[
     ),
 ]
 
+# Component parameters, shared by component_create and component_update: a
+# create/update pair takes the same types with the same wording.
+ComponentID = Annotated[
+    int,
+    Field(
+        description="Component identifier (numeric), as returned by "
+        "`queue_get_components` or in an issue's `components` field"
+    ),
+]
+
+ComponentNameParam = Annotated[
+    str,
+    Field(description="Component name, e.g. 'Backend' or 'Billing'."),
+]
+
+ComponentNameOptionalParam = Annotated[
+    str | None,
+    Field(
+        description="Component name, e.g. 'Backend' or 'Billing'. Omit to leave it "
+        "unchanged."
+    ),
+]
+
+ComponentDescriptionParam = Annotated[
+    str | None,
+    Field(
+        description="Component description. Omitting it leaves it unset or, on "
+        "update, unchanged; on update, an empty string clears it."
+    ),
+]
+
+ComponentLeadParam = Annotated[
+    str | None,
+    Field(
+        description="Login or uid of the user responsible for the component, e.g. "
+        "'i.ivanov' or the `id` a component read returns in `lead`. Omitting it "
+        "leaves it unset or, on update, unchanged; on update, `clear_lead` "
+        "removes the current one."
+    ),
+]
+
+ComponentClearLeadParam = Annotated[
+    bool,
+    Field(
+        description="Remove the component's lead. Cannot be combined with `lead`. "
+        "Example: true"
+    ),
+]
+
+ComponentAssignAutoParam = Annotated[
+    bool | None,
+    Field(
+        description="Whether new issues with this component get its lead as "
+        "assignee automatically. Defaults to false on create; omitting it on "
+        "update leaves it unchanged."
+    ),
+]
+
+ComponentVersionParam = Annotated[
+    int | None,
+    Field(
+        description="Component version for optimistic locking, as read by "
+        "`component_get` / `queue_get_components`: the change lands only if this "
+        "is still the current version, otherwise the call fails with an editing "
+        "conflict. Omit to update the current version."
+    ),
+]
+
 
 IssueChecklistItemIDParam = Annotated[
     str,
@@ -672,9 +740,10 @@ Use these tools to:
 - View issue details, comments, attachments, worklogs and change history
 - Get information about users, statuses and issue types
 - Look up agile boards, their columns and their sprints
+- Read and manage queue components, which group a queue's issues by product, process or owner
 - Create and edit issues, comments, worklogs and links (unless the server runs read-only)
 
-In russian Yandex Tracker is called "Яндекс Трекер", "Трекер"; queues - "Очереди"; issues - "Задачи", "Таски", "ишью"; projects - "Проекты"; portfolios - "Портфели"; goals - "Цели"; boards - "доски"; sprints - "спринты".
+In russian Yandex Tracker is called "Яндекс Трекер", "Трекер"; queues - "Очереди"; issues - "Задачи", "Таски", "ишью"; projects - "Проекты"; portfolios - "Портфели"; goals - "Цели"; boards - "доски"; sprints - "спринты"; components - "компоненты".
 
 Boards have no queue field - a board collects whatever its own filter matches. To find the boards of a queue, try both ways: `boards_get_all` with `queue` matches the board's own filter, while reading a few issues of the queue with `issues_find` and looking at their `boards` field catches the boards that filter by something else (personal boards, for one).
 

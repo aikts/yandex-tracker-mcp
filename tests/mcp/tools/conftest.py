@@ -15,6 +15,7 @@ from mcp_tracker.tracker.proto.types.boards import (
     BoardLiveFilter,
     Sprint,
 )
+from mcp_tracker.tracker.proto.types.components import Component
 from mcp_tracker.tracker.proto.types.entities import (
     GoalEntity,
     GoalFields,
@@ -127,6 +128,48 @@ def sample_queue_versions() -> list[QueueVersion]:
             archived=False,
         ),
     ]
+
+
+# Component fixtures
+@pytest.fixture
+def sample_component() -> Component:
+    """Sample queue component for testing."""
+    return Component.model_construct(
+        id=856,
+        version=1,
+        name="Design",
+        description="Design work",
+        queue=QueueReference.model_construct(id="12", key="TEST", display="Test Queue"),
+        lead=UserReference.model_construct(id="i.ivanov", display="Ivan Ivanov"),
+        assign_auto=False,
+    )
+
+
+@pytest.fixture
+def sample_components(sample_component: Component) -> list[Component]:
+    """Sample queue components for testing."""
+    return [
+        sample_component,
+        Component.model_construct(
+            id=857,
+            version=3,
+            name="Backend",
+            queue=sample_component.queue,
+            assign_auto=True,
+        ),
+    ]
+
+
+def component_in(queue_key: str | None, *, version: int = 1) -> Component:
+    """A component of the given queue - or of none, as a response may name no queue."""
+    queue = (
+        QueueReference.model_construct(id="1", key=queue_key, display=queue_key)
+        if queue_key is not None
+        else None
+    )
+    return Component.model_construct(
+        id=856, version=version, name="Design", queue=queue
+    )
 
 
 # Field fixtures

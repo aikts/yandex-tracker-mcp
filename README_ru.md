@@ -468,6 +468,7 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
 | `queues_get_all` | Все очереди, доступные токену; возвращает `{values, hits, pages}` | `fields`, `page` (не указывать — обойти все страницы), `per_page` |
 | `queue_get_tags` | Теги, заведённые в очереди | `queue_id` (ключ вида `"SOMEPROJECT"`) |
 | `queue_get_versions` | Версии очереди с датами и статусом | `queue_id` |
+| `queue_get_components` | Компоненты очереди целиком: с ответственным, флагом автоназначения и `version`; `queue_get_metadata` с `expand: ["components"]` даёт только id и названия | `queue_id` |
 | `queue_create_version` | Создать версию в очереди | `queue_id`, `name`, `description`, `start_date`, `due_date` (`YYYY-MM-DD`) |
 | `queue_get_fields` | Поля, настроенные в очереди, включая локальные; `schema.required` отмечает обязательные | `queue_id`, `include_local_fields` |
 | `queue_get_metadata` | Название, описание, тип и приоритет по умолчанию плюс то, что запрошено в `expand` | `queue_id`, `expand` (`all`, `projects`, `components`, `versions`, `types`, `team`, `workflows`, `fields`, `issueTypesConfig`) |
@@ -475,6 +476,22 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
 - Читайте `queue_get_fields` перед `issue_create`, но это не полный реестр: системные поля вроде `parent` или `estimation` можно задавать, хотя в нём их нет, а `get_global_fields` перечисляет все поля организации.
 - `queue_get_metadata` с `expand: ["issueTypesConfig"]` — источник резолюций, допустимых для каждого типа задачи; одна из них нужна `issue_close`.
 - Все они учитывают `TRACKER_LIMIT_QUEUES`. `hits` / `pages` у `queues_get_all` возвращаются только для явно запрошенной страницы на сервере без allow-list: иначе итог считает и те очереди, которые allow-list затем скрывает.
+
+</details>
+
+<details>
+<summary><strong>Компоненты</strong></summary>
+
+Компонент — метка, группирующая задачи очереди по продукту, процессу или ответственному. Его числовой id — то, что `issue_create` / `issue_update` принимают в `components`.
+
+| Инструмент | Что делает | Ключевые аргументы |
+| --- | --- | --- |
+| `component_get` | Один компонент с `queue`, `lead`, `assignAuto` и `version` | `component_id` (из `queue_get_components` или поля `components` задачи) |
+| `component_create` | Создать компонент в очереди | `queue_id`, `name`, `description`, `lead` (логин или uid), `assign_auto` |
+| `component_update` | Изменить название, описание, ответственного или флаг автоназначения; не переданные поля сохраняют значение, `clear_lead` снимает ответственного | `component_id`, `name`, `description`, `lead`, `assign_auto`, `clear_lead`, `version` |
+| `component_delete` | Удалить компонент | `component_id` |
+
+- `TRACKER_LIMIT_QUEUES` и `TRACKER_READ_ONLY_QUEUES` применяются через очередь компонента: `component_update` и `component_delete` сначала читают компонент, чтобы её узнать, а компонент из очереди вне `TRACKER_LIMIT_QUEUES` считается не найденным.
 
 </details>
 

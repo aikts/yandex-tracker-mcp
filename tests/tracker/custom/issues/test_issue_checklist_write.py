@@ -9,9 +9,9 @@ from aioresponses import aioresponses
 from mcp_tracker.tracker.custom.client import TrackerClient
 from mcp_tracker.tracker.custom.errors import (
     ChecklistBatchPartiallyAdded,
-    ChecklistItemClearConflict,
     ChecklistItemEmptyUpdate,
     ChecklistItemNotFound,
+    FieldClearConflict,
     IssueNotFound,
     TrackerAPIError,
 )
@@ -337,7 +337,7 @@ class TestIssueUpdateChecklistItem:
         self, tracker_client: TrackerClient, kwargs: dict[str, Any]
     ) -> None:
         # No mock registered: no request at all may leave the client.
-        with aioresponses(), pytest.raises(ChecklistItemClearConflict):
+        with aioresponses(), pytest.raises(FieldClearConflict):
             await tracker_client.issue_update_checklist_item(
                 "TEST-123", "item-1", **kwargs
             )

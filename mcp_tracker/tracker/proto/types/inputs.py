@@ -96,8 +96,9 @@ class IssueComponentRef(BaseModel):
 
     id: int | None = Field(
         None,
-        description="Component ID (numeric, as returned by queue_get_metadata "
-        "with expand=['components']). A numeric string is accepted and sent as a number.",
+        description="Component ID (numeric, as returned by queue_get_components or "
+        "queue_get_metadata with expand=['components']). A numeric string is "
+        "accepted and sent as a number.",
     )
     name: str | None = Field(
         None, description="Component name, used only when the ID is unknown"

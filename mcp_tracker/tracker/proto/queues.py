@@ -2,6 +2,7 @@ from datetime import date
 from typing import Protocol, runtime_checkable
 
 from .common import YandexAuth
+from .types.components import Component
 from .types.fields import GlobalField, LocalField
 from .types.pagination import PaginatedResult
 from .types.queues import Queue, QueueExpandOption, QueueVersion
@@ -32,6 +33,10 @@ class QueuesProtocol(Protocol):
     async def queues_get_versions(
         self, queue_id: str, *, auth: YandexAuth | None = None
     ) -> list[QueueVersion]: ...
+
+    async def queues_get_components(
+        self, queue_id: str, *, auth: YandexAuth | None = None
+    ) -> list[Component]: ...
 
     async def queue_create_version(
         self,
