@@ -1,9 +1,8 @@
 """Board and sprint MCP tools (read-only)."""
 
-from typing import Annotated, Any
+from typing import Annotated
 
-from mcp.server import FastMCP
-from mcp.server.fastmcp import Context
+from mcp.server.mcpserver import Context, MCPServer
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
@@ -78,7 +77,7 @@ def board_queue_keys(board: Board) -> set[str]:
     return keys
 
 
-def register_board_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
+def register_board_tools(settings: Settings, mcp: MCPServer[AppContext]) -> None:
     """Register board and sprint tools (all read-only)."""
 
     @mcp.tool(
@@ -88,10 +87,10 @@ def register_board_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         "on the board's own filter, so boards filtering by something else are missed - "
         "read a few issues with `issues_find` and look at their `boards` field for "
         "those.",
-        annotations=ToolAnnotations(readOnlyHint=True),
+        annotations=ToolAnnotations(read_only_hint=True),
     )
     async def boards_get_all(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         queue: BoardQueueFilter = None,
         fields: BoardFieldsParam = None,
         cursor: BoardCursorParam = None,
@@ -145,10 +144,10 @@ def register_board_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         "with its settings, columns, the field issues are estimated by and the working "
         "calendar. `autoFilterSettings` is the board's own filter and tells which "
         "issues it collects - read it to learn which queue a board is about.",
-        annotations=ToolAnnotations(readOnlyHint=True),
+        annotations=ToolAnnotations(read_only_hint=True),
     )
     async def board_get(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         board_id: BoardID,
         fields: BoardFieldsParam = None,
     ) -> Board:
@@ -168,10 +167,10 @@ def register_board_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         "statuses mapped onto each - use it to see which status an issue needs to show "
         "up in a given column. Richer than the columns in `boards_get_all` / "
         "`board_get`, which carry no statuses.",
-        annotations=ToolAnnotations(readOnlyHint=True),
+        annotations=ToolAnnotations(read_only_hint=True),
     )
     async def board_get_columns(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         board_id: BoardID,
     ) -> list[BoardColumnDetail]:
         return await ctx.request_context.lifespan_context.boards.board_get_columns(
@@ -185,10 +184,10 @@ def register_board_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         "The currently running sprint is the one with status 'in_progress'. "
         "Use the returned sprint id to put an issue into a sprint "
         "with the `issue_create` or `issue_update` tools.",
-        annotations=ToolAnnotations(readOnlyHint=True),
+        annotations=ToolAnnotations(read_only_hint=True),
     )
     async def board_get_sprints(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         board_id: BoardID,
         fields: SprintFieldsParam = None,
     ) -> list[Sprint]:

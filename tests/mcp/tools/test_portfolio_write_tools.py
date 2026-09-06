@@ -1,6 +1,6 @@
 from unittest.mock import AsyncMock
 
-from mcp.client.session import ClientSession
+from mcp import Client
 
 from mcp_tracker.tracker.proto.common import YandexAuth
 from mcp_tracker.tracker.proto.types.entities import PortfolioEntity
@@ -12,7 +12,7 @@ from tests.mcp.conftest import get_tool_result_content
 class TestPortfolioCreate:
     async def test_creates_portfolio(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_entities_protocol: AsyncMock,
         sample_portfolio: PortfolioEntity,
     ) -> None:
@@ -22,7 +22,7 @@ class TestPortfolioCreate:
             "portfolio_create", {"summary": "New Portfolio"}
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_entities_protocol.portfolio_create.assert_called_once_with(
             summary="New Portfolio",
             description=None,
@@ -45,19 +45,19 @@ class TestPortfolioCreate:
 
     async def test_read_only_mode_tool_not_registered(
         self,
-        client_session_read_only: ClientSession,
+        client_session_read_only: Client,
     ) -> None:
         result = await client_session_read_only.call_tool(
             "portfolio_create", {"summary": "New Portfolio"}
         )
 
-        assert result.isError
+        assert result.is_error
 
 
 class TestPortfolioUpdate:
     async def test_updates_portfolio(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_entities_protocol: AsyncMock,
         sample_portfolio: PortfolioEntity,
     ) -> None:
@@ -68,7 +68,7 @@ class TestPortfolioUpdate:
             {"entity_id": "def456", "entity_status": "cancelled"},
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_entities_protocol.portfolio_update.assert_called_once_with(
             "def456",
             summary=None,
@@ -92,19 +92,19 @@ class TestPortfolioUpdate:
 
     async def test_read_only_mode_tool_not_registered(
         self,
-        client_session_read_only: ClientSession,
+        client_session_read_only: Client,
     ) -> None:
         result = await client_session_read_only.call_tool(
             "portfolio_update", {"entity_id": "def456"}
         )
 
-        assert result.isError
+        assert result.is_error
 
 
 class TestPortfolioDelete:
     async def test_deletes_portfolio(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_entities_protocol: AsyncMock,
     ) -> None:
         mock_entities_protocol.portfolio_delete.return_value = None
@@ -113,26 +113,26 @@ class TestPortfolioDelete:
             "portfolio_delete", {"entity_id": "def456"}
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_entities_protocol.portfolio_delete.assert_called_once_with(
             "def456", with_board=False, auth=YandexAuth()
         )
 
     async def test_read_only_mode_tool_not_registered(
         self,
-        client_session_read_only: ClientSession,
+        client_session_read_only: Client,
     ) -> None:
         result = await client_session_read_only.call_tool(
             "portfolio_delete", {"entity_id": "def456"}
         )
 
-        assert result.isError
+        assert result.is_error
 
 
 class TestPortfolioAddComment:
     async def test_adds_comment(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_entities_protocol: AsyncMock,
         sample_comment: IssueComment,
     ) -> None:
@@ -143,7 +143,7 @@ class TestPortfolioAddComment:
             {"entity_id": "def456", "text": "Hello", "summonees": ["user123"]},
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_entities_protocol.portfolio_add_comment.assert_called_once_with(
             "def456",
             text="Hello",
@@ -156,19 +156,19 @@ class TestPortfolioAddComment:
 
     async def test_read_only_mode_tool_not_registered(
         self,
-        client_session_read_only: ClientSession,
+        client_session_read_only: Client,
     ) -> None:
         result = await client_session_read_only.call_tool(
             "portfolio_add_comment", {"entity_id": "def456", "text": "Hello"}
         )
 
-        assert result.isError
+        assert result.is_error
 
 
 class TestPortfolioUpdateComment:
     async def test_updates_comment(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_entities_protocol: AsyncMock,
         sample_comment: IssueComment,
     ) -> None:
@@ -179,7 +179,7 @@ class TestPortfolioUpdateComment:
             {"entity_id": "def456", "comment_id": 1, "text": "Updated"},
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_entities_protocol.portfolio_update_comment.assert_called_once_with(
             "def456",
             1,
@@ -193,20 +193,20 @@ class TestPortfolioUpdateComment:
 
     async def test_read_only_mode_tool_not_registered(
         self,
-        client_session_read_only: ClientSession,
+        client_session_read_only: Client,
     ) -> None:
         result = await client_session_read_only.call_tool(
             "portfolio_update_comment",
             {"entity_id": "def456", "comment_id": 1, "text": "Updated"},
         )
 
-        assert result.isError
+        assert result.is_error
 
 
 class TestPortfolioDeleteComment:
     async def test_deletes_comment(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_entities_protocol: AsyncMock,
     ) -> None:
         mock_entities_protocol.portfolio_delete_comment.return_value = None
@@ -215,26 +215,26 @@ class TestPortfolioDeleteComment:
             "portfolio_delete_comment", {"entity_id": "def456", "comment_id": 1}
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_entities_protocol.portfolio_delete_comment.assert_called_once_with(
             "def456", 1, auth=YandexAuth()
         )
 
     async def test_read_only_mode_tool_not_registered(
         self,
-        client_session_read_only: ClientSession,
+        client_session_read_only: Client,
     ) -> None:
         result = await client_session_read_only.call_tool(
             "portfolio_delete_comment", {"entity_id": "def456", "comment_id": 1}
         )
 
-        assert result.isError
+        assert result.is_error
 
 
 class TestPortfolioAddChecklistItem:
     async def test_adds_checklist_item(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_entities_protocol: AsyncMock,
         sample_portfolio: PortfolioEntity,
     ) -> None:
@@ -247,7 +247,7 @@ class TestPortfolioAddChecklistItem:
             {"entity_id": "def456", "text": "Do the thing", "checked": True},
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_entities_protocol.portfolio_add_checklist_item.assert_called_once_with(
             "def456",
             text="Do the thing",
@@ -262,20 +262,20 @@ class TestPortfolioAddChecklistItem:
 
     async def test_read_only_mode_tool_not_registered(
         self,
-        client_session_read_only: ClientSession,
+        client_session_read_only: Client,
     ) -> None:
         result = await client_session_read_only.call_tool(
             "portfolio_add_checklist_item",
             {"entity_id": "def456", "text": "Do the thing"},
         )
 
-        assert result.isError
+        assert result.is_error
 
 
 class TestPortfolioUpdateChecklistItem:
     async def test_updates_checklist_item(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_entities_protocol: AsyncMock,
         sample_portfolio: PortfolioEntity,
     ) -> None:
@@ -288,7 +288,7 @@ class TestPortfolioUpdateChecklistItem:
             {"entity_id": "def456", "checklist_item_id": "item1", "checked": True},
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_entities_protocol.portfolio_update_checklist_item.assert_called_once_with(
             "def456",
             "item1",
@@ -302,20 +302,20 @@ class TestPortfolioUpdateChecklistItem:
 
     async def test_read_only_mode_tool_not_registered(
         self,
-        client_session_read_only: ClientSession,
+        client_session_read_only: Client,
     ) -> None:
         result = await client_session_read_only.call_tool(
             "portfolio_update_checklist_item",
             {"entity_id": "def456", "checklist_item_id": "item1", "checked": True},
         )
 
-        assert result.isError
+        assert result.is_error
 
 
 class TestPortfolioMoveChecklistItem:
     async def test_moves_checklist_item(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_entities_protocol: AsyncMock,
         sample_portfolio: PortfolioEntity,
     ) -> None:
@@ -332,7 +332,7 @@ class TestPortfolioMoveChecklistItem:
             },
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_entities_protocol.portfolio_move_checklist_item.assert_called_once_with(
             "def456",
             "item1",
@@ -343,20 +343,20 @@ class TestPortfolioMoveChecklistItem:
 
     async def test_read_only_mode_tool_not_registered(
         self,
-        client_session_read_only: ClientSession,
+        client_session_read_only: Client,
     ) -> None:
         result = await client_session_read_only.call_tool(
             "portfolio_move_checklist_item",
             {"entity_id": "def456", "checklist_item_id": "item1", "before": "item0"},
         )
 
-        assert result.isError
+        assert result.is_error
 
 
 class TestPortfolioDeleteChecklistItem:
     async def test_deletes_checklist_item(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_entities_protocol: AsyncMock,
         sample_portfolio: PortfolioEntity,
     ) -> None:
@@ -369,7 +369,7 @@ class TestPortfolioDeleteChecklistItem:
             {"entity_id": "def456", "checklist_item_id": "item1"},
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_entities_protocol.portfolio_delete_checklist_item.assert_called_once_with(
             "def456",
             "item1",
@@ -379,20 +379,20 @@ class TestPortfolioDeleteChecklistItem:
 
     async def test_read_only_mode_tool_not_registered(
         self,
-        client_session_read_only: ClientSession,
+        client_session_read_only: Client,
     ) -> None:
         result = await client_session_read_only.call_tool(
             "portfolio_delete_checklist_item",
             {"entity_id": "def456", "checklist_item_id": "item1"},
         )
 
-        assert result.isError
+        assert result.is_error
 
 
 class TestPortfolioUpdateChecklist:
     async def test_updates_checklist(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_entities_protocol: AsyncMock,
         sample_portfolio: PortfolioEntity,
     ) -> None:
@@ -408,7 +408,7 @@ class TestPortfolioUpdateChecklist:
             },
         )
 
-        assert not result.isError
+        assert not result.is_error
         call_kwargs = mock_entities_protocol.portfolio_update_checklist.call_args.kwargs
         assert call_kwargs["items"] == [
             EntityChecklistItemUpdateInput(
@@ -419,7 +419,7 @@ class TestPortfolioUpdateChecklist:
 
     async def test_read_only_mode_tool_not_registered(
         self,
-        client_session_read_only: ClientSession,
+        client_session_read_only: Client,
     ) -> None:
         result = await client_session_read_only.call_tool(
             "portfolio_update_checklist",
@@ -429,13 +429,13 @@ class TestPortfolioUpdateChecklist:
             },
         )
 
-        assert result.isError
+        assert result.is_error
 
 
 class TestPortfolioDeleteChecklist:
     async def test_deletes_checklist(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_entities_protocol: AsyncMock,
         sample_portfolio: PortfolioEntity,
     ) -> None:
@@ -447,17 +447,17 @@ class TestPortfolioDeleteChecklist:
             "portfolio_delete_checklist", {"entity_id": "def456"}
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_entities_protocol.portfolio_delete_checklist.assert_called_once_with(
             "def456", fields=None, auth=YandexAuth()
         )
 
     async def test_read_only_mode_tool_not_registered(
         self,
-        client_session_read_only: ClientSession,
+        client_session_read_only: Client,
     ) -> None:
         result = await client_session_read_only.call_tool(
             "portfolio_delete_checklist", {"entity_id": "def456"}
         )
 
-        assert result.isError
+        assert result.is_error

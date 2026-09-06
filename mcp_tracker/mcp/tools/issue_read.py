@@ -1,9 +1,8 @@
 """Issue read-only MCP tools."""
 
-from typing import Annotated, Any
+from typing import Annotated
 
-from mcp.server import FastMCP
-from mcp.server.fastmcp import Context
+from mcp.server.mcpserver import Context, MCPServer
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
@@ -38,7 +37,7 @@ from mcp_tracker.tracker.proto.types.issues import (
 from mcp_tracker.tracker.proto.types.pagination import PaginatedResult
 
 
-def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
+def register_issue_read_tools(settings: Settings, mcp: MCPServer[AppContext]) -> None:
     """Register issue read-only tools."""
 
     @mcp.tool(
@@ -48,10 +47,10 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         "included. To search instead, use `issues_find`. Comments, "
         "links, attachments, worklogs, checklist, changelog and transitions each have "
         "their own `issue_get_*` tool.",
-        annotations=ToolAnnotations(readOnlyHint=True),
+        annotations=ToolAnnotations(read_only_hint=True),
     )
     async def issue_get(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         issue_id: IssueID,
         include_description: Annotated[
             bool,
@@ -78,10 +77,10 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         description="Get a page of comments of a Yandex Tracker issue by its id. "
         "Returns the comments plus `next_cursor` - pass it back as `cursor` until it "
         "is null.",
-        annotations=ToolAnnotations(readOnlyHint=True),
+        annotations=ToolAnnotations(read_only_hint=True),
     )
     async def issue_get_comments(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         issue_id: IssueID,
         per_page: CursorPerPageParam = 50,
         cursor: CommentsCursorParam = None,
@@ -110,10 +109,10 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
     @mcp.tool(
         title="Get Issue Links",
         description="Get a Yandex Tracker issue related links to other issues by its id",
-        annotations=ToolAnnotations(readOnlyHint=True),
+        annotations=ToolAnnotations(read_only_hint=True),
     )
     async def issue_get_links(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         issue_id: IssueID,
     ) -> list[IssueLink]:
         check_issue_access(settings, issue_id)
@@ -128,10 +127,10 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         description="Find Yandex Tracker issues matching a Yandex Tracker Query (YQL) - not limited to "
         "queue/date, any indexed field can be used (assignee, status, tags, etc., see the `query` "
         "parameter for the full syntax).",
-        annotations=ToolAnnotations(readOnlyHint=True),
+        annotations=ToolAnnotations(read_only_hint=True),
     )
     async def issues_find(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         query: YTQuery,
         include_description: Annotated[
             bool,
@@ -186,10 +185,10 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
     @mcp.tool(
         title="Count Issues",
         description="Get the count of Yandex Tracker issues matching a query.",
-        annotations=ToolAnnotations(readOnlyHint=True),
+        annotations=ToolAnnotations(read_only_hint=True),
     )
     async def issues_count(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         query: YTQuery,
     ) -> IssuesCount:
         count = await ctx.request_context.lifespan_context.issues.issues_count(
@@ -201,10 +200,10 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
     @mcp.tool(
         title="Get Issue Worklogs",
         description="Get worklogs of a Yandex Tracker issue by its id",
-        annotations=ToolAnnotations(readOnlyHint=True),
+        annotations=ToolAnnotations(read_only_hint=True),
     )
     async def issue_get_worklogs(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         issue_ids: IssueIDs,
         fields: Annotated[
             list[WorklogFieldsEnum] | None,
@@ -234,10 +233,10 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
     @mcp.tool(
         title="Get Issue Attachments",
         description="Get attachments of a Yandex Tracker issue by its id",
-        annotations=ToolAnnotations(readOnlyHint=True),
+        annotations=ToolAnnotations(read_only_hint=True),
     )
     async def issue_get_attachments(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         issue_id: IssueID,
         fields: Annotated[
             list[AttachmentFieldsEnum] | None,
@@ -264,10 +263,10 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
     @mcp.tool(
         title="Get Issue Checklist",
         description="Get checklist items of a Yandex Tracker issue by its id",
-        annotations=ToolAnnotations(readOnlyHint=True),
+        annotations=ToolAnnotations(read_only_hint=True),
     )
     async def issue_get_checklist(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         issue_id: IssueID,
     ) -> list[ChecklistItem]:
         check_issue_access(settings, issue_id)
@@ -281,10 +280,10 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         title="Get Issue Transitions",
         description="Get possible status transitions for a Yandex Tracker issue. "
         "Returns list of available transitions that can be performed on the issue.",
-        annotations=ToolAnnotations(readOnlyHint=True),
+        annotations=ToolAnnotations(read_only_hint=True),
     )
     async def issue_get_transitions(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         issue_id: IssueID,
     ) -> list[IssueTransition]:
         check_issue_access(settings, issue_id)
@@ -300,10 +299,10 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         "status transitions, field edits (who changed what from -> to and when), "
         "comment changes and executed triggers. Returns a page of entries plus "
         "`next_cursor` - pass it back as `cursor` until it is null.",
-        annotations=ToolAnnotations(readOnlyHint=True),
+        annotations=ToolAnnotations(read_only_hint=True),
     )
     async def issue_get_changelog(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         issue_id: IssueID,
         per_page: CursorPerPageParam = 50,
         cursor: Annotated[

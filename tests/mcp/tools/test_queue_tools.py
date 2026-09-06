@@ -1,6 +1,6 @@
 from unittest.mock import AsyncMock
 
-from mcp.client.session import ClientSession
+from mcp import Client
 
 from mcp_tracker.tracker.proto.types.components import Component
 from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
@@ -11,7 +11,7 @@ from tests.mcp.conftest import get_tool_result_content, page
 class TestQueuesGetAll:
     async def test_returns_all_queues(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_queues_protocol: AsyncMock,
         sample_queues: list[Queue],
     ) -> None:
@@ -20,7 +20,7 @@ class TestQueuesGetAll:
 
         result = await client_session.call_tool("queues_get_all", {})
 
-        assert not result.isError
+        assert not result.is_error
         mock_queues_protocol.queues_list.assert_called()
         content = get_tool_result_content(result)
         assert len(content["values"]) == len(sample_queues)
@@ -32,7 +32,7 @@ class TestQueuesGetAll:
 
     async def test_with_specific_page(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_queues_protocol: AsyncMock,
         sample_queues: list[Queue],
     ) -> None:
@@ -44,7 +44,7 @@ class TestQueuesGetAll:
             "queues_get_all", {"page": 2, "per_page": 50}
         )
 
-        assert not result.isError
+        assert not result.is_error
         content = get_tool_result_content(result)
         assert len(content["values"]) == len(sample_queues)
         # One explicit page on an unrestricted server: totals are trustworthy.
@@ -53,7 +53,7 @@ class TestQueuesGetAll:
 
     async def test_respects_queue_limits(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_queues_protocol: AsyncMock,
         sample_queues: list[Queue],
     ) -> None:
@@ -63,7 +63,7 @@ class TestQueuesGetAll:
 
         result = await client_session_with_limits.call_tool("queues_get_all", {})
 
-        assert not result.isError
+        assert not result.is_error
         content = get_tool_result_content(result)
         # Only the ALLOWED queue should be returned
         assert all(q["key"] == "ALLOWED" for q in content["values"])
@@ -75,7 +75,7 @@ class TestQueuesGetAll:
 class TestQueueGetTags:
     async def test_returns_tags(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_queues_protocol: AsyncMock,
         sample_queue_tags: list[str],
     ) -> None:
@@ -83,7 +83,7 @@ class TestQueueGetTags:
 
         result = await client_session.call_tool("queue_get_tags", {"queue_id": "TEST"})
 
-        assert not result.isError
+        assert not result.is_error
         mock_queues_protocol.queues_get_tags.assert_called_once()
         content = get_tool_result_content(result)
         assert isinstance(content, list)
@@ -91,21 +91,21 @@ class TestQueueGetTags:
 
     async def test_restricted_queue_raises_error(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_queues_protocol: AsyncMock,
     ) -> None:
         result = await client_session_with_limits.call_tool(
             "queue_get_tags", {"queue_id": "RESTRICTED"}
         )
 
-        assert result.isError
+        assert result.is_error
         mock_queues_protocol.queues_get_tags.assert_not_called()
 
 
 class TestQueueGetVersions:
     async def test_returns_versions(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_queues_protocol: AsyncMock,
         sample_queue_versions: list[QueueVersion],
     ) -> None:
@@ -115,7 +115,7 @@ class TestQueueGetVersions:
             "queue_get_versions", {"queue_id": "TEST"}
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_queues_protocol.queues_get_versions.assert_called_once()
         content = get_tool_result_content(result)
         assert isinstance(content, list)
@@ -124,21 +124,21 @@ class TestQueueGetVersions:
 
     async def test_restricted_queue_raises_error(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_queues_protocol: AsyncMock,
     ) -> None:
         result = await client_session_with_limits.call_tool(
             "queue_get_versions", {"queue_id": "RESTRICTED"}
         )
 
-        assert result.isError
+        assert result.is_error
         mock_queues_protocol.queues_get_versions.assert_not_called()
 
 
 class TestQueueGetComponents:
     async def test_returns_components(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_queues_protocol: AsyncMock,
         sample_components: list[Component],
     ) -> None:
@@ -148,7 +148,7 @@ class TestQueueGetComponents:
             "queue_get_components", {"queue_id": "TEST"}
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_queues_protocol.queues_get_components.assert_called_once()
         call_args = mock_queues_protocol.queues_get_components.call_args
         assert call_args.args[0] == "TEST"
@@ -166,21 +166,21 @@ class TestQueueGetComponents:
 
     async def test_restricted_queue_raises_error(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_queues_protocol: AsyncMock,
     ) -> None:
         result = await client_session_with_limits.call_tool(
             "queue_get_components", {"queue_id": "RESTRICTED"}
         )
 
-        assert result.isError
+        assert result.is_error
         mock_queues_protocol.queues_get_components.assert_not_called()
 
 
 class TestQueueGetFields:
     async def test_returns_global_and_local_fields(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_queues_protocol: AsyncMock,
         sample_global_fields: list[GlobalField],
         sample_local_fields: list[LocalField],
@@ -192,7 +192,7 @@ class TestQueueGetFields:
             "queue_get_fields", {"queue_id": "TEST", "include_local_fields": True}
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_queues_protocol.queues_get_fields.assert_called_once()
         mock_queues_protocol.queues_get_local_fields.assert_called_once()
         content = get_tool_result_content(result)
@@ -203,7 +203,7 @@ class TestQueueGetFields:
 
     async def test_global_fields_only(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_queues_protocol: AsyncMock,
         sample_global_fields: list[GlobalField],
     ) -> None:
@@ -213,7 +213,7 @@ class TestQueueGetFields:
             "queue_get_fields", {"queue_id": "TEST", "include_local_fields": False}
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_queues_protocol.queues_get_fields.assert_called_once()
         mock_queues_protocol.queues_get_local_fields.assert_not_called()
         content = get_tool_result_content(result)
@@ -223,21 +223,21 @@ class TestQueueGetFields:
 
     async def test_restricted_queue_raises_error(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_queues_protocol: AsyncMock,
     ) -> None:
         result = await client_session_with_limits.call_tool(
             "queue_get_fields", {"queue_id": "RESTRICTED"}
         )
 
-        assert result.isError
+        assert result.is_error
         mock_queues_protocol.queues_get_fields.assert_not_called()
 
 
 class TestQueueGetMetadata:
     async def test_returns_metadata(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_queues_protocol: AsyncMock,
         sample_queue: Queue,
     ) -> None:
@@ -247,7 +247,7 @@ class TestQueueGetMetadata:
             "queue_get_metadata", {"queue_id": "TEST"}
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_queues_protocol.queue_get.assert_called_once()
         content = get_tool_result_content(result)
         assert isinstance(content, dict)
@@ -256,7 +256,7 @@ class TestQueueGetMetadata:
 
     async def test_with_expand_options(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_queues_protocol: AsyncMock,
         sample_queue: Queue,
     ) -> None:
@@ -267,7 +267,7 @@ class TestQueueGetMetadata:
             {"queue_id": "TEST", "expand": ["issueTypesConfig", "workflows"]},
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_queues_protocol.queue_get.assert_called_once()
         # Verify expand options were passed
         call_kwargs = mock_queues_protocol.queue_get.call_args.kwargs
@@ -278,14 +278,14 @@ class TestQueueGetMetadata:
 
     async def test_restricted_queue_raises_error(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_queues_protocol: AsyncMock,
     ) -> None:
         result = await client_session_with_limits.call_tool(
             "queue_get_metadata", {"queue_id": "RESTRICTED"}
         )
 
-        assert result.isError
+        assert result.is_error
         mock_queues_protocol.queue_get.assert_not_called()
 
 
@@ -295,7 +295,7 @@ class TestQueueGetMetadataExpand:
 
     async def test_keeps_the_expanded_sections(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_queues_protocol: AsyncMock,
     ) -> None:
         mock_queues_protocol.queue_get.return_value = Queue.model_validate(
@@ -310,13 +310,13 @@ class TestQueueGetMetadataExpand:
             "queue_get_metadata", {"queue_id": "TEST", "expand": ["components"]}
         )
 
-        assert not result.isError
+        assert not result.is_error
         content = get_tool_result_content(result)
         assert content["components"] == [{"id": "783", "display": "Frontend"}]
 
     async def test_an_empty_section_comes_back_as_an_empty_list(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_queues_protocol: AsyncMock,
         sample_queue: Queue,
     ) -> None:
@@ -327,7 +327,7 @@ class TestQueueGetMetadataExpand:
             {"queue_id": "TEST", "expand": ["components", "versions"]},
         )
 
-        assert not result.isError
+        assert not result.is_error
         content = get_tool_result_content(result)
         assert content["components"] == []
         assert content["versions"] == []

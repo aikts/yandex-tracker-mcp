@@ -1,6 +1,6 @@
 from unittest.mock import AsyncMock
 
-from mcp.client.session import ClientSession
+from mcp import Client
 
 from mcp_tracker.tracker.proto.types.templates import CommentTemplate, IssueTemplate
 from tests.mcp.conftest import get_tool_result_content, page
@@ -9,7 +9,7 @@ from tests.mcp.conftest import get_tool_result_content, page
 class TestIssueTemplatesGetAll:
     async def test_returns_issue_templates(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_templates_protocol: AsyncMock,
         sample_issue_templates: list[IssueTemplate],
     ) -> None:
@@ -20,7 +20,7 @@ class TestIssueTemplatesGetAll:
 
         result = await client_session.call_tool("issue_templates_get_all", {})
 
-        assert not result.isError
+        assert not result.is_error
         content = get_tool_result_content(result)
         assert len(content["values"]) == len(sample_issue_templates)
         assert content["values"][0]["id"] == sample_issue_templates[0].id
@@ -28,7 +28,7 @@ class TestIssueTemplatesGetAll:
 
     async def test_returns_field_templates(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_templates_protocol: AsyncMock,
         sample_issue_template: IssueTemplate,
     ) -> None:
@@ -41,7 +41,7 @@ class TestIssueTemplatesGetAll:
 
         result = await client_session.call_tool("issue_templates_get_all", {})
 
-        assert not result.isError
+        assert not result.is_error
         content = get_tool_result_content(result)
         assert (
             content["values"][0]["fieldTemplates"]
@@ -50,7 +50,7 @@ class TestIssueTemplatesGetAll:
 
     async def test_walks_all_pages_by_default(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_templates_protocol: AsyncMock,
         sample_issue_templates: list[IssueTemplate],
     ) -> None:
@@ -66,7 +66,7 @@ class TestIssueTemplatesGetAll:
             "issue_templates_get_all", {"per_page": 2}
         )
 
-        assert not result.isError
+        assert not result.is_error
         content = get_tool_result_content(result)
         assert len(content["values"]) == len(sample_issue_templates)
         requested = [
@@ -78,7 +78,7 @@ class TestIssueTemplatesGetAll:
 
     async def test_returns_requested_page_only(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_templates_protocol: AsyncMock,
         sample_issue_templates: list[IssueTemplate],
     ) -> None:
@@ -91,7 +91,7 @@ class TestIssueTemplatesGetAll:
             "issue_templates_get_all", {"page": 2, "per_page": 2}
         )
 
-        assert not result.isError
+        assert not result.is_error
         assert len(get_tool_result_content(result)["values"]) == 2
         mock_templates_protocol.get_issue_templates.assert_called_once()
         call_args = mock_templates_protocol.get_issue_templates.call_args
@@ -100,7 +100,7 @@ class TestIssueTemplatesGetAll:
 
     async def test_scopes_to_queue(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_templates_protocol: AsyncMock,
         sample_issue_template: IssueTemplate,
     ) -> None:
@@ -113,26 +113,26 @@ class TestIssueTemplatesGetAll:
             "issue_templates_get_all", {"queue": "TEST"}
         )
 
-        assert not result.isError
+        assert not result.is_error
         call_args = mock_templates_protocol.get_issue_templates.call_args
         assert call_args.kwargs["queue"] == "TEST"
 
     async def test_queue_is_not_scoped_by_default(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_templates_protocol: AsyncMock,
     ) -> None:
         mock_templates_protocol.get_issue_templates.return_value = page([])
 
         result = await client_session.call_tool("issue_templates_get_all", {})
 
-        assert not result.isError
+        assert not result.is_error
         call_args = mock_templates_protocol.get_issue_templates.call_args
         assert call_args.kwargs["queue"] is None
 
     async def test_filters_templates_of_restricted_queues(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_templates_protocol: AsyncMock,
         sample_issue_templates: list[IssueTemplate],
     ) -> None:
@@ -147,14 +147,14 @@ class TestIssueTemplatesGetAll:
             "issue_templates_get_all", {}
         )
 
-        assert not result.isError
+        assert not result.is_error
         content = get_tool_result_content(result)
         returned_names = {template["name"] for template in content["values"]}
         assert returned_names == {"Incident", "Personal template"}
 
     async def test_allows_permitted_queue_scope(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_templates_protocol: AsyncMock,
         sample_issue_templates: list[IssueTemplate],
     ) -> None:
@@ -167,39 +167,39 @@ class TestIssueTemplatesGetAll:
             "issue_templates_get_all", {"queue": "ALLOWED"}
         )
 
-        assert not result.isError
+        assert not result.is_error
         content = get_tool_result_content(result)
         assert {template["name"] for template in content["values"]} == {"Incident"}
 
     async def test_rejects_restricted_queue_scope(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_templates_protocol: AsyncMock,
     ) -> None:
         result = await client_session_with_limits.call_tool(
             "issue_templates_get_all", {"queue": "TEST"}
         )
 
-        assert result.isError
+        assert result.is_error
         mock_templates_protocol.get_issue_templates.assert_not_called()
 
     async def test_returns_empty_list(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_templates_protocol: AsyncMock,
     ) -> None:
         mock_templates_protocol.get_issue_templates.return_value = page([])
 
         result = await client_session.call_tool("issue_templates_get_all", {})
 
-        assert not result.isError
+        assert not result.is_error
         assert get_tool_result_content(result)["values"] == []
 
 
 class TestIssueTemplateGet:
     async def test_returns_issue_template(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_templates_protocol: AsyncMock,
         sample_issue_template: IssueTemplate,
     ) -> None:
@@ -209,7 +209,7 @@ class TestIssueTemplateGet:
             "issue_template_get", {"template_id": "1"}
         )
 
-        assert not result.isError
+        assert not result.is_error
         content = get_tool_result_content(result)
         assert content["id"] == sample_issue_template.id
         assert content["name"] == sample_issue_template.name
@@ -217,7 +217,7 @@ class TestIssueTemplateGet:
 
     async def test_passes_template_id(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_templates_protocol: AsyncMock,
         sample_issue_template: IssueTemplate,
     ) -> None:
@@ -227,13 +227,13 @@ class TestIssueTemplateGet:
             "issue_template_get", {"template_id": "42"}
         )
 
-        assert not result.isError
+        assert not result.is_error
         call_args = mock_templates_protocol.get_issue_template.call_args
         assert call_args[0][0] == "42"
 
     async def test_allows_template_of_permitted_queue(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_templates_protocol: AsyncMock,
         sample_issue_templates: list[IssueTemplate],
     ) -> None:
@@ -245,13 +245,13 @@ class TestIssueTemplateGet:
             "issue_template_get", {"template_id": "2"}
         )
 
-        assert not result.isError
+        assert not result.is_error
         content = get_tool_result_content(result)
         assert content["name"] == "Incident"
 
     async def test_rejects_template_of_restricted_queue(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_templates_protocol: AsyncMock,
         sample_issue_template: IssueTemplate,
     ) -> None:
@@ -261,11 +261,11 @@ class TestIssueTemplateGet:
             "issue_template_get", {"template_id": "1"}
         )
 
-        assert result.isError
+        assert result.is_error
 
     async def test_allows_template_without_queue(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_templates_protocol: AsyncMock,
         sample_issue_templates: list[IssueTemplate],
     ) -> None:
@@ -277,7 +277,7 @@ class TestIssueTemplateGet:
             "issue_template_get", {"template_id": "3"}
         )
 
-        assert not result.isError
+        assert not result.is_error
         content = get_tool_result_content(result)
         assert content["name"] == "Personal template"
 
@@ -285,7 +285,7 @@ class TestIssueTemplateGet:
 class TestCommentTemplatesGetAll:
     async def test_returns_comment_templates(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_templates_protocol: AsyncMock,
         sample_comment_templates: list[CommentTemplate],
     ) -> None:
@@ -296,7 +296,7 @@ class TestCommentTemplatesGetAll:
 
         result = await client_session.call_tool("comment_templates_get_all", {})
 
-        assert not result.isError
+        assert not result.is_error
         content = get_tool_result_content(result)
         assert len(content["values"]) == len(sample_comment_templates)
         assert content["values"][0]["id"] == sample_comment_templates[0].id
@@ -304,7 +304,7 @@ class TestCommentTemplatesGetAll:
 
     async def test_returns_template_text_and_summonees(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_templates_protocol: AsyncMock,
         sample_comment_template: CommentTemplate,
     ) -> None:
@@ -317,7 +317,7 @@ class TestCommentTemplatesGetAll:
 
         result = await client_session.call_tool("comment_templates_get_all", {})
 
-        assert not result.isError
+        assert not result.is_error
         content = get_tool_result_content(result)
         assert content["values"][0]["template"] == sample_comment_template.template
         assert (
@@ -328,7 +328,7 @@ class TestCommentTemplatesGetAll:
 
     async def test_walks_all_pages_by_default(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_templates_protocol: AsyncMock,
         sample_comment_templates: list[CommentTemplate],
     ) -> None:
@@ -344,7 +344,7 @@ class TestCommentTemplatesGetAll:
             "comment_templates_get_all", {"per_page": 2}
         )
 
-        assert not result.isError
+        assert not result.is_error
         content = get_tool_result_content(result)
         assert len(content) == len(sample_comment_templates)
         requested = [
@@ -356,7 +356,7 @@ class TestCommentTemplatesGetAll:
 
     async def test_returns_requested_page_only(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_templates_protocol: AsyncMock,
         sample_comment_templates: list[CommentTemplate],
     ) -> None:
@@ -369,7 +369,7 @@ class TestCommentTemplatesGetAll:
             "comment_templates_get_all", {"page": 2, "per_page": 2}
         )
 
-        assert not result.isError
+        assert not result.is_error
         assert len(get_tool_result_content(result)["values"]) == 2
         mock_templates_protocol.get_comment_templates.assert_called_once()
         call_args = mock_templates_protocol.get_comment_templates.call_args
@@ -378,7 +378,7 @@ class TestCommentTemplatesGetAll:
 
     async def test_scopes_to_queue(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_templates_protocol: AsyncMock,
         sample_comment_template: CommentTemplate,
     ) -> None:
@@ -391,26 +391,26 @@ class TestCommentTemplatesGetAll:
             "comment_templates_get_all", {"queue": "TEST"}
         )
 
-        assert not result.isError
+        assert not result.is_error
         call_args = mock_templates_protocol.get_comment_templates.call_args
         assert call_args.kwargs["queue"] == "TEST"
 
     async def test_queue_is_not_scoped_by_default(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_templates_protocol: AsyncMock,
     ) -> None:
         mock_templates_protocol.get_comment_templates.return_value = page([])
 
         result = await client_session.call_tool("comment_templates_get_all", {})
 
-        assert not result.isError
+        assert not result.is_error
         call_args = mock_templates_protocol.get_comment_templates.call_args
         assert call_args.kwargs["queue"] is None
 
     async def test_filters_templates_of_restricted_queues(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_templates_protocol: AsyncMock,
         sample_comment_templates: list[CommentTemplate],
     ) -> None:
@@ -425,14 +425,14 @@ class TestCommentTemplatesGetAll:
             "comment_templates_get_all", {}
         )
 
-        assert not result.isError
+        assert not result.is_error
         content = get_tool_result_content(result)
         returned_names = {template["name"] for template in content["values"]}
         assert returned_names == {"Escalation", "Personal reply"}
 
     async def test_allows_permitted_queue_scope(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_templates_protocol: AsyncMock,
         sample_comment_templates: list[CommentTemplate],
     ) -> None:
@@ -445,39 +445,39 @@ class TestCommentTemplatesGetAll:
             "comment_templates_get_all", {"queue": "ALLOWED"}
         )
 
-        assert not result.isError
+        assert not result.is_error
         content = get_tool_result_content(result)
         assert {template["name"] for template in content["values"]} == {"Escalation"}
 
     async def test_rejects_restricted_queue_scope(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_templates_protocol: AsyncMock,
     ) -> None:
         result = await client_session_with_limits.call_tool(
             "comment_templates_get_all", {"queue": "TEST"}
         )
 
-        assert result.isError
+        assert result.is_error
         mock_templates_protocol.get_comment_templates.assert_not_called()
 
     async def test_returns_empty_list(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_templates_protocol: AsyncMock,
     ) -> None:
         mock_templates_protocol.get_comment_templates.return_value = page([])
 
         result = await client_session.call_tool("comment_templates_get_all", {})
 
-        assert not result.isError
+        assert not result.is_error
         assert get_tool_result_content(result)["values"] == []
 
 
 class TestCommentTemplateGet:
     async def test_returns_comment_template(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_templates_protocol: AsyncMock,
         sample_comment_template: CommentTemplate,
     ) -> None:
@@ -489,7 +489,7 @@ class TestCommentTemplateGet:
             "comment_template_get", {"template_id": "1"}
         )
 
-        assert not result.isError
+        assert not result.is_error
         content = get_tool_result_content(result)
         assert content["id"] == sample_comment_template.id
         assert content["name"] == sample_comment_template.name
@@ -497,7 +497,7 @@ class TestCommentTemplateGet:
 
     async def test_passes_template_id(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_templates_protocol: AsyncMock,
         sample_comment_template: CommentTemplate,
     ) -> None:
@@ -509,13 +509,13 @@ class TestCommentTemplateGet:
             "comment_template_get", {"template_id": "42"}
         )
 
-        assert not result.isError
+        assert not result.is_error
         call_args = mock_templates_protocol.get_comment_template.call_args
         assert call_args[0][0] == "42"
 
     async def test_allows_template_of_permitted_queue(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_templates_protocol: AsyncMock,
         sample_comment_templates: list[CommentTemplate],
     ) -> None:
@@ -527,13 +527,13 @@ class TestCommentTemplateGet:
             "comment_template_get", {"template_id": "2"}
         )
 
-        assert not result.isError
+        assert not result.is_error
         content = get_tool_result_content(result)
         assert content["name"] == "Escalation"
 
     async def test_rejects_template_of_restricted_queue(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_templates_protocol: AsyncMock,
         sample_comment_template: CommentTemplate,
     ) -> None:
@@ -545,11 +545,11 @@ class TestCommentTemplateGet:
             "comment_template_get", {"template_id": "1"}
         )
 
-        assert result.isError
+        assert result.is_error
 
     async def test_allows_template_without_queue(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_templates_protocol: AsyncMock,
         sample_comment_templates: list[CommentTemplate],
     ) -> None:
@@ -561,6 +561,6 @@ class TestCommentTemplateGet:
             "comment_template_get", {"template_id": "3"}
         )
 
-        assert not result.isError
+        assert not result.is_error
         content = get_tool_result_content(result)
         assert content["name"] == "Personal reply"

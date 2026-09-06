@@ -1,6 +1,6 @@
 from unittest.mock import AsyncMock
 
-from mcp.client.session import ClientSession
+from mcp import Client
 
 from mcp_tracker.tracker.proto.types.fields import GlobalField
 from mcp_tracker.tracker.proto.types.issue_types import IssueType
@@ -13,7 +13,7 @@ from tests.mcp.conftest import get_tool_result_content
 class TestGetGlobalFields:
     async def test_returns_global_fields(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_fields_protocol: AsyncMock,
         sample_global_fields: list[GlobalField],
     ) -> None:
@@ -21,7 +21,7 @@ class TestGetGlobalFields:
 
         result = await client_session.call_tool("get_global_fields", {})
 
-        assert not result.isError
+        assert not result.is_error
         mock_fields_protocol.get_global_fields.assert_called_once()
         content = get_tool_result_content(result)
         assert isinstance(content, list)
@@ -33,7 +33,7 @@ class TestGetGlobalFields:
 class TestGetStatuses:
     async def test_returns_statuses(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_fields_protocol: AsyncMock,
         sample_statuses: list[Status],
     ) -> None:
@@ -41,7 +41,7 @@ class TestGetStatuses:
 
         result = await client_session.call_tool("get_statuses", {})
 
-        assert not result.isError
+        assert not result.is_error
         mock_fields_protocol.get_statuses.assert_called_once()
         content = get_tool_result_content(result)
         assert isinstance(content, list)
@@ -53,7 +53,7 @@ class TestGetStatuses:
 class TestGetIssueTypes:
     async def test_returns_issue_types(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_fields_protocol: AsyncMock,
         sample_issue_types: list[IssueType],
     ) -> None:
@@ -61,7 +61,7 @@ class TestGetIssueTypes:
 
         result = await client_session.call_tool("get_issue_types", {})
 
-        assert not result.isError
+        assert not result.is_error
         mock_fields_protocol.get_issue_types.assert_called_once()
         content = get_tool_result_content(result)
         assert isinstance(content, list)
@@ -73,7 +73,7 @@ class TestGetIssueTypes:
 class TestGetPriorities:
     async def test_returns_priorities(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_fields_protocol: AsyncMock,
         sample_priorities: list[Priority],
     ) -> None:
@@ -81,7 +81,7 @@ class TestGetPriorities:
 
         result = await client_session.call_tool("get_priorities", {})
 
-        assert not result.isError
+        assert not result.is_error
         mock_fields_protocol.get_priorities.assert_called_once()
         content = get_tool_result_content(result)
         assert isinstance(content, list)
@@ -93,7 +93,7 @@ class TestGetPriorities:
 class TestGetResolutions:
     async def test_returns_resolutions(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_fields_protocol: AsyncMock,
         sample_resolutions: list[Resolution],
     ) -> None:
@@ -101,7 +101,7 @@ class TestGetResolutions:
 
         result = await client_session.call_tool("get_resolutions", {})
 
-        assert not result.isError
+        assert not result.is_error
         mock_fields_protocol.get_resolutions.assert_called_once()
         content = get_tool_result_content(result)
         assert isinstance(content, list)

@@ -1,10 +1,9 @@
 """Issue and comment template MCP tools (read-only)."""
 
 from collections.abc import Awaitable, Callable
-from typing import Any, TypeVar
+from typing import TypeVar
 
-from mcp.server import FastMCP
-from mcp.server.fastmcp import Context
+from mcp.server.mcpserver import Context, MCPServer
 from mcp.types import ToolAnnotations
 
 from mcp_tracker.mcp.context import AppContext
@@ -74,7 +73,7 @@ async def _collect_templates(
     )
 
 
-def register_template_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
+def register_template_tools(settings: Settings, mcp: MCPServer[AppContext]) -> None:
     """Register issue and comment template tools (all read-only)."""
 
     @mcp.tool(
@@ -84,10 +83,10 @@ def register_template_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         "`issue_create` instead of inventing a structure. The issue body is in "
         "`fieldTemplates.description`; the template's own `description` describes the "
         "template.",
-        annotations=ToolAnnotations(readOnlyHint=True),
+        annotations=ToolAnnotations(read_only_hint=True),
     )
     async def issue_templates_get_all(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         queue: QueueIDFilter = None,
         page: PageOrAllParam = None,
         per_page: PerPageParam = 50,
@@ -115,10 +114,10 @@ def register_template_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         "field values it prefills; find the id with `issue_templates_get_all`. The "
         "issue body is in `fieldTemplates.description`, not the template's own "
         "`description`.",
-        annotations=ToolAnnotations(readOnlyHint=True),
+        annotations=ToolAnnotations(read_only_hint=True),
     )
     async def issue_template_get(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         template_id: IssueTemplateID,
     ) -> IssueTemplate:
         template = (
@@ -137,10 +136,10 @@ def register_template_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         "comment summons. Read one before adding a comment. Pass `queue` for the "
         "templates of that queue plus those bound to no queue. All pages are fetched "
         "by default; pass `page` for a single one.",
-        annotations=ToolAnnotations(readOnlyHint=True),
+        annotations=ToolAnnotations(read_only_hint=True),
     )
     async def comment_templates_get_all(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         queue: QueueIDFilter = None,
         page: PageOrAllParam = None,
         per_page: PerPageParam = 50,
@@ -166,10 +165,10 @@ def register_template_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         title="Get Comment Template",
         description="Get a single Yandex Tracker comment template by its id, including the "
         "comment text it inserts. Use `comment_templates_get_all` first to find the template id.",
-        annotations=ToolAnnotations(readOnlyHint=True),
+        annotations=ToolAnnotations(read_only_hint=True),
     )
     async def comment_template_get(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         template_id: CommentTemplateID,
     ) -> CommentTemplate:
         template = (

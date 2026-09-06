@@ -1,9 +1,8 @@
 """Portfolio-related MCP tools (read-only)."""
 
-from typing import Annotated, Any
+from typing import Annotated
 
-from mcp.server import FastMCP
-from mcp.server.fastmcp import Context
+from mcp.server.mcpserver import Context, MCPServer
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
@@ -30,17 +29,17 @@ from mcp_tracker.tracker.proto.types.entities import (
 from mcp_tracker.tracker.proto.types.issues import CommentFieldsEnum, CommentsPage
 
 
-def register_portfolio_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
+def register_portfolio_tools(_settings: Settings, mcp: MCPServer[AppContext]) -> None:
     """Register portfolio-related tools (all read-only)."""
 
     @mcp.tool(
         title="Get Portfolio",
         description="Get a Yandex Tracker portfolio by its id or shortId. "
         "A portfolio groups projects and/or other portfolios.",
-        annotations=ToolAnnotations(readOnlyHint=True),
+        annotations=ToolAnnotations(read_only_hint=True),
     )
     async def portfolio_get(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         entity_id: EntityID,
         fields: PortfolioFieldsParam = None,
     ) -> PortfolioEntity:
@@ -53,10 +52,10 @@ def register_portfolio_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
     @mcp.tool(
         title="Find Portfolios",
         description="Search Yandex Tracker portfolios by name substring and/or field filters. Paginated.",
-        annotations=ToolAnnotations(readOnlyHint=True),
+        annotations=ToolAnnotations(read_only_hint=True),
     )
     async def portfolio_find(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         input: EntityInputParam = None,
         filter: EntityFilterParam = None,
         order_by: EntityOrderByParam = None,
@@ -83,10 +82,10 @@ def register_portfolio_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
         description="Get a page of comments of a Yandex Tracker portfolio by its id or "
         "shortId, e.g. 'def456'. Returns the comments plus `next_cursor` - pass it "
         "back as `cursor` until it is null.",
-        annotations=ToolAnnotations(readOnlyHint=True),
+        annotations=ToolAnnotations(read_only_hint=True),
     )
     async def portfolio_get_comments(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         entity_id: EntityID,
         per_page: CursorPerPageParam = 50,
         cursor: CommentsCursorParam = None,

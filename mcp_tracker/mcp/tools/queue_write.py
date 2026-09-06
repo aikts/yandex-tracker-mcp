@@ -1,10 +1,9 @@
 """Queue write MCP tools (conditionally registered based on read-only mode)."""
 
 import datetime
-from typing import Annotated, Any
+from typing import Annotated
 
-from mcp.server import FastMCP
-from mcp.server.fastmcp import Context
+from mcp.server.mcpserver import Context, MCPServer
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
@@ -16,16 +15,16 @@ from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.proto.types.queues import QueueVersion
 
 
-def register_queue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
+def register_queue_write_tools(settings: Settings, mcp: MCPServer[AppContext]) -> None:
     """Register queue write tools (not registered in read-only mode)."""
 
     @mcp.tool(
         title="Create Queue Version",
         description="Create a new version in a Yandex Tracker queue.",
-        annotations=ToolAnnotations(readOnlyHint=False),
+        annotations=ToolAnnotations(read_only_hint=False),
     )
     async def queue_create_version(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         queue_id: QueueID,
         name: Annotated[str, Field(description="Version name")],
         description: Annotated[

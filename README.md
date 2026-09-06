@@ -637,7 +637,7 @@ These four are organization-wide. A queue may accept only some of the values the
 
 - **`version` goes stale on its own.** Queue triggers and automation run right after `issue_create` and bump it, so the version it returns is routinely already old. Re-read it with `issue_get` immediately before `issue_update`, or omit it to update the latest version unconditionally; a stale one fails with an editing conflict.
 - **Reference fields take the same values on create and on update:** an object with `id` and/or `key`, or - for `type`, `priority` and `parent` - the bare key or id. `components` take `{"id": ...}` or `{"name": ...}`, and `components` / `followers` replace the current list rather than adding to it. Anything without a dedicated argument goes into the `fields` map, keyed by the field `id` from `queue_get_fields`; an entry there overrides the dedicated argument, and an explicit `null` clears the field.
-- **Transitions are not guessed.** `issue_execute_transition` only takes ids from `issue_get_transitions`, and before `issue_close` read the issue's `type` with `issue_get` and the resolutions valid for that type from `queue_get_metadata` with `expand: ["issueTypesConfig"]` - each type has its own set. Where the client supports elicitation, `issue_move` asks the user to confirm its flags first, and declining aborts the move.
+- **Transitions are not guessed.** `issue_execute_transition` only takes ids from `issue_get_transitions`, and before `issue_close` read the issue's `type` with `issue_get` and the resolutions valid for that type from `queue_get_metadata` with `expand: ["issueTypesConfig"]` - each type has its own set. Where the client supports elicitation, `issue_move` asks the user to confirm its flags first, and declining aborts the move; a client that cannot be asked (no form elicitation, or a pre-2026-07-28 client over streamable-http, which has no channel for the question) gets the flags as passed.
 
 Every tool here respects `TRACKER_LIMIT_QUEUES` and `TRACKER_READ_ONLY_QUEUES`; the ones that write are registered only when `TRACKER_READ_ONLY` is off.
 
@@ -704,6 +704,8 @@ or
 ```bash
 claude mcp add --transport http yandex-tracker "http://localhost:8000/mcp/?orgId=org_id&"
 ```
+
+The `tracker-mcp://configuration` resource reports the configuration the server is running with. It is a resource template (`tracker-mcp://configuration{?cloudOrgId,orgId}`): the optional `cloudOrgId` / `orgId` variables override the organization for that one read, the same way the query parameters above do for the whole connection, and the plain `tracker-mcp://configuration` URI still reads.
 
 You may also skip configuring global `TRACKER_TOKEN` environment variable if you choose to use OAuth 2.0 authentication (see below).
 

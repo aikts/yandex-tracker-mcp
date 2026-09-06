@@ -1,9 +1,6 @@
 """Portfolio write MCP tools (conditionally registered based on read-only mode)."""
 
-from typing import Any
-
-from mcp.server import FastMCP
-from mcp.server.fastmcp import Context
+from mcp.server.mcpserver import Context, MCPServer
 from mcp.types import ToolAnnotations
 
 from mcp_tracker.mcp.context import AppContext
@@ -46,17 +43,19 @@ from mcp_tracker.tracker.proto.types.entities import PortfolioEntity
 from mcp_tracker.tracker.proto.types.issues import IssueComment
 
 
-def register_portfolio_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
+def register_portfolio_write_tools(
+    _settings: Settings, mcp: MCPServer[AppContext]
+) -> None:
     """Register portfolio write tools (not registered in read-only mode)."""
 
     @mcp.tool(
         title="Create Portfolio",
         description="Create a Yandex Tracker portfolio (in russian - 'портфель') - the entity "
         "that groups projects and other portfolios.",
-        annotations=ToolAnnotations(readOnlyHint=False),
+        annotations=ToolAnnotations(read_only_hint=False),
     )
     async def portfolio_create(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         summary: EntitySummaryRequiredParam,
         description: EntityDescriptionParam = None,
         lead: EntityLeadParam = None,
@@ -93,10 +92,10 @@ def register_portfolio_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> No
     @mcp.tool(
         title="Update Portfolio",
         description="Update fields of an existing Yandex Tracker portfolio.",
-        annotations=ToolAnnotations(readOnlyHint=False),
+        annotations=ToolAnnotations(read_only_hint=False),
     )
     async def portfolio_update(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         entity_id: EntityID,
         summary: EntitySummaryParam = None,
         description: EntityDescriptionParam = None,
@@ -140,10 +139,10 @@ def register_portfolio_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> No
         title="Delete Portfolio",
         description="Delete a Yandex Tracker portfolio (in russian - 'портфель'), optionally "
         "with its board. Cannot be undone.",
-        annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True),
+        annotations=ToolAnnotations(read_only_hint=False, destructive_hint=True),
     )
     async def portfolio_delete(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         entity_id: EntityID,
         with_board: EntityWithBoardParam = False,
     ) -> None:
@@ -158,10 +157,10 @@ def register_portfolio_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> No
         description="Add a comment to a Yandex Tracker portfolio, e.g. "
         "entity_id='def456'. To mention or call people so they get notified, use "
         "`summonees` - '@login' in the text notifies nobody.",
-        annotations=ToolAnnotations(readOnlyHint=False),
+        annotations=ToolAnnotations(read_only_hint=False),
     )
     async def portfolio_add_comment(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         entity_id: EntityID,
         text: EntityCommentTextParam,
         summonees: EntityCommentSummoneesParam = None,
@@ -181,10 +180,10 @@ def register_portfolio_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> No
         title="Update Portfolio Comment",
         description="Update an existing comment on a Yandex Tracker portfolio. To "
         "mention or call people, use `summonees`, not '@login' in the text.",
-        annotations=ToolAnnotations(readOnlyHint=False),
+        annotations=ToolAnnotations(read_only_hint=False),
     )
     async def portfolio_update_comment(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         entity_id: EntityID,
         comment_id: EntityCommentIDParam,
         text: EntityCommentTextParam,
@@ -203,10 +202,10 @@ def register_portfolio_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> No
     @mcp.tool(
         title="Delete Portfolio Comment",
         description="Delete a comment from a Yandex Tracker portfolio.",
-        annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True),
+        annotations=ToolAnnotations(read_only_hint=False, destructive_hint=True),
     )
     async def portfolio_delete_comment(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         entity_id: EntityID,
         comment_id: EntityCommentIDParam,
     ) -> None:
@@ -221,10 +220,10 @@ def register_portfolio_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> No
         description="Add a checklist item to a Yandex Tracker portfolio, e.g. "
         "entity_id='def456'. Returns the full updated entity; request "
         "`checklistItems` via `fields` to see the new item.",
-        annotations=ToolAnnotations(readOnlyHint=False),
+        annotations=ToolAnnotations(read_only_hint=False),
     )
     async def portfolio_add_checklist_item(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         entity_id: EntityID,
         text: EntityChecklistItemTextParam,
         checked: EntityChecklistItemCheckedParam = None,
@@ -245,10 +244,10 @@ def register_portfolio_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> No
     @mcp.tool(
         title="Update Portfolio Checklist Item",
         description="Update (partial) a checklist item on a Yandex Tracker portfolio.",
-        annotations=ToolAnnotations(readOnlyHint=False),
+        annotations=ToolAnnotations(read_only_hint=False),
     )
     async def portfolio_update_checklist_item(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         entity_id: EntityID,
         checklist_item_id: EntityChecklistItemIDParam,
         text: EntityChecklistItemTextOptionalParam = None,
@@ -272,10 +271,10 @@ def register_portfolio_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> No
         title="Move Portfolio Checklist Item",
         description="Reorder a checklist item on a Yandex Tracker portfolio by moving it "
         "before another item.",
-        annotations=ToolAnnotations(readOnlyHint=False),
+        annotations=ToolAnnotations(read_only_hint=False),
     )
     async def portfolio_move_checklist_item(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         entity_id: EntityID,
         checklist_item_id: EntityChecklistItemIDParam,
         before: EntityChecklistItemBeforeParam,
@@ -292,10 +291,10 @@ def register_portfolio_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> No
     @mcp.tool(
         title="Delete Portfolio Checklist Item",
         description="Delete a single checklist item from a Yandex Tracker portfolio.",
-        annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True),
+        annotations=ToolAnnotations(read_only_hint=False, destructive_hint=True),
     )
     async def portfolio_delete_checklist_item(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         entity_id: EntityID,
         checklist_item_id: EntityChecklistItemIDParam,
         fields: PortfolioFieldsParam = None,
@@ -313,10 +312,10 @@ def register_portfolio_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> No
         "id. Only the fields you set change; unlisted items and unset fields stay as "
         "they are. Use *_add_checklist_item / *_delete_checklist_item to add or remove "
         "items.",
-        annotations=ToolAnnotations(readOnlyHint=False),
+        annotations=ToolAnnotations(read_only_hint=False),
     )
     async def portfolio_update_checklist(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         entity_id: EntityID,
         items: EntityChecklistItemsParam,
         fields: PortfolioFieldsParam = None,
@@ -331,10 +330,10 @@ def register_portfolio_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> No
     @mcp.tool(
         title="Delete Portfolio Checklist",
         description="Delete the entire checklist from a Yandex Tracker portfolio.",
-        annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True),
+        annotations=ToolAnnotations(read_only_hint=False, destructive_hint=True),
     )
     async def portfolio_delete_checklist(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         entity_id: EntityID,
         fields: PortfolioFieldsParam = None,
     ) -> PortfolioEntity:

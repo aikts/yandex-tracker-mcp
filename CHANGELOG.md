@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Features
+
+- **`issue_move` confirms its options through the SDK's multi-round-trip elicitation** — works on clients speaking the 2026-07-28 protocol revision and on 2025-era clients alike; a client that cannot be asked (no form elicitation, or a 2025-era client over streamable-http, which has no channel for the question) gets the values passed to the tool
+
+### Bug Fixes
+
+- Over streamable-http the Tracker client and its HTTP session are created once per process; they were created once per request
+
+### Internal
+
+- **`mcp` 2.1** — the server speaks the 2026-07-28 protocol revision and still serves 2025-era clients; tool errors subclass `ToolError` so their text keeps reaching the model
+  - `tracker-mcp://configuration` is a resource template (`tracker-mcp://configuration{?cloudOrgId,orgId}`) and is listed under `resources/templates/list` rather than `resources/list`; the plain URI still reads
+
 ## [0.10.0] - 2026-09-06
 
 ### Features

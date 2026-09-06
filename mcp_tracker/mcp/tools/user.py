@@ -1,9 +1,8 @@
 """User-related MCP tools (read-only)."""
 
-from typing import Annotated, Any
+from typing import Annotated
 
-from mcp.server import FastMCP
-from mcp.server.fastmcp import Context
+from mcp.server.mcpserver import Context, MCPServer
 from mcp.types import ToolAnnotations
 from pydantic import Field
 from thefuzz import process
@@ -18,16 +17,16 @@ from mcp_tracker.tracker.proto.types.pagination import PaginatedResult
 from mcp_tracker.tracker.proto.types.users import User, UserFieldsEnum
 
 
-def register_user_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
+def register_user_tools(_settings: Settings, mcp: MCPServer[AppContext]) -> None:
     """Register user-related tools (all read-only)."""
 
     @mcp.tool(
         title="Get All Users",
         description="Get information about user accounts registered in the organization.",
-        annotations=ToolAnnotations(readOnlyHint=True),
+        annotations=ToolAnnotations(read_only_hint=True),
     )
     async def users_get_all(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         page: PageParam = 1,
         per_page: PerPageParam = 50,
         fields: Annotated[
@@ -54,10 +53,10 @@ def register_user_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
         description="Search user based on login, email or real name (first or last name, or both). "
         "Returns either single user or multiple users if several match the query or an empty list "
         "if no users matched.",
-        annotations=ToolAnnotations(readOnlyHint=True),
+        annotations=ToolAnnotations(read_only_hint=True),
     )
     async def users_search(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         login_or_email_or_name: Annotated[
             str, Field(description="User login, email or real name to search for")
         ],
@@ -98,10 +97,10 @@ def register_user_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
     @mcp.tool(
         title="Get User",
         description="Get information about a specific user by login or UID",
-        annotations=ToolAnnotations(readOnlyHint=True),
+        annotations=ToolAnnotations(read_only_hint=True),
     )
     async def user_get(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         user_id: UserID,
     ) -> User:
         user = await ctx.request_context.lifespan_context.users.user_get(
@@ -116,10 +115,10 @@ def register_user_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
     @mcp.tool(
         title="Get Current User",
         description="Get information about the current authenticated user",
-        annotations=ToolAnnotations(readOnlyHint=True),
+        annotations=ToolAnnotations(read_only_hint=True),
     )
     async def user_get_current(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
     ) -> User:
         return await ctx.request_context.lifespan_context.users.user_get_current(
             auth=get_yandex_auth(ctx),

@@ -1,12 +1,11 @@
 import base64
+import importlib.metadata
 from collections.abc import AsyncIterator, Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
-from typing import Any
 
 import yarl
-from mcp.server import FastMCP
 from mcp.server.auth.settings import AuthSettings, ClientRegistrationOptions
-from starlette.routing import Route
+from mcp.server.mcpserver import MCPServer
 
 from mcp_tracker.mcp.context import AppContext
 from mcp_tracker.mcp.oauth.provider import YandexOAuthAuthorizationServerProvider
@@ -29,7 +28,19 @@ from mcp_tracker.tracker.proto.templates import TemplatesProtocol
 from mcp_tracker.tracker.proto.users import UsersProtocol
 
 # Type alias for lifespan
-Lifespan = Callable[[FastMCP[Any]], AbstractAsyncContextManager[AppContext]]
+Lifespan = Callable[[MCPServer[AppContext]], AbstractAsyncContextManager[AppContext]]
+
+
+def _package_version() -> str:
+    """Version reported to clients as `serverInfo.version`.
+
+    Empty when the package metadata is unavailable (e.g. a source checkout
+    that was never installed) - the SDK's own default.
+    """
+    try:
+        return importlib.metadata.version("yandex-tracker-mcp")
+    except importlib.metadata.PackageNotFoundError:
+        return ""
 
 
 def _parse_encryption_keys(keys_str: str | None) -> list[bytes] | None:
@@ -58,7 +69,9 @@ def make_tracker_lifespan(settings: Settings) -> Lifespan:
     """Factory function to create tracker lifespan with given settings."""
 
     @asynccontextmanager
-    async def tracker_lifespan(server: FastMCP[Any]) -> AsyncIterator[AppContext]:
+    async def tracker_lifespan(
+        server: MCPServer[AppContext],
+    ) -> AsyncIterator[AppContext]:
         service_account_settings: ServiceAccountSettings | None = None
         if (
             settings.tracker_sa_key_id
@@ -123,7 +136,7 @@ def make_tracker_lifespan(settings: Settings) -> Lifespan:
 def create_mcp_server(
     settings: Settings,
     lifespan: Lifespan | None = None,
-) -> FastMCP[Any]:
+) -> MCPServer[AppContext]:
     """Create MCP server with given settings and optional custom lifespan.
 
     Args:
@@ -196,27 +209,23 @@ def create_mcp_server(
             ),
         )
 
-    server = FastMCP(
+    # Transport options (host, port, stateless_http, json_response) are passed
+    # to `run()` by `mcp_tracker.__main__`, not to the constructor.
+    server: MCPServer[AppContext] = MCPServer(
         name="Yandex Tracker MCP Server",
         instructions=instructions,
-        host=settings.host,
-        port=settings.port,
+        version=_package_version(),
         lifespan=lifespan,
         auth_server_provider=auth_server_provider,
-        stateless_http=True,
-        json_response=True,
         auth=auth_settings,
     )
 
     if auth_server_provider is not None:
-        server._custom_starlette_routes.append(
-            Route(
-                path="/oauth/yandex/callback",
-                endpoint=auth_server_provider.handle_yandex_callback,
-                methods=["GET"],
-                name="oauth_yandex_callback",
-            )
-        )
+        server.custom_route(
+            "/oauth/yandex/callback",
+            methods=["GET"],
+            name="oauth_yandex_callback",
+        )(auth_server_provider.handle_yandex_callback)
 
     register_resources(settings, server)
     register_all_tools(settings, server)

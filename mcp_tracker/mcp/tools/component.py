@@ -1,9 +1,6 @@
 """Queue component MCP tools (read-only)."""
 
-from typing import Any
-
-from mcp.server import FastMCP
-from mcp.server.fastmcp import Context
+from mcp.server.mcpserver import Context, MCPServer
 from mcp.types import ToolAnnotations
 
 from mcp_tracker.mcp.context import AppContext
@@ -14,7 +11,7 @@ from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.proto.types.components import Component
 
 
-def register_component_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
+def register_component_tools(settings: Settings, mcp: MCPServer[AppContext]) -> None:
     """Register queue component tools (all read-only)."""
 
     @mcp.tool(
@@ -23,10 +20,10 @@ def register_component_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         "'компонент') by its numeric id, with `queue`, `lead`, `assignAuto` and the "
         "`version` that `component_update` takes. Ids come from "
         "`queue_get_components` or an issue's `components` field.",
-        annotations=ToolAnnotations(readOnlyHint=True),
+        annotations=ToolAnnotations(read_only_hint=True),
     )
     async def component_get(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         component_id: ComponentID,
     ) -> Component:
         component = await ctx.request_context.lifespan_context.components.component_get(

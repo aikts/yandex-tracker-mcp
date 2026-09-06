@@ -7,12 +7,12 @@ something that is not registered.
 """
 
 import re
-from typing import Any
 
 import pytest
-from mcp.server import FastMCP
-from mcp.server.fastmcp.tools import Tool
+from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver.tools import Tool
 
+from mcp_tracker.mcp.context import AppContext
 from mcp_tracker.mcp.params import instructions
 
 # Backticked names in the instructions that are arguments, fields or literals
@@ -50,7 +50,7 @@ def _quoted_names() -> set[str]:
 
 class TestInstructions:
     @pytest.fixture
-    def tool_names(self, mcp_server: FastMCP[Any]) -> set[str]:
+    def tool_names(self, mcp_server: MCPServer[AppContext]) -> set[str]:
         return {tool.name for tool in mcp_server._tool_manager.list_tools()}
 
     def test_every_named_tool_exists(self, tool_names: set[str]) -> None:
@@ -77,7 +77,7 @@ class TestInstructions:
         ],
     )
     def test_arguments_the_instructions_promise_exist(
-        self, mcp_server: FastMCP[Any], tool_name: str, argument: str
+        self, mcp_server: MCPServer[AppContext], tool_name: str, argument: str
     ) -> None:
         tools: list[Tool] = mcp_server._tool_manager.list_tools()
         tool = next(t for t in tools if t.name == tool_name)

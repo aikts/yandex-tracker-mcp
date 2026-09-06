@@ -1,9 +1,6 @@
 """Queue component write MCP tools (conditionally registered based on read-only mode)."""
 
-from typing import Any
-
-from mcp.server import FastMCP
-from mcp.server.fastmcp import Context
+from mcp.server.mcpserver import Context, MCPServer
 from mcp.types import ToolAnnotations
 
 from mcp_tracker.mcp.context import AppContext
@@ -28,7 +25,9 @@ from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.proto.types.components import Component
 
 
-def register_component_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
+def register_component_write_tools(
+    settings: Settings, mcp: MCPServer[AppContext]
+) -> None:
     """Register queue component write tools (not registered in read-only mode)."""
 
     @mcp.tool(
@@ -36,10 +35,10 @@ def register_component_write_tools(settings: Settings, mcp: FastMCP[Any]) -> Non
         description="Create a component (in russian - 'компонент') in a Yandex "
         "Tracker queue - a label grouping the queue's issues by product, process or "
         "owner; `lead` is a user login.",
-        annotations=ToolAnnotations(readOnlyHint=False),
+        annotations=ToolAnnotations(read_only_hint=False),
     )
     async def component_create(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         queue_id: QueueID,
         name: ComponentNameParam,
         description: ComponentDescriptionParam = None,
@@ -61,10 +60,10 @@ def register_component_write_tools(settings: Settings, mcp: FastMCP[Any]) -> Non
         description="Change the name, description, lead or auto-assign flag of a "
         "Yandex Tracker queue component (in russian - 'компонент'); omitted fields "
         "keep their value, `clear_lead` removes the lead.",
-        annotations=ToolAnnotations(readOnlyHint=False),
+        annotations=ToolAnnotations(read_only_hint=False),
     )
     async def component_update(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         component_id: ComponentID,
         name: ComponentNameOptionalParam = None,
         description: ComponentDescriptionParam = None,
@@ -98,10 +97,10 @@ def register_component_write_tools(settings: Settings, mcp: FastMCP[Any]) -> Non
         title="Delete Component",
         description="Delete a Yandex Tracker queue component (in russian - "
         "'компонент') by its numeric id. Cannot be undone.",
-        annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True),
+        annotations=ToolAnnotations(read_only_hint=False, destructive_hint=True),
     )
     async def component_delete(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         component_id: ComponentID,
     ) -> None:
         components = ctx.request_context.lifespan_context.components

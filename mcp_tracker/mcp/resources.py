@@ -1,9 +1,5 @@
-from typing import Any, cast
-
-from mcp.server import FastMCP
-from mcp.server.fastmcp import Context
+from mcp.server.mcpserver import Context, MCPServer
 from pydantic import BaseModel
-from starlette.requests import Request
 
 from mcp_tracker.mcp.context import AppContext
 from mcp_tracker.mcp.utils import get_yandex_auth
@@ -18,18 +14,32 @@ class YandexTrackerMCPConfigurationResponse(BaseModel):
     entities_enabled: bool
 
 
-def register_resources(settings: Settings, mcp: FastMCP[Any]):
+def register_resources(settings: Settings, mcp: MCPServer[AppContext]) -> None:
+    # A template rather than a static resource: a static `@mcp.resource()`
+    # handler cannot receive `Context` in mcp 2.x, and the request is what
+    # carries the per-call organization override (`?cloudOrgId=` / `?orgId=`
+    # on the HTTP request, see `get_yandex_auth`). The query variables are
+    # optional, so plain `tracker-mcp://configuration` still matches; the
+    # resource is listed under `resources/templates/list`.
     @mcp.resource(
-        "tracker-mcp://configuration",
+        "tracker-mcp://configuration{?cloudOrgId,orgId}",
         description="Retrieve configured Yandex Tracker MCP configuration.",
     )
-    async def tracker_mcp_configuration() -> YandexTrackerMCPConfigurationResponse:
-        ctx = cast(Context[Any, AppContext, Request], mcp.get_context())
+    async def tracker_mcp_configuration(
+        # Bare `Context` on purpose: template handlers go through
+        # `pydantic.validate_call`, which re-validates a parametrized
+        # `Context[...]` into a fresh instance detached from the request.
+        ctx: Context,
+        cloudOrgId: str | None = None,
+        orgId: str | None = None,
+    ) -> YandexTrackerMCPConfigurationResponse:
         auth = get_yandex_auth(ctx)
 
         return YandexTrackerMCPConfigurationResponse(
-            cloud_org_id=auth.cloud_org_id or settings.tracker_cloud_org_id,
-            org_id=auth.org_id or settings.tracker_org_id,
+            cloud_org_id=cloudOrgId
+            or auth.cloud_org_id
+            or settings.tracker_cloud_org_id,
+            org_id=orgId or auth.org_id or settings.tracker_org_id,
             read_only=settings.tracker_read_only,
             cache_enabled=settings.tools_cache_enabled,
             entities_enabled=settings.tracker_entities_enabled,

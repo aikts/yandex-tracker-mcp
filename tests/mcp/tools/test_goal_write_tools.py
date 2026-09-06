@@ -1,6 +1,6 @@
 from unittest.mock import AsyncMock
 
-from mcp.client.session import ClientSession
+from mcp import Client
 
 from mcp_tracker.tracker.proto.common import YandexAuth
 from mcp_tracker.tracker.proto.types.entities import GoalEntity
@@ -11,7 +11,7 @@ from tests.mcp.conftest import get_tool_result_content
 class TestGoalCreate:
     async def test_creates_goal(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_entities_protocol: AsyncMock,
         sample_goal: GoalEntity,
     ) -> None:
@@ -19,7 +19,7 @@ class TestGoalCreate:
 
         result = await client_session.call_tool("goal_create", {"summary": "New Goal"})
 
-        assert not result.isError
+        assert not result.is_error
         mock_entities_protocol.goal_create.assert_called_once_with(
             summary="New Goal",
             description=None,
@@ -41,19 +41,19 @@ class TestGoalCreate:
 
     async def test_read_only_mode_tool_not_registered(
         self,
-        client_session_read_only: ClientSession,
+        client_session_read_only: Client,
     ) -> None:
         result = await client_session_read_only.call_tool(
             "goal_create", {"summary": "New Goal"}
         )
 
-        assert result.isError
+        assert result.is_error
 
 
 class TestGoalUpdate:
     async def test_updates_goal(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_entities_protocol: AsyncMock,
         sample_goal: GoalEntity,
     ) -> None:
@@ -64,7 +64,7 @@ class TestGoalUpdate:
             {"entity_id": "ghi789", "entity_status": "achieved", "comment": "done"},
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_entities_protocol.goal_update.assert_called_once_with(
             "ghi789",
             summary=None,
@@ -87,45 +87,45 @@ class TestGoalUpdate:
 
     async def test_read_only_mode_tool_not_registered(
         self,
-        client_session_read_only: ClientSession,
+        client_session_read_only: Client,
     ) -> None:
         result = await client_session_read_only.call_tool(
             "goal_update", {"entity_id": "ghi789"}
         )
 
-        assert result.isError
+        assert result.is_error
 
 
 class TestGoalDelete:
     async def test_deletes_goal(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_entities_protocol: AsyncMock,
     ) -> None:
         mock_entities_protocol.goal_delete.return_value = None
 
         result = await client_session.call_tool("goal_delete", {"entity_id": "ghi789"})
 
-        assert not result.isError
+        assert not result.is_error
         mock_entities_protocol.goal_delete.assert_called_once_with(
             "ghi789", auth=YandexAuth()
         )
 
     async def test_read_only_mode_tool_not_registered(
         self,
-        client_session_read_only: ClientSession,
+        client_session_read_only: Client,
     ) -> None:
         result = await client_session_read_only.call_tool(
             "goal_delete", {"entity_id": "ghi789"}
         )
 
-        assert result.isError
+        assert result.is_error
 
 
 class TestGoalAddComment:
     async def test_adds_comment(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_entities_protocol: AsyncMock,
         sample_comment: IssueComment,
     ) -> None:
@@ -136,7 +136,7 @@ class TestGoalAddComment:
             {"entity_id": "ghi789", "text": "Hello", "summonees": ["user123"]},
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_entities_protocol.goal_add_comment.assert_called_once_with(
             "ghi789",
             text="Hello",
@@ -149,19 +149,19 @@ class TestGoalAddComment:
 
     async def test_read_only_mode_tool_not_registered(
         self,
-        client_session_read_only: ClientSession,
+        client_session_read_only: Client,
     ) -> None:
         result = await client_session_read_only.call_tool(
             "goal_add_comment", {"entity_id": "ghi789", "text": "Hello"}
         )
 
-        assert result.isError
+        assert result.is_error
 
 
 class TestGoalUpdateComment:
     async def test_updates_comment(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_entities_protocol: AsyncMock,
         sample_comment: IssueComment,
     ) -> None:
@@ -172,7 +172,7 @@ class TestGoalUpdateComment:
             {"entity_id": "ghi789", "comment_id": 1, "text": "Updated"},
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_entities_protocol.goal_update_comment.assert_called_once_with(
             "ghi789",
             1,
@@ -186,20 +186,20 @@ class TestGoalUpdateComment:
 
     async def test_read_only_mode_tool_not_registered(
         self,
-        client_session_read_only: ClientSession,
+        client_session_read_only: Client,
     ) -> None:
         result = await client_session_read_only.call_tool(
             "goal_update_comment",
             {"entity_id": "ghi789", "comment_id": 1, "text": "Updated"},
         )
 
-        assert result.isError
+        assert result.is_error
 
 
 class TestGoalDeleteComment:
     async def test_deletes_comment(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_entities_protocol: AsyncMock,
     ) -> None:
         mock_entities_protocol.goal_delete_comment.return_value = None
@@ -208,17 +208,17 @@ class TestGoalDeleteComment:
             "goal_delete_comment", {"entity_id": "ghi789", "comment_id": 1}
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_entities_protocol.goal_delete_comment.assert_called_once_with(
             "ghi789", 1, auth=YandexAuth()
         )
 
     async def test_read_only_mode_tool_not_registered(
         self,
-        client_session_read_only: ClientSession,
+        client_session_read_only: Client,
     ) -> None:
         result = await client_session_read_only.call_tool(
             "goal_delete_comment", {"entity_id": "ghi789", "comment_id": 1}
         )
 
-        assert result.isError
+        assert result.is_error

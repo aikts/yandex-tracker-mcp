@@ -6,6 +6,7 @@ from mcp_tracker.tracker.custom.client import (
     ServiceAccountStore,
     TrackerClient,
 )
+from mcp_tracker.tracker.custom.errors import TrackerAuthConfigError
 from mcp_tracker.tracker.proto.common import YandexAuth
 
 
@@ -165,7 +166,9 @@ class TestAuthenticationPriority:
             token=None, iam_token=None, service_account=None, org_id="test-org"
         )
 
-        with pytest.raises(ValueError, match="No authentication method provided"):
+        with pytest.raises(
+            TrackerAuthConfigError, match="No authentication method provided"
+        ):
             await client._build_headers()
 
 
@@ -225,7 +228,8 @@ class TestOrganizationHandling:
         )
 
         with pytest.raises(
-            ValueError, match="Only one of org_id or cloud_org_id should be provided"
+            TrackerAuthConfigError,
+            match="Only one of org_id or cloud_org_id should be provided",
         ):
             await client._build_headers()
 
@@ -237,7 +241,8 @@ class TestOrganizationHandling:
         )
 
         with pytest.raises(
-            ValueError, match="Only one of org_id or cloud_org_id should be provided"
+            TrackerAuthConfigError,
+            match="Only one of org_id or cloud_org_id should be provided",
         ):
             await client._build_headers(auth)
 
@@ -245,6 +250,7 @@ class TestOrganizationHandling:
         client = TrackerClient(token="test-token")
 
         with pytest.raises(
-            ValueError, match="Either org_id or cloud_org_id must be provided"
+            TrackerAuthConfigError,
+            match="Either org_id or cloud_org_id must be provided",
         ):
             await client._build_headers()
