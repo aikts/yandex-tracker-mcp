@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [0.10.0] - 2026-09-06
 
 ### Features
 
@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 
 - **`rules/`** — guidelines for tool naming, tool and parameter descriptions and the documentation, with the tests that enforce them
 - Both READMEs list the tools as one table per category instead of restating the JSON schema argument by argument
+- Tool descriptions are shorter and name the Russian term for what they act on, so a Russian prompt reaches the right tool
 
 ### Internal
 
