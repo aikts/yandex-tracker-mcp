@@ -705,6 +705,8 @@ or
 claude mcp add --transport http yandex-tracker "http://localhost:8000/mcp/?orgId=org_id&"
 ```
 
+The `tracker-mcp://configuration` resource reports the configuration the server is running with. It is a resource template (`tracker-mcp://configuration{?cloudOrgId,orgId}`): the optional `cloudOrgId` / `orgId` variables override the organization for that one read, the same way the query parameters above do for the whole connection, and the plain `tracker-mcp://configuration` URI still reads.
+
 You may also skip configuring global `TRACKER_TOKEN` environment variable if you choose to use OAuth 2.0 authentication (see below).
 
 ### OAuth 2.0 Authentication

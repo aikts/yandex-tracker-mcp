@@ -1,6 +1,6 @@
 from unittest.mock import AsyncMock
 
-from mcp.client.session import ClientSession
+from mcp import Client
 
 from mcp_tracker.tracker.proto.common import YandexAuth
 from mcp_tracker.tracker.proto.types.entities import (
@@ -14,7 +14,7 @@ from tests.mcp.conftest import get_tool_result_content
 class TestPortfolioGet:
     async def test_returns_portfolio(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_entities_protocol: AsyncMock,
         sample_portfolio: PortfolioEntity,
     ) -> None:
@@ -24,7 +24,7 @@ class TestPortfolioGet:
             "portfolio_get", {"entity_id": "def456"}
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_entities_protocol.portfolio_get.assert_called_once()
         content = get_tool_result_content(result)
         assert content["id"] == sample_portfolio.id
@@ -33,7 +33,7 @@ class TestPortfolioGet:
 
     async def test_passes_entity_id_and_fields(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_entities_protocol: AsyncMock,
         sample_portfolio: PortfolioEntity,
     ) -> None:
@@ -50,7 +50,7 @@ class TestPortfolioGet:
 
     async def test_omitted_fields_passed_as_none(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_entities_protocol: AsyncMock,
         sample_portfolio: PortfolioEntity,
     ) -> None:
@@ -65,7 +65,7 @@ class TestPortfolioGet:
 class TestPortfolioFind:
     async def test_returns_portfolios(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_entities_protocol: AsyncMock,
         sample_portfolios: PortfolioSearchResult,
     ) -> None:
@@ -73,7 +73,7 @@ class TestPortfolioFind:
 
         result = await client_session.call_tool("portfolio_find", {})
 
-        assert not result.isError
+        assert not result.is_error
         mock_entities_protocol.portfolio_find.assert_called_once()
         content = get_tool_result_content(result)
         assert content["hits"] == sample_portfolios.hits
@@ -81,7 +81,7 @@ class TestPortfolioFind:
 
     async def test_passes_search_parameters(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_entities_protocol: AsyncMock,
         sample_portfolios: PortfolioSearchResult,
     ) -> None:
@@ -114,7 +114,7 @@ class TestPortfolioFind:
 
     async def test_optional_parameters_omitted(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_entities_protocol: AsyncMock,
         sample_portfolios: PortfolioSearchResult,
     ) -> None:
@@ -133,7 +133,7 @@ class TestPortfolioFind:
 class TestPortfolioGetComments:
     async def test_returns_comments(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_entities_protocol: AsyncMock,
         sample_comments: list[IssueComment],
     ) -> None:
@@ -145,7 +145,7 @@ class TestPortfolioGetComments:
             "portfolio_get_comments", {"entity_id": "def456"}
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_entities_protocol.portfolio_get_comments.assert_called_once_with(
             "def456", per_page=50, cursor=None, auth=YandexAuth()
         )
@@ -156,7 +156,7 @@ class TestPortfolioGetComments:
 
     async def test_passes_pagination_params(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_entities_protocol: AsyncMock,
         sample_comments: list[IssueComment],
     ) -> None:
@@ -169,7 +169,7 @@ class TestPortfolioGetComments:
             {"entity_id": "def456", "per_page": 10, "cursor": "42"},
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_entities_protocol.portfolio_get_comments.assert_called_once_with(
             "def456", per_page=10, cursor="42", auth=YandexAuth()
         )

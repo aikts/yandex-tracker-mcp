@@ -1,10 +1,19 @@
 import json
 from typing import Any
 
+from mcp.server.mcpserver.exceptions import ToolError
+
 MAX_ERROR_BODY_LENGTH = 1000
 
 
-class YandexTrackerError(Exception):
+class YandexTrackerError(ToolError):
+    """Base class for errors raised by the Yandex Tracker client.
+
+    Subclasses `ToolError` so the message reaches the model: the SDK forwards a
+    `ToolError`'s text in the tool result and hides the text of any other
+    exception behind a bare `Error executing tool <name>`.
+    """
+
     pass
 
 

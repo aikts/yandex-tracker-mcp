@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from mcp.client.session import ClientSession
+from mcp import Client
 
 from tests.mcp.server.test_server_creation import (
     ENTITY_READ_ONLY_TOOL_NAMES,
@@ -23,7 +23,7 @@ def manifest() -> dict[str, Any]:
 
 
 async def test_manifest_lists_every_registered_tool(
-    manifest: dict[str, Any], client_session: ClientSession
+    manifest: dict[str, Any], client_session: Client
 ) -> None:
     result = await client_session.list_tools()
     registered = {tool.name for tool in result.tools}
@@ -45,7 +45,7 @@ def test_entity_tools_are_marked_as_opt_in(
 
 
 async def test_non_entity_tools_are_not_marked_as_opt_in(
-    manifest: dict[str, Any], client_session_entities_disabled: ClientSession
+    manifest: dict[str, Any], client_session_entities_disabled: Client
 ) -> None:
     result = await client_session_entities_disabled.list_tools()
     always_registered = {tool.name for tool in result.tools}

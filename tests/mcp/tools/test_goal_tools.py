@@ -1,6 +1,6 @@
 from unittest.mock import AsyncMock
 
-from mcp.client.session import ClientSession
+from mcp import Client
 
 from mcp_tracker.tracker.proto.common import YandexAuth
 from mcp_tracker.tracker.proto.types.entities import GoalEntity, GoalSearchResult
@@ -11,7 +11,7 @@ from tests.mcp.conftest import get_tool_result_content
 class TestGoalGet:
     async def test_returns_goal(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_entities_protocol: AsyncMock,
         sample_goal: GoalEntity,
     ) -> None:
@@ -19,7 +19,7 @@ class TestGoalGet:
 
         result = await client_session.call_tool("goal_get", {"entity_id": "ghi789"})
 
-        assert not result.isError
+        assert not result.is_error
         mock_entities_protocol.goal_get.assert_called_once()
         content = get_tool_result_content(result)
         assert content["id"] == sample_goal.id
@@ -28,7 +28,7 @@ class TestGoalGet:
 
     async def test_passes_entity_id_and_fields(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_entities_protocol: AsyncMock,
         sample_goal: GoalEntity,
     ) -> None:
@@ -45,7 +45,7 @@ class TestGoalGet:
 
     async def test_omitted_fields_passed_as_none(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_entities_protocol: AsyncMock,
         sample_goal: GoalEntity,
     ) -> None:
@@ -60,7 +60,7 @@ class TestGoalGet:
 class TestGoalFind:
     async def test_returns_goals(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_entities_protocol: AsyncMock,
         sample_goals: GoalSearchResult,
     ) -> None:
@@ -68,7 +68,7 @@ class TestGoalFind:
 
         result = await client_session.call_tool("goal_find", {})
 
-        assert not result.isError
+        assert not result.is_error
         mock_entities_protocol.goal_find.assert_called_once()
         content = get_tool_result_content(result)
         assert content["hits"] == sample_goals.hits
@@ -76,7 +76,7 @@ class TestGoalFind:
 
     async def test_passes_search_parameters(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_entities_protocol: AsyncMock,
         sample_goals: GoalSearchResult,
     ) -> None:
@@ -109,7 +109,7 @@ class TestGoalFind:
 
     async def test_optional_parameters_omitted(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_entities_protocol: AsyncMock,
         sample_goals: GoalSearchResult,
     ) -> None:
@@ -128,7 +128,7 @@ class TestGoalFind:
 class TestGoalGetComments:
     async def test_returns_comments(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_entities_protocol: AsyncMock,
         sample_comments: list[IssueComment],
     ) -> None:
@@ -140,7 +140,7 @@ class TestGoalGetComments:
             "goal_get_comments", {"entity_id": "ghi789"}
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_entities_protocol.goal_get_comments.assert_called_once_with(
             "ghi789", per_page=50, cursor=None, auth=YandexAuth()
         )
@@ -151,7 +151,7 @@ class TestGoalGetComments:
 
     async def test_passes_pagination_params(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_entities_protocol: AsyncMock,
         sample_comments: list[IssueComment],
     ) -> None:
@@ -164,7 +164,7 @@ class TestGoalGetComments:
             {"entity_id": "ghi789", "per_page": 10, "cursor": "42"},
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_entities_protocol.goal_get_comments.assert_called_once_with(
             "ghi789", per_page=10, cursor="42", auth=YandexAuth()
         )

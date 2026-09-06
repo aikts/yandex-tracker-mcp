@@ -19,10 +19,9 @@ This package organizes MCP tools by category:
 - goal_write.py: Goal entity write tools (conditional on read-only mode)
 """
 
-from typing import Any
+from mcp.server.mcpserver import MCPServer
 
-from mcp.server import FastMCP
-
+from mcp_tracker.mcp.context import AppContext
 from mcp_tracker.mcp.tools.board import register_board_tools
 from mcp_tracker.mcp.tools.component import register_component_tools
 from mcp_tracker.mcp.tools.component_write import register_component_write_tools
@@ -42,14 +41,14 @@ from mcp_tracker.mcp.tools.user import register_user_tools
 from mcp_tracker.settings import Settings
 
 
-def register_all_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
+def register_all_tools(settings: Settings, mcp: MCPServer[AppContext]) -> None:
     """Register all MCP tools based on settings.
 
     Args:
         settings: Application settings. If tracker_read_only is True,
             write tools will not be registered. Project/portfolio/goal tools
             are registered only if tracker_entities_enabled is True.
-        mcp: FastMCP server instance.
+        mcp: MCPServer instance.
     """
     # Always register read-only tools
     register_queue_tools(settings, mcp)

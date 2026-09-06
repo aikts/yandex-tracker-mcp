@@ -1,14 +1,14 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
-from mcp.client.session import ClientSession
-from mcp.server import FastMCP
-from mcp.shared.context import RequestContext
-from mcp.types import ElicitRequestParams, ElicitResult
+from mcp import Client
+from mcp.client import ClientRequestContext
+from mcp.server.mcpserver import MCPServer
+from mcp.types import ElicitRequestParams, ElicitResult, TextContent
 
+from mcp_tracker.mcp.context import AppContext
 from mcp_tracker.tracker.proto.types.inputs import (
     IssueComponentRef,
     IssueFollowerRef,
@@ -28,7 +28,7 @@ def _elicitation_callback(result: ElicitResult):
     """Build a client elicitation callback that always returns ``result``."""
 
     async def callback(
-        context: RequestContext["ClientSession", Any],
+        context: ClientRequestContext,
         params: ElicitRequestParams,
     ) -> ElicitResult:
         return result
@@ -38,20 +38,25 @@ def _elicitation_callback(result: ElicitResult):
 
 @asynccontextmanager
 async def elicit_client_session(
-    mcp_server: FastMCP[Any],
+    mcp_server: MCPServer[AppContext],
     result: ElicitResult,
-) -> AsyncIterator[ClientSession]:
-    """Connected client session that answers elicitations with ``result``."""
+) -> AsyncIterator[Client]:
+    """Connected client that answers elicitations with ``result``.
+
+    On the modern (2026-07-28) connection `Client` drives the
+    `InputRequiredResult` rounds itself: `call_tool` returns a plain
+    `CallToolResult` once the elicitation has been answered.
+    """
     async with safe_client_session(
         mcp_server, elicitation_callback=_elicitation_callback(result)
-    ) as session:
-        yield session
+    ) as client:
+        yield client
 
 
 class TestIssueExecuteTransition:
     async def test_executes_transition(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
         sample_transitions: list[IssueTransition],
     ) -> None:
@@ -62,7 +67,7 @@ class TestIssueExecuteTransition:
             {"issue_id": "TEST-123", "transition_id": "start_progress"},
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_issues_protocol.issue_execute_transition.assert_called_once()
         content = get_tool_result_content(result)
         assert isinstance(content, list)
@@ -71,7 +76,7 @@ class TestIssueExecuteTransition:
 
     async def test_with_comment(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
         sample_transitions: list[IssueTransition],
     ) -> None:
@@ -86,7 +91,7 @@ class TestIssueExecuteTransition:
             },
         )
 
-        assert not result.isError
+        assert not result.is_error
         call_kwargs = mock_issues_protocol.issue_execute_transition.call_args.kwargs
         assert call_kwargs["comment"] == "Starting work on this issue"
         content = get_tool_result_content(result)
@@ -94,7 +99,7 @@ class TestIssueExecuteTransition:
 
     async def test_with_fields(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
         sample_transitions: list[IssueTransition],
     ) -> None:
@@ -109,7 +114,7 @@ class TestIssueExecuteTransition:
             },
         )
 
-        assert not result.isError
+        assert not result.is_error
         call_kwargs = mock_issues_protocol.issue_execute_transition.call_args.kwargs
         assert call_kwargs["fields"] == {"resolution": "fixed"}
         content = get_tool_result_content(result)
@@ -117,7 +122,7 @@ class TestIssueExecuteTransition:
 
     async def test_restricted_queue_raises_error(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_issues_protocol: AsyncMock,
     ) -> None:
         result = await client_session_with_limits.call_tool(
@@ -125,14 +130,14 @@ class TestIssueExecuteTransition:
             {"issue_id": "RESTRICTED-123", "transition_id": "start_progress"},
         )
 
-        assert result.isError
+        assert result.is_error
         mock_issues_protocol.issue_execute_transition.assert_not_called()
 
 
 class TestIssueClose:
     async def test_closes_issue(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
         sample_transitions: list[IssueTransition],
     ) -> None:
@@ -143,7 +148,7 @@ class TestIssueClose:
             {"issue_id": "TEST-123", "resolution_id": "fixed"},
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_issues_protocol.issue_close.assert_called_once()
         content = get_tool_result_content(result)
         assert isinstance(content, list)
@@ -151,7 +156,7 @@ class TestIssueClose:
 
     async def test_with_comment(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
         sample_transitions: list[IssueTransition],
     ) -> None:
@@ -166,7 +171,7 @@ class TestIssueClose:
             },
         )
 
-        assert not result.isError
+        assert not result.is_error
         call_kwargs = mock_issues_protocol.issue_close.call_args.kwargs
         assert call_kwargs["comment"] == "Issue resolved successfully"
         content = get_tool_result_content(result)
@@ -174,7 +179,7 @@ class TestIssueClose:
 
     async def test_with_additional_fields(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
         sample_transitions: list[IssueTransition],
     ) -> None:
@@ -189,7 +194,7 @@ class TestIssueClose:
             },
         )
 
-        assert not result.isError
+        assert not result.is_error
         content = get_tool_result_content(result)
         assert isinstance(content, list)
 
@@ -197,7 +202,7 @@ class TestIssueClose:
 class TestIssueCreate:
     async def test_creates_issue(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
         sample_issue: Issue,
     ) -> None:
@@ -208,7 +213,7 @@ class TestIssueCreate:
             {"queue": "TEST", "summary": "New test issue"},
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_issues_protocol.issue_create.assert_called_once()
         content = get_tool_result_content(result)
         assert isinstance(content, dict)
@@ -217,7 +222,7 @@ class TestIssueCreate:
 
     async def test_with_all_parameters(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
         sample_issue: Issue,
     ) -> None:
@@ -235,14 +240,14 @@ class TestIssueCreate:
             },
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_issues_protocol.issue_create.assert_called_once()
         content = get_tool_result_content(result)
         assert content["key"] == sample_issue.key
 
     async def test_passes_reference_fields_as_models(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
         sample_issue: Issue,
     ) -> None:
@@ -260,7 +265,7 @@ class TestIssueCreate:
             },
         )
 
-        assert not result.isError
+        assert not result.is_error
         call_kwargs = mock_issues_protocol.issue_create.call_args.kwargs
         assert call_kwargs["followers"] == [IssueFollowerRef(id="8000000000000034")]
         assert call_kwargs["components"] == [IssueComponentRef(id=694)]
@@ -268,7 +273,7 @@ class TestIssueCreate:
 
     async def test_rejects_ambiguous_component_reference(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
     ) -> None:
         result = await client_session.call_tool(
@@ -280,12 +285,12 @@ class TestIssueCreate:
             },
         )
 
-        assert result.isError
+        assert result.is_error
         mock_issues_protocol.issue_create.assert_not_called()
 
     async def test_with_custom_fields(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
         sample_issue: Issue,
     ) -> None:
@@ -300,14 +305,14 @@ class TestIssueCreate:
             },
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_issues_protocol.issue_create.assert_called_once()
         content = get_tool_result_content(result)
         assert isinstance(content, dict)
 
     async def test_restricted_queue_raises_error(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_issues_protocol: AsyncMock,
     ) -> None:
         result = await client_session_with_limits.call_tool(
@@ -315,14 +320,14 @@ class TestIssueCreate:
             {"queue": "RESTRICTED", "summary": "New issue"},
         )
 
-        assert result.isError
+        assert result.is_error
         mock_issues_protocol.issue_create.assert_not_called()
 
 
 class TestIssueUpdate:
     async def test_updates_summary(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
         sample_issue: Issue,
     ) -> None:
@@ -333,7 +338,7 @@ class TestIssueUpdate:
             {"issue_id": "TEST-123", "summary": "Updated summary"},
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_issues_protocol.issue_update.assert_called_once()
         content = get_tool_result_content(result)
         assert isinstance(content, dict)
@@ -341,7 +346,7 @@ class TestIssueUpdate:
 
     async def test_updates_description(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
         sample_issue: Issue,
     ) -> None:
@@ -352,7 +357,7 @@ class TestIssueUpdate:
             {"issue_id": "TEST-123", "description": "Updated description"},
         )
 
-        assert not result.isError
+        assert not result.is_error
         call_kwargs = mock_issues_protocol.issue_update.call_args.kwargs
         assert call_kwargs["description"] == "Updated description"
         content = get_tool_result_content(result)
@@ -360,7 +365,7 @@ class TestIssueUpdate:
 
     async def test_updates_multiple_fields(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
         sample_issue: Issue,
     ) -> None:
@@ -376,14 +381,14 @@ class TestIssueUpdate:
             },
         )
 
-        assert not result.isError
+        assert not result.is_error
         content = get_tool_result_content(result)
         assert isinstance(content, dict)
         assert content["key"] == sample_issue.key
 
     async def test_with_version_for_optimistic_locking(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
         sample_issue: Issue,
     ) -> None:
@@ -394,7 +399,7 @@ class TestIssueUpdate:
             {"issue_id": "TEST-123", "summary": "Updated summary", "version": 5},
         )
 
-        assert not result.isError
+        assert not result.is_error
         call_kwargs = mock_issues_protocol.issue_update.call_args.kwargs
         assert call_kwargs["version"] == 5
         content = get_tool_result_content(result)
@@ -402,7 +407,7 @@ class TestIssueUpdate:
 
     async def test_passes_reference_fields_as_models(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
         sample_issue: Issue,
     ) -> None:
@@ -418,7 +423,7 @@ class TestIssueUpdate:
             },
         )
 
-        assert not result.isError
+        assert not result.is_error
         call_kwargs = mock_issues_protocol.issue_update.call_args.kwargs
         assert call_kwargs["assignee"] == "user123"
         assert call_kwargs["followers"] == [IssueFollowerRef(id="8000000000000034")]
@@ -426,7 +431,7 @@ class TestIssueUpdate:
 
     async def test_restricted_queue_raises_error(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_issues_protocol: AsyncMock,
     ) -> None:
         result = await client_session_with_limits.call_tool(
@@ -434,14 +439,14 @@ class TestIssueUpdate:
             {"issue_id": "RESTRICTED-123", "summary": "Updated summary"},
         )
 
-        assert result.isError
+        assert result.is_error
         mock_issues_protocol.issue_update.assert_not_called()
 
 
 class TestIssueAddWorklog:
     async def test_adds_worklog(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
         sample_worklog: Worklog,
     ) -> None:
@@ -452,7 +457,7 @@ class TestIssueAddWorklog:
             {"issue_id": "TEST-123", "duration": "PT1H", "comment": "Worked on task"},
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_issues_protocol.issue_add_worklog.assert_called_once()
         call_kwargs = mock_issues_protocol.issue_add_worklog.call_args.kwargs
         assert call_kwargs["duration"] == "PT1H"
@@ -463,7 +468,7 @@ class TestIssueAddWorklog:
 
     async def test_restricted_queue_raises_error(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_issues_protocol: AsyncMock,
     ) -> None:
         result = await client_session_with_limits.call_tool(
@@ -471,14 +476,14 @@ class TestIssueAddWorklog:
             {"issue_id": "RESTRICTED-123", "duration": "PT15M"},
         )
 
-        assert result.isError
+        assert result.is_error
         mock_issues_protocol.issue_add_worklog.assert_not_called()
 
 
 class TestIssueUpdateWorklog:
     async def test_updates_worklog(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
         sample_worklog: Worklog,
     ) -> None:
@@ -494,7 +499,7 @@ class TestIssueUpdateWorklog:
             },
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_issues_protocol.issue_update_worklog.assert_called_once()
         call_kwargs = mock_issues_protocol.issue_update_worklog.call_args.kwargs
         assert call_kwargs["duration"] == "PT2H"
@@ -505,7 +510,7 @@ class TestIssueUpdateWorklog:
 
     async def test_restricted_queue_raises_error(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_issues_protocol: AsyncMock,
     ) -> None:
         result = await client_session_with_limits.call_tool(
@@ -513,14 +518,14 @@ class TestIssueUpdateWorklog:
             {"issue_id": "RESTRICTED-123", "worklog_id": 10, "comment": "x"},
         )
 
-        assert result.isError
+        assert result.is_error
         mock_issues_protocol.issue_update_worklog.assert_not_called()
 
 
 class TestIssueDeleteWorklog:
     async def test_deletes_worklog(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
     ) -> None:
         mock_issues_protocol.issue_delete_worklog.return_value = None
@@ -530,7 +535,7 @@ class TestIssueDeleteWorklog:
             {"issue_id": "TEST-123", "worklog_id": 10},
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_issues_protocol.issue_delete_worklog.assert_called_once()
         call_args = mock_issues_protocol.issue_delete_worklog.call_args
         # Сигнатура: issue_delete_worklog(issue_id, worklog_id, *, auth=...)
@@ -539,7 +544,7 @@ class TestIssueDeleteWorklog:
 
     async def test_restricted_queue_raises_error(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_issues_protocol: AsyncMock,
     ) -> None:
         result = await client_session_with_limits.call_tool(
@@ -547,14 +552,14 @@ class TestIssueDeleteWorklog:
             {"issue_id": "RESTRICTED-123", "worklog_id": 10},
         )
 
-        assert result.isError
+        assert result.is_error
         mock_issues_protocol.issue_delete_worklog.assert_not_called()
 
 
 class TestIssueAddComment:
     async def test_adds_comment(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
         sample_comment: IssueComment,
     ) -> None:
@@ -565,7 +570,7 @@ class TestIssueAddComment:
             {"issue_id": "TEST-123", "text": "Hello", "summonees": ["user123"]},
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_issues_protocol.issue_add_comment.assert_called_once()
         call_kwargs = mock_issues_protocol.issue_add_comment.call_args.kwargs
         assert call_kwargs["text"] == "Hello"
@@ -576,7 +581,7 @@ class TestIssueAddComment:
 
     async def test_restricted_queue_raises_error(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_issues_protocol: AsyncMock,
     ) -> None:
         result = await client_session_with_limits.call_tool(
@@ -584,14 +589,14 @@ class TestIssueAddComment:
             {"issue_id": "RESTRICTED-123", "text": "x"},
         )
 
-        assert result.isError
+        assert result.is_error
         mock_issues_protocol.issue_add_comment.assert_not_called()
 
 
 class TestIssueUpdateComment:
     async def test_updates_comment(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
         sample_comment: IssueComment,
     ) -> None:
@@ -607,7 +612,7 @@ class TestIssueUpdateComment:
             },
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_issues_protocol.issue_update_comment.assert_called_once()
         call_kwargs = mock_issues_protocol.issue_update_comment.call_args.kwargs
         assert call_kwargs["text"] == "Updated"
@@ -618,7 +623,7 @@ class TestIssueUpdateComment:
 
     async def test_restricted_queue_raises_error(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_issues_protocol: AsyncMock,
     ) -> None:
         result = await client_session_with_limits.call_tool(
@@ -626,14 +631,14 @@ class TestIssueUpdateComment:
             {"issue_id": "RESTRICTED-123", "comment_id": 10, "text": "x"},
         )
 
-        assert result.isError
+        assert result.is_error
         mock_issues_protocol.issue_update_comment.assert_not_called()
 
 
 class TestIssueDeleteComment:
     async def test_deletes_comment(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
     ) -> None:
         mock_issues_protocol.issue_delete_comment.return_value = None
@@ -643,7 +648,7 @@ class TestIssueDeleteComment:
             {"issue_id": "TEST-123", "comment_id": 10},
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_issues_protocol.issue_delete_comment.assert_called_once()
         call_args = mock_issues_protocol.issue_delete_comment.call_args
         # Сигнатура: issue_delete_comment(issue_id, comment_id, *, auth=...)
@@ -652,7 +657,7 @@ class TestIssueDeleteComment:
 
     async def test_restricted_queue_raises_error(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_issues_protocol: AsyncMock,
     ) -> None:
         result = await client_session_with_limits.call_tool(
@@ -660,14 +665,14 @@ class TestIssueDeleteComment:
             {"issue_id": "RESTRICTED-123", "comment_id": 10},
         )
 
-        assert result.isError
+        assert result.is_error
         mock_issues_protocol.issue_delete_comment.assert_not_called()
 
 
 class TestIssueAddLink:
     async def test_adds_link(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
         sample_link: IssueLink,
     ) -> None:
@@ -682,7 +687,7 @@ class TestIssueAddLink:
             },
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_issues_protocol.issue_add_link.assert_called_once()
         call_args = mock_issues_protocol.issue_add_link.call_args
         assert call_args.args[0] == "TEST-123"
@@ -694,7 +699,7 @@ class TestIssueAddLink:
 
     async def test_invalid_relationship_raises_error(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
     ) -> None:
         result = await client_session.call_tool(
@@ -706,12 +711,12 @@ class TestIssueAddLink:
             },
         )
 
-        assert result.isError
+        assert result.is_error
         mock_issues_protocol.issue_add_link.assert_not_called()
 
     async def test_restricted_queue_raises_error(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_issues_protocol: AsyncMock,
     ) -> None:
         result = await client_session_with_limits.call_tool(
@@ -723,12 +728,12 @@ class TestIssueAddLink:
             },
         )
 
-        assert result.isError
+        assert result.is_error
         mock_issues_protocol.issue_add_link.assert_not_called()
 
     async def test_read_only_mode_tool_not_registered(
         self,
-        client_session_read_only: ClientSession,
+        client_session_read_only: Client,
         mock_issues_protocol: AsyncMock,
     ) -> None:
         result = await client_session_read_only.call_tool(
@@ -740,13 +745,13 @@ class TestIssueAddLink:
             },
         )
 
-        assert result.isError
+        assert result.is_error
 
 
 class TestIssueDeleteLink:
     async def test_deletes_link(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
     ) -> None:
         mock_issues_protocol.issue_delete_link.return_value = None
@@ -756,7 +761,7 @@ class TestIssueDeleteLink:
             {"issue_id": "TEST-123", "link_id": 10},
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_issues_protocol.issue_delete_link.assert_called_once()
         call_args = mock_issues_protocol.issue_delete_link.call_args
         assert call_args.args[0] == "TEST-123"
@@ -764,7 +769,7 @@ class TestIssueDeleteLink:
 
     async def test_restricted_queue_raises_error(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_issues_protocol: AsyncMock,
     ) -> None:
         result = await client_session_with_limits.call_tool(
@@ -772,12 +777,12 @@ class TestIssueDeleteLink:
             {"issue_id": "RESTRICTED-123", "link_id": 10},
         )
 
-        assert result.isError
+        assert result.is_error
         mock_issues_protocol.issue_delete_link.assert_not_called()
 
     async def test_read_only_mode_tool_not_registered(
         self,
-        client_session_read_only: ClientSession,
+        client_session_read_only: Client,
         mock_issues_protocol: AsyncMock,
     ) -> None:
         result = await client_session_read_only.call_tool(
@@ -785,13 +790,13 @@ class TestIssueDeleteLink:
             {"issue_id": "TEST-123", "link_id": 10},
         )
 
-        assert result.isError
+        assert result.is_error
 
 
 class TestIssueMoveToQueue:
     async def test_moves_issue(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
     ) -> None:
         moved_issue = Issue.model_construct(key="NEWQUEUE-42", summary="Moved issue")
@@ -802,7 +807,7 @@ class TestIssueMoveToQueue:
             {"issue_id": "TEST-123", "queue": "NEWQUEUE"},
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_issues_protocol.issue_move.assert_called_once()
         call_args = mock_issues_protocol.issue_move.call_args
         assert call_args.args[0] == "TEST-123"
@@ -813,7 +818,7 @@ class TestIssueMoveToQueue:
 
     async def test_forwards_optional_flags(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
     ) -> None:
         moved_issue = Issue.model_construct(key="NEWQUEUE-42", summary="Moved issue")
@@ -831,7 +836,7 @@ class TestIssueMoveToQueue:
             },
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_issues_protocol.issue_move.assert_called_once()
         call_args = mock_issues_protocol.issue_move.call_args
         assert call_args.kwargs["notify"] is False
@@ -841,7 +846,7 @@ class TestIssueMoveToQueue:
 
     async def test_optional_flags_default(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
     ) -> None:
         moved_issue = Issue.model_construct(key="NEWQUEUE-42", summary="Moved issue")
@@ -852,7 +857,7 @@ class TestIssueMoveToQueue:
             {"issue_id": "TEST-123", "queue": "NEWQUEUE"},
         )
 
-        assert not result.isError
+        assert not result.is_error
         call_args = mock_issues_protocol.issue_move.call_args
         assert call_args.kwargs["notify"] is True
         assert call_args.kwargs["notify_author"] is False
@@ -861,7 +866,7 @@ class TestIssueMoveToQueue:
 
     async def test_restricted_source_queue_raises_error(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_issues_protocol: AsyncMock,
     ) -> None:
         result = await client_session_with_limits.call_tool(
@@ -869,12 +874,12 @@ class TestIssueMoveToQueue:
             {"issue_id": "RESTRICTED-123", "queue": "ALLOWED"},
         )
 
-        assert result.isError
+        assert result.is_error
         mock_issues_protocol.issue_move.assert_not_called()
 
     async def test_read_only_mode_tool_not_registered(
         self,
-        client_session_read_only: ClientSession,
+        client_session_read_only: Client,
         mock_issues_protocol: AsyncMock,
     ) -> None:
         result = await client_session_read_only.call_tool(
@@ -882,11 +887,11 @@ class TestIssueMoveToQueue:
             {"issue_id": "TEST-123", "queue": "NEWQUEUE"},
         )
 
-        assert result.isError
+        assert result.is_error
 
     async def test_elicitation_overrides_flags(
         self,
-        mcp_server: FastMCP[Any],
+        mcp_server: MCPServer[AppContext],
         mock_issues_protocol: AsyncMock,
     ) -> None:
         moved_issue = Issue.model_construct(key="NEWQUEUE-42", summary="Moved issue")
@@ -901,14 +906,14 @@ class TestIssueMoveToQueue:
             },
         )
 
-        async with elicit_client_session(mcp_server, accept) as session:
-            result = await session.call_tool(
+        async with elicit_client_session(mcp_server, accept) as client:
+            result = await client.call_tool(
                 "issue_move",
                 # Caller passes one set of values; the user's elicited answers win.
                 {"issue_id": "TEST-123", "queue": "NEWQUEUE", "notify": True},
             )
 
-        assert not result.isError
+        assert not result.is_error
         mock_issues_protocol.issue_move.assert_called_once()
         call_args = mock_issues_protocol.issue_move.call_args
         assert call_args.kwargs["notify"] is False
@@ -918,7 +923,7 @@ class TestIssueMoveToQueue:
 
     async def test_elicitation_accept_empty_uses_seeded_values(
         self,
-        mcp_server: FastMCP[Any],
+        mcp_server: MCPServer[AppContext],
         mock_issues_protocol: AsyncMock,
     ) -> None:
         moved_issue = Issue.model_construct(key="NEWQUEUE-42", summary="Moved issue")
@@ -926,8 +931,8 @@ class TestIssueMoveToQueue:
         # Empty content -> schema defaults, which are seeded from the caller's args.
         accept = ElicitResult(action="accept", content={})
 
-        async with elicit_client_session(mcp_server, accept) as session:
-            result = await session.call_tool(
+        async with elicit_client_session(mcp_server, accept) as client:
+            result = await client.call_tool(
                 "issue_move",
                 {
                     "issue_id": "TEST-123",
@@ -937,7 +942,7 @@ class TestIssueMoveToQueue:
                 },
             )
 
-        assert not result.isError
+        assert not result.is_error
         call_args = mock_issues_protocol.issue_move.call_args
         assert call_args.kwargs["notify"] is False
         assert call_args.kwargs["notify_author"] is False
@@ -946,34 +951,69 @@ class TestIssueMoveToQueue:
 
     async def test_elicitation_decline_aborts_move(
         self,
-        mcp_server: FastMCP[Any],
+        mcp_server: MCPServer[AppContext],
         mock_issues_protocol: AsyncMock,
     ) -> None:
         async with elicit_client_session(
             mcp_server, ElicitResult(action="decline")
-        ) as session:
-            result = await session.call_tool(
+        ) as client:
+            result = await client.call_tool(
                 "issue_move",
                 {"issue_id": "TEST-123", "queue": "NEWQUEUE"},
             )
 
-        assert result.isError
+        assert result.is_error
+        error = result.content[0]
+        assert isinstance(error, TextContent)
+        assert "cancelled by the user" in error.text
         mock_issues_protocol.issue_move.assert_not_called()
 
     async def test_elicitation_cancel_aborts_move(
         self,
-        mcp_server: FastMCP[Any],
+        mcp_server: MCPServer[AppContext],
         mock_issues_protocol: AsyncMock,
     ) -> None:
         async with elicit_client_session(
             mcp_server, ElicitResult(action="cancel")
-        ) as session:
-            result = await session.call_tool(
+        ) as client:
+            result = await client.call_tool(
                 "issue_move",
                 {"issue_id": "TEST-123", "queue": "NEWQUEUE"},
             )
 
-        assert result.isError
+        assert result.is_error
+        error = result.content[0]
+        assert isinstance(error, TextContent)
+        assert "cancelled by the user" in error.text
+        mock_issues_protocol.issue_move.assert_not_called()
+
+    async def test_restricted_queue_is_refused_before_elicitation(
+        self,
+        mcp_server_with_queue_limits: MCPServer[AppContext],
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        """The access checks run in the resolver, so the user is not asked to
+        confirm a move the server would reject anyway."""
+        asked = False
+
+        async def callback(
+            context: ClientRequestContext,
+            params: ElicitRequestParams,
+        ) -> ElicitResult:
+            nonlocal asked
+            asked = True
+            return ElicitResult(action="accept", content={})
+
+        async with safe_client_session(
+            mcp_server_with_queue_limits, elicitation_callback=callback
+        ) as client:
+            result = await client.call_tool(
+                "issue_move",
+                {"issue_id": "RESTRICTED-123", "queue": "ALLOWED"},
+            )
+
+        assert result.is_error
+        assert not asked
         mock_issues_protocol.issue_move.assert_not_called()
 
 
@@ -988,7 +1028,7 @@ class TestPerQueueReadOnlyAccess:
 
     async def test_create_in_read_only_queue_rejected(
         self,
-        client_session_with_read_only_queues: ClientSession,
+        client_session_with_read_only_queues: Client,
         mock_issues_protocol: AsyncMock,
     ) -> None:
         result = await client_session_with_read_only_queues.call_tool(
@@ -996,12 +1036,12 @@ class TestPerQueueReadOnlyAccess:
             {"queue": "READONLY", "summary": "Nope"},
         )
 
-        assert result.isError
+        assert result.is_error
         mock_issues_protocol.issue_create.assert_not_called()
 
     async def test_create_in_writable_queue_allowed(
         self,
-        client_session_with_read_only_queues: ClientSession,
+        client_session_with_read_only_queues: Client,
         mock_issues_protocol: AsyncMock,
         sample_issue: Issue,
     ) -> None:
@@ -1012,12 +1052,12 @@ class TestPerQueueReadOnlyAccess:
             {"queue": "TEST", "summary": "Fine"},
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_issues_protocol.issue_create.assert_called_once()
 
     async def test_update_in_read_only_queue_rejected(
         self,
-        client_session_with_read_only_queues: ClientSession,
+        client_session_with_read_only_queues: Client,
         mock_issues_protocol: AsyncMock,
     ) -> None:
         result = await client_session_with_read_only_queues.call_tool(
@@ -1025,12 +1065,12 @@ class TestPerQueueReadOnlyAccess:
             {"issue_id": "READONLY-1", "summary": "Nope"},
         )
 
-        assert result.isError
+        assert result.is_error
         mock_issues_protocol.issue_update.assert_not_called()
 
     async def test_update_in_writable_queue_allowed(
         self,
-        client_session_with_read_only_queues: ClientSession,
+        client_session_with_read_only_queues: Client,
         mock_issues_protocol: AsyncMock,
         sample_issue: Issue,
     ) -> None:
@@ -1041,12 +1081,12 @@ class TestPerQueueReadOnlyAccess:
             {"issue_id": "TEST-123", "summary": "Fine"},
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_issues_protocol.issue_update.assert_called_once()
 
     async def test_add_comment_in_read_only_queue_rejected(
         self,
-        client_session_with_read_only_queues: ClientSession,
+        client_session_with_read_only_queues: Client,
         mock_issues_protocol: AsyncMock,
     ) -> None:
         result = await client_session_with_read_only_queues.call_tool(
@@ -1054,12 +1094,12 @@ class TestPerQueueReadOnlyAccess:
             {"issue_id": "READONLY-1", "text": "Nope"},
         )
 
-        assert result.isError
+        assert result.is_error
         mock_issues_protocol.issue_add_comment.assert_not_called()
 
     async def test_move_to_read_only_target_queue_rejected(
         self,
-        client_session_with_read_only_queues: ClientSession,
+        client_session_with_read_only_queues: Client,
         mock_issues_protocol: AsyncMock,
     ) -> None:
         result = await client_session_with_read_only_queues.call_tool(
@@ -1067,7 +1107,7 @@ class TestPerQueueReadOnlyAccess:
             {"issue_id": "TEST-123", "queue": "READONLY"},
         )
 
-        assert result.isError
+        assert result.is_error
         mock_issues_protocol.issue_move.assert_not_called()
 
 
@@ -1077,7 +1117,7 @@ class TestWriteFieldsMap:
 
     async def test_fields_key_colliding_with_a_parameter_is_accepted(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
         sample_issue: Issue,
     ) -> None:
@@ -1092,14 +1132,14 @@ class TestWriteFieldsMap:
             },
         )
 
-        assert not result.isError
+        assert not result.is_error
         call_args = mock_issues_protocol.issue_update.call_args
         assert call_args.kwargs["fields"] == {"parent": None}
         assert call_args.kwargs["parent"].key == "TEST-2"
 
     async def test_create_forwards_fields_untouched(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
         sample_issue: Issue,
     ) -> None:
@@ -1114,7 +1154,7 @@ class TestWriteFieldsMap:
             },
         )
 
-        assert not result.isError
+        assert not result.is_error
         call_args = mock_issues_protocol.issue_create.call_args
         assert call_args.kwargs["fields"] == {"assignee": "jdoe", "storyPoints": 3}
 
@@ -1137,7 +1177,7 @@ class TestCreateUpdateSymmetry:
     )
     async def test_update_takes_the_same_bare_values_as_create(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
         sample_issue: Issue,
         field: str,
@@ -1149,14 +1189,14 @@ class TestCreateUpdateSymmetry:
             "issue_update", {"issue_id": "TEST-1", field: value}
         )
 
-        assert not result.isError
+        assert not result.is_error
         assert mock_issues_protocol.issue_update.call_args.kwargs[field] == value
 
 
 class TestIssueAddChecklistItems:
     async def test_adds_items(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
         sample_checklist: list[ChecklistItem],
     ) -> None:
@@ -1173,7 +1213,7 @@ class TestIssueAddChecklistItems:
             },
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_issues_protocol.issue_add_checklist_items.assert_called_once()
         call_args = mock_issues_protocol.issue_add_checklist_items.call_args
         assert call_args.args[0] == "TEST-123"
@@ -1189,7 +1229,7 @@ class TestIssueAddChecklistItems:
 
     async def test_empty_items_raises_error(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
     ) -> None:
         result = await client_session.call_tool(
@@ -1197,12 +1237,12 @@ class TestIssueAddChecklistItems:
             {"issue_id": "TEST-123", "items": []},
         )
 
-        assert result.isError
+        assert result.is_error
         mock_issues_protocol.issue_add_checklist_items.assert_not_called()
 
     async def test_restricted_queue_raises_error(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_issues_protocol: AsyncMock,
     ) -> None:
         result = await client_session_with_limits.call_tool(
@@ -1210,14 +1250,14 @@ class TestIssueAddChecklistItems:
             {"issue_id": "RESTRICTED-123", "items": [{"text": "Do the thing"}]},
         )
 
-        assert result.isError
+        assert result.is_error
         mock_issues_protocol.issue_add_checklist_items.assert_not_called()
 
 
 class TestIssueUpdateChecklistItem:
     async def test_updates_item(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
         sample_checklist: list[ChecklistItem],
     ) -> None:
@@ -1233,7 +1273,7 @@ class TestIssueUpdateChecklistItem:
             },
         )
 
-        assert not result.isError
+        assert not result.is_error
         call_args = mock_issues_protocol.issue_update_checklist_item.call_args
         assert call_args.args == ("TEST-123", "checklist-1")
         assert call_args.kwargs["checked"] is True
@@ -1242,7 +1282,7 @@ class TestIssueUpdateChecklistItem:
 
     async def test_omitted_parameters_are_passed_as_none(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
         sample_checklist: list[ChecklistItem],
     ) -> None:
@@ -1257,7 +1297,7 @@ class TestIssueUpdateChecklistItem:
             },
         )
 
-        assert not result.isError
+        assert not result.is_error
         call_kwargs = mock_issues_protocol.issue_update_checklist_item.call_args.kwargs
         assert call_kwargs["text"] == "New text"
         assert call_kwargs["checked"] is None
@@ -1268,7 +1308,7 @@ class TestIssueUpdateChecklistItem:
 
     async def test_clear_flags_are_passed_through(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
         sample_checklist: list[ChecklistItem],
     ) -> None:
@@ -1284,7 +1324,7 @@ class TestIssueUpdateChecklistItem:
             },
         )
 
-        assert not result.isError
+        assert not result.is_error
         call_kwargs = mock_issues_protocol.issue_update_checklist_item.call_args.kwargs
         assert call_kwargs["clear_assignee"] is True
         assert call_kwargs["clear_deadline"] is True
@@ -1293,7 +1333,7 @@ class TestIssueUpdateChecklistItem:
 
     async def test_restricted_queue_raises_error(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_issues_protocol: AsyncMock,
     ) -> None:
         result = await client_session_with_limits.call_tool(
@@ -1305,14 +1345,14 @@ class TestIssueUpdateChecklistItem:
             },
         )
 
-        assert result.isError
+        assert result.is_error
         mock_issues_protocol.issue_update_checklist_item.assert_not_called()
 
 
 class TestIssueDeleteChecklistItem:
     async def test_deletes_item(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_issues_protocol: AsyncMock,
     ) -> None:
         mock_issues_protocol.issue_delete_checklist_item.return_value = []
@@ -1322,13 +1362,13 @@ class TestIssueDeleteChecklistItem:
             {"issue_id": "TEST-123", "checklist_item_id": "checklist-1"},
         )
 
-        assert not result.isError
+        assert not result.is_error
         call_args = mock_issues_protocol.issue_delete_checklist_item.call_args
         assert call_args.args == ("TEST-123", "checklist-1")
 
     async def test_restricted_queue_raises_error(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_issues_protocol: AsyncMock,
     ) -> None:
         result = await client_session_with_limits.call_tool(
@@ -1336,5 +1376,5 @@ class TestIssueDeleteChecklistItem:
             {"issue_id": "RESTRICTED-123", "checklist_item_id": "checklist-1"},
         )
 
-        assert result.isError
+        assert result.is_error
         mock_issues_protocol.issue_delete_checklist_item.assert_not_called()

@@ -702,6 +702,8 @@ claude mcp add --transport http yandex-tracker "http://localhost:8000/mcp/?cloud
 claude mcp add --transport http yandex-tracker "http://localhost:8000/mcp/?orgId=org_id&"
 ```
 
+Ресурс `tracker-mcp://configuration` возвращает конфигурацию, с которой запущен сервер. Это шаблон ресурса (`tracker-mcp://configuration{?cloudOrgId,orgId}`): необязательные переменные `cloudOrgId` / `orgId` переопределяют организацию для этого одного чтения так же, как параметры запроса выше — для всего подключения, а обычный URI `tracker-mcp://configuration` по-прежнему читается.
+
 Вы также можете пропустить настройку глобальной переменной окружения `TRACKER_TOKEN`, если выберете использование OAuth 2.0 аутентификации (см. ниже).
 
 ### OAuth 2.0 аутентификация

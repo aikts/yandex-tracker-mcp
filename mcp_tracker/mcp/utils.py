@@ -2,7 +2,7 @@ from collections.abc import Iterable
 from typing import Any, TypeVar, get_args
 
 from mcp.server.auth.middleware.auth_context import get_access_token
-from mcp.server.fastmcp import Context
+from mcp.server.mcpserver import Context
 from pydantic import BaseModel
 from starlette.requests import Request
 
@@ -11,7 +11,7 @@ from mcp_tracker.tracker.proto.common import YandexAuth
 T = TypeVar("T", bound=BaseModel)
 
 
-def get_yandex_auth(ctx: Context[Any, Any, Request]) -> YandexAuth:
+def get_yandex_auth(ctx: Context[Any, Request]) -> YandexAuth:
     access_token = get_access_token()
     token = access_token.token if access_token else None
 

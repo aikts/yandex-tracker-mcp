@@ -8,10 +8,11 @@ dependencies = [
     "aiocache[redis]>=0.12.3",
     "aiohttp>=3.14.3,<3.15",
     "cryptography>=50.0.1",
-    "mcp[cli]>=1.29,<2",
+    "mcp[cli]>=2.1,<3",
     "pydantic>=2.13.5,<3",
     "pydantic-settings>=2.15.0,<3",
     "python-dateutil>=2.9.0.post0",
+    "starlette>=0.48.0",
     "thefuzz>=0.22.1",
     "yandexcloud>=0.405.0",
     "yarl>=1.24.5",
@@ -132,3 +133,4 @@ addopts = [
     "--strict-markers",
     "--tb=short",
 ]
+filterwarnings = ["error::mcp.MCPDeprecationWarning"]

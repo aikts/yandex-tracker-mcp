@@ -1,9 +1,6 @@
 """Goal write MCP tools (conditionally registered based on read-only mode)."""
 
-from typing import Any
-
-from mcp.server import FastMCP
-from mcp.server.fastmcp import Context
+from mcp.server.mcpserver import Context, MCPServer
 from mcp.types import ToolAnnotations
 
 from mcp_tracker.mcp.context import AppContext
@@ -36,17 +33,17 @@ from mcp_tracker.tracker.proto.types.entities import GoalEntity
 from mcp_tracker.tracker.proto.types.issues import IssueComment
 
 
-def register_goal_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
+def register_goal_write_tools(_settings: Settings, mcp: MCPServer[AppContext]) -> None:
     """Register goal write tools (not registered in read-only mode)."""
 
     @mcp.tool(
         title="Create Goal",
         description="Create a Yandex Tracker goal (in russian - 'цель') - an entity of the "
         "goals API, unrelated to queues and issues.",
-        annotations=ToolAnnotations(readOnlyHint=False),
+        annotations=ToolAnnotations(read_only_hint=False),
     )
     async def goal_create(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         summary: EntitySummaryRequiredParam,
         description: EntityDescriptionParam = None,
         lead: EntityLeadParam = None,
@@ -81,10 +78,10 @@ def register_goal_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
     @mcp.tool(
         title="Update Goal",
         description="Update fields of an existing Yandex Tracker goal.",
-        annotations=ToolAnnotations(readOnlyHint=False),
+        annotations=ToolAnnotations(read_only_hint=False),
     )
     async def goal_update(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         entity_id: EntityID,
         summary: EntitySummaryParam = None,
         description: EntityDescriptionParam = None,
@@ -125,10 +122,10 @@ def register_goal_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
     @mcp.tool(
         title="Delete Goal",
         description="Delete a Yandex Tracker goal (in russian - 'цель'). Cannot be undone.",
-        annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True),
+        annotations=ToolAnnotations(read_only_hint=False, destructive_hint=True),
     )
     async def goal_delete(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         entity_id: EntityID,
     ) -> None:
         await ctx.request_context.lifespan_context.entities.goal_delete(
@@ -141,10 +138,10 @@ def register_goal_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
         description="Add a comment to a Yandex Tracker goal, e.g. entity_id='ghi789'. "
         "To mention or call people so they get notified, use `summonees` - '@login' in "
         "the text notifies nobody.",
-        annotations=ToolAnnotations(readOnlyHint=False),
+        annotations=ToolAnnotations(read_only_hint=False),
     )
     async def goal_add_comment(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         entity_id: EntityID,
         text: EntityCommentTextParam,
         summonees: EntityCommentSummoneesParam = None,
@@ -162,10 +159,10 @@ def register_goal_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
         title="Update Goal Comment",
         description="Update an existing comment on a Yandex Tracker goal. To mention "
         "or call people, use `summonees`, not '@login' in the text.",
-        annotations=ToolAnnotations(readOnlyHint=False),
+        annotations=ToolAnnotations(read_only_hint=False),
     )
     async def goal_update_comment(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         entity_id: EntityID,
         comment_id: EntityCommentIDParam,
         text: EntityCommentTextParam,
@@ -184,10 +181,10 @@ def register_goal_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
     @mcp.tool(
         title="Delete Goal Comment",
         description="Delete a comment from a Yandex Tracker goal.",
-        annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True),
+        annotations=ToolAnnotations(read_only_hint=False, destructive_hint=True),
     )
     async def goal_delete_comment(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         entity_id: EntityID,
         comment_id: EntityCommentIDParam,
     ) -> None:

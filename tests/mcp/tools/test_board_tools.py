@@ -1,7 +1,7 @@
 from unittest.mock import AsyncMock
 
 import pytest
-from mcp.client.session import ClientSession
+from mcp import Client
 
 from mcp_tracker.mcp.tools.board import BOARDS_SCAN_PAGE
 from mcp_tracker.tracker.custom.errors import BoardNotFound
@@ -13,7 +13,7 @@ from tests.mcp.tools.conftest import make_board_on_queues
 class TestBoardsGetAll:
     async def test_returns_boards(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_boards_protocol: AsyncMock,
         sample_boards: list[Board],
     ) -> None:
@@ -21,7 +21,7 @@ class TestBoardsGetAll:
 
         result = await client_session.call_tool("boards_get_all", {})
 
-        assert not result.isError
+        assert not result.is_error
         mock_boards_protocol.boards_list.assert_called_once()
         content = get_tool_result_content(result)["boards"]
         assert isinstance(content, list)
@@ -35,19 +35,19 @@ class TestBoardsGetAll:
 
     async def test_returns_empty_list(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_boards_protocol: AsyncMock,
     ) -> None:
         mock_boards_protocol.boards_list.return_value = []
 
         result = await client_session.call_tool("boards_get_all", {})
 
-        assert not result.isError
+        assert not result.is_error
         assert get_tool_result_content(result)["boards"] == []
 
     async def test_pages_by_cursor(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_boards_protocol: AsyncMock,
     ) -> None:
         """`/v3/boards/_paginate` walks by board id, so the tool passes it on."""
@@ -59,13 +59,13 @@ class TestBoardsGetAll:
             "boards_get_all", {"cursor": 18, "per_page": 2}
         )
 
-        assert not result.isError
+        assert not result.is_error
         assert mock_boards_protocol.boards_list.call_args.kwargs["cursor"] == 18
         assert mock_boards_protocol.boards_list.call_args.kwargs["per_page"] == 2
 
     async def test_a_full_page_offers_the_next_cursor(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_boards_protocol: AsyncMock,
     ) -> None:
         """The cursor is the last board's id - the endpoint sorts by it."""
@@ -75,12 +75,12 @@ class TestBoardsGetAll:
 
         result = await client_session.call_tool("boards_get_all", {"per_page": 3})
 
-        assert not result.isError
+        assert not result.is_error
         assert get_tool_result_content(result)["next_cursor"] == 8
 
     async def test_a_short_page_is_the_last_one(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_boards_protocol: AsyncMock,
     ) -> None:
         mock_boards_protocol.boards_list.return_value = [
@@ -89,26 +89,26 @@ class TestBoardsGetAll:
 
         result = await client_session.call_tool("boards_get_all", {"per_page": 3})
 
-        assert not result.isError
+        assert not result.is_error
         assert get_tool_result_content(result)["next_cursor"] is None
 
     async def test_an_empty_page_is_the_last_one(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_boards_protocol: AsyncMock,
     ) -> None:
         mock_boards_protocol.boards_list.return_value = []
 
         result = await client_session.call_tool("boards_get_all", {})
 
-        assert not result.isError
+        assert not result.is_error
         content = get_tool_result_content(result)
         assert content["boards"] == []
         assert content["next_cursor"] is None
 
     async def test_asks_for_a_bounded_page_by_default(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_boards_protocol: AsyncMock,
     ) -> None:
         """An organization with hundreds of boards must not be dumped in one call."""
@@ -116,12 +116,12 @@ class TestBoardsGetAll:
 
         result = await client_session.call_tool("boards_get_all", {})
 
-        assert not result.isError
+        assert not result.is_error
         assert mock_boards_protocol.boards_list.call_args.kwargs["per_page"] == 25
 
     async def test_fields_trims_the_answer(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_boards_protocol: AsyncMock,
         sample_boards: list[Board],
     ) -> None:
@@ -132,7 +132,7 @@ class TestBoardsGetAll:
             "boards_get_all", {"fields": ["id", "name"]}
         )
 
-        assert not result.isError
+        assert not result.is_error
         content = get_tool_result_content(result)["boards"]
         assert [sorted(board) for board in content] == [["id", "name"]] * len(
             sample_boards
@@ -140,7 +140,7 @@ class TestBoardsGetAll:
 
     async def test_without_fields_returns_everything(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_boards_protocol: AsyncMock,
         sample_board_with_settings: Board,
     ) -> None:
@@ -148,14 +148,14 @@ class TestBoardsGetAll:
 
         result = await client_session.call_tool("boards_get_all", {})
 
-        assert not result.isError
+        assert not result.is_error
         content = get_tool_result_content(result)["boards"]
         assert "autoFilterSettings" in content[0]
         assert content[0]["estimateBy"]["id"] == "storyPoints"
 
     async def test_queue_filters_by_the_boards_own_filter(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_boards_protocol: AsyncMock,
         boards_across_queues: list[Board],
     ) -> None:
@@ -164,13 +164,13 @@ class TestBoardsGetAll:
 
         result = await client_session.call_tool("boards_get_all", {"queue": "LEVELARM"})
 
-        assert not result.isError
+        assert not result.is_error
         content = get_tool_result_content(result)["boards"]
         assert [board["id"] for board in content] == [1]
 
     async def test_queue_matches_a_board_collecting_several_queues(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_boards_protocol: AsyncMock,
         boards_across_queues: list[Board],
     ) -> None:
@@ -180,14 +180,14 @@ class TestBoardsGetAll:
             "boards_get_all", {"queue": "SMARTBOTGOALS"}
         )
 
-        assert not result.isError
+        assert not result.is_error
         assert [board["id"] for board in get_tool_result_content(result)["boards"]] == [
             2
         ]
 
     async def test_queue_is_case_insensitive(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_boards_protocol: AsyncMock,
         boards_across_queues: list[Board],
     ) -> None:
@@ -195,7 +195,7 @@ class TestBoardsGetAll:
 
         result = await client_session.call_tool("boards_get_all", {"queue": "levelarm"})
 
-        assert not result.isError
+        assert not result.is_error
         assert [board["id"] for board in get_tool_result_content(result)["boards"]] == [
             1
         ]
@@ -206,7 +206,7 @@ class TestBoardsGetAll:
     )
     async def test_queue_field_is_recognised_by_id_or_key(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_boards_protocol: AsyncMock,
         field_id: str | None,
         field_key: str | None,
@@ -220,14 +220,14 @@ class TestBoardsGetAll:
 
         result = await client_session.call_tool("boards_get_all", {"queue": "LEVELARM"})
 
-        assert not result.isError
+        assert not result.is_error
         assert [board["id"] for board in get_tool_result_content(result)["boards"]] == [
             1
         ]
 
     async def test_inverted_condition_is_not_a_match(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_boards_protocol: AsyncMock,
         boards_across_queues: list[Board],
     ) -> None:
@@ -236,14 +236,14 @@ class TestBoardsGetAll:
 
         result = await client_session.call_tool("boards_get_all", {"queue": "LEVELARM"})
 
-        assert not result.isError
+        assert not result.is_error
         assert 3 not in [
             board["id"] for board in get_tool_result_content(result)["boards"]
         ]
 
     async def test_unknown_queue_returns_nothing(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_boards_protocol: AsyncMock,
         boards_across_queues: list[Board],
     ) -> None:
@@ -251,12 +251,12 @@ class TestBoardsGetAll:
 
         result = await client_session.call_tool("boards_get_all", {"queue": "NOSUCH"})
 
-        assert not result.isError
+        assert not result.is_error
         assert get_tool_result_content(result)["boards"] == []
 
     async def test_without_queue_returns_boards_naming_none(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_boards_protocol: AsyncMock,
         boards_across_queues: list[Board],
     ) -> None:
@@ -265,12 +265,12 @@ class TestBoardsGetAll:
 
         result = await client_session.call_tool("boards_get_all", {})
 
-        assert not result.isError
+        assert not result.is_error
         assert 4 in [board["id"] for board in get_tool_result_content(result)["boards"]]
 
     async def test_queue_sees_every_board_not_one_page_of_them(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_boards_protocol: AsyncMock,
     ) -> None:
         """`per_page` counts matches, not boards read.
@@ -286,14 +286,14 @@ class TestBoardsGetAll:
 
         result = await client_session.call_tool("boards_get_all", {"queue": "LEVELARM"})
 
-        assert not result.isError
+        assert not result.is_error
         assert [board["id"] for board in get_tool_result_content(result)["boards"]] == [
             999
         ]
 
     async def test_the_walk_advances_the_cursor_past_boards_it_examined(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_boards_protocol: AsyncMock,
     ) -> None:
         """The cursor follows what was read, not what matched.
@@ -307,7 +307,7 @@ class TestBoardsGetAll:
 
         result = await client_session.call_tool("boards_get_all", {"queue": "LEVELARM"})
 
-        assert not result.isError
+        assert not result.is_error
         assert [board["id"] for board in get_tool_result_content(result)["boards"]] == [
             150
         ]
@@ -320,7 +320,7 @@ class TestBoardsGetAll:
 
     async def test_the_walk_asks_for_a_page_at_a_time(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_boards_protocol: AsyncMock,
     ) -> None:
         """Never one unbounded request.
@@ -332,7 +332,7 @@ class TestBoardsGetAll:
 
         result = await client_session.call_tool("boards_get_all", {"queue": "LEVELARM"})
 
-        assert not result.isError
+        assert not result.is_error
         assert (
             mock_boards_protocol.boards_list.call_args.kwargs["per_page"]
             == BOARDS_SCAN_PAGE
@@ -340,7 +340,7 @@ class TestBoardsGetAll:
 
     async def test_queue_combines_with_fields(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_boards_protocol: AsyncMock,
         boards_across_queues: list[Board],
     ) -> None:
@@ -350,14 +350,14 @@ class TestBoardsGetAll:
             "boards_get_all", {"queue": "LEVELARM", "fields": ["id", "name"]}
         )
 
-        assert not result.isError
+        assert not result.is_error
         content = get_tool_result_content(result)["boards"]
         assert [sorted(board) for board in content] == [["id", "name"]]
 
     @pytest.mark.parametrize("queue", ["forbidden", "Forbidden", "FORBIDDEN"])
     async def test_restricted_queue_is_rejected(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_boards_protocol: AsyncMock,
         queue: str,
     ) -> None:
@@ -372,13 +372,13 @@ class TestBoardsGetAll:
             "boards_get_all", {"queue": queue}
         )
 
-        assert result.isError
+        assert result.is_error
         mock_boards_protocol.boards_list.assert_not_called()
 
     @pytest.mark.parametrize("queue", ["allowed", "Allowed", "ALLOWED"])
     async def test_permitted_queue_is_allowed(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_boards_protocol: AsyncMock,
         queue: str,
     ) -> None:
@@ -390,7 +390,7 @@ class TestBoardsGetAll:
             "boards_get_all", {"queue": queue}
         )
 
-        assert not result.isError
+        assert not result.is_error
         assert [board["id"] for board in get_tool_result_content(result)["boards"]] == [
             1
         ]
@@ -399,7 +399,7 @@ class TestBoardsGetAll:
 class TestBoardGetSprints:
     async def test_returns_sprints(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_boards_protocol: AsyncMock,
         sample_sprints: list[Sprint],
     ) -> None:
@@ -407,7 +407,7 @@ class TestBoardGetSprints:
 
         result = await client_session.call_tool("board_get_sprints", {"board_id": 1})
 
-        assert not result.isError
+        assert not result.is_error
         content = get_tool_result_content(result)
         assert isinstance(content, list)
         assert len(content) == len(sample_sprints)
@@ -419,7 +419,7 @@ class TestBoardGetSprints:
 
     async def test_passes_board_id(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_boards_protocol: AsyncMock,
         sample_sprints: list[Sprint],
     ) -> None:
@@ -427,14 +427,14 @@ class TestBoardGetSprints:
 
         result = await client_session.call_tool("board_get_sprints", {"board_id": 42})
 
-        assert not result.isError
+        assert not result.is_error
         mock_boards_protocol.board_get_sprints.assert_called_once()
         call_args = mock_boards_protocol.board_get_sprints.call_args
         assert call_args[0][0] == 42
 
     async def test_current_sprint_is_discoverable(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_boards_protocol: AsyncMock,
         sample_sprints: list[Sprint],
         sample_sprint: Sprint,
@@ -444,7 +444,7 @@ class TestBoardGetSprints:
 
         result = await client_session.call_tool("board_get_sprints", {"board_id": 1})
 
-        assert not result.isError
+        assert not result.is_error
         content = get_tool_result_content(result)
         current = [sprint for sprint in content if sprint["status"] == "in_progress"]
         assert len(current) == 1
@@ -454,19 +454,19 @@ class TestBoardGetSprints:
 
     async def test_returns_empty_list(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_boards_protocol: AsyncMock,
     ) -> None:
         mock_boards_protocol.board_get_sprints.return_value = []
 
         result = await client_session.call_tool("board_get_sprints", {"board_id": 1})
 
-        assert not result.isError
+        assert not result.is_error
         assert get_tool_result_content(result) == []
 
     async def test_fields_trims_the_answer(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_boards_protocol: AsyncMock,
         sample_sprints: list[Sprint],
     ) -> None:
@@ -476,7 +476,7 @@ class TestBoardGetSprints:
             "board_get_sprints", {"board_id": 1, "fields": ["id", "name", "status"]}
         )
 
-        assert not result.isError
+        assert not result.is_error
         content = get_tool_result_content(result)
         assert [sorted(sprint) for sprint in content] == [
             ["id", "name", "status"]
@@ -486,7 +486,7 @@ class TestBoardGetSprints:
 class TestBoardGet:
     async def test_returns_the_board_settings(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_boards_protocol: AsyncMock,
         sample_board_with_settings: Board,
     ) -> None:
@@ -494,7 +494,7 @@ class TestBoardGet:
 
         result = await client_session.call_tool("board_get", {"board_id": 1})
 
-        assert not result.isError
+        assert not result.is_error
         content = get_tool_result_content(result)
         assert content["id"] == 1
         assert content["useRanking"] is False
@@ -502,7 +502,7 @@ class TestBoardGet:
 
     async def test_auto_filter_names_the_queue_the_board_collects(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_boards_protocol: AsyncMock,
         sample_board_with_settings: Board,
     ) -> None:
@@ -511,7 +511,7 @@ class TestBoardGet:
 
         result = await client_session.call_tool("board_get", {"board_id": 1})
 
-        assert not result.isError
+        assert not result.is_error
         content = get_tool_result_content(result)
         fields = content["autoFilterSettings"]["addFilterSettings"]["liveFilter"][
             "fieldValues"
@@ -521,7 +521,7 @@ class TestBoardGet:
 
     async def test_passes_board_id(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_boards_protocol: AsyncMock,
         sample_board_with_settings: Board,
     ) -> None:
@@ -529,12 +529,12 @@ class TestBoardGet:
 
         result = await client_session.call_tool("board_get", {"board_id": 42})
 
-        assert not result.isError
+        assert not result.is_error
         assert mock_boards_protocol.board_get.call_args[0][0] == 42
 
     async def test_fields_trims_the_answer(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_boards_protocol: AsyncMock,
         sample_board_with_settings: Board,
     ) -> None:
@@ -544,14 +544,14 @@ class TestBoardGet:
             "board_get", {"board_id": 1, "fields": ["id", "name"]}
         )
 
-        assert not result.isError
+        assert not result.is_error
         assert sorted(get_tool_result_content(result)) == ["id", "name"]
 
 
 class TestBoardGetColumns:
     async def test_returns_columns_with_statuses(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_boards_protocol: AsyncMock,
         sample_board_columns: list[BoardColumnDetail],
     ) -> None:
@@ -559,7 +559,7 @@ class TestBoardGetColumns:
 
         result = await client_session.call_tool("board_get_columns", {"board_id": 1})
 
-        assert not result.isError
+        assert not result.is_error
         content = get_tool_result_content(result)
         assert [column["name"] for column in content] == ["Открыт", "В работе"]
         assert [s["key"] for s in content[0]["statuses"]] == ["open", "new"]
@@ -567,7 +567,7 @@ class TestBoardGetColumns:
 
     async def test_passes_board_id(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_boards_protocol: AsyncMock,
         sample_board_columns: list[BoardColumnDetail],
     ) -> None:
@@ -575,19 +575,19 @@ class TestBoardGetColumns:
 
         result = await client_session.call_tool("board_get_columns", {"board_id": 42})
 
-        assert not result.isError
+        assert not result.is_error
         assert mock_boards_protocol.board_get_columns.call_args[0][0] == 42
 
     async def test_returns_empty_list(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_boards_protocol: AsyncMock,
     ) -> None:
         mock_boards_protocol.board_get_columns.return_value = []
 
         result = await client_session.call_tool("board_get_columns", {"board_id": 1})
 
-        assert not result.isError
+        assert not result.is_error
         assert get_tool_result_content(result) == []
 
 
@@ -609,7 +609,7 @@ class TestBoardNotFoundReachesTheCaller:
     )
     async def test_unknown_board_is_an_error(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_boards_protocol: AsyncMock,
         tool_name: str,
         protocol_method: str,
@@ -618,4 +618,4 @@ class TestBoardNotFoundReachesTheCaller:
 
         result = await client_session.call_tool(tool_name, {"board_id": 404})
 
-        assert result.isError
+        assert result.is_error

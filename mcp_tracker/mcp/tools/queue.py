@@ -1,10 +1,9 @@
 """Queue-related MCP tools (read-only)."""
 
 import asyncio
-from typing import Annotated, Any
+from typing import Annotated
 
-from mcp.server import FastMCP
-from mcp.server.fastmcp import Context
+from mcp.server.mcpserver import Context, MCPServer
 from mcp.types import ToolAnnotations
 from pydantic import Field
 from starlette.requests import Request
@@ -31,7 +30,7 @@ EXPAND_SECTIONS = frozenset(
 )
 
 
-def register_queue_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
+def register_queue_tools(settings: Settings, mcp: MCPServer[AppContext]) -> None:
     """Register queue-related tools (all read-only)."""
 
     @mcp.tool(
@@ -39,10 +38,10 @@ def register_queue_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         description="Find all Yandex Tracker queues available to the user (a queue is "
         "a project in some sense). `page` defaults to None and fetches ALL pages; pass "
         "a page number only when the result does not fit the context window.",
-        annotations=ToolAnnotations(readOnlyHint=True),
+        annotations=ToolAnnotations(read_only_hint=True),
     )
     async def queues_get_all(
-        ctx: Context[Any, AppContext, Request],
+        ctx: Context[AppContext, Request],
         fields: Annotated[
             list[QueueFieldsEnum] | None,
             Field(
@@ -83,10 +82,10 @@ def register_queue_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
     @mcp.tool(
         title="Get Queue Tags",
         description="Get all tags for a specific Yandex Tracker queue",
-        annotations=ToolAnnotations(readOnlyHint=True),
+        annotations=ToolAnnotations(read_only_hint=True),
     )
     async def queue_get_tags(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         queue_id: QueueID,
     ) -> list[str]:
         check_queue_access(settings, queue_id)
@@ -98,10 +97,10 @@ def register_queue_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
     @mcp.tool(
         title="Get Queue Versions",
         description="Get all versions for a specific Yandex Tracker queue",
-        annotations=ToolAnnotations(readOnlyHint=True),
+        annotations=ToolAnnotations(read_only_hint=True),
     )
     async def queue_get_versions(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         queue_id: QueueID,
     ) -> list[QueueVersion]:
         check_queue_access(settings, queue_id)
@@ -116,10 +115,10 @@ def register_queue_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         "Tracker queue with lead, auto-assign flag and `version`. "
         "`queue_get_metadata` with expand=['components'] names them only (id and "
         "name); the id is what `issue_create` / `issue_update` take in `components`.",
-        annotations=ToolAnnotations(readOnlyHint=True),
+        annotations=ToolAnnotations(read_only_hint=True),
     )
     async def queue_get_components(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         queue_id: QueueID,
     ) -> list[Component]:
         check_queue_access(settings, queue_id)
@@ -135,10 +134,10 @@ def register_queue_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         "mandatory ones. Not the whole registry: system fields such as `parent` or "
         "`estimation` are settable without appearing here, and `get_global_fields` "
         "lists every organization field.",
-        annotations=ToolAnnotations(readOnlyHint=True),
+        annotations=ToolAnnotations(read_only_hint=True),
     )
     async def queue_get_fields(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         queue_id: QueueID,
         include_local_fields: Annotated[
             bool,
@@ -171,10 +170,10 @@ def register_queue_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         "name, description, default type and priority, plus the sections named in "
         "`expand` (issue types with their resolutions, workflows, team, ...). Use "
         "expand=['issueTypesConfig'] for the resolutions `issue_close` needs.",
-        annotations=ToolAnnotations(readOnlyHint=True),
+        annotations=ToolAnnotations(read_only_hint=True),
     )
     async def queue_get_metadata(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         queue_id: QueueID,
         expand: Annotated[
             list[QueueExpandOption] | None,

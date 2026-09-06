@@ -1,13 +1,14 @@
+import asyncio
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager, suppress
+from contextlib import asynccontextmanager
 from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
 import pytest_asyncio
-from mcp.client.session import ClientSession, ElicitationFnT
-from mcp.server import FastMCP
-from mcp.shared.memory import create_connected_server_and_client_session
+from mcp import Client
+from mcp.client.session import ElicitationFnT
+from mcp.server.mcpserver import MCPServer
 from mcp.types import CallToolResult
 
 from mcp_tracker.mcp.context import AppContext
@@ -26,25 +27,44 @@ from mcp_tracker.tracker.proto.users import UsersProtocol
 
 @asynccontextmanager
 async def safe_client_session(
-    mcp_server: FastMCP[Any],
+    mcp_server: MCPServer[AppContext],
     elicitation_callback: ElicitationFnT | None = None,
-) -> AsyncIterator[ClientSession]:
-    """Context manager wrapper that handles anyio teardown issues.
+) -> AsyncIterator[Client]:
+    """Connect an in-process `Client` to the server for the duration of a test.
 
-    The MCP SDK's create_connected_server_and_client_session uses anyio
-    task groups that can fail during cleanup in pytest-asyncio environments.
-    This wrapper suppresses those cleanup errors since the test has already
-    completed successfully at that point.
+    `Client(server)` negotiates the modern (2026-07-28) protocol by default and
+    dispatches directly without JSON-RPC framing; `raise_exceptions=True` makes a
+    crash outside a tool body surface with its real text instead of a bare
+    JSON-RPC error.
+
+    The client is entered and exited inside one dedicated task: pytest-asyncio
+    runs an async fixture's setup and teardown in separate tasks, and the anyio
+    task group the in-process connection keeps its server side in refuses to be
+    exited from a task other than the one that entered it.
     """
-    ctx_mgr = create_connected_server_and_client_session(
-        mcp_server, raise_exceptions=True, elicitation_callback=elicitation_callback
-    )
-    session = await ctx_mgr.__aenter__()
+    ready: asyncio.Future[Client] = asyncio.get_running_loop().create_future()
+    done = asyncio.Event()
+
+    async def run() -> None:
+        try:
+            async with Client(
+                mcp_server,
+                raise_exceptions=True,
+                elicitation_callback=elicitation_callback,
+            ) as client:
+                ready.set_result(client)
+                await done.wait()
+        except BaseException as exc:
+            if not ready.done():
+                ready.set_exception(exc)
+            raise
+
+    task = asyncio.create_task(run())
     try:
-        yield session
+        yield await ready
     finally:
-        with suppress(RuntimeError, ExceptionGroup):
-            await ctx_mgr.__aexit__(None, None, None)
+        done.set()
+        await task
 
 
 def page(
@@ -55,11 +75,11 @@ def page(
 
 
 def get_tool_result_content(result: CallToolResult) -> Any:
-    """Extract content from a tool result using structuredContent.
+    """Extract content from a tool result using structured_content.
 
-    FastMCP populates structuredContent with the tool's return value:
-    - Single Pydantic model: structuredContent is the model dict directly
-    - Primitives (str, int) and lists: structuredContent = {'result': value}
+    MCPServer populates structured_content with the tool's return value:
+    - Single Pydantic model: structured_content is the model dict directly
+    - Primitives (str, int) and lists: structured_content = {'result': value}
 
     Args:
         result: The CallToolResult from client_session.call_tool()
@@ -67,10 +87,10 @@ def get_tool_result_content(result: CallToolResult) -> Any:
     Returns:
         The tool's return value (dict, list, str, int, etc.)
     """
-    structured = result.structuredContent
-    assert structured is not None, "Tool result has no structuredContent"
+    structured = result.structured_content
+    assert structured is not None, "Tool result has no structured_content"
 
-    # If structuredContent has a 'result' key, return that (primitives, lists)
+    # If structured_content has a 'result' key, return that (primitives, lists)
     # Otherwise return the whole dict (single Pydantic model)
     if isinstance(structured, dict) and "result" in structured:
         return structured["result"]
@@ -198,14 +218,18 @@ def make_test_lifespan(app_context: AppContext) -> Lifespan:
     """Create a test lifespan that yields the given AppContext."""
 
     @asynccontextmanager
-    async def test_lifespan(_server: FastMCP[Any]) -> AsyncIterator[AppContext]:
+    async def test_lifespan(
+        _server: MCPServer[AppContext],
+    ) -> AsyncIterator[AppContext]:
         yield app_context
 
     return test_lifespan
 
 
 @pytest.fixture
-def mcp_server(test_settings: Settings, mock_app_context: AppContext) -> FastMCP[Any]:
+def mcp_server(
+    test_settings: Settings, mock_app_context: AppContext
+) -> MCPServer[AppContext]:
     """Create test MCP server using the refactored create_mcp_server."""
     return create_mcp_server(
         settings=test_settings,
@@ -217,7 +241,7 @@ def mcp_server(test_settings: Settings, mock_app_context: AppContext) -> FastMCP
 def mcp_server_with_queue_limits(
     test_settings_with_queue_limits: Settings,
     mock_app_context: AppContext,
-) -> FastMCP[Any]:
+) -> MCPServer[AppContext]:
     """Create test MCP server with queue restrictions."""
     return create_mcp_server(
         settings=test_settings_with_queue_limits,
@@ -227,8 +251,8 @@ def mcp_server_with_queue_limits(
 
 @pytest_asyncio.fixture(loop_scope="function")
 async def client_session(
-    mcp_server: FastMCP[Any],
-) -> AsyncIterator[ClientSession]:
+    mcp_server: MCPServer[AppContext],
+) -> AsyncIterator[Client]:
     """Create connected client session for testing MCP tools."""
     async with safe_client_session(mcp_server) as session:
         yield session
@@ -236,8 +260,8 @@ async def client_session(
 
 @pytest_asyncio.fixture(loop_scope="function")
 async def client_session_with_limits(
-    mcp_server_with_queue_limits: FastMCP[Any],
-) -> AsyncIterator[ClientSession]:
+    mcp_server_with_queue_limits: MCPServer[AppContext],
+) -> AsyncIterator[Client]:
     """Create connected client session with queue restrictions."""
     async with safe_client_session(mcp_server_with_queue_limits) as session:
         yield session
@@ -253,7 +277,7 @@ def test_settings_entities_disabled() -> Settings:
 def mcp_server_entities_disabled(
     test_settings_entities_disabled: Settings,
     mock_app_context: AppContext,
-) -> FastMCP[Any]:
+) -> MCPServer[AppContext]:
     """Create test MCP server without project/portfolio/goal tools."""
     return create_mcp_server(
         settings=test_settings_entities_disabled,
@@ -263,8 +287,8 @@ def mcp_server_entities_disabled(
 
 @pytest_asyncio.fixture(loop_scope="function")
 async def client_session_entities_disabled(
-    mcp_server_entities_disabled: FastMCP[Any],
-) -> AsyncIterator[ClientSession]:
+    mcp_server_entities_disabled: MCPServer[AppContext],
+) -> AsyncIterator[Client]:
     """Create connected client session with entity tools disabled."""
     async with safe_client_session(mcp_server_entities_disabled) as session:
         yield session
@@ -285,7 +309,7 @@ def test_settings_with_read_only_queues() -> Settings:
 def mcp_server_with_read_only_queues(
     test_settings_with_read_only_queues: Settings,
     mock_app_context: AppContext,
-) -> FastMCP[Any]:
+) -> MCPServer[AppContext]:
     """Create test MCP server with per-queue read-only access."""
     return create_mcp_server(
         settings=test_settings_with_read_only_queues,
@@ -295,8 +319,8 @@ def mcp_server_with_read_only_queues(
 
 @pytest_asyncio.fixture(loop_scope="function")
 async def client_session_with_read_only_queues(
-    mcp_server_with_read_only_queues: FastMCP[Any],
-) -> AsyncIterator[ClientSession]:
+    mcp_server_with_read_only_queues: MCPServer[AppContext],
+) -> AsyncIterator[Client]:
     """Create connected client session with per-queue read-only access."""
     async with safe_client_session(mcp_server_with_read_only_queues) as session:
         yield session
@@ -312,7 +336,7 @@ def test_settings_read_only() -> Settings:
 def mcp_server_read_only(
     test_settings_read_only: Settings,
     mock_app_context: AppContext,
-) -> FastMCP[Any]:
+) -> MCPServer[AppContext]:
     """Create test MCP server in read-only mode."""
     return create_mcp_server(
         settings=test_settings_read_only,
@@ -322,8 +346,8 @@ def mcp_server_read_only(
 
 @pytest_asyncio.fixture(loop_scope="function")
 async def client_session_read_only(
-    mcp_server_read_only: FastMCP[Any],
-) -> AsyncIterator[ClientSession]:
+    mcp_server_read_only: MCPServer[AppContext],
+) -> AsyncIterator[Client]:
     """Create connected client session for read-only server."""
     async with safe_client_session(mcp_server_read_only) as session:
         yield session

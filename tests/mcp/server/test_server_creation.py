@@ -1,5 +1,5 @@
 import pytest
-from mcp.client.session import ClientSession
+from mcp import Client
 
 # Read-only tool names (35 tools) - always registered
 READ_ONLY_TOOL_NAMES = [
@@ -131,7 +131,7 @@ class TestToolRegistration:
     @pytest.mark.parametrize("tool_name", EXPECTED_TOOL_NAMES)
     async def test_tool_is_registered(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         tool_name: str,
     ) -> None:
         result = await client_session.list_tools()
@@ -146,7 +146,7 @@ class TestReadOnlyModeToolRegistration:
     @pytest.mark.parametrize("tool_name", ALL_READ_ONLY_TOOL_NAMES)
     async def test_read_only_tools_are_registered(
         self,
-        client_session_read_only: ClientSession,
+        client_session_read_only: Client,
         tool_name: str,
     ) -> None:
         """Read-only tools should be registered in read-only mode."""
@@ -160,7 +160,7 @@ class TestReadOnlyModeToolRegistration:
     @pytest.mark.parametrize("tool_name", ALL_WRITE_TOOL_NAMES)
     async def test_write_tools_are_not_registered(
         self,
-        client_session_read_only: ClientSession,
+        client_session_read_only: Client,
         tool_name: str,
     ) -> None:
         """Write tools should NOT be registered in read-only mode."""
@@ -173,7 +173,7 @@ class TestReadOnlyModeToolRegistration:
 
     async def test_correct_tool_count_in_read_only_mode(
         self,
-        client_session_read_only: ClientSession,
+        client_session_read_only: Client,
     ) -> None:
         """Read-only mode should have only read-only tools."""
         result = await client_session_read_only.list_tools()
@@ -185,7 +185,7 @@ class TestReadOnlyModeToolRegistration:
 
     async def test_correct_tool_count_in_normal_mode(
         self,
-        client_session: ClientSession,
+        client_session: Client,
     ) -> None:
         """Normal mode should have all tools (read-only + write)."""
         result = await client_session.list_tools()
@@ -204,7 +204,7 @@ class TestEntityToolRegistration:
     )
     async def test_entity_tools_are_not_registered_by_default(
         self,
-        client_session_entities_disabled: ClientSession,
+        client_session_entities_disabled: Client,
         tool_name: str,
     ) -> None:
         result = await client_session_entities_disabled.list_tools()
@@ -218,7 +218,7 @@ class TestEntityToolRegistration:
     @pytest.mark.parametrize("tool_name", READ_ONLY_TOOL_NAMES + WRITE_TOOL_NAMES)
     async def test_non_entity_tools_stay_registered(
         self,
-        client_session_entities_disabled: ClientSession,
+        client_session_entities_disabled: Client,
         tool_name: str,
     ) -> None:
         result = await client_session_entities_disabled.list_tools()
@@ -228,7 +228,7 @@ class TestEntityToolRegistration:
 
     async def test_correct_tool_count_with_entities_disabled(
         self,
-        client_session_entities_disabled: ClientSession,
+        client_session_entities_disabled: Client,
     ) -> None:
         result = await client_session_entities_disabled.list_tools()
 
@@ -242,28 +242,33 @@ class TestEntityToolRegistration:
 class TestResourceRegistration:
     async def test_configuration_resource_is_registered(
         self,
-        client_session: ClientSession,
+        client_session: Client,
     ) -> None:
-        result = await client_session.list_resources()
+        """The configuration resource is a template (optional query variables),
+        so it is listed under `resources/templates/list`, not `resources/list`."""
+        result = await client_session.list_resource_templates()
 
-        resource_uris = [str(r.uri) for r in result.resources]
-        assert "tracker-mcp://configuration" in resource_uris
+        templates = [t.uri_template for t in result.resource_templates]
+        assert "tracker-mcp://configuration{?cloudOrgId,orgId}" in templates
 
 
 class TestServerConfiguration:
     async def test_server_has_correct_name(
         self,
-        client_session: ClientSession,
+        client_session: Client,
     ) -> None:
-        result = await client_session.initialize()
-
-        assert result.serverInfo.name == "Yandex Tracker MCP Server"
+        # `Client.__aenter__` already negotiated the connection; on a modern
+        # (2026-07-28) connection the identity arrives as a `_meta` stamp,
+        # which is optional - so `server_info` is `None` for an anonymous
+        # server, and the first assert is what tells that apart from a rename.
+        assert client_session.server_info is not None
+        assert client_session.server_info.name == "Yandex Tracker MCP Server"
 
     async def test_server_has_instructions(
         self,
-        client_session: ClientSession,
+        client_session: Client,
     ) -> None:
-        result = await client_session.initialize()
+        instructions = client_session.instructions
 
-        assert result.instructions is not None
-        assert len(result.instructions) > 0
+        assert instructions is not None
+        assert len(instructions) > 0

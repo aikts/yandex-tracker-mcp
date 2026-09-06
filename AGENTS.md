@@ -8,7 +8,7 @@ Before naming a tool, writing a description, a CHANGELOG entry or a README secti
 
 ## Project Overview
 
-MCP Yandex Tracker is a Model Context Protocol (MCP) server that provides tools for interacting with Yandex Tracker API. It implements a FastMCP server with protocol-based architecture and optional Redis caching.
+MCP Yandex Tracker is a Model Context Protocol (MCP) server that provides tools for interacting with Yandex Tracker API. It implements an `MCPServer` (mcp 2.x) with protocol-based architecture and optional Redis caching.
 
 ## Commands
 
@@ -18,7 +18,7 @@ task format       # Auto-format code
 task check        # Run type and format checking
 task test         # Run tests
 uv sync           # Install dependencies
-uv run mcp-tracker # Run the server
+uv run yandex-tracker-mcp # Run the server
 ```
 
 ## Architecture
@@ -47,7 +47,7 @@ uv run mcp-tracker # Run the server
 
 - **Reference fields** (`type`, `priority`, `parent`, `sprint`, `followers`, `components`, `project`) use the shared models in `mcp_tracker/tracker/proto/types/inputs.py` (`Issue*Ref`), serialized by `_ref_body()` in the client. How Tracker resolves a bare value is per field, so check before widening a parameter: `type` / `priority` accept an id or a key and resolve a numeric string as an id (verified against the API), `followers` accept a uid or a login the same way, and a 422 from these means the referenced entity does not exist. `components` are the exception - a bare string there is a *name*, which makes a numeric-looking name ambiguous (this is what `components: ["694"]` answered 422 for), hence `IssueComponentRef` requiring exactly one of `id` / `name`. Create and update must accept and send the same value the same way - the API takes a bare key or id on both, so a parameter widened on one has to be widened on the other, or an agent that created an issue with a scalar hits a schema error when it updates the same way.
 - **Every request goes through `self._request()`** - or `self._read()`, which is `_request` plus reading the body and is what a method wanting nothing but the body uses. Nothing calls `self._session` directly: the funnel is what builds the auth headers, translates a `TimeoutError` into `TrackerAPITimeout` (`str(TimeoutError())` is the empty string, so an untranslated timeout reaches an agent as a message with nothing in it) and puts every response through `_raise_for_status`, so Tracker's own `errorMessages` / `errors` end up in the raised `TrackerAPIError` instead of a bare "Unprocessable Entity". The funnel exists because these were sixty copies of the same lines and the copies drifted; a method added beside it rather than through it starts that again.
-- **Errors**: statuses with an actionable meaning are passed to the funnel as `not_found=` / `conflict=`, ready to raise: 404 → `IssueNotFound` on issue-scoped paths, `QueueNotFound` on queue-scoped ones (`v3/queues/{queue}/...`), `BoardNotFound` on board-scoped ones, `ComponentNotFound` on `v3/components/{id}` and the similar error on other paths; `conflict=` covers 409 *and* 412 - a stale `version` answers 409 on an issue update (`IssueVersionConflict`) but 412 on a component update (`ComponentVersionConflict`), and both are the same precondition failure. A dedicated error applies to *every* method scoped to that entity, not just to newly added ones. `allow_statuses=` is the way out for a status that is an answer rather than a failure - `user_get` reads a 404 as `None`; an allowed status skips `not_found` / `conflict` / `_raise_for_status` alike and reaches the caller as an ordinary response.
+- **Errors**: statuses with an actionable meaning are passed to the funnel as `not_found=` / `conflict=`, ready to raise: 404 → `IssueNotFound` on issue-scoped paths, `QueueNotFound` on queue-scoped ones (`v3/queues/{queue}/...`), `BoardNotFound` on board-scoped ones, `ComponentNotFound` on `v3/components/{id}` and the similar error on other paths; `conflict=` covers 409 *and* 412 - a stale `version` answers 409 on an issue update (`IssueVersionConflict`) but 412 on a component update (`ComponentVersionConflict`), and both are the same precondition failure. A dedicated error applies to *every* method scoped to that entity, not just to newly added ones. `allow_statuses=` is the way out for a status that is an answer rather than a failure - `user_get` reads a 404 as `None`; an allowed status skips `not_found` / `conflict` / `_raise_for_status` alike and reaches the caller as an ordinary response. An exception meant to reach the agent subclasses `ToolError` (`TrackerError` and `YandexTrackerError` do, so everything under them does too): mcp 2.x forwards a `ToolError`'s text in the tool result and hides any other exception behind a bare `Error executing tool <name>`.
 - **Field names on the wire**: a model may use a snake_case Python name, but it must accept *and emit* Tracker's own name - set `serialization_alias` next to every `validation_alias` (`story_points` reads and writes `storyPoints`). Responses are what callers feed back into `fields`, so the two spellings have to match; `tests/tracker/proto/test_model_aliases.py` fails if a new field forgets this.
 - **`fields` maps**: `issue_create` / `issue_update` take the free-form map as an explicit `fields` parameter, never as `**kwargs` - a key naming a dedicated parameter used to raise `TypeError: got multiple values`. The client merges it into the body last, so an entry overrides the dedicated parameter and an explicit `null` clears the field (a dedicated parameter left as `None` is simply not sent).
 - **Reference inputs**: every `Issue*Ref` validates that it carries something to resolve (`IssueComponentRef` wants exactly one of `id` / `name`, the others at least one of `id` / `key`); Tracker answers an empty object with an unhelpful 400/422, and when both `id` and `key` are set it resolves by `id`.
@@ -91,7 +91,7 @@ async def test_api_method(self, client: TrackerClient) -> None:
 
 ### Testing MCP Tools
 
-MCP tools are tested via `ClientSession.call_tool()` against a real `FastMCP` server with mocked protocols.
+MCP tools are tested via `mcp.Client.call_tool()` against a real `MCPServer` with mocked protocols.
 
 Key fixtures (from `tests/mcp/conftest.py`):
 - `client_session`: Connected MCP client session
@@ -101,10 +101,10 @@ Key fixtures (from `tests/mcp/conftest.py`):
 Use `get_tool_result_content(result)` helper to extract tool return values.
 
 ```python
-async def test_tool(self, client_session: ClientSession, mock_issues_protocol: AsyncMock) -> None:
+async def test_tool(self, client_session: Client, mock_issues_protocol: AsyncMock) -> None:
     mock_issues_protocol.issue_get.return_value = sample_issue
     result = await client_session.call_tool("issue_get", {"issue_id": "TEST-1"})
-    assert not result.isError
+    assert not result.is_error
     content = get_tool_result_content(result)
     assert content["key"] == "TEST-1"
 ```

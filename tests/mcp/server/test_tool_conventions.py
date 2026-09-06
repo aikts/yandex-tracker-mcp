@@ -100,7 +100,7 @@ def test_tool_description_fits_the_budget(tool: Tool) -> None:
 @pytest.mark.parametrize("tool", REGISTERED_TOOLS, ids=tool_id)
 def test_tool_annotates_whether_it_writes(tool: Tool) -> None:
     assert tool.annotations is not None, f"'{tool.name}' declares no ToolAnnotations"
-    assert tool.annotations.readOnlyHint is (tool.name in READ_ONLY_NAMES), (
-        f"'{tool.name}' has readOnlyHint={tool.annotations.readOnlyHint}, which "
+    assert tool.annotations.read_only_hint is (tool.name in READ_ONLY_NAMES), (
+        f"'{tool.name}' has readOnlyHint={tool.annotations.read_only_hint}, which "
         "contradicts the read-only/write lists in test_server_creation.py"
     )

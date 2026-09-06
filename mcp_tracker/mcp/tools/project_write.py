@@ -1,9 +1,6 @@
 """Project write MCP tools (conditionally registered based on read-only mode)."""
 
-from typing import Any
-
-from mcp.server import FastMCP
-from mcp.server.fastmcp import Context
+from mcp.server.mcpserver import Context, MCPServer
 from mcp.types import ToolAnnotations
 
 from mcp_tracker.mcp.context import AppContext
@@ -46,17 +43,19 @@ from mcp_tracker.tracker.proto.types.entities import ProjectEntity
 from mcp_tracker.tracker.proto.types.issues import IssueComment
 
 
-def register_project_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None:
+def register_project_write_tools(
+    _settings: Settings, mcp: MCPServer[AppContext]
+) -> None:
     """Register project write tools (not registered in read-only mode)."""
 
     @mcp.tool(
         title="Create Project",
         description="Create a Yandex Tracker project (in russian - 'проект') - an entity of "
         "the projects API, not a queue.",
-        annotations=ToolAnnotations(readOnlyHint=False),
+        annotations=ToolAnnotations(read_only_hint=False),
     )
     async def project_create(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         summary: EntitySummaryRequiredParam,
         description: EntityDescriptionParam = None,
         lead: EntityLeadParam = None,
@@ -93,10 +92,10 @@ def register_project_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None
     @mcp.tool(
         title="Update Project",
         description="Update fields of an existing Yandex Tracker project.",
-        annotations=ToolAnnotations(readOnlyHint=False),
+        annotations=ToolAnnotations(read_only_hint=False),
     )
     async def project_update(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         entity_id: EntityID,
         summary: EntitySummaryParam = None,
         description: EntityDescriptionParam = None,
@@ -140,10 +139,10 @@ def register_project_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None
         title="Delete Project",
         description="Delete a Yandex Tracker project (in russian - 'проект'), optionally with "
         "its board. Cannot be undone.",
-        annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True),
+        annotations=ToolAnnotations(read_only_hint=False, destructive_hint=True),
     )
     async def project_delete(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         entity_id: EntityID,
         with_board: EntityWithBoardParam = False,
     ) -> None:
@@ -158,10 +157,10 @@ def register_project_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None
         description="Add a comment to a Yandex Tracker project, e.g. "
         "entity_id='abc123'. To mention or call people so they get notified, use "
         "`summonees` - '@login' in the text notifies nobody.",
-        annotations=ToolAnnotations(readOnlyHint=False),
+        annotations=ToolAnnotations(read_only_hint=False),
     )
     async def project_add_comment(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         entity_id: EntityID,
         text: EntityCommentTextParam,
         summonees: EntityCommentSummoneesParam = None,
@@ -179,10 +178,10 @@ def register_project_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None
         title="Update Project Comment",
         description="Update an existing comment on a Yandex Tracker project. To "
         "mention or call people, use `summonees`, not '@login' in the text.",
-        annotations=ToolAnnotations(readOnlyHint=False),
+        annotations=ToolAnnotations(read_only_hint=False),
     )
     async def project_update_comment(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         entity_id: EntityID,
         comment_id: EntityCommentIDParam,
         text: EntityCommentTextParam,
@@ -203,10 +202,10 @@ def register_project_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None
     @mcp.tool(
         title="Delete Project Comment",
         description="Delete a comment from a Yandex Tracker project.",
-        annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True),
+        annotations=ToolAnnotations(read_only_hint=False, destructive_hint=True),
     )
     async def project_delete_comment(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         entity_id: EntityID,
         comment_id: EntityCommentIDParam,
     ) -> None:
@@ -223,10 +222,10 @@ def register_project_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None
         description="Add a checklist item to a Yandex Tracker project, e.g. "
         "entity_id='abc123'. Returns the full updated entity; request "
         "`checklistItems` via `fields` to see the new item.",
-        annotations=ToolAnnotations(readOnlyHint=False),
+        annotations=ToolAnnotations(read_only_hint=False),
     )
     async def project_add_checklist_item(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         entity_id: EntityID,
         text: EntityChecklistItemTextParam,
         checked: EntityChecklistItemCheckedParam = None,
@@ -247,10 +246,10 @@ def register_project_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None
     @mcp.tool(
         title="Update Project Checklist Item",
         description="Update (partial) a checklist item on a Yandex Tracker project.",
-        annotations=ToolAnnotations(readOnlyHint=False),
+        annotations=ToolAnnotations(read_only_hint=False),
     )
     async def project_update_checklist_item(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         entity_id: EntityID,
         checklist_item_id: EntityChecklistItemIDParam,
         text: EntityChecklistItemTextOptionalParam = None,
@@ -274,10 +273,10 @@ def register_project_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None
         title="Move Project Checklist Item",
         description="Reorder a checklist item on a Yandex Tracker project by moving it "
         "before another item.",
-        annotations=ToolAnnotations(readOnlyHint=False),
+        annotations=ToolAnnotations(read_only_hint=False),
     )
     async def project_move_checklist_item(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         entity_id: EntityID,
         checklist_item_id: EntityChecklistItemIDParam,
         before: EntityChecklistItemBeforeParam,
@@ -294,10 +293,10 @@ def register_project_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None
     @mcp.tool(
         title="Delete Project Checklist Item",
         description="Delete a single checklist item from a Yandex Tracker project.",
-        annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True),
+        annotations=ToolAnnotations(read_only_hint=False, destructive_hint=True),
     )
     async def project_delete_checklist_item(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         entity_id: EntityID,
         checklist_item_id: EntityChecklistItemIDParam,
         fields: ProjectFieldsParam = None,
@@ -315,10 +314,10 @@ def register_project_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None
         "Only the fields you set change; unlisted items and unset fields stay as they "
         "are. Use *_add_checklist_item / *_delete_checklist_item to add or remove "
         "items.",
-        annotations=ToolAnnotations(readOnlyHint=False),
+        annotations=ToolAnnotations(read_only_hint=False),
     )
     async def project_update_checklist(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         entity_id: EntityID,
         items: EntityChecklistItemsParam,
         fields: ProjectFieldsParam = None,
@@ -333,10 +332,10 @@ def register_project_write_tools(_settings: Settings, mcp: FastMCP[Any]) -> None
     @mcp.tool(
         title="Delete Project Checklist",
         description="Delete the entire checklist from a Yandex Tracker project.",
-        annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True),
+        annotations=ToolAnnotations(read_only_hint=False, destructive_hint=True),
     )
     async def project_delete_checklist(
-        ctx: Context[Any, AppContext],
+        ctx: Context[AppContext],
         entity_id: EntityID,
         fields: ProjectFieldsParam = None,
     ) -> ProjectEntity:

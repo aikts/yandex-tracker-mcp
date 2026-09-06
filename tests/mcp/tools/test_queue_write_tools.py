@@ -1,6 +1,6 @@
 from unittest.mock import AsyncMock
 
-from mcp.client.session import ClientSession
+from mcp import Client
 
 from mcp_tracker.tracker.proto.types.queues import QueueVersion
 from tests.mcp.conftest import get_tool_result_content
@@ -9,7 +9,7 @@ from tests.mcp.conftest import get_tool_result_content
 class TestQueueCreateVersion:
     async def test_creates_version(
         self,
-        client_session: ClientSession,
+        client_session: Client,
         mock_queues_protocol: AsyncMock,
         sample_queue_versions: list[QueueVersion],
     ) -> None:
@@ -27,7 +27,7 @@ class TestQueueCreateVersion:
             },
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_queues_protocol.queue_create_version.assert_called_once()
         call_args = mock_queues_protocol.queue_create_version.call_args
         assert call_args.args[0] == "TEST"
@@ -41,7 +41,7 @@ class TestQueueCreateVersion:
 
     async def test_restricted_queue_raises_error(
         self,
-        client_session_with_limits: ClientSession,
+        client_session_with_limits: Client,
         mock_queues_protocol: AsyncMock,
     ) -> None:
         result = await client_session_with_limits.call_tool(
@@ -49,7 +49,7 @@ class TestQueueCreateVersion:
             {"queue_id": "RESTRICTED", "name": "1.0.0"},
         )
 
-        assert result.isError
+        assert result.is_error
         mock_queues_protocol.queue_create_version.assert_not_called()
 
 
@@ -58,7 +58,7 @@ class TestPerQueueReadOnlyAccess:
 
     async def test_create_version_in_read_only_queue_rejected(
         self,
-        client_session_with_read_only_queues: ClientSession,
+        client_session_with_read_only_queues: Client,
         mock_queues_protocol: AsyncMock,
     ) -> None:
         result = await client_session_with_read_only_queues.call_tool(
@@ -66,12 +66,12 @@ class TestPerQueueReadOnlyAccess:
             {"queue_id": "READONLY", "name": "1.0.0"},
         )
 
-        assert result.isError
+        assert result.is_error
         mock_queues_protocol.queue_create_version.assert_not_called()
 
     async def test_create_version_in_writable_queue_allowed(
         self,
-        client_session_with_read_only_queues: ClientSession,
+        client_session_with_read_only_queues: Client,
         mock_queues_protocol: AsyncMock,
         sample_queue_versions: list[QueueVersion],
     ) -> None:
@@ -84,5 +84,5 @@ class TestPerQueueReadOnlyAccess:
             {"queue_id": "TEST", "name": "1.0.0"},
         )
 
-        assert not result.isError
+        assert not result.is_error
         mock_queues_protocol.queue_create_version.assert_called_once()
