@@ -17,6 +17,7 @@ All notable changes to this project will be documented in this file.
 ### Internal
 
 - **Python 3.14** is in the CI test matrix
+- Update `pydantic`, `cryptography` and `yandexcloud` dependencies to latest versions
 
 ## [0.9.0] - 2026-08-27
 
