@@ -6,6 +6,7 @@ import pytest
 
 from mcp_tracker.tracker.caching.client import make_cached_protocols
 from mcp_tracker.tracker.proto.common import YandexAuth
+from mcp_tracker.tracker.proto.types.components import Component
 from mcp_tracker.tracker.proto.types.fields import GlobalField, LocalField
 from mcp_tracker.tracker.proto.types.queues import Queue, QueueVersion
 
@@ -21,6 +22,9 @@ class TestCachingQueuesProtocol:
         original.queues_get_tags.return_value = ["tag1", "tag2"]
         original.queues_get_versions.return_value = [
             QueueVersion(id=1, version=1, name="1.0", released=False, archived=False)
+        ]
+        original.queues_get_components.return_value = [
+            Component.model_construct(id=856, version=1, name="Design")
         ]
         original.queue_create_version.return_value = QueueVersion(
             id=2,
@@ -96,6 +100,37 @@ class TestCachingQueuesProtocol:
 
         mock_original.queues_get_versions.assert_called_once_with("TEST", auth=None)
         assert result == mock_original.queues_get_versions.return_value
+
+    async def test_queues_get_components_calls_original(
+        self,
+        caching_queues_protocol: Any,
+        mock_original: AsyncMock,
+        yandex_auth: YandexAuth,
+    ) -> None:
+        result = await caching_queues_protocol.queues_get_components(
+            "TEST", auth=yandex_auth
+        )
+
+        mock_original.queues_get_components.assert_called_once_with(
+            "TEST", auth=yandex_auth
+        )
+        assert result == mock_original.queues_get_components.return_value
+
+    async def test_queues_get_components_calls_original_without_auth(
+        self, caching_queues_protocol: Any, mock_original: AsyncMock
+    ) -> None:
+        result = await caching_queues_protocol.queues_get_components("TEST")
+
+        mock_original.queues_get_components.assert_called_once_with("TEST", auth=None)
+        assert result == mock_original.queues_get_components.return_value
+
+    async def test_queues_get_components_is_not_cached(
+        self, caching_queues_protocol: Any, mock_original: AsyncMock
+    ) -> None:
+        await caching_queues_protocol.queues_get_components("TEST")
+        await caching_queues_protocol.queues_get_components("TEST")
+
+        assert mock_original.queues_get_components.call_count == 2
 
     async def test_queue_create_version_calls_original(
         self,

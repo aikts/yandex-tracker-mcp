@@ -26,6 +26,10 @@ PATH = "v3/thing"
 
 VERBS = ["GET", "POST", "PATCH", "DELETE"]
 
+# The statuses `conflict=` covers: 409 from an issue update with a stale
+# `version`, 412 from a component update with one.
+CONFLICT_STATUSES = [409, 412]
+
 
 class TestRequestForwarding:
     @pytest.mark.parametrize("verb", VERBS)
@@ -136,11 +140,12 @@ class TestRequestStatusMapping:
         assert exc_info.value.status == 404
         assert "Не найдено." in str(exc_info.value)
 
-    async def test_409_raises_the_given_error(
-        self, tracker_client: TrackerClient
+    @pytest.mark.parametrize("status", CONFLICT_STATUSES)
+    async def test_a_conflict_status_raises_the_given_error(
+        self, tracker_client: TrackerClient, status: int
     ) -> None:
         with aioresponses() as m:
-            m.patch(URL, status=409, payload={"errorMessages": ["Конфликт версий."]})
+            m.patch(URL, status=status, payload={"errorMessages": ["Конфликт версий."]})
 
             with pytest.raises(IssueVersionConflict) as exc_info:
                 async with tracker_client._request(
@@ -153,17 +158,18 @@ class TestRequestStatusMapping:
 
         assert "TEST-1" in str(exc_info.value)
 
-    async def test_409_without_a_mapping_is_an_api_error(
-        self, tracker_client: TrackerClient
+    @pytest.mark.parametrize("status", CONFLICT_STATUSES)
+    async def test_a_conflict_status_without_a_mapping_is_an_api_error(
+        self, tracker_client: TrackerClient, status: int
     ) -> None:
         with aioresponses() as m:
-            m.patch(URL, status=409, payload={"errorMessages": ["Конфликт версий."]})
+            m.patch(URL, status=status, payload={"errorMessages": ["Конфликт версий."]})
 
             with pytest.raises(TrackerAPIError) as exc_info:
                 async with tracker_client._request("PATCH", PATH, auth=None):
                     pass  # pragma: no cover - the status is raised before this
 
-        assert exc_info.value.status == 409
+        assert exc_info.value.status == status
 
     @pytest.mark.parametrize("status", [400, 403, 422, 500])
     async def test_any_other_failure_is_an_api_error(

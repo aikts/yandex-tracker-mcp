@@ -6,10 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Features
 
-- **Checklist write tools for issues** — checklists were read-only ([#44](https://github.com/aikts/yandex-tracker-mcp/issues/44))
-  - `issue_add_checklist_items`, `issue_update_checklist_item`, `issue_delete_checklist_item`
-  - All three return the issue's checklist after the change; registered only when `TRACKER_READ_ONLY` is off, and `TRACKER_LIMIT_QUEUES` / `TRACKER_READ_ONLY_QUEUES` apply as to the other issue write tools
-  - An update changes only the fields you pass; omitted ones keep their value, and `clear_assignee` / `clear_deadline` remove one
+- **Queue component tools** — `queue_get_components`, `component_get`, `component_create`, `component_update`, `component_delete` ([#30](https://github.com/aikts/yandex-tracker-mcp/pull/30))
+- **Checklist write tools for issues** — `issue_add_checklist_items`, `issue_update_checklist_item`, `issue_delete_checklist_item`; checklists were read-only ([#44](https://github.com/aikts/yandex-tracker-mcp/issues/44))
 
 ### Documentation
 

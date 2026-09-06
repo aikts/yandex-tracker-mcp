@@ -2,7 +2,8 @@
 
 from mcp_tracker.mcp.errors import TrackerError
 from mcp_tracker.settings import Settings
-from mcp_tracker.tracker.custom.errors import IssueNotFound
+from mcp_tracker.tracker.custom.errors import ComponentNotFound, IssueNotFound
+from mcp_tracker.tracker.proto.types.components import Component
 
 
 def _is_read_only_queue(settings: Settings, queue: str) -> bool:
@@ -28,36 +29,78 @@ def is_queue_allowed(settings: Settings, queue: str) -> bool:
     )
 
 
-def check_issue_access(
-    settings: Settings, issue_id: str, *, write: bool = False
+def _check_scoped_queue(
+    settings: Settings, queue: str, *, not_found: Exception, write: bool
 ) -> None:
-    """Check if access to the issue is allowed based on queue restrictions.
+    """The one check behind every `check_*_access` helper.
 
-    When ``write`` is True, the target queue is additionally validated against
-    the per-queue read-only allow-list (``TRACKER_READ_ONLY_QUEUES``); mutations
-    on read-only queues are rejected.
+    Raises ``not_found`` for a queue outside ``TRACKER_LIMIT_QUEUES`` and, for
+    a ``write``, rejects a queue listed in ``TRACKER_READ_ONLY_QUEUES``.
     """
-    queue = issue_id.split("-")[0]
     if not is_queue_allowed(settings, queue):
-        raise IssueNotFound(issue_id)
+        raise not_found
     if write and _is_read_only_queue(settings, queue):
         raise TrackerError(
             f"Queue `{queue}` is read-only; write operations are not allowed."
         )
 
 
+def check_issue_access(
+    settings: Settings, issue_id: str, *, write: bool = False
+) -> None:
+    """Check access to an issue through the queue its key names."""
+    queue = issue_id.split("-")[0]
+    _check_scoped_queue(settings, queue, not_found=IssueNotFound(issue_id), write=write)
+
+
 def check_queue_access(
     settings: Settings, queue_id: str, *, write: bool = False
 ) -> None:
-    """Check if access to the queue is allowed based on queue restrictions.
+    """Check access to a queue named by the caller."""
+    _check_scoped_queue(
+        settings,
+        queue_id,
+        not_found=TrackerError(f"Queue `{queue_id}` not found or not allowed."),
+        write=write,
+    )
 
-    When ``write`` is True, the queue is additionally validated against the
-    per-queue read-only allow-list (``TRACKER_READ_ONLY_QUEUES``); mutations on
-    read-only queues are rejected.
+
+def queue_checks_needed(settings: Settings, *, write: bool) -> bool:
+    """Whether a tool has to learn an entity's queue before acting on it.
+
+    True when ``TRACKER_LIMIT_QUEUES`` is set, or - for a write - when
+    ``TRACKER_READ_ONLY_QUEUES`` is. A tool whose argument names no queue (a
+    component id, say) needs an extra read to find the queue to check, and
+    on an unrestricted server that read buys nothing.
     """
-    if not is_queue_allowed(settings, queue_id):
-        raise TrackerError(f"Queue `{queue_id}` not found or not allowed.")
-    if write and _is_read_only_queue(settings, queue_id):
+    if settings.tracker_limit_queues:
+        return True
+    return write and bool(settings.tracker_read_only_queues)
+
+
+def check_component_access(
+    settings: Settings, component: Component, *, write: bool = False
+) -> None:
+    """Check access to a component through the queue it belongs to.
+
+    A no-op unless `queue_checks_needed`. A component whose response carries
+    no queue key cannot be checked, so under a restriction it is refused
+    rather than let through. One in a queue outside ``TRACKER_LIMIT_QUEUES``
+    raises `ComponentNotFound`, one in a read-only queue is rejected for a
+    write with the queue named, as `check_queue_access` does.
+    """
+    if not queue_checks_needed(settings, write=write):
+        return
+
+    queue_key = component.queue.key if component.queue is not None else None
+    if queue_key is None:
         raise TrackerError(
-            f"Queue `{queue_id}` is read-only; write operations are not allowed."
+            f"Component `{component.id}` names no queue, so its access cannot be "
+            f"checked against the queue restrictions; refusing."
         )
+
+    # The caller knows the component by id alone, and the key came from the
+    # API: a queue the allow-list hides must not be named back at them.
+    _check_scoped_queue(
+        settings, queue_key, not_found=ComponentNotFound(component.id), write=write
+    )

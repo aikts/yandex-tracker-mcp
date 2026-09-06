@@ -49,6 +49,10 @@
       "description": "Get all versions for a specific queue"
     },
     {
+      "name": "queue_get_components",
+      "description": "Get the components of a queue with lead, auto-assign flag and version"
+    },
+    {
       "name": "queue_create_version",
       "description": "Create a new version in a specific queue"
     },
@@ -59,6 +63,22 @@
     {
       "name": "queue_get_metadata",
       "description": "Get detailed metadata about a specific queue"
+    },
+    {
+      "name": "component_get",
+      "description": "Get one queue component by its numeric id"
+    },
+    {
+      "name": "component_create",
+      "description": "Create a component in a queue"
+    },
+    {
+      "name": "component_update",
+      "description": "Change the name, description, lead or auto-assign flag of a component"
+    },
+    {
+      "name": "component_delete",
+      "description": "Permanently delete a component"
     },
     {
       "name": "project_get",

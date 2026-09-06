@@ -471,6 +471,7 @@ The server exposes the following tools through the MCP protocol:
 | `queues_get_all` | Every queue the token may see; returns `{values, hits, pages}` | `fields`, `page` (omit to walk every page), `per_page` |
 | `queue_get_tags` | The tags defined in the queue | `queue_id` (a key like `"SOMEPROJECT"`) |
 | `queue_get_versions` | The queue's versions, with dates and status | `queue_id` |
+| `queue_get_components` | The queue's components as full objects, with lead, auto-assign flag and `version`; `queue_get_metadata` with `expand: ["components"]` gives ids and names only | `queue_id` |
 | `queue_create_version` | Create a version in the queue | `queue_id`, `name`, `description`, `start_date`, `due_date` (`YYYY-MM-DD`) |
 | `queue_get_fields` | The fields configured on the queue, local ones included; `schema.required` marks the mandatory ones | `queue_id`, `include_local_fields` |
 | `queue_get_metadata` | Name, description, default type and priority, plus whatever `expand` asks for | `queue_id`, `expand` (`all`, `projects`, `components`, `versions`, `types`, `team`, `workflows`, `fields`, `issueTypesConfig`) |
@@ -478,6 +479,22 @@ The server exposes the following tools through the MCP protocol:
 - Read `queue_get_fields` before `issue_create`, but it is not the whole registry: system fields such as `parent` or `estimation` are settable without appearing there, and `get_global_fields` lists every field the organization has.
 - `queue_get_metadata` with `expand: ["issueTypesConfig"]` is where the resolutions valid for each issue type come from - `issue_close` needs one of them.
 - All of these respect `TRACKER_LIMIT_QUEUES`. `hits` / `pages` from `queues_get_all` are reported only for an explicit single page on a server without the allow-list, since the totals count queues the allow-list then hides.
+
+</details>
+
+<details>
+<summary><strong>Components</strong></summary>
+
+A component is a label grouping a queue's issues by product, process or owner. Its numeric id is what `issue_create` / `issue_update` take in `components`.
+
+| Tool | What it does | Key arguments |
+| --- | --- | --- |
+| `component_get` | One component with `queue`, `lead`, `assignAuto` and `version` | `component_id` (from `queue_get_components` or an issue's `components`) |
+| `component_create` | Create a component in a queue | `queue_id`, `name`, `description`, `lead` (a login or uid), `assign_auto` |
+| `component_update` | Change name, description, lead or auto-assign flag; omitted fields keep their value, `clear_lead` removes the lead | `component_id`, `name`, `description`, `lead`, `assign_auto`, `clear_lead`, `version` |
+| `component_delete` | Delete a component | `component_id` |
+
+- `TRACKER_LIMIT_QUEUES` and `TRACKER_READ_ONLY_QUEUES` apply through the component's queue: `component_update` and `component_delete` read the component first to learn it, and a component in a queue outside `TRACKER_LIMIT_QUEUES` is reported as not found.
 
 </details>
 

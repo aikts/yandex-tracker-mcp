@@ -3,10 +3,16 @@
 import pytest
 
 from mcp_tracker.mcp.errors import TrackerError
-from mcp_tracker.mcp.tools._access import check_issue_access, check_queue_access
+from mcp_tracker.mcp.tools._access import (
+    check_component_access,
+    check_issue_access,
+    check_queue_access,
+    queue_checks_needed,
+)
 from mcp_tracker.settings import Settings
-from mcp_tracker.tracker.custom.errors import IssueNotFound
+from mcp_tracker.tracker.custom.errors import ComponentNotFound, IssueNotFound
 from tests.mcp.conftest import create_test_settings
+from tests.mcp.tools.conftest import component_in
 
 
 class TestCheckIssueAccess:
@@ -87,6 +93,91 @@ class TestCheckQueueAccess:
             check_queue_access(settings, "OTHER")
 
 
+class TestQueueChecksNeeded:
+    """Whether a tool has to read an entity to learn its queue before acting."""
+
+    @pytest.mark.parametrize("write", [False, True])
+    def test_unrestricted_server_needs_none(self, write: bool) -> None:
+        settings = create_test_settings()
+
+        assert queue_checks_needed(settings, write=write) is False
+
+    @pytest.mark.parametrize("write", [False, True])
+    def test_limit_queues_needs_them_for_reads_and_writes(self, write: bool) -> None:
+        settings = create_test_settings(limit_queues=["ALLOWED"])
+
+        assert queue_checks_needed(settings, write=write) is True
+
+    def test_read_only_queues_need_them_for_writes_only(self) -> None:
+        settings = create_test_settings(read_only_queues=["READONLY"])
+
+        assert queue_checks_needed(settings, write=False) is False
+        assert queue_checks_needed(settings, write=True) is True
+
+
+class TestCheckComponentAccess:
+    """A component is checked through the queue it belongs to."""
+
+    @pytest.mark.parametrize("queue_key", ["TEST", None])
+    def test_unrestricted_server_allows_everything(self, queue_key: str | None) -> None:
+        settings = create_test_settings()
+
+        # Even a component without a queue: there is nothing to check it against.
+        check_component_access(settings, component_in(queue_key))
+        check_component_access(settings, component_in(queue_key), write=True)
+
+    def test_allowed_queue_passes(self) -> None:
+        settings = create_test_settings(limit_queues=["ALLOWED"])
+
+        check_component_access(settings, component_in("ALLOWED"))
+        check_component_access(settings, component_in("ALLOWED"), write=True)
+
+    @pytest.mark.parametrize("write", [False, True])
+    def test_queue_outside_the_allow_list_is_not_found(self, write: bool) -> None:
+        """The key of a hidden queue must not be named back to the caller."""
+        settings = create_test_settings(limit_queues=["ALLOWED"])
+
+        with pytest.raises(ComponentNotFound) as excinfo:
+            check_component_access(settings, component_in("OTHER"), write=write)
+
+        assert excinfo.value.component_id == 856
+        assert "OTHER" not in str(excinfo.value)
+
+    def test_read_only_queue_allows_reads_and_rejects_writes(self) -> None:
+        settings = create_test_settings(read_only_queues=["READONLY"])
+
+        check_component_access(settings, component_in("READONLY"))
+        with pytest.raises(TrackerError, match="read-only"):
+            check_component_access(settings, component_in("READONLY"), write=True)
+
+    def test_writable_queue_allows_writes(self) -> None:
+        settings = create_test_settings(read_only_queues=["READONLY"])
+
+        check_component_access(settings, component_in("TEST"), write=True)
+
+    @pytest.mark.parametrize(
+        ("limit_queues", "read_only_queues", "write"),
+        [
+            (["ALLOWED"], None, False),
+            (["ALLOWED"], None, True),
+            (None, ["READONLY"], True),
+        ],
+    )
+    def test_component_without_a_queue_is_refused_under_a_restriction(
+        self,
+        limit_queues: list[str] | None,
+        read_only_queues: list[str] | None,
+        write: bool,
+    ) -> None:
+        """Its queue cannot be checked, so it is not let through."""
+        settings = create_test_settings(
+            limit_queues=limit_queues, read_only_queues=read_only_queues
+        )
+
+        with pytest.raises(TrackerError, match="names no queue"):
+            check_component_access(settings, component_in(None), write=write)
+
+
 class TestAllowListsIgnoreCase:
     """Tracker's queue keys are upper-case; the env vars are written by hand.
 
@@ -104,6 +195,7 @@ class TestAllowListsIgnoreCase:
 
         check_queue_access(settings, requested)
         check_issue_access(settings, f"{requested}-1")
+        check_component_access(settings, component_in(requested))
 
     @pytest.mark.parametrize("configured", ["OTHER", "other"])
     def test_a_queue_outside_the_list_is_still_rejected(self, configured: str) -> None:
@@ -126,6 +218,8 @@ class TestAllowListsIgnoreCase:
             check_queue_access(settings, requested, write=True)
         with pytest.raises(TrackerError, match="read-only"):
             check_issue_access(settings, f"{requested}-1", write=True)
+        with pytest.raises(TrackerError, match="read-only"):
+            check_component_access(settings, component_in(requested), write=True)
 
 
 class TestSettingsParsing:

@@ -1,14 +1,17 @@
 import pytest
 from mcp.client.session import ClientSession
 
-# Read-only tool names (32 tools) - always registered
+# Read-only tool names (35 tools) - always registered
 READ_ONLY_TOOL_NAMES = [
-    # Queue tools (5)
+    # Queue tools (6)
     "queues_get_all",
     "queue_get_tags",
     "queue_get_versions",
+    "queue_get_components",
     "queue_get_fields",
     "queue_get_metadata",
+    # Component tools (1)
+    "component_get",
     # Field tools (10)
     "get_global_fields",
     "get_statuses",
@@ -62,6 +65,9 @@ ENTITY_READ_ONLY_TOOL_NAMES = [
 # Write tool names - only registered when not in read-only mode
 WRITE_TOOL_NAMES = [
     "queue_create_version",
+    "component_create",
+    "component_update",
+    "component_delete",
     "issue_execute_transition",
     "issue_close",
     "issue_create",

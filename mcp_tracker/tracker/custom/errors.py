@@ -26,6 +26,12 @@ class BoardNotFound(YandexTrackerError):
         self.board_id = board_id
 
 
+class ComponentNotFound(YandexTrackerError):
+    def __init__(self, component_id: int):
+        super().__init__(f"Component with ID '{component_id}' not found.")
+        self.component_id = component_id
+
+
 class IssueTemplateNotFound(YandexTrackerError):
     def __init__(self, template_id: str):
         super().__init__(f"Issue template with ID '{template_id}' not found.")
@@ -56,6 +62,21 @@ class IssueVersionConflict(YandexTrackerError):
             f"or omit the version parameter to update the latest version unconditionally."
         )
         self.issue_id = issue_id
+        self.version = version
+
+
+class ComponentVersionConflict(YandexTrackerError):
+    """Raised when a component update is rejected (412) because `version` is stale."""
+
+    def __init__(self, component_id: int, version: int):
+        super().__init__(
+            f"Editing conflict for component '{component_id}' with version "
+            f"{version}: the component was changed since that version was read. "
+            f"Re-read it with component_get (or queue_get_components) and retry, "
+            f"or omit the version parameter of component_update to update the "
+            f"current one."
+        )
+        self.component_id = component_id
         self.version = version
 
 
@@ -205,8 +226,20 @@ class ChecklistItemEmptyUpdate(YandexTrackerError):
         )
 
 
-class ChecklistItemClearConflict(YandexTrackerError):
-    """Raised when an update both sets and clears the same checklist item field."""
+class ComponentEmptyUpdate(YandexTrackerError):
+    """Raised for a component update that would change nothing - Tracker answers
+    an empty PATCH body with 200 and leaves the component untouched."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            "A component update must change something: pass at least one of "
+            "`name`, `description`, `lead`, `assign_auto` or `clear_lead`. An "
+            "omitted field keeps its current value; `clear_lead` removes the lead."
+        )
+
+
+class FieldClearConflict(YandexTrackerError):
+    """Raised when an update both sets and clears the same field."""
 
     def __init__(self, field: str) -> None:
         super().__init__(

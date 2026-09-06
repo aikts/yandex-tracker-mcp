@@ -15,6 +15,7 @@ from mcp_tracker.mcp.tools._access import check_queue_access, is_queue_allowed
 from mcp_tracker.mcp.tools._pagination import collect_pages
 from mcp_tracker.mcp.utils import get_yandex_auth, set_non_needed_fields_null
 from mcp_tracker.settings import Settings
+from mcp_tracker.tracker.proto.types.components import Component
 from mcp_tracker.tracker.proto.types.fields import GlobalField
 from mcp_tracker.tracker.proto.types.pagination import PaginatedResult
 from mcp_tracker.tracker.proto.types.queues import (
@@ -105,6 +106,24 @@ def register_queue_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
     ) -> list[QueueVersion]:
         check_queue_access(settings, queue_id)
         return await ctx.request_context.lifespan_context.queues.queues_get_versions(
+            queue_id,
+            auth=get_yandex_auth(ctx),
+        )
+
+    @mcp.tool(
+        title="Get Queue Components",
+        description="Get the components (in russian - 'компоненты') of a Yandex "
+        "Tracker queue with lead, auto-assign flag and `version`. "
+        "`queue_get_metadata` with expand=['components'] names them only (id and "
+        "name); the id is what `issue_create` / `issue_update` take in `components`.",
+        annotations=ToolAnnotations(readOnlyHint=True),
+    )
+    async def queue_get_components(
+        ctx: Context[Any, AppContext],
+        queue_id: QueueID,
+    ) -> list[Component]:
+        check_queue_access(settings, queue_id)
+        return await ctx.request_context.lifespan_context.queues.queues_get_components(
             queue_id,
             auth=get_yandex_auth(ctx),
         )

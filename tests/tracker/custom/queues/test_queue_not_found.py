@@ -16,6 +16,10 @@ QUEUE_SCOPED_READS: list[tuple[str, str]] = [
         "https://api.tracker.yandex.net/v3/queues/MISSING/localFields",
     ),
     ("queues_get_fields", "https://api.tracker.yandex.net/v3/queues/MISSING/fields"),
+    (
+        "queues_get_components",
+        "https://api.tracker.yandex.net/v3/queues/MISSING/components",
+    ),
 ]
 
 
