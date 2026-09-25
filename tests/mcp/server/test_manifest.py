@@ -11,9 +11,12 @@ from mcp.client.session import ClientSession
 from tests.mcp.server.test_server_creation import (
     ENTITY_READ_ONLY_TOOL_NAMES,
     ENTITY_WRITE_TOOL_NAMES,
+    FILE_UPLOAD_TOOL_NAMES,
 )
+from tests.mcp.server.tool_listing import TOOL_NAMES
 
 ENTITIES_FLAG_NOTE = "(requires TRACKER_ENTITIES_ENABLED)"
+FILE_UPLOAD_FLAG_NOTE = "(requires TRACKER_FILE_UPLOAD_ENABLED)"
 MANIFEST_PATH = Path(__file__).parents[3] / "manifest.json"
 
 
@@ -63,4 +66,36 @@ async def test_manifest_declares_the_entities_flag(manifest: dict[str, Any]) -> 
     assert (
         manifest["server"]["mcp_config"]["env"]["TRACKER_ENTITIES_ENABLED"]
         == "${user_config.tracker_entities_enabled}"
+    )
+
+
+@pytest.mark.parametrize("tool_name", FILE_UPLOAD_TOOL_NAMES)
+def test_file_upload_tools_are_marked_as_opt_in(
+    manifest: dict[str, Any], tool_name: str
+) -> None:
+    """The file upload tools are not registered by default, so the manifest says so."""
+    descriptions = {tool["name"]: tool["description"] for tool in manifest["tools"]}
+
+    assert descriptions[tool_name].endswith(FILE_UPLOAD_FLAG_NOTE)
+
+
+@pytest.mark.parametrize(
+    "tool_name", sorted(TOOL_NAMES - frozenset(FILE_UPLOAD_TOOL_NAMES))
+)
+def test_other_tools_are_not_marked_as_file_upload(
+    manifest: dict[str, Any], tool_name: str
+) -> None:
+    descriptions = {tool["name"]: tool["description"] for tool in manifest["tools"]}
+
+    assert FILE_UPLOAD_FLAG_NOTE not in descriptions[tool_name]
+
+
+async def test_manifest_declares_the_file_upload_flag(
+    manifest: dict[str, Any],
+) -> None:
+    assert "tracker_file_upload_enabled" in manifest["user_config"]
+    assert manifest["user_config"]["tracker_file_upload_enabled"]["default"] is False
+    assert (
+        manifest["server"]["mcp_config"]["env"]["TRACKER_FILE_UPLOAD_ENABLED"]
+        == "${user_config.tracker_file_upload_enabled}"
     )

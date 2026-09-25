@@ -89,13 +89,24 @@ class TrackerAPITimeout(YandexTrackerError):
     that time, rather than the request, was the problem.
     """
 
-    def __init__(self, *, method: str, url: str, timeout: float):
+    def __init__(
+        self,
+        *,
+        method: str,
+        url: str,
+        timeout: float,
+        setting: str = "TRACKER_API_TIMEOUT",
+    ):
         self.method = method
         self.url = url
         self.timeout = timeout
+        # The environment variable that sets this request's budget - a file upload
+        # has its own, and naming the wrong one sends the caller to a knob that
+        # changes nothing.
+        self.setting = setting
         super().__init__(
             f"Yandex Tracker API request {method} {url} timed out after "
-            f"{timeout:g}s. Raise TRACKER_API_TIMEOUT if this endpoint is "
+            f"{timeout:g}s. Raise {setting} if this endpoint is "
             f"slow for this organization."
         )
 

@@ -25,7 +25,8 @@
         "TRACKER_IAM_TOKEN": "${user_config.tracker_iam_token}",
         "TRACKER_CLOUD_ORG_ID": "${user_config.tracker_cloud_org_id}",
         "TRACKER_ORG_ID": "${user_config.tracker_org_id}",
-        "TRACKER_ENTITIES_ENABLED": "${user_config.tracker_entities_enabled}"
+        "TRACKER_ENTITIES_ENABLED": "${user_config.tracker_entities_enabled}",
+        "TRACKER_FILE_UPLOAD_ENABLED": "${user_config.tracker_file_upload_enabled}"
       }
     }
   },
@@ -361,6 +362,10 @@
       "description": "Get attachments for an issue"
     },
     {
+      "name": "issue_add_attachment",
+      "description": "Attach a file from this computer to an issue (requires TRACKER_FILE_UPLOAD_ENABLED)"
+    },
+    {
       "name": "issue_add_checklist_items",
       "description": "Add one or more items to the checklist of a Yandex Tracker issue"
     },
@@ -450,6 +455,14 @@
       "type": "boolean",
       "title": "Enable Project/Portfolio/Goal Tools",
       "description": "Register the project, portfolio and goal tools. They add a large tool manifest and are not covered by the queue restrictions, so they are off by default.",
+      "required": false,
+      "sensitive": false,
+      "default": false
+    },
+    "tracker_file_upload_enabled": {
+      "type": "boolean",
+      "title": "Enable File Upload to Issues",
+      "description": "Register issue_add_attachment, which uploads a file from this computer to an issue. It can read any file you can, so it is off by default.",
       "required": false,
       "sensitive": false,
       "default": false

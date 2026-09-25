@@ -32,3 +32,4 @@ class TestConfigurationResource:
         # Verify the configuration contains expected field names
         assert "read_only" in content_text
         assert "cache_enabled" in content_text
+        assert "file_upload_enabled" in content_text

@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import logging
+import mimetypes
 import random
 import time
 from asyncio import CancelledError
@@ -11,7 +12,7 @@ from typing import Any, Literal
 
 import jwt
 import yandexcloud
-from aiohttp import ClientResponse, ClientSession, ClientTimeout
+from aiohttp import ClientResponse, ClientSession, ClientTimeout, FormData
 from pydantic import BaseModel, Field, RootModel
 from yandex.cloud.iam.v1.iam_token_service_pb2 import CreateIamTokenRequest
 from yandex.cloud.iam.v1.iam_token_service_pb2_grpc import IamTokenServiceStub
@@ -317,6 +318,7 @@ class TrackerClient(
         cloud_org_id: str | None = None,
         base_url: str = "https://api.tracker.yandex.net",
         timeout: float = 10,
+        upload_timeout: float = 300,
     ):
         self._token = token
         self._token_type = token_type
@@ -328,6 +330,7 @@ class TrackerClient(
         self._cloud_org_id = cloud_org_id
 
         self._timeout = timeout
+        self._upload_timeout = upload_timeout
         self._session = ClientSession(
             base_url=base_url,
             timeout=ClientTimeout(total=timeout),
@@ -417,9 +420,12 @@ class TrackerClient(
         auth: YandexAuth | None,
         params: Mapping[str, Any] | None = None,
         json: Any = None,
+        data: Any = None,
         not_found: YandexTrackerError | None = None,
         conflict: YandexTrackerError | None = None,
         allow_statuses: Collection[int] = (),
+        timeout: float | None = None,
+        timeout_setting: str = "TRACKER_API_TIMEOUT",
     ) -> AsyncIterator[ClientResponse]:
         """Every request to the Tracker API goes through here.
 
@@ -435,14 +441,26 @@ class TrackerClient(
 
         `allow_statuses` hands a status back to the caller instead of raising -
         for the one method that answers a 404 with `None` rather than an error.
+
+        `timeout` replaces the session's per-request budget for this request, and
+        `timeout_setting` names the variable that sets it in the timeout error.
+        Only a file upload needs this: the budget covers sending the body, and the
+        default one fails any sizable file.
         """
         # Built before the `try`: the service account's IAM fetch is not a
         # Tracker request and must not be reported as one timing out.
         headers = await self._build_headers(auth)
+        budget = self._timeout if timeout is None else timeout
 
         try:
             async with self._session.request(
-                method, url, headers=headers, params=params, json=json
+                method,
+                url,
+                headers=headers,
+                params=params,
+                json=json,
+                data=data,
+                timeout=ClientTimeout(total=budget),
             ) as response:
                 if response.status not in allow_statuses:
                     if not_found is not None and response.status == 404:
@@ -456,7 +474,7 @@ class TrackerClient(
             # caller's `async with`, and that exception is thrown back in at the
             # `yield` above.
             raise TrackerAPITimeout(
-                method=method, url=url, timeout=self._timeout
+                method=method, url=url, timeout=budget, setting=timeout_setting
             ) from exc
 
     async def _read(
@@ -1044,6 +1062,36 @@ class TrackerClient(
                 not_found=IssueNotFound(issue_id),
             )
         ).root
+
+    async def issue_add_attachment(
+        self,
+        issue_id: str,
+        *,
+        content: bytes,
+        filename: str,
+        auth: YandexAuth | None = None,
+    ) -> IssueAttachment:
+        # The name goes both ways the API documents: as the `filename` query
+        # parameter and as the multipart part's own filename.
+        form = FormData()
+        form.add_field(
+            "file",
+            content,
+            filename=filename,
+            content_type=mimetypes.guess_type(filename)[0]
+            or "application/octet-stream",
+        )
+        async with self._request(
+            "POST",
+            f"v3/issues/{issue_id}/attachments/",
+            auth=auth,
+            params={"filename": filename},
+            data=form,
+            not_found=IssueNotFound(issue_id),
+            timeout=self._upload_timeout,
+            timeout_setting="TRACKER_UPLOAD_TIMEOUT",
+        ) as response:
+            return IssueAttachment.model_validate_json(await response.read())
 
     async def users_list(
         self, per_page: int = 50, page: int = 1, *, auth: YandexAuth | None = None

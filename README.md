@@ -623,6 +623,7 @@ These four are organization-wide. A queue may accept only some of the values the
 | `issue_update_worklog` | Edit a worklog entry | `issue_id`, `worklog_id`, `duration`, `comment`, `start` |
 | `issue_delete_worklog` | Delete a worklog entry | `issue_id`, `worklog_id` |
 | `issue_get_attachments` | Attachment metadata | `issue_id`, `fields` |
+| `issue_add_attachment` | Upload a file from the machine the server runs on, returning the attachment; an image shows inline in a description only when embedded as `![name](/ajax/v2/attachments/<id>?inline=true)` | `issue_id`, `file_path`, `filename` |
 | `issue_get_checklist` | The checklist, with the item ids the write tools need | `issue_id` |
 | `issue_add_checklist_items` | Append items in order, creating the checklist if there is none | `issue_id`, `items` (`text`, `checked`, `assignee`, `deadline`) |
 | `issue_update_checklist_item` | Change one item; the fields you omit keep their value | `issue_id`, `checklist_item_id`, `text`, `checked`, `assignee`, `deadline`, `clear_assignee`, `clear_deadline` |
@@ -640,6 +641,8 @@ These four are organization-wide. A queue may accept only some of the values the
 - **Transitions are not guessed.** `issue_execute_transition` only takes ids from `issue_get_transitions`, and before `issue_close` read the issue's `type` with `issue_get` and the resolutions valid for that type from `queue_get_metadata` with `expand: ["issueTypesConfig"]` - each type has its own set. Where the client supports elicitation, `issue_move` asks the user to confirm its flags first, and declining aborts the move.
 
 Every tool here respects `TRACKER_LIMIT_QUEUES` and `TRACKER_READ_ONLY_QUEUES`; the ones that write are registered only when `TRACKER_READ_ONLY` is off.
+
+`issue_add_attachment` is opt-in: it is registered only with `TRACKER_FILE_UPLOAD_ENABLED=true` (default `false`), because it reads any file the server process can. The server refuses to start with the flag on a network transport or with `OAUTH_ENABLED`, where a client - or a prompt injected into an issue - could upload the host's secrets to an issue. Uploads have their own time budget, `TRACKER_UPLOAD_TIMEOUT`.
 
 </details>
 
@@ -1012,11 +1015,13 @@ TRACKER_ORG_ID=your_org_id                # For Yandex 360 organizations
 # API Configuration (optional)
 TRACKER_API_BASE_URL=https://api.tracker.yandex.net  # Default: https://api.tracker.yandex.net
 TRACKER_API_TIMEOUT=10                    # Default: 10 - Per-request timeout in seconds for Tracker API calls
+TRACKER_UPLOAD_TIMEOUT=300                # Default: 300 - Timeout in seconds for one file upload (issue_add_attachment)
 
 # Security - Restrict access to specific queues (optional)
 TRACKER_LIMIT_QUEUES=PROJ1,PROJ2,DEV      # Comma-separated queue keys - allow-list of accessible queues
 TRACKER_READ_ONLY_QUEUES=PROJ2            # Comma-separated queue keys - allowed for reads but reject writes (per-queue read-only)
 TRACKER_ENTITIES_ENABLED=true             # Default: false - Register project/portfolio/goal tools (NOT covered by the queue restrictions above)
+TRACKER_FILE_UPLOAD_ENABLED=true          # Default: false - Register issue_add_attachment, which uploads local files (stdio only: refused with a network transport or OAUTH_ENABLED)
 
 # Server Configuration
 HOST=0.0.0.0                              # Default: 0.0.0.0

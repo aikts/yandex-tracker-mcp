@@ -11,7 +11,8 @@ implemented.
 ## manifest.json
 
 One sentence per tool: under 160 characters, no markdown, no parameter list. A tool that
-needs `TRACKER_ENTITIES_ENABLED` ends its sentence with `(requires TRACKER_ENTITIES_ENABLED)`.
+needs an opt-in flag ends its sentence with it - `(requires TRACKER_ENTITIES_ENABLED)`,
+`(requires TRACKER_FILE_UPLOAD_ENABLED)`.
 
 ## The tool listing in the READMEs
 
