@@ -620,6 +620,7 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
 | `issue_update_worklog` | Изменить запись о времени | `issue_id`, `worklog_id`, `duration`, `comment`, `start` |
 | `issue_delete_worklog` | Удалить запись о времени | `issue_id`, `worklog_id` |
 | `issue_get_attachments` | Метаданные вложений | `issue_id`, `fields` |
+| `issue_add_attachment` | Загрузить файл с машины, на которой работает сервер, и вернуть вложение; изображение показывается в описании, только если вставить его как `![name](/ajax/v2/attachments/<id>?inline=true)` | `issue_id`, `file_path`, `filename` |
 | `issue_get_checklist` | Чек-лист вместе с id пунктов, которые нужны инструментам записи | `issue_id` |
 | `issue_add_checklist_items` | Добавить пункты по порядку, создав чек-лист, если его не было | `issue_id`, `items` (`text`, `checked`, `assignee`, `deadline`) |
 | `issue_update_checklist_item` | Изменить один пункт; непереданные поля сохраняют значение | `issue_id`, `checklist_item_id`, `text`, `checked`, `assignee`, `deadline`, `clear_assignee`, `clear_deadline` |
@@ -637,6 +638,8 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
 - **Переходы не угадываются.** `issue_execute_transition` принимает только id из `issue_get_transitions`, а перед `issue_close` прочитайте `type` задачи через `issue_get` и допустимые для этого типа резолюции через `queue_get_metadata` с `expand: ["issueTypesConfig"]` — у каждого типа свой набор. Если клиент поддерживает elicitation, `issue_move` сначала просит подтвердить свои флаги, и отказ отменяет перенос.
 
 Все инструменты этого раздела учитывают `TRACKER_LIMIT_QUEUES` и `TRACKER_READ_ONLY_QUEUES`; те, что пишут, регистрируются, только если не задан `TRACKER_READ_ONLY`.
+
+`issue_add_attachment` включается явно: он регистрируется только при `TRACKER_FILE_UPLOAD_ENABLED=true` (по умолчанию `false`), потому что читает любой файл, доступный процессу сервера. С этим флагом сервер не запустится на сетевом транспорте или с `OAUTH_ENABLED`, где клиент — или prompt injection в тексте задачи — мог бы выгрузить секреты хоста в задачу. У загрузки свой бюджет времени — `TRACKER_UPLOAD_TIMEOUT`.
 
 </details>
 
@@ -1009,11 +1012,13 @@ TRACKER_ORG_ID=ваш_org_id                # Для организаций Ян
 # Конфигурация API (опционально)
 TRACKER_API_BASE_URL=https://api.tracker.yandex.net  # По умолчанию: https://api.tracker.yandex.net
 TRACKER_API_TIMEOUT=10                    # По умолчанию: 10 - Таймаут одного запроса к API Трекера, в секундах
+TRACKER_UPLOAD_TIMEOUT=300                # По умолчанию: 300 - Таймаут загрузки одного файла (issue_add_attachment), в секундах
 
 # Безопасность - Ограничить доступ к конкретным очередям (опционально)
 TRACKER_LIMIT_QUEUES=PROJ1,PROJ2,DEV      # Ключи очередей через запятую - список разрешённых очередей
 TRACKER_READ_ONLY_QUEUES=PROJ2            # Ключи очередей через запятую - доступны для чтения, но запись отклоняется (режим только для чтения по очередям)
 TRACKER_ENTITIES_ENABLED=true             # По умолчанию: false - регистрировать инструменты проектов/портфелей/целей (НЕ подчиняются ограничениям по очередям выше)
+TRACKER_FILE_UPLOAD_ENABLED=true          # По умолчанию: false - регистрировать issue_add_attachment, загружающий локальные файлы (только stdio: с сетевым транспортом или OAUTH_ENABLED сервер не запустится)
 
 # Конфигурация сервера
 HOST=0.0.0.0                              # По умолчанию: 0.0.0.0

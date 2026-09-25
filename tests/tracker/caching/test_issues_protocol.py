@@ -158,6 +158,32 @@ class TestCachingIssuesProtocol:
         mock_original.issue_get_attachments.assert_called_once_with("TEST-1", auth=None)
         assert result == mock_original.issue_get_attachments.return_value
 
+    async def test_issue_add_attachment_is_a_passthrough(
+        self,
+        caching_issues_protocol: Any,
+        mock_original: AsyncMock,
+        yandex_auth: YandexAuth,
+    ) -> None:
+        mock_original.issue_add_attachment.side_effect = [
+            IssueAttachment(id="att-1", name="a.png"),
+            IssueAttachment(id="att-2", name="a.png"),
+        ]
+
+        first = await caching_issues_protocol.issue_add_attachment(
+            "TEST-1", content=b"data", filename="a.png", auth=yandex_auth
+        )
+        second = await caching_issues_protocol.issue_add_attachment(
+            "TEST-1", content=b"data", filename="a.png", auth=yandex_auth
+        )
+
+        # A write is never answered from the cache: the same upload twice is
+        # two attachments.
+        assert mock_original.issue_add_attachment.call_count == 2
+        mock_original.issue_add_attachment.assert_called_with(
+            "TEST-1", content=b"data", filename="a.png", auth=yandex_auth
+        )
+        assert (first.id, second.id) == ("att-1", "att-2")
+
     async def test_issues_count_calls_original(
         self,
         caching_issues_protocol: Any,

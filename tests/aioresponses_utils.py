@@ -1,11 +1,25 @@
 """Utilities for type-safe aioresponses request verification."""
 
+import email.policy
 import json
 from dataclasses import dataclass, field
+from email.parser import BytesParser
 from typing import Any
+from urllib.parse import unquote
 
+from aiohttp import FormData
 from aioresponses import CallbackResult
 from yarl import URL
+
+
+@dataclass
+class MultipartPart:
+    """One part of a captured multipart/form-data body, as it went on the wire."""
+
+    name: str | None
+    filename: str | None
+    content_type: str
+    content: bytes
 
 
 @dataclass
@@ -18,6 +32,7 @@ class CapturedRequest:
     params: dict[str, Any] = field(default_factory=dict)
     data: Any = None
     json_data: Any = None
+    timeout: Any = None
 
     def assert_header(self, name: str, expected: str) -> None:
         """Assert that a header has the expected value."""
@@ -54,6 +69,38 @@ class CapturedRequest:
         if self.data is not None:
             return json.loads(self.data)
         return {}
+
+    async def get_multipart_parts(self) -> list[MultipartPart]:
+        """Serialize the captured `FormData` and parse it back into its parts.
+
+        Parsing the bytes rather than reading `FormData`'s private fields checks
+        what the server would actually receive. aiohttp percent-encodes a part's
+        filename, so it is unquoted here.
+        """
+        assert isinstance(self.data, FormData), (
+            f"Request body is not FormData: {type(self.data)}"
+        )
+        writer = self.data()
+        body = await writer.as_bytes()
+        message = BytesParser(policy=email.policy.HTTP).parsebytes(
+            f"Content-Type: {writer.content_type}\r\n\r\n".encode() + body
+        )
+
+        parts: list[MultipartPart] = []
+        for part in message.iter_parts():
+            filename = part.get_filename()
+            name = part.get_param("name", header="content-disposition")
+            payload = part.get_payload(decode=True)
+            assert isinstance(payload, bytes)
+            parts.append(
+                MultipartPart(
+                    name=name if isinstance(name, str) else None,
+                    filename=unquote(filename) if filename is not None else None,
+                    content_type=part.get_content_type(),
+                    content=payload,
+                )
+            )
+        return parts
 
     def assert_json_body(self, expected: dict[str, Any]) -> None:
         """Assert that the JSON body matches expected value."""
@@ -114,6 +161,7 @@ class RequestCapture:
                 params=kwargs.get("params", {}),
                 data=kwargs.get("data"),
                 json_data=kwargs.get("json"),
+                timeout=kwargs.get("timeout"),
             )
         )
         return CallbackResult(

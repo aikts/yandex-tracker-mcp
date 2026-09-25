@@ -1,6 +1,9 @@
 import pytest
 from mcp.client.session import ClientSession
 
+from mcp_tracker.mcp.server import create_mcp_server
+from tests.mcp.conftest import create_test_settings
+
 # Read-only tool names (35 tools) - always registered
 READ_ONLY_TOOL_NAMES = [
     # Queue tools (6)
@@ -120,8 +123,15 @@ ENTITY_WRITE_TOOL_NAMES = [
     "goal_delete_comment",
 ]
 
+# Tools that read local files - require both write mode and TRACKER_FILE_UPLOAD_ENABLED
+FILE_UPLOAD_TOOL_NAMES = [
+    "issue_add_attachment",
+]
+
 ALL_READ_ONLY_TOOL_NAMES = READ_ONLY_TOOL_NAMES + ENTITY_READ_ONLY_TOOL_NAMES
-ALL_WRITE_TOOL_NAMES = WRITE_TOOL_NAMES + ENTITY_WRITE_TOOL_NAMES
+ALL_WRITE_TOOL_NAMES = (
+    WRITE_TOOL_NAMES + ENTITY_WRITE_TOOL_NAMES + FILE_UPLOAD_TOOL_NAMES
+)
 
 # All tool names that should be registered in normal mode (entity tools enabled)
 EXPECTED_TOOL_NAMES = ALL_READ_ONLY_TOOL_NAMES + ALL_WRITE_TOOL_NAMES
@@ -215,7 +225,9 @@ class TestEntityToolRegistration:
             f"tracker_entities_enabled is False"
         )
 
-    @pytest.mark.parametrize("tool_name", READ_ONLY_TOOL_NAMES + WRITE_TOOL_NAMES)
+    @pytest.mark.parametrize(
+        "tool_name", READ_ONLY_TOOL_NAMES + WRITE_TOOL_NAMES + FILE_UPLOAD_TOOL_NAMES
+    )
     async def test_non_entity_tools_stay_registered(
         self,
         client_session_entities_disabled: ClientSession,
@@ -232,11 +244,58 @@ class TestEntityToolRegistration:
     ) -> None:
         result = await client_session_entities_disabled.list_tools()
 
-        expected = len(READ_ONLY_TOOL_NAMES) + len(WRITE_TOOL_NAMES)
+        expected = (
+            len(READ_ONLY_TOOL_NAMES)
+            + len(WRITE_TOOL_NAMES)
+            + len(FILE_UPLOAD_TOOL_NAMES)
+        )
         assert len(result.tools) == expected, (
             f"Expected {expected} tools with entity tools disabled, "
             f"got {len(result.tools)}"
         )
+
+
+class TestFileUploadToolRegistration:
+    """`issue_add_attachment` reads local files, so it needs its own opt-in
+    (TRACKER_FILE_UPLOAD_ENABLED, default off) on top of a writable server."""
+
+    @pytest.mark.parametrize(
+        ("read_only", "file_upload_enabled", "registered"),
+        [
+            pytest.param(False, False, False, id="default-flag-off"),
+            pytest.param(True, True, False, id="read-only-despite-flag"),
+            pytest.param(True, False, False, id="read-only-flag-off"),
+            pytest.param(False, True, True, id="enabled"),
+        ],
+    )
+    @pytest.mark.parametrize("tool_name", FILE_UPLOAD_TOOL_NAMES)
+    async def test_registered_only_when_enabled_and_writable(
+        self,
+        tool_name: str,
+        read_only: bool,
+        file_upload_enabled: bool,
+        registered: bool,
+    ) -> None:
+        server = create_mcp_server(
+            settings=create_test_settings(
+                read_only=read_only, file_upload_enabled=file_upload_enabled
+            )
+        )
+
+        tool_names = {tool.name for tool in await server.list_tools()}
+
+        assert (tool_name in tool_names) is registered
+
+    async def test_the_flag_gates_nothing_else(self) -> None:
+        enabled = create_mcp_server(settings=create_test_settings())
+        disabled = create_mcp_server(
+            settings=create_test_settings(file_upload_enabled=False)
+        )
+
+        enabled_names = {tool.name for tool in await enabled.list_tools()}
+        disabled_names = {tool.name for tool in await disabled.list_tools()}
+
+        assert enabled_names - disabled_names == set(FILE_UPLOAD_TOOL_NAMES)
 
 
 class TestResourceRegistration:

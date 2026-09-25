@@ -16,6 +16,7 @@ class YandexTrackerMCPConfigurationResponse(BaseModel):
     read_only: bool
     cache_enabled: bool
     entities_enabled: bool
+    file_upload_enabled: bool
 
 
 def register_resources(settings: Settings, mcp: FastMCP[Any]):
@@ -33,4 +34,5 @@ def register_resources(settings: Settings, mcp: FastMCP[Any]):
             read_only=settings.tracker_read_only,
             cache_enabled=settings.tools_cache_enabled,
             entities_enabled=settings.tracker_entities_enabled,
+            file_upload_enabled=settings.tracker_file_upload_enabled,
         )

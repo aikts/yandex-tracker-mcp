@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     # Total per-request budget for a Tracker API call. Deep pagination and wide
     # queries are the slow cases; raise this rather than let them time out.
     tracker_api_timeout: float = 10.0
+    # Total budget for one file upload (`issue_add_attachment`). The per-request
+    # budget above also covers sending the body, so it would fail any sizable file.
+    tracker_upload_timeout: float = 300.0
     tracker_token: str | None = None
     tracker_iam_token: str | None = None
     tracker_cloud_org_id: str | None = None
@@ -35,6 +38,9 @@ class Settings(BaseSettings):
     # Project/portfolio/goal tools are opt-in: they add a large tool manifest and
     # are not subject to the queue restrictions (an entity has no single queue).
     tracker_entities_enabled: bool = False
+    # `issue_add_attachment` is opt-in and stdio-only: it reads whatever file the
+    # server process can read (see `refuse_file_upload_on_remote_transports`).
+    tracker_file_upload_enabled: bool = False
 
     tracker_sa_key_id: str | None = None
     tracker_sa_service_account_id: str | None = None
@@ -89,6 +95,32 @@ class Settings(BaseSettings):
                         raise ValueError(
                             "tracker_sa_key_id, tracker_sa_service_account_id and tracker_sa_private_key must be set when configuring service account access"
                         )
+
+        return self
+
+    @model_validator(mode="after")
+    def refuse_file_upload_on_remote_transports(self):
+        """Allow `TRACKER_FILE_UPLOAD_ENABLED` only on a local, single-user server.
+
+        `issue_add_attachment` uploads any file the server process can read, by a
+        path the client chooses. Over stdio that client is the user on their own
+        machine; on a networked or OAuth-fronted server it is anyone who can reach
+        it - or a prompt injected into issue text - reading `/proc/self/environ`,
+        `.env` or `~/.ssh/*` off the host into an issue. Refused at load, so a
+        misconfigured server does not start rather than starts exposed.
+        """
+        if not self.tracker_file_upload_enabled:
+            return self
+
+        if self.transport != "stdio" or self.oauth_enabled:
+            raise ValueError(
+                "TRACKER_FILE_UPLOAD_ENABLED=true is only allowed with TRANSPORT=stdio "
+                "and OAUTH_ENABLED=false (got "
+                f"TRANSPORT={self.transport}, OAUTH_ENABLED={str(self.oauth_enabled).lower()}): "
+                "issue_add_attachment reads any file the server process can read, so "
+                "on a networked server a client could upload the host's secrets "
+                "(.env, ~/.ssh, /proc/self/environ) to an issue."
+            )
 
         return self
 

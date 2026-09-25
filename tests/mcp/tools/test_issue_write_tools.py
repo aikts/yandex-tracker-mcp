@@ -1,5 +1,6 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -7,8 +8,9 @@ import pytest
 from mcp.client.session import ClientSession
 from mcp.server import FastMCP
 from mcp.shared.context import RequestContext
-from mcp.types import ElicitRequestParams, ElicitResult
+from mcp.types import CallToolResult, ElicitRequestParams, ElicitResult, TextContent
 
+from mcp_tracker.mcp.tools import issue_write
 from mcp_tracker.tracker.proto.types.inputs import (
     IssueComponentRef,
     IssueFollowerRef,
@@ -16,6 +18,7 @@ from mcp_tracker.tracker.proto.types.inputs import (
 from mcp_tracker.tracker.proto.types.issues import (
     ChecklistItem,
     Issue,
+    IssueAttachment,
     IssueComment,
     IssueLink,
     IssueTransition,
@@ -34,6 +37,14 @@ def _elicitation_callback(result: ElicitResult):
         return result
 
     return callback
+
+
+def error_text(result: CallToolResult) -> str:
+    """The message of a tool call that failed."""
+    assert result.isError
+    content = result.content[0]
+    assert isinstance(content, TextContent)
+    return content.text
 
 
 @asynccontextmanager
@@ -1338,3 +1349,204 @@ class TestIssueDeleteChecklistItem:
 
         assert result.isError
         mock_issues_protocol.issue_delete_checklist_item.assert_not_called()
+
+
+def _refuse_to_read(self: Path) -> bytes:
+    raise AssertionError(f"{self} was read, but the call should fail before that")
+
+
+def _permission_denied(self: Path) -> bytes:
+    raise PermissionError(13, "Permission denied", str(self))
+
+
+class TestIssueAddAttachment:
+    @pytest.fixture
+    def upload_file(self, tmp_path: Path) -> Path:
+        path = tmp_path / "screenshot.png"
+        path.write_bytes(b"\x89PNG\r\n\x1a\n\x00\xff")
+        return path
+
+    async def test_uploads_the_file_bytes_under_its_name(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_attachment: IssueAttachment,
+        upload_file: Path,
+    ) -> None:
+        mock_issues_protocol.issue_add_attachment.return_value = sample_attachment
+
+        result = await client_session.call_tool(
+            "issue_add_attachment",
+            {"issue_id": "TEST-123", "file_path": str(upload_file)},
+        )
+
+        assert not result.isError
+        call_args = mock_issues_protocol.issue_add_attachment.call_args
+        assert call_args.args == ("TEST-123",)
+        assert call_args.kwargs["content"] == upload_file.read_bytes()
+        assert call_args.kwargs["filename"] == "screenshot.png"
+        content = get_tool_result_content(result)
+        assert content["id"] == sample_attachment.id
+
+    async def test_filename_overrides_the_stored_name(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_attachment: IssueAttachment,
+        upload_file: Path,
+    ) -> None:
+        mock_issues_protocol.issue_add_attachment.return_value = sample_attachment
+
+        result = await client_session.call_tool(
+            "issue_add_attachment",
+            {
+                "issue_id": "TEST-123",
+                "file_path": str(upload_file),
+                "filename": "Ошибка при входе.png",
+            },
+        )
+
+        assert not result.isError
+        call_kwargs = mock_issues_protocol.issue_add_attachment.call_args.kwargs
+        assert call_kwargs["filename"] == "Ошибка при входе.png"
+
+    async def test_a_relative_path_is_resolved(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_attachment: IssueAttachment,
+        upload_file: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        mock_issues_protocol.issue_add_attachment.return_value = sample_attachment
+        monkeypatch.chdir(upload_file.parent)
+
+        result = await client_session.call_tool(
+            "issue_add_attachment",
+            {"issue_id": "TEST-123", "file_path": "./sub/../screenshot.png"},
+        )
+
+        # `sub` does not exist, so this only works on the resolved path.
+        assert not result.isError
+        call_kwargs = mock_issues_protocol.issue_add_attachment.call_args.kwargs
+        assert call_kwargs["filename"] == "screenshot.png"
+
+    async def test_missing_file_is_rejected(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        tmp_path: Path,
+    ) -> None:
+        missing = tmp_path / "nope.png"
+
+        result = await client_session.call_tool(
+            "issue_add_attachment",
+            {"issue_id": "TEST-123", "file_path": str(missing)},
+        )
+
+        message = error_text(result)
+        assert str(missing) in message
+        assert "does not exist" in message
+        mock_issues_protocol.issue_add_attachment.assert_not_called()
+
+    async def test_directory_is_rejected(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        tmp_path: Path,
+    ) -> None:
+        result = await client_session.call_tool(
+            "issue_add_attachment",
+            {"issue_id": "TEST-123", "file_path": str(tmp_path)},
+        )
+
+        assert "is not a file" in error_text(result)
+        mock_issues_protocol.issue_add_attachment.assert_not_called()
+
+    async def test_a_file_over_the_limit_is_rejected_before_it_is_read(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        upload_file: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(issue_write, "MAX_ATTACHMENT_SIZE", 4)
+        monkeypatch.setattr(Path, "read_bytes", _refuse_to_read)
+
+        result = await client_session.call_tool(
+            "issue_add_attachment",
+            {"issue_id": "TEST-123", "file_path": str(upload_file)},
+        )
+
+        assert "limit" in error_text(result)
+        mock_issues_protocol.issue_add_attachment.assert_not_called()
+
+    async def test_the_limit_is_trackers_1024_mb(self) -> None:
+        assert issue_write.MAX_ATTACHMENT_SIZE == 1024 * 1024 * 1024
+
+    async def test_an_unreadable_file_is_reported(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        upload_file: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(Path, "read_bytes", _permission_denied)
+
+        result = await client_session.call_tool(
+            "issue_add_attachment",
+            {"issue_id": "TEST-123", "file_path": str(upload_file)},
+        )
+
+        message = error_text(result)
+        assert "Could not read file" in message
+        assert "Permission denied" in message
+        mock_issues_protocol.issue_add_attachment.assert_not_called()
+
+    async def test_restricted_queue_raises_error_without_reading_the_file(
+        self,
+        client_session_with_limits: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        upload_file: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(Path, "read_bytes", _refuse_to_read)
+
+        result = await client_session_with_limits.call_tool(
+            "issue_add_attachment",
+            {"issue_id": "RESTRICTED-123", "file_path": str(upload_file)},
+        )
+
+        assert "RESTRICTED-123" in error_text(result)
+        mock_issues_protocol.issue_add_attachment.assert_not_called()
+
+    async def test_allowed_queue_uploads(
+        self,
+        client_session_with_limits: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        sample_attachment: IssueAttachment,
+        upload_file: Path,
+    ) -> None:
+        mock_issues_protocol.issue_add_attachment.return_value = sample_attachment
+
+        result = await client_session_with_limits.call_tool(
+            "issue_add_attachment",
+            {"issue_id": "ALLOWED-1", "file_path": str(upload_file)},
+        )
+
+        assert not result.isError
+        mock_issues_protocol.issue_add_attachment.assert_called_once()
+
+    async def test_read_only_queue_raises_error(
+        self,
+        client_session_with_read_only_queues: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        upload_file: Path,
+    ) -> None:
+        result = await client_session_with_read_only_queues.call_tool(
+            "issue_add_attachment",
+            {"issue_id": "READONLY-1", "file_path": str(upload_file)},
+        )
+
+        assert "read-only" in error_text(result)
+        mock_issues_protocol.issue_add_attachment.assert_not_called()

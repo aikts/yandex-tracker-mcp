@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Features
+
+- **`issue_add_attachment`** — attach a file from the machine the server runs on to an issue; attachments could only be listed ([#34](https://github.com/aikts/yandex-tracker-mcp/pull/34))
+  - Opt-in via `TRACKER_FILE_UPLOAD_ENABLED` (default `false`); the server refuses to start with it on a network transport or with `OAUTH_ENABLED`
+  - Uploads have their own time budget, `TRACKER_UPLOAD_TIMEOUT` (default 300 seconds), instead of `TRACKER_API_TIMEOUT`
+
 ## [0.10.0] - 2026-09-06
 
 ### Features

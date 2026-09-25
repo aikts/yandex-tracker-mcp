@@ -10,6 +10,7 @@ still behave is what the rest of the suite says.
 """
 
 import pytest
+from aiohttp import ClientTimeout, FormData
 from aioresponses import aioresponses
 
 from mcp_tracker.tracker.custom.client import TrackerClient
@@ -70,8 +71,78 @@ class TestRequestForwarding:
         capture.last_request.assert_param("perPage", 25)
         capture.last_request.assert_json_body({"query": "Queue: TEST"})
 
+    async def test_forwards_a_multipart_body(
+        self, tracker_client: TrackerClient
+    ) -> None:
+        capture = RequestCapture(status=201, payload={"ok": True})
+        form = FormData()
+        form.add_field("file", b"bytes", filename="a.txt")
+
+        with aioresponses() as m:
+            m.post(URL, callback=capture.callback)
+
+            async with tracker_client._request(
+                "POST", PATH, auth=None, data=form
+            ) as response:
+                assert response.status == 201
+
+        parts = await capture.last_request.get_multipart_parts()
+        assert [(p.name, p.filename, p.content) for p in parts] == [
+            ("file", "a.txt", b"bytes")
+        ]
+
 
 class TestRequestTimeout:
+    async def test_a_request_gets_the_client_budget_by_default(
+        self, tracker_client: TrackerClient
+    ) -> None:
+        capture = RequestCapture(payload={"ok": True})
+
+        with aioresponses() as m:
+            m.get(URL, callback=capture.callback)
+
+            async with tracker_client._request("GET", PATH, auth=None):
+                pass
+
+        assert capture.last_request.timeout == ClientTimeout(
+            total=tracker_client._timeout
+        )
+
+    async def test_a_request_can_carry_its_own_budget(
+        self, tracker_client: TrackerClient
+    ) -> None:
+        capture = RequestCapture(payload={"ok": True})
+
+        with aioresponses() as m:
+            m.post(URL, callback=capture.callback)
+
+            async with tracker_client._request("POST", PATH, auth=None, timeout=123):
+                pass
+
+        assert capture.last_request.timeout == ClientTimeout(total=123)
+
+    async def test_a_timeout_names_the_budget_and_setting_it_ran_under(
+        self, tracker_client: TrackerClient
+    ) -> None:
+        with aioresponses() as m:
+            m.post(URL, exception=TimeoutError())
+
+            with pytest.raises(TrackerAPITimeout) as exc_info:
+                async with tracker_client._request(
+                    "POST",
+                    PATH,
+                    auth=None,
+                    timeout=123,
+                    timeout_setting="TRACKER_UPLOAD_TIMEOUT",
+                ):
+                    pass  # pragma: no cover - the request never gets this far
+
+        error = exc_info.value
+        assert error.timeout == 123
+        assert "123s" in str(error)
+        assert "TRACKER_UPLOAD_TIMEOUT" in str(error)
+        assert "TRACKER_API_TIMEOUT" not in str(error)
+
     async def test_a_timeout_names_the_request_and_the_knob(
         self, tracker_client: TrackerClient
     ) -> None:
