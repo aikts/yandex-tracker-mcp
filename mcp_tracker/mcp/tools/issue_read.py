@@ -1,11 +1,19 @@
 """Issue read-only MCP tools."""
 
+import base64
+import re
 from typing import Annotated, Any
 
 from mcp.server import FastMCP
 from mcp.server.fastmcp import Context
-from mcp.types import ToolAnnotations
-from pydantic import Field
+from mcp.types import (
+    BlobResourceContents,
+    EmbeddedResource,
+    ImageContent,
+    TextContent,
+    ToolAnnotations,
+)
+from pydantic import AnyUrl, Field
 
 from mcp_tracker.mcp.context import AppContext
 from mcp_tracker.mcp.params import (
@@ -21,6 +29,7 @@ from mcp_tracker.mcp.tools._access import check_issue_access
 from mcp_tracker.mcp.utils import get_yandex_auth, set_non_needed_fields_null
 from mcp_tracker.settings import Settings
 from mcp_tracker.tracker.proto.types.issues import (
+    AttachmentContent,
     AttachmentFieldsEnum,
     ChangelogPage,
     ChecklistItem,
@@ -36,6 +45,66 @@ from mcp_tracker.tracker.proto.types.issues import (
     resolve_issue_field,
 )
 from mcp_tracker.tracker.proto.types.pagination import PaginatedResult
+
+TEXT_MIMETYPES = frozenset(
+    {
+        "application/json",
+        "application/xml",
+        "application/yaml",
+        "application/x-yaml",
+        "application/javascript",
+    }
+)
+
+
+def _attachment_blocks(
+    issue_id: str, attachment_id: str, attachment: AttachmentContent
+) -> list[TextContent | ImageContent | EmbeddedResource]:
+    """Present a downloaded attachment the way its type is best read by a model."""
+    mimetype = attachment.mimetype.split(";")[0].strip().lower()
+    blocks: list[TextContent | ImageContent | EmbeddedResource] = [
+        TextContent(
+            type="text",
+            text=f"{attachment.name} ({mimetype}, {len(attachment.data)} bytes)",
+        )
+    ]
+
+    if mimetype.startswith("image/"):
+        blocks.append(
+            ImageContent(
+                type="image",
+                data=base64.b64encode(attachment.data).decode("ascii"),
+                mimeType=mimetype,
+            )
+        )
+    elif (
+        mimetype.startswith("text/")
+        or mimetype in TEXT_MIMETYPES
+        or mimetype.endswith(("+json", "+xml"))
+    ):
+        charset = re.search(r"charset=([\w.-]+)", attachment.mimetype, re.IGNORECASE)
+        try:
+            text = attachment.data.decode(
+                charset.group(1) if charset else "utf-8", errors="replace"
+            )
+        except LookupError:
+            text = attachment.data.decode("utf-8", errors="replace")
+        blocks.append(TextContent(type="text", text=text))
+    else:
+        blocks.append(
+            EmbeddedResource(
+                type="resource",
+                resource=BlobResourceContents(
+                    uri=AnyUrl(
+                        f"tracker://issues/{issue_id}/attachments/{attachment_id}"
+                    ),
+                    mimeType=mimetype,
+                    blob=base64.b64encode(attachment.data).decode("ascii"),
+                ),
+            )
+        )
+
+    return blocks
 
 
 def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
@@ -260,6 +329,40 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             set_non_needed_fields_null(attachments, {f.name for f in fields})
 
         return attachments
+
+    @mcp.tool(
+        title="Get Issue Attachment Content",
+        description=(
+            "Download the file of one issue attachment (вложение задачи) by the id from "
+            "issue_get_attachments: images and text come back inline, any other file as "
+            "a base64 resource. Refuses files over TRACKER_ATTACHMENT_MAX_BYTES."
+        ),
+        annotations=ToolAnnotations(readOnlyHint=True),
+        # The blocks are the answer. Without this FastMCP also copies them into
+        # structuredContent, and a base64 image would reach the client twice.
+        structured_output=False,
+    )
+    async def issue_get_attachment_content(
+        ctx: Context[Any, AppContext],
+        issue_id: IssueID,
+        attachment_id: Annotated[
+            str,
+            Field(
+                description="Attachment id from issue_get_attachments, "
+                "for example '2429074'.",
+            ),
+        ],
+    ) -> list[TextContent | ImageContent | EmbeddedResource]:
+        check_issue_access(settings, issue_id)
+
+        attachment = await ctx.request_context.lifespan_context.issues.issue_get_attachment_content(
+            issue_id,
+            attachment_id,
+            max_bytes=settings.tracker_attachment_max_bytes,
+            auth=get_yandex_auth(ctx),
+        )
+
+        return _attachment_blocks(issue_id, attachment_id, attachment)
 
     @mcp.tool(
         title="Get Issue Checklist",

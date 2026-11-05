@@ -15,6 +15,7 @@ from .types.inputs import (
     IssueTypeRef,
 )
 from .types.issues import (
+    AttachmentContent,
     ChangelogPage,
     ChecklistItem,
     CommentsPage,
@@ -130,6 +131,14 @@ class IssueProtocol(Protocol):
     async def issue_get_attachments(
         self, issue_id: str, *, auth: YandexAuth | None = None
     ) -> list[IssueAttachment]: ...
+    async def issue_get_attachment_content(
+        self,
+        issue_id: str,
+        attachment_id: str,
+        *,
+        max_bytes: int,
+        auth: YandexAuth | None = None,
+    ) -> AttachmentContent: ...
     async def issues_count(
         self, query: str, *, auth: YandexAuth | None = None
     ) -> int: ...

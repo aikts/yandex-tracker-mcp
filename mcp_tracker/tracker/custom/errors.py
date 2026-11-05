@@ -14,6 +14,28 @@ class IssueNotFound(YandexTrackerError):
         self.issue_id = issue_id
 
 
+class AttachmentNotFound(YandexTrackerError):
+    def __init__(self, issue_id: str, attachment_id: str):
+        super().__init__(
+            f"Attachment '{attachment_id}' not found in issue '{issue_id}'. "
+            "Take the id from issue_get_attachments."
+        )
+        self.issue_id = issue_id
+        self.attachment_id = attachment_id
+
+
+class AttachmentTooLarge(YandexTrackerError):
+    def __init__(self, name: str, limit: int, size: int | None = None):
+        shown = f"{size} bytes" if size is not None else "larger than the limit"
+        super().__init__(
+            f"Attachment '{name}' is {shown}, over the {limit}-byte download limit "
+            "(TRACKER_ATTACHMENT_MAX_BYTES)."
+        )
+        self.name = name
+        self.limit = limit
+        self.size = size
+
+
 class QueueNotFound(YandexTrackerError):
     def __init__(self, queue_id: str):
         super().__init__(f"Queue with ID '{queue_id}' not found.")

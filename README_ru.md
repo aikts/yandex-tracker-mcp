@@ -620,6 +620,7 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
 | `issue_update_worklog` | Изменить запись о времени | `issue_id`, `worklog_id`, `duration`, `comment`, `start` |
 | `issue_delete_worklog` | Удалить запись о времени | `issue_id`, `worklog_id` |
 | `issue_get_attachments` | Метаданные вложений | `issue_id`, `fields` |
+| `issue_get_attachment_content` | Скачать одно вложение: картинки и текст возвращаются сразу, любой другой файл — как base64-ресурс; файлы больше `TRACKER_ATTACHMENT_MAX_BYTES` отклоняются | `issue_id`, `attachment_id` (из `issue_get_attachments`) |
 | `issue_get_checklist` | Чек-лист вместе с id пунктов, которые нужны инструментам записи | `issue_id` |
 | `issue_add_checklist_items` | Добавить пункты по порядку, создав чек-лист, если его не было | `issue_id`, `items` (`text`, `checked`, `assignee`, `deadline`) |
 | `issue_update_checklist_item` | Изменить один пункт; непереданные поля сохраняют значение | `issue_id`, `checklist_item_id`, `text`, `checked`, `assignee`, `deadline`, `clear_assignee`, `clear_deadline` |
@@ -1009,6 +1010,7 @@ TRACKER_ORG_ID=ваш_org_id                # Для организаций Ян
 # Конфигурация API (опционально)
 TRACKER_API_BASE_URL=https://api.tracker.yandex.net  # По умолчанию: https://api.tracker.yandex.net
 TRACKER_API_TIMEOUT=10                    # По умолчанию: 10 - Таймаут одного запроса к API Трекера, в секундах
+TRACKER_ATTACHMENT_MAX_BYTES=10485760     # По умолчанию: 10485760 (10 МиБ) - Наибольшее вложение, которое скачивает issue_get_attachment_content
 
 # Безопасность - Ограничить доступ к конкретным очередям (опционально)
 TRACKER_LIMIT_QUEUES=PROJ1,PROJ2,DEV      # Ключи очередей через запятую - список разрешённых очередей

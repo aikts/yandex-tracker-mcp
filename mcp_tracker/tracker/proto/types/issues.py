@@ -1,4 +1,5 @@
 import datetime
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Literal
 
@@ -206,6 +207,15 @@ AttachmentFieldsEnum = Enum(  # type: ignore[misc]
     "AttachmentFieldsEnum",
     {key: key for key in IssueAttachment.model_fields.keys()},
 )
+
+
+@dataclass(frozen=True)
+class AttachmentContent:
+    """The bytes of one issue attachment, with what a tool needs to present them."""
+
+    name: str
+    mimetype: str
+    data: bytes
 
 
 class ChecklistItemDeadline(BaseModel):

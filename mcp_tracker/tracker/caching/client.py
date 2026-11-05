@@ -43,6 +43,7 @@ from mcp_tracker.tracker.proto.types.inputs import (
 )
 from mcp_tracker.tracker.proto.types.issue_types import IssueType
 from mcp_tracker.tracker.proto.types.issues import (
+    AttachmentContent,
     ChangelogPage,
     ChecklistItem,
     CommentsPage,
@@ -332,6 +333,20 @@ def make_cached_protocols(
             self, issue_id: str, *, auth: YandexAuth | None = None
         ) -> list[IssueAttachment]:
             return await self._original.issue_get_attachments(issue_id, auth=auth)
+
+        # Not cached: the file's bytes would fill the cache for no gain, and a
+        # replaced attachment must not be served from before the replacement.
+        async def issue_get_attachment_content(
+            self,
+            issue_id: str,
+            attachment_id: str,
+            *,
+            max_bytes: int,
+            auth: YandexAuth | None = None,
+        ) -> AttachmentContent:
+            return await self._original.issue_get_attachment_content(
+                issue_id, attachment_id, max_bytes=max_bytes, auth=auth
+            )
 
         @cached(**cache_config)
         async def issues_count(

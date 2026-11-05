@@ -36,6 +36,7 @@ READ_ONLY_TOOL_NAMES = [
     "issues_count",
     "issue_get_worklogs",
     "issue_get_attachments",
+    "issue_get_attachment_content",
     "issue_get_checklist",
     "issue_get_transitions",
     "issue_get_changelog",
