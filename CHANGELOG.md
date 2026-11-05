@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Features
+
+- **`issue_get_attachment_content`** — downloads an issue attachment: images and text come back inline, any other file as a base64 resource, capped by `TRACKER_ATTACHMENT_MAX_BYTES` (10 MiB by default); `issue_get_attachments` only ever returned a link that needs the server's credentials
+
 ## [0.10.0] - 2026-09-06
 
 ### Features

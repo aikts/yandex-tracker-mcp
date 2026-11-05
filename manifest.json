@@ -361,6 +361,10 @@
       "description": "Get attachments for an issue"
     },
     {
+      "name": "issue_get_attachment_content",
+      "description": "Download an issue attachment: images and text inline, other files as base64"
+    },
+    {
       "name": "issue_add_checklist_items",
       "description": "Add one or more items to the checklist of a Yandex Tracker issue"
     },

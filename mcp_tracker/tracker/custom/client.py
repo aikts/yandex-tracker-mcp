@@ -8,6 +8,7 @@ from collections.abc import AsyncIterator, Collection, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from typing import Any, Literal
+from urllib.parse import quote
 
 import jwt
 import yandexcloud
@@ -18,6 +19,8 @@ from yandex.cloud.iam.v1.iam_token_service_pb2_grpc import IamTokenServiceStub
 from yarl import URL
 
 from mcp_tracker.tracker.custom.errors import (
+    AttachmentNotFound,
+    AttachmentTooLarge,
     BoardNotFound,
     ChecklistBatchPartiallyAdded,
     ChecklistItemEmptyUpdate,
@@ -75,6 +78,7 @@ from mcp_tracker.tracker.proto.types.inputs import (
 )
 from mcp_tracker.tracker.proto.types.issue_types import IssueType
 from mcp_tracker.tracker.proto.types.issues import (
+    AttachmentContent,
     ChangelogEntry,
     ChangelogPage,
     ChecklistItem,
@@ -1044,6 +1048,49 @@ class TrackerClient(
                 not_found=IssueNotFound(issue_id),
             )
         ).root
+
+    async def issue_get_attachment_content(
+        self,
+        issue_id: str,
+        attachment_id: str,
+        *,
+        max_bytes: int,
+        auth: YandexAuth | None = None,
+    ) -> AttachmentContent:
+        # The download URL carries the file name, and a name that does not belong
+        # to an attachment of this issue is the caller's mistake, not a missing file.
+        attachments = await self.issue_get_attachments(issue_id, auth=auth)
+        attachment = next(
+            (item for item in attachments if item.id == attachment_id), None
+        )
+        if attachment is None:
+            raise AttachmentNotFound(issue_id, attachment_id)
+        if attachment.size is not None and attachment.size > max_bytes:
+            raise AttachmentTooLarge(attachment.name, max_bytes, attachment.size)
+
+        data = bytearray()
+        async with self._request(
+            "GET",
+            f"v3/issues/{issue_id}/attachments/{attachment.id}/"
+            f"{quote(attachment.name, safe='')}",
+            auth=auth,
+            not_found=AttachmentNotFound(issue_id, attachment_id),
+        ) as response:
+            # `size` is optional in the model, so the limit is enforced on the bytes
+            # as they arrive rather than trusting it or reading the body whole.
+            async for chunk in response.content.iter_chunked(64 * 1024):
+                data.extend(chunk)
+                if len(data) > max_bytes:
+                    raise AttachmentTooLarge(attachment.name, max_bytes)
+            mimetype = (
+                attachment.mimetype
+                or response.content_type
+                or "application/octet-stream"
+            )
+
+        return AttachmentContent(
+            name=attachment.name, mimetype=mimetype, data=bytes(data)
+        )
 
     async def users_list(
         self, per_page: int = 50, page: int = 1, *, auth: YandexAuth | None = None

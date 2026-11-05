@@ -1,9 +1,14 @@
+import base64
 from unittest.mock import AsyncMock
 
+import pytest
 from mcp.client.session import ClientSession
+from mcp.types import BlobResourceContents, EmbeddedResource, ImageContent, TextContent
 
+from mcp_tracker.tracker.custom.errors import AttachmentTooLarge
 from mcp_tracker.tracker.proto.common import YandexAuth
 from mcp_tracker.tracker.proto.types.issues import (
+    AttachmentContent,
     ChangelogComments,
     ChangelogEntry,
     ChangelogExecutedTrigger,
@@ -522,6 +527,157 @@ class TestIssueGetAttachments:
         content = get_tool_result_content(result)
         assert content[0]["name"] == sample_attachments[0].name
         assert content[0].get("content") is None
+
+
+class TestIssueGetAttachmentContent:
+    async def test_image_comes_back_as_an_image(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        png = bytes([0x89]) + b"PNG body"
+        mock_issues_protocol.issue_get_attachment_content.return_value = (
+            AttachmentContent(name="shot.png", mimetype="image/png", data=png)
+        )
+
+        result = await client_session.call_tool(
+            "issue_get_attachment_content",
+            {"issue_id": "TEST-123", "attachment_id": "42"},
+        )
+
+        assert not result.isError
+        header, image = result.content
+        assert isinstance(header, TextContent)
+        assert header.text == f"shot.png (image/png, {len(png)} bytes)"
+        assert isinstance(image, ImageContent)
+        assert image.mimeType == "image/png"
+        assert base64.b64decode(image.data) == png
+
+    async def test_image_is_not_repeated_in_structured_content(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        mock_issues_protocol.issue_get_attachment_content.return_value = (
+            AttachmentContent(name="shot.png", mimetype="image/png", data=b"png")
+        )
+
+        result = await client_session.call_tool(
+            "issue_get_attachment_content",
+            {"issue_id": "TEST-123", "attachment_id": "42"},
+        )
+
+        assert result.structuredContent is None
+
+    @pytest.mark.parametrize(
+        ("mimetype", "data", "expected"),
+        [
+            ("text/plain", "plain text".encode(), "plain text"),
+            ("text/plain; charset=utf-8", "привет".encode(), "привет"),
+            ("text/plain;charset=windows-1251", "привет".encode("cp1251"), "привет"),
+            ("text/plain;charset=no-such-charset", "привет".encode(), "привет"),
+            ("application/json", b'{"a": 1}', '{"a": 1}'),
+            ("application/vnd.api+json", b"{}", "{}"),
+            ("application/xml", b"<a/>", "<a/>"),
+        ],
+    )
+    async def test_text_comes_back_as_text(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        mimetype: str,
+        data: bytes,
+        expected: str,
+    ) -> None:
+        mock_issues_protocol.issue_get_attachment_content.return_value = (
+            AttachmentContent(name="notes", mimetype=mimetype, data=data)
+        )
+
+        result = await client_session.call_tool(
+            "issue_get_attachment_content",
+            {"issue_id": "TEST-123", "attachment_id": "42"},
+        )
+
+        assert not result.isError
+        _, body = result.content
+        assert isinstance(body, TextContent)
+        assert body.text == expected
+
+    async def test_other_files_come_back_as_a_base64_resource(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        data = bytes(range(256))
+        mock_issues_protocol.issue_get_attachment_content.return_value = (
+            AttachmentContent(
+                name="blob.bin", mimetype="application/octet-stream", data=data
+            )
+        )
+
+        result = await client_session.call_tool(
+            "issue_get_attachment_content",
+            {"issue_id": "TEST-123", "attachment_id": "42"},
+        )
+
+        assert not result.isError
+        _, resource = result.content
+        assert isinstance(resource, EmbeddedResource)
+        blob = resource.resource
+        assert isinstance(blob, BlobResourceContents)
+        assert str(blob.uri) == "tracker://issues/TEST-123/attachments/42"
+        assert blob.mimeType == "application/octet-stream"
+        assert base64.b64decode(blob.blob) == data
+
+    async def test_passes_the_configured_size_limit(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        mock_issues_protocol.issue_get_attachment_content.return_value = (
+            AttachmentContent(name="a.txt", mimetype="text/plain", data=b"a")
+        )
+
+        await client_session.call_tool(
+            "issue_get_attachment_content",
+            {"issue_id": "TEST-123", "attachment_id": "42"},
+        )
+
+        mock_issues_protocol.issue_get_attachment_content.assert_called_once()
+        call = mock_issues_protocol.issue_get_attachment_content.call_args
+        assert call.args == ("TEST-123", "42")
+        assert call.kwargs["max_bytes"] == 10 * 1024 * 1024
+
+    async def test_a_file_over_the_limit_is_an_error(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        mock_issues_protocol.issue_get_attachment_content.side_effect = (
+            AttachmentTooLarge("big.bin", limit=10, size=20)
+        )
+
+        result = await client_session.call_tool(
+            "issue_get_attachment_content",
+            {"issue_id": "TEST-123", "attachment_id": "42"},
+        )
+
+        assert result.isError
+        assert isinstance(result.content[0], TextContent)
+        assert "TRACKER_ATTACHMENT_MAX_BYTES" in result.content[0].text
+
+    async def test_restricted_queue_raises_error(
+        self,
+        client_session_with_limits: ClientSession,
+        mock_issues_protocol: AsyncMock,
+    ) -> None:
+        result = await client_session_with_limits.call_tool(
+            "issue_get_attachment_content",
+            {"issue_id": "RESTRICTED-123", "attachment_id": "42"},
+        )
+
+        assert result.isError
+        mock_issues_protocol.issue_get_attachment_content.assert_not_called()
 
 
 class TestIssueGetChecklist:

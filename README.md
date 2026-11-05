@@ -623,6 +623,7 @@ These four are organization-wide. A queue may accept only some of the values the
 | `issue_update_worklog` | Edit a worklog entry | `issue_id`, `worklog_id`, `duration`, `comment`, `start` |
 | `issue_delete_worklog` | Delete a worklog entry | `issue_id`, `worklog_id` |
 | `issue_get_attachments` | Attachment metadata | `issue_id`, `fields` |
+| `issue_get_attachment_content` | Download one attachment: images and text inline, any other file as a base64 resource; refuses files over `TRACKER_ATTACHMENT_MAX_BYTES` | `issue_id`, `attachment_id` (from `issue_get_attachments`) |
 | `issue_get_checklist` | The checklist, with the item ids the write tools need | `issue_id` |
 | `issue_add_checklist_items` | Append items in order, creating the checklist if there is none | `issue_id`, `items` (`text`, `checked`, `assignee`, `deadline`) |
 | `issue_update_checklist_item` | Change one item; the fields you omit keep their value | `issue_id`, `checklist_item_id`, `text`, `checked`, `assignee`, `deadline`, `clear_assignee`, `clear_deadline` |
@@ -1012,6 +1013,7 @@ TRACKER_ORG_ID=your_org_id                # For Yandex 360 organizations
 # API Configuration (optional)
 TRACKER_API_BASE_URL=https://api.tracker.yandex.net  # Default: https://api.tracker.yandex.net
 TRACKER_API_TIMEOUT=10                    # Default: 10 - Per-request timeout in seconds for Tracker API calls
+TRACKER_ATTACHMENT_MAX_BYTES=10485760     # Default: 10485760 (10 MiB) - Largest attachment issue_get_attachment_content downloads
 
 # Security - Restrict access to specific queues (optional)
 TRACKER_LIMIT_QUEUES=PROJ1,PROJ2,DEV      # Comma-separated queue keys - allow-list of accessible queues

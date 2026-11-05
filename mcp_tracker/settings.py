@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     # Total per-request budget for a Tracker API call. Deep pagination and wide
     # queries are the slow cases; raise this rather than let them time out.
     tracker_api_timeout: float = 10.0
+    # Largest attachment issue_get_attachment_content will download. The file goes
+    # into the model's context (base64 for anything but text), so keep it small.
+    tracker_attachment_max_bytes: int = 10 * 1024 * 1024
     tracker_token: str | None = None
     tracker_iam_token: str | None = None
     tracker_cloud_org_id: str | None = None
