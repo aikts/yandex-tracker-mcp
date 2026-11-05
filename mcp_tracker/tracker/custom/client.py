@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import logging
 import random
+import re
 import time
 from asyncio import CancelledError
 from collections.abc import AsyncIterator, Collection, Mapping, Sequence
@@ -298,6 +299,12 @@ class ServiceAccountStore:
 
 # `GET /v3/boards/_paginate` documents `perPage` as no more than 500.
 BOARDS_PAGE_MAX = 500
+
+
+# `<queue>-<number>`. `issue_id` arrives from the model as a bare string and goes into
+# the URL path, so anything else - `..`, `/`, `?` - would aim the request, signed
+# with the server's credentials, at an endpoint other than the issue's attachments.
+ISSUE_KEY_PATTERN = re.compile(r"^[A-Za-z0-9_]+-[0-9]+$")
 
 
 class TrackerClient(
@@ -1057,6 +1064,9 @@ class TrackerClient(
         max_bytes: int,
         auth: YandexAuth | None = None,
     ) -> AttachmentContent:
+        if not ISSUE_KEY_PATTERN.fullmatch(issue_id):
+            raise IssueNotFound(issue_id)
+
         # The download URL carries the file name, and a name that does not belong
         # to an attachment of this issue is the caller's mistake, not a missing file.
         attachments = await self.issue_get_attachments(issue_id, auth=auth)

@@ -109,6 +109,50 @@ class TestIssueGetAttachmentContent:
                     "TEST-123", "42", max_bytes=1024
                 )
 
+    @pytest.mark.parametrize(
+        "issue_id",
+        [
+            "",
+            "TEST",
+            "TEST-",
+            "TEST-abc",
+            "../TEST-123",
+            "TEST-123/../../v3/myself",
+            "TEST-123/attachments",
+            "TEST-123?expand=x",
+            "TEST-123#x",
+            "TEST-123 ",
+            "TEST-12" + chr(10) + "3",
+            "ТЕСТ-123",
+        ],
+    )
+    async def test_malformed_issue_key_is_refused_without_a_request(
+        self, tracker_client: TrackerClient, issue_id: str
+    ) -> None:
+        with aioresponses() as m:
+            with pytest.raises(IssueNotFound) as exc_info:
+                await tracker_client.issue_get_attachment_content(
+                    issue_id, "42", max_bytes=1024
+                )
+
+        assert exc_info.value.issue_id == issue_id
+        assert not m.requests
+
+    @pytest.mark.parametrize("issue_id", ["TEST-123", "my_queue2-7"])
+    async def test_ordinary_issue_keys_are_accepted(
+        self, tracker_client: TrackerClient, issue_id: str
+    ) -> None:
+        base = f"https://api.tracker.yandex.net/v3/issues/{issue_id}/attachments"
+        with aioresponses() as m:
+            m.get(base, payload=[attachment_payload()])
+            m.get(f"{base}/42/notes.txt", body=b"hello")
+
+            result = await tracker_client.issue_get_attachment_content(
+                issue_id, "42", max_bytes=1024
+            )
+
+        assert result.data == b"hello"
+
     async def test_unknown_issue(self, tracker_client: TrackerClient) -> None:
         with aioresponses() as m:
             m.get(LIST_URL, status=404)
