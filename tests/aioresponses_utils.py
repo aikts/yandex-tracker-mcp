@@ -70,7 +70,9 @@ class CapturedRequest:
             return json.loads(self.data)
         return {}
 
-    async def get_multipart_parts(self) -> list[MultipartPart]:
+    async def get_multipart_parts(
+        self, *, expect_unknown_size: bool = False
+    ) -> list[MultipartPart]:
         """Serialize the captured `FormData` and parse it back into its parts.
 
         Parsing the bytes rather than reading `FormData`'s private fields checks
@@ -81,6 +83,8 @@ class CapturedRequest:
             f"Request body is not FormData: {type(self.data)}"
         )
         writer = self.data()
+        if expect_unknown_size:
+            assert writer.size is None
         body = await writer.as_bytes()
         message = BytesParser(policy=email.policy.HTTP).parsebytes(
             f"Content-Type: {writer.content_type}\r\n\r\n".encode() + body

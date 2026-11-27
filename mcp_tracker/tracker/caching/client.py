@@ -1,5 +1,5 @@
 import datetime
-from collections.abc import Sequence
+from collections.abc import AsyncIterable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -327,7 +327,7 @@ def make_cached_protocols(
                 auth=auth,
             )
 
-        @cached(**cache_config)
+        # Return the new attachment immediately after an upload.
         async def issue_get_attachments(
             self, issue_id: str, *, auth: YandexAuth | None = None
         ) -> list[IssueAttachment]:
@@ -337,7 +337,7 @@ def make_cached_protocols(
             self,
             issue_id: str,
             *,
-            content: bytes,
+            content: AsyncIterable[bytes],
             filename: str,
             auth: YandexAuth | None = None,
         ) -> IssueAttachment:

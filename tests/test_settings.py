@@ -1,9 +1,4 @@
-"""`Settings` refuses a configuration that would expose the host's files.
-
-`issue_add_attachment` uploads any file the server process can read, by a path the
-client picks. That is the user's own machine over stdio, and anyone who can reach
-the server - or a prompt injected into issue text - on a networked one.
-"""
+"""Validate the opt-in settings for confined local uploads."""
 
 import os
 from pathlib import Path
@@ -53,13 +48,41 @@ class TestFileUploadDefaults:
 
 
 class TestFileUploadTransportGuard:
-    def test_accepted_on_stdio(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_accepted_on_stdio(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
         monkeypatch.setenv("TRACKER_FILE_UPLOAD_ENABLED", "true")
+
+        monkeypatch.setenv("TRACKER_FILE_UPLOAD_ROOT", str(tmp_path))
 
         settings = load_settings()
 
         assert settings.transport == "stdio"
         assert settings.tracker_file_upload_enabled is True
+        assert settings.tracker_file_upload_root == tmp_path.resolve()
+        assert str(tmp_path) not in repr(settings)
+        assert "tracker_file_upload_root" not in settings.model_dump()
+
+    @pytest.mark.parametrize("kind", ["unset", "empty", "relative", "missing", "file"])
+    def test_invalid_root_refused_without_disclosing_it(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, kind: str
+    ) -> None:
+        file = tmp_path / "private-upload-root"
+        file.touch()
+        roots = {
+            "empty": "",
+            "relative": file.name,
+            "missing": str(file / "missing"),
+            "file": str(file),
+        }
+        if kind in roots:
+            monkeypatch.setenv("TRACKER_FILE_UPLOAD_ROOT", roots[kind])
+
+        with pytest.raises(
+            ValidationError, match="TRACKER_FILE_UPLOAD_ROOT"
+        ) as exc_info:
+            load_settings(tracker_file_upload_enabled=True)
+        assert file.name not in str(exc_info.value)
 
     @pytest.mark.parametrize("transport", ["sse", "streamable-http"])
     def test_rejected_on_a_network_transport(

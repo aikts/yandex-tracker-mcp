@@ -1,5 +1,6 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
+from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -83,6 +84,7 @@ def create_test_settings(
     read_only_queues: list[str] | None = None,
     entities_enabled: bool = True,
     file_upload_enabled: bool = True,
+    file_upload_root: Path | None = None,
 ) -> Settings:
     """Create Settings for testing with minimal required configuration.
 
@@ -102,6 +104,7 @@ def create_test_settings(
         tracker_read_only_queues=Settings.decode_queue_keys(read_only_queues),
         tracker_entities_enabled=entities_enabled,
         tracker_file_upload_enabled=file_upload_enabled,
+        tracker_file_upload_root=file_upload_root or Path.cwd().resolve(),
         tools_cache_enabled=False,
         oauth_enabled=False,
         host="0.0.0.0",
@@ -116,15 +119,24 @@ def create_test_settings(
 
 
 @pytest.fixture
-def test_settings() -> Settings:
-    """Create Settings for testing with minimal required configuration."""
-    return create_test_settings()
+def upload_root(tmp_path: Path) -> Path:
+    root = tmp_path.resolve() / "upload-root"
+    root.mkdir()
+    return root
 
 
 @pytest.fixture
-def test_settings_with_queue_limits() -> Settings:
+def test_settings(upload_root: Path) -> Settings:
+    """Create Settings for testing with minimal required configuration."""
+    return create_test_settings(file_upload_root=upload_root)
+
+
+@pytest.fixture
+def test_settings_with_queue_limits(upload_root: Path) -> Settings:
     """Settings with queue restrictions enabled."""
-    return create_test_settings(limit_queues=["ALLOWED", "PERMITTED"])
+    return create_test_settings(
+        limit_queues=["ALLOWED", "PERMITTED"], file_upload_root=upload_root
+    )
 
 
 @pytest.fixture
@@ -276,14 +288,16 @@ async def client_session_entities_disabled(
 
 
 @pytest.fixture
-def test_settings_with_read_only_queues() -> Settings:
+def test_settings_with_read_only_queues(upload_root: Path) -> Settings:
     """Settings with per-queue read-only access configured.
 
     Write tools are registered globally, but mutations targeting a queue in
     ``tracker_read_only_queues`` are rejected. ``READONLY`` is read-only while
     other queues (e.g. ``TEST``) remain read-write.
     """
-    return create_test_settings(read_only_queues=["READONLY"])
+    return create_test_settings(
+        read_only_queues=["READONLY"], file_upload_root=upload_root
+    )
 
 
 @pytest.fixture

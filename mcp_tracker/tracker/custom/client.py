@@ -5,7 +5,7 @@ import mimetypes
 import random
 import time
 from asyncio import CancelledError
-from collections.abc import AsyncIterator, Collection, Mapping, Sequence
+from collections.abc import AsyncIterable, AsyncIterator, Collection, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from typing import Any, Literal
@@ -13,6 +13,7 @@ from typing import Any, Literal
 import jwt
 import yandexcloud
 from aiohttp import ClientResponse, ClientSession, ClientTimeout, FormData
+from aiohttp.payload import AsyncIterablePayload
 from pydantic import BaseModel, Field, RootModel
 from yandex.cloud.iam.v1.iam_token_service_pb2 import CreateIamTokenRequest
 from yandex.cloud.iam.v1.iam_token_service_pb2_grpc import IamTokenServiceStub
@@ -388,7 +389,9 @@ class TrackerClient(
         return headers
 
     @staticmethod
-    async def _raise_for_status(response: ClientResponse) -> None:
+    async def _raise_for_status(
+        response: ClientResponse, *, allow_redirects: bool
+    ) -> None:
         """Raise `TrackerAPIError` carrying the API's own explanation of the failure.
 
         `ClientResponse.raise_for_status()` discards the response body, which is
@@ -396,7 +399,7 @@ class TrackerClient(
         issue_create call was rejected with 422), leaving the caller with a bare
         "Unprocessable Entity".
         """
-        if response.status < 400:
+        if response.status < (400 if allow_redirects else 300):
             return
 
         try:
@@ -426,6 +429,7 @@ class TrackerClient(
         allow_statuses: Collection[int] = (),
         timeout: float | None = None,
         timeout_setting: str = "TRACKER_API_TIMEOUT",
+        allow_redirects: bool = True,
     ) -> AsyncIterator[ClientResponse]:
         """Every request to the Tracker API goes through here.
 
@@ -461,13 +465,16 @@ class TrackerClient(
                 json=json,
                 data=data,
                 timeout=ClientTimeout(total=budget),
+                allow_redirects=allow_redirects,
             ) as response:
                 if response.status not in allow_statuses:
                     if not_found is not None and response.status == 404:
                         raise not_found
                     if conflict is not None and response.status in (409, 412):
                         raise conflict
-                    await self._raise_for_status(response)
+                    await self._raise_for_status(
+                        response, allow_redirects=allow_redirects
+                    )
                 yield response
         except TimeoutError as exc:
             # A body read that times out lands here too: it runs inside the
@@ -1067,7 +1074,7 @@ class TrackerClient(
         self,
         issue_id: str,
         *,
-        content: bytes,
+        content: AsyncIterable[bytes],
         filename: str,
         auth: YandexAuth | None = None,
     ) -> IssueAttachment:
@@ -1076,10 +1083,12 @@ class TrackerClient(
         form = FormData()
         form.add_field(
             "file",
-            content,
+            AsyncIterablePayload(
+                content,
+                content_type=mimetypes.guess_type(filename)[0]
+                or "application/octet-stream",
+            ),
             filename=filename,
-            content_type=mimetypes.guess_type(filename)[0]
-            or "application/octet-stream",
         )
         async with self._request(
             "POST",
@@ -1090,6 +1099,7 @@ class TrackerClient(
             not_found=IssueNotFound(issue_id),
             timeout=self._upload_timeout,
             timeout_setting="TRACKER_UPLOAD_TIMEOUT",
+            allow_redirects=False,
         ) as response:
             return IssueAttachment.model_validate_json(await response.read())
 

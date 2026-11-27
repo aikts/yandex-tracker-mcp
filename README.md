@@ -623,7 +623,7 @@ These four are organization-wide. A queue may accept only some of the values the
 | `issue_update_worklog` | Edit a worklog entry | `issue_id`, `worklog_id`, `duration`, `comment`, `start` |
 | `issue_delete_worklog` | Delete a worklog entry | `issue_id`, `worklog_id` |
 | `issue_get_attachments` | Attachment metadata | `issue_id`, `fields` |
-| `issue_add_attachment` | Upload a file from the machine the server runs on, returning the attachment; an image shows inline in a description only when embedded as `![name](/ajax/v2/attachments/<id>?inline=true)` | `issue_id`, `file_path`, `filename` |
+| `issue_add_attachment` | Upload a file from the configured directory and return its attachment ID. Embed an image in the description as `![name](/ajax/v2/attachments/<id>?inline=true)` | `issue_id`, `file_path`, `filename` |
 | `issue_get_checklist` | The checklist, with the item ids the write tools need | `issue_id` |
 | `issue_add_checklist_items` | Append items in order, creating the checklist if there is none | `issue_id`, `items` (`text`, `checked`, `assignee`, `deadline`) |
 | `issue_update_checklist_item` | Change one item; the fields you omit keep their value | `issue_id`, `checklist_item_id`, `text`, `checked`, `assignee`, `deadline`, `clear_assignee`, `clear_deadline` |
@@ -642,7 +642,7 @@ These four are organization-wide. A queue may accept only some of the values the
 
 Every tool here respects `TRACKER_LIMIT_QUEUES` and `TRACKER_READ_ONLY_QUEUES`; the ones that write are registered only when `TRACKER_READ_ONLY` is off.
 
-`issue_add_attachment` is opt-in: it is registered only with `TRACKER_FILE_UPLOAD_ENABLED=true` (default `false`), because it reads any file the server process can. The server refuses to start with the flag on a network transport or with `OAUTH_ENABLED`, where a client - or a prompt injected into an issue - could upload the host's secrets to an issue. Uploads have their own time budget, `TRACKER_UPLOAD_TIMEOUT`.
+Enable `issue_add_attachment` with `TRACKER_FILE_UPLOAD_ENABLED=true` on a writable `stdio` server with OAuth disabled. Set `TRACKER_FILE_UPLOAD_ROOT` to an existing absolute directory on the server. Pass a relative `file_path` such as `reports/screenshot.png`. The tool accepts regular files and rejects parent traversal, symlinks and hard links. The upload uses `TRACKER_UPLOAD_TIMEOUT`. With Docker, mount a directory using `-v /path/to/uploads:/uploads:ro` and set the upload root to `/uploads`.
 
 </details>
 
@@ -1021,7 +1021,8 @@ TRACKER_UPLOAD_TIMEOUT=300                # Default: 300 - Timeout in seconds fo
 TRACKER_LIMIT_QUEUES=PROJ1,PROJ2,DEV      # Comma-separated queue keys - allow-list of accessible queues
 TRACKER_READ_ONLY_QUEUES=PROJ2            # Comma-separated queue keys - allowed for reads but reject writes (per-queue read-only)
 TRACKER_ENTITIES_ENABLED=true             # Default: false - Register project/portfolio/goal tools (NOT covered by the queue restrictions above)
-TRACKER_FILE_UPLOAD_ENABLED=true          # Default: false - Register issue_add_attachment, which uploads local files (stdio only: refused with a network transport or OAUTH_ENABLED)
+TRACKER_FILE_UPLOAD_ENABLED=false         # Enable local uploads on stdio with OAuth disabled
+# TRACKER_FILE_UPLOAD_ROOT=/path/to/uploads # Required when local uploads are enabled
 
 # Server Configuration
 HOST=0.0.0.0                              # Default: 0.0.0.0

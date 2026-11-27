@@ -1,8 +1,8 @@
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterable, AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from mcp.client.session import ClientSession
@@ -10,7 +10,8 @@ from mcp.server import FastMCP
 from mcp.shared.context import RequestContext
 from mcp.types import CallToolResult, ElicitRequestParams, ElicitResult, TextContent
 
-from mcp_tracker.mcp.tools import issue_write
+from mcp_tracker.mcp.tools import _attachment_file
+from mcp_tracker.tracker.proto.common import YandexAuth
 from mcp_tracker.tracker.proto.types.inputs import (
     IssueComponentRef,
     IssueFollowerRef,
@@ -1351,202 +1352,225 @@ class TestIssueDeleteChecklistItem:
         mock_issues_protocol.issue_delete_checklist_item.assert_not_called()
 
 
-def _refuse_to_read(self: Path) -> bytes:
-    raise AssertionError(f"{self} was read, but the call should fail before that")
-
-
-def _permission_denied(self: Path) -> bytes:
-    raise PermissionError(13, "Permission denied", str(self))
-
-
 class TestIssueAddAttachment:
     @pytest.fixture
-    def upload_file(self, tmp_path: Path) -> Path:
-        path = tmp_path / "screenshot.png"
+    def upload_file(self, upload_root: Path) -> Path:
+        path = upload_root / "reports" / "screenshot.png"
+        path.parent.mkdir()
         path.write_bytes(b"\x89PNG\r\n\x1a\n\x00\xff")
         return path
 
-    async def test_uploads_the_file_bytes_under_its_name(
+    @pytest.mark.parametrize(
+        ("options", "expected_filename"),
+        [({}, "screenshot.png"), ({"filename": "Ошибка.png"}, "Ошибка.png")],
+    )
+    async def test_streams_a_relative_file(
         self,
         client_session: ClientSession,
         mock_issues_protocol: AsyncMock,
         sample_attachment: IssueAttachment,
         upload_file: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        options: dict[str, str],
+        expected_filename: str,
     ) -> None:
-        mock_issues_protocol.issue_add_attachment.return_value = sample_attachment
+        expected = upload_file.read_bytes()
+        monkeypatch.setattr(_attachment_file, "CHUNK_SIZE", 4)
 
+        async def receive(
+            issue_id: str,
+            *,
+            content: AsyncIterable[bytes],
+            filename: str,
+            auth: YandexAuth,
+        ) -> IssueAttachment:
+            assert issue_id == "TEST-123"
+            assert filename == expected_filename
+            assert [chunk async for chunk in content] == [
+                expected[:4],
+                expected[4:8],
+                expected[8:],
+            ]
+            return sample_attachment
+
+        mock_issues_protocol.issue_add_attachment.side_effect = receive
+        result = await client_session.call_tool(
+            "issue_add_attachment",
+            {"issue_id": "TEST-123", "file_path": "reports/screenshot.png", **options},
+        )
+
+        assert not result.isError
+        mock_issues_protocol.issue_add_attachment.assert_awaited_once()
+        assert get_tool_result_content(result)["id"] == sample_attachment.id
+
+    @pytest.mark.parametrize(
+        "file_path",
+        [
+            "",
+            ".",
+            "../screenshot.png",
+            "reports/../screenshot.png",
+            r"reports\..\screenshot.png",
+            "/outside/file.png",
+            r"C:\outside\file.png",
+            r"C:file.png",
+            r"\outside\file.png",
+            r"\\host\share\file.png",
+            "reports/file.png:stream",
+            "reports/file\x00.png",
+        ],
+    )
+    async def test_rejects_unsafe_paths_without_opening(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        upload_root: Path,
+        file_path: str,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        opener = Mock()
+        monkeypatch.setattr(_attachment_file.aiofiles, "open", opener)
+        result = await client_session.call_tool(
+            "issue_add_attachment", {"issue_id": "TEST-123", "file_path": file_path}
+        )
+        assert "relative file path" in error_text(result)
+        assert str(upload_root) not in error_text(result)
+        opener.assert_not_called()
+        mock_issues_protocol.issue_add_attachment.assert_not_called()
+
+    async def test_rejects_absolute_path_even_inside_upload_root(
+        self,
+        client_session: ClientSession,
+        mock_issues_protocol: AsyncMock,
+        upload_file: Path,
+        upload_root: Path,
+    ) -> None:
         result = await client_session.call_tool(
             "issue_add_attachment",
             {"issue_id": "TEST-123", "file_path": str(upload_file)},
         )
+        assert "relative file path" in error_text(result)
+        assert str(upload_root) not in error_text(result)
+        mock_issues_protocol.issue_add_attachment.assert_not_called()
 
-        assert not result.isError
-        call_args = mock_issues_protocol.issue_add_attachment.call_args
-        assert call_args.args == ("TEST-123",)
-        assert call_args.kwargs["content"] == upload_file.read_bytes()
-        assert call_args.kwargs["filename"] == "screenshot.png"
-        content = get_tool_result_content(result)
-        assert content["id"] == sample_attachment.id
-
-    async def test_filename_overrides_the_stored_name(
+    @pytest.mark.parametrize("directory_link", [False, True])
+    async def test_symlinks_cannot_escape_the_root(
         self,
         client_session: ClientSession,
         mock_issues_protocol: AsyncMock,
-        sample_attachment: IssueAttachment,
-        upload_file: Path,
+        upload_root: Path,
+        directory_link: bool,
     ) -> None:
-        mock_issues_protocol.issue_add_attachment.return_value = sample_attachment
-
+        outside = upload_root.parent / "outside"
+        outside.mkdir()
+        secret = outside / "secret.txt"
+        secret.write_text("secret", encoding="utf-8")
+        link = upload_root / "link"
+        try:
+            link.symlink_to(
+                outside if directory_link else secret,
+                target_is_directory=directory_link,
+            )
+        except OSError:
+            pytest.skip("Symlinks are unavailable on this host")
         result = await client_session.call_tool(
             "issue_add_attachment",
             {
                 "issue_id": "TEST-123",
-                "file_path": str(upload_file),
-                "filename": "Ошибка при входе.png",
+                "file_path": "link/secret.txt" if directory_link else "link",
             },
         )
-
-        assert not result.isError
-        call_kwargs = mock_issues_protocol.issue_add_attachment.call_args.kwargs
-        assert call_kwargs["filename"] == "Ошибка при входе.png"
-
-    async def test_a_relative_path_is_resolved(
-        self,
-        client_session: ClientSession,
-        mock_issues_protocol: AsyncMock,
-        sample_attachment: IssueAttachment,
-        upload_file: Path,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        mock_issues_protocol.issue_add_attachment.return_value = sample_attachment
-        monkeypatch.chdir(upload_file.parent)
-
-        result = await client_session.call_tool(
-            "issue_add_attachment",
-            {"issue_id": "TEST-123", "file_path": "./sub/../screenshot.png"},
-        )
-
-        # `sub` does not exist, so this only works on the resolved path.
-        assert not result.isError
-        call_kwargs = mock_issues_protocol.issue_add_attachment.call_args.kwargs
-        assert call_kwargs["filename"] == "screenshot.png"
-
-    async def test_missing_file_is_rejected(
-        self,
-        client_session: ClientSession,
-        mock_issues_protocol: AsyncMock,
-        tmp_path: Path,
-    ) -> None:
-        missing = tmp_path / "nope.png"
-
-        result = await client_session.call_tool(
-            "issue_add_attachment",
-            {"issue_id": "TEST-123", "file_path": str(missing)},
-        )
-
-        message = error_text(result)
-        assert str(missing) in message
-        assert "does not exist" in message
+        assert "Could not open" in error_text(result)
+        assert str(upload_root) not in error_text(result)
+        assert str(outside) not in error_text(result)
         mock_issues_protocol.issue_add_attachment.assert_not_called()
 
-    async def test_directory_is_rejected(
+    async def test_hard_link_cannot_expose_an_external_file(
         self,
         client_session: ClientSession,
         mock_issues_protocol: AsyncMock,
-        tmp_path: Path,
+        upload_root: Path,
     ) -> None:
+        outside = upload_root.parent / "outside.txt"
+        outside.write_text("secret", encoding="utf-8")
+        try:
+            (upload_root / "link.txt").hardlink_to(outside)
+        except OSError:
+            pytest.skip("Hard links are unavailable on this host")
         result = await client_session.call_tool(
-            "issue_add_attachment",
-            {"issue_id": "TEST-123", "file_path": str(tmp_path)},
+            "issue_add_attachment", {"issue_id": "TEST-123", "file_path": "link.txt"}
         )
-
-        assert "is not a file" in error_text(result)
+        assert "regular file" in error_text(result)
+        assert str(upload_root) not in error_text(result)
         mock_issues_protocol.issue_add_attachment.assert_not_called()
 
-    async def test_a_file_over_the_limit_is_rejected_before_it_is_read(
+    @pytest.mark.parametrize("file_path", ["missing.png", "reports"])
+    async def test_unavailable_files_do_not_reveal_the_root(
         self,
         client_session: ClientSession,
         mock_issues_protocol: AsyncMock,
         upload_file: Path,
-        monkeypatch: pytest.MonkeyPatch,
+        upload_root: Path,
+        file_path: str,
     ) -> None:
-        monkeypatch.setattr(issue_write, "MAX_ATTACHMENT_SIZE", 4)
-        monkeypatch.setattr(Path, "read_bytes", _refuse_to_read)
-
         result = await client_session.call_tool(
-            "issue_add_attachment",
-            {"issue_id": "TEST-123", "file_path": str(upload_file)},
+            "issue_add_attachment", {"issue_id": "TEST-123", "file_path": file_path}
         )
-
-        assert "limit" in error_text(result)
+        assert "Could not open" in error_text(result)
+        assert str(upload_root) not in error_text(result)
         mock_issues_protocol.issue_add_attachment.assert_not_called()
 
-    async def test_the_limit_is_trackers_1024_mb(self) -> None:
-        assert issue_write.MAX_ATTACHMENT_SIZE == 1024 * 1024 * 1024
-
-    async def test_an_unreadable_file_is_reported(
+    async def test_size_limit_checked_before_starting_upload(
         self,
         client_session: ClientSession,
         mock_issues_protocol: AsyncMock,
         upload_file: Path,
+        upload_root: Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        monkeypatch.setattr(Path, "read_bytes", _permission_denied)
-
+        monkeypatch.setattr(_attachment_file, "MAX_ATTACHMENT_SIZE", 4)
         result = await client_session.call_tool(
             "issue_add_attachment",
-            {"issue_id": "TEST-123", "file_path": str(upload_file)},
+            {"issue_id": "TEST-123", "file_path": "reports/screenshot.png"},
         )
-
-        message = error_text(result)
-        assert "Could not read file" in message
-        assert "Permission denied" in message
+        assert "upload limit" in error_text(result)
+        assert str(upload_root) not in error_text(result)
         mock_issues_protocol.issue_add_attachment.assert_not_called()
 
-    async def test_restricted_queue_raises_error_without_reading_the_file(
+    @pytest.mark.parametrize(
+        ("issue_id", "message"),
+        [
+            ("RESTRICTED-123", "RESTRICTED-123"),
+            ("ALLOWED-1/../RESTRICTED-123", "Pass an issue key"),
+            ("ALLOWED-1%2F..%2FRESTRICTED-123", "Pass an issue key"),
+        ],
+    )
+    async def test_restricted_or_invalid_keys_fail_before_opening(
         self,
         client_session_with_limits: ClientSession,
         mock_issues_protocol: AsyncMock,
-        upload_file: Path,
         monkeypatch: pytest.MonkeyPatch,
+        issue_id: str,
+        message: str,
     ) -> None:
-        monkeypatch.setattr(Path, "read_bytes", _refuse_to_read)
-
+        opener = Mock()
+        monkeypatch.setattr(_attachment_file.aiofiles, "open", opener)
         result = await client_session_with_limits.call_tool(
             "issue_add_attachment",
-            {"issue_id": "RESTRICTED-123", "file_path": str(upload_file)},
+            {"issue_id": issue_id, "file_path": "reports/screenshot.png"},
         )
-
-        assert "RESTRICTED-123" in error_text(result)
+        assert message in error_text(result)
+        opener.assert_not_called()
         mock_issues_protocol.issue_add_attachment.assert_not_called()
-
-    async def test_allowed_queue_uploads(
-        self,
-        client_session_with_limits: ClientSession,
-        mock_issues_protocol: AsyncMock,
-        sample_attachment: IssueAttachment,
-        upload_file: Path,
-    ) -> None:
-        mock_issues_protocol.issue_add_attachment.return_value = sample_attachment
-
-        result = await client_session_with_limits.call_tool(
-            "issue_add_attachment",
-            {"issue_id": "ALLOWED-1", "file_path": str(upload_file)},
-        )
-
-        assert not result.isError
-        mock_issues_protocol.issue_add_attachment.assert_called_once()
 
     async def test_read_only_queue_raises_error(
         self,
         client_session_with_read_only_queues: ClientSession,
         mock_issues_protocol: AsyncMock,
-        upload_file: Path,
     ) -> None:
         result = await client_session_with_read_only_queues.call_tool(
             "issue_add_attachment",
-            {"issue_id": "READONLY-1", "file_path": str(upload_file)},
+            {"issue_id": "READONLY-1", "file_path": "reports/screenshot.png"},
         )
-
         assert "read-only" in error_text(result)
         mock_issues_protocol.issue_add_attachment.assert_not_called()

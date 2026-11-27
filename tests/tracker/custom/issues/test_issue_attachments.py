@@ -1,3 +1,4 @@
+from collections.abc import AsyncIterator
 from typing import Any
 
 import pytest
@@ -5,7 +6,11 @@ from aiohttp import ClientTimeout
 from aioresponses import aioresponses
 
 from mcp_tracker.tracker.custom.client import TrackerClient
-from mcp_tracker.tracker.custom.errors import IssueNotFound, TrackerAPITimeout
+from mcp_tracker.tracker.custom.errors import (
+    IssueNotFound,
+    TrackerAPIError,
+    TrackerAPITimeout,
+)
 from mcp_tracker.tracker.proto.types.issues import IssueAttachment
 from tests.aioresponses_utils import RequestCapture
 
@@ -13,6 +18,11 @@ UPLOAD_URL = "https://api.tracker.yandex.net/v3/issues/TEST-123/attachments/"
 
 # Not valid UTF-8, with the bytes a text-mode round trip would mangle.
 FILE_CONTENT = b"\x89PNG\r\n\x1a\n\x00\xff binary\nbody"
+
+
+async def file_chunks() -> AsyncIterator[bytes]:
+    yield FILE_CONTENT[:8]
+    yield FILE_CONTENT[8:]
 
 
 @pytest.fixture
@@ -79,7 +89,7 @@ class TestIssueGetAttachments:
 
 
 class TestIssueAddAttachment:
-    async def test_sends_the_file_as_multipart_with_the_filename(
+    async def test_streams_a_multipart_file_with_the_filename(
         self,
         tracker_client: TrackerClient,
         uploaded_attachment_data: dict[str, Any],
@@ -90,7 +100,9 @@ class TestIssueAddAttachment:
             m.post(f"{UPLOAD_URL}?filename=скриншот.png", callback=capture.callback)
 
             result = await tracker_client.issue_add_attachment(
-                "TEST-123", content=FILE_CONTENT, filename="скриншот.png"
+                "TEST-123",
+                content=file_chunks(),
+                filename="скриншот.png",
             )
 
         capture.assert_called_once()
@@ -101,7 +113,7 @@ class TestIssueAddAttachment:
             {"Authorization": "OAuth test-token", "X-Org-ID": "test-org"}
         )
 
-        parts = await request.get_multipart_parts()
+        parts = await request.get_multipart_parts(expect_unknown_size=True)
         assert len(parts) == 1
         assert parts[0].name == "file"
         assert parts[0].filename == "скриншот.png"
@@ -123,7 +135,9 @@ class TestIssueAddAttachment:
             m.post(f"{UPLOAD_URL}?filename=dump.qwx", callback=capture.callback)
 
             await tracker_client.issue_add_attachment(
-                "TEST-123", content=FILE_CONTENT, filename="dump.qwx"
+                "TEST-123",
+                content=file_chunks(),
+                filename="dump.qwx",
             )
 
         parts = await capture.last_request.get_multipart_parts()
@@ -142,7 +156,9 @@ class TestIssueAddAttachment:
                 m.post(f"{UPLOAD_URL}?filename=a.png", callback=capture.callback)
 
                 await client.issue_add_attachment(
-                    "TEST-123", content=FILE_CONTENT, filename="a.png"
+                    "TEST-123",
+                    content=file_chunks(),
+                    filename="a.png",
                 )
         finally:
             await client.close()
@@ -157,7 +173,9 @@ class TestIssueAddAttachment:
 
             with pytest.raises(TrackerAPITimeout) as exc_info:
                 await tracker_client.issue_add_attachment(
-                    "TEST-123", content=FILE_CONTENT, filename="a.png"
+                    "TEST-123",
+                    content=file_chunks(),
+                    filename="a.png",
                 )
 
         assert exc_info.value.timeout == tracker_client._upload_timeout
@@ -173,7 +191,26 @@ class TestIssueAddAttachment:
 
             with pytest.raises(IssueNotFound) as exc_info:
                 await tracker_client.issue_add_attachment(
-                    "NOTFOUND-123", content=FILE_CONTENT, filename="a.png"
+                    "NOTFOUND-123",
+                    content=file_chunks(),
+                    filename="a.png",
                 )
 
         assert exc_info.value.issue_id == "NOTFOUND-123"
+
+    async def test_upload_does_not_follow_redirects(
+        self, tracker_client: TrackerClient
+    ) -> None:
+        with aioresponses() as m:
+            m.post(
+                f"{UPLOAD_URL}?filename=a.png",
+                status=307,
+                headers={"Location": "https://example.com/other-upload"},
+            )
+            with pytest.raises(TrackerAPIError) as exc_info:
+                await tracker_client.issue_add_attachment(
+                    "TEST-123",
+                    content=file_chunks(),
+                    filename="a.png",
+                )
+        assert exc_info.value.status == 307

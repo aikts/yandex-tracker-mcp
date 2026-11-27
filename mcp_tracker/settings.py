@@ -1,9 +1,10 @@
 from collections.abc import Iterable
+from pathlib import Path
 from typing import Annotated, Any, Literal
 
 from aiocache import Cache
 from aiocache.serializers import PickleSerializer
-from pydantic import AnyHttpUrl, field_validator, model_validator
+from pydantic import AnyHttpUrl, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
@@ -13,6 +14,7 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         str_strip_whitespace=True,
         extra="ignore",
+        hide_input_in_errors=True,
     )
 
     host: str = "0.0.0.0"
@@ -38,9 +40,10 @@ class Settings(BaseSettings):
     # Project/portfolio/goal tools are opt-in: they add a large tool manifest and
     # are not subject to the queue restrictions (an entity has no single queue).
     tracker_entities_enabled: bool = False
-    # `issue_add_attachment` is opt-in and stdio-only: it reads whatever file the
-    # server process can read (see `refuse_file_upload_on_remote_transports`).
     tracker_file_upload_enabled: bool = False
+    tracker_file_upload_root: Path | None = Field(
+        default=None, repr=False, exclude=True
+    )
 
     tracker_sa_key_id: str | None = None
     tracker_sa_service_account_id: str | None = None
@@ -98,17 +101,13 @@ class Settings(BaseSettings):
 
         return self
 
-    @model_validator(mode="after")
-    def refuse_file_upload_on_remote_transports(self):
-        """Allow `TRACKER_FILE_UPLOAD_ENABLED` only on a local, single-user server.
+    @field_validator("tracker_file_upload_root", mode="before")
+    @classmethod
+    def empty_upload_root(cls, value: Any) -> Any:
+        return None if value == "" else value
 
-        `issue_add_attachment` uploads any file the server process can read, by a
-        path the client chooses. Over stdio that client is the user on their own
-        machine; on a networked or OAuth-fronted server it is anyone who can reach
-        it - or a prompt injected into issue text - reading `/proc/self/environ`,
-        `.env` or `~/.ssh/*` off the host into an issue. Refused at load, so a
-        misconfigured server does not start rather than starts exposed.
-        """
+    @model_validator(mode="after")
+    def validate_file_upload(self):
         if not self.tracker_file_upload_enabled:
             return self
 
@@ -116,13 +115,25 @@ class Settings(BaseSettings):
             raise ValueError(
                 "TRACKER_FILE_UPLOAD_ENABLED=true is only allowed with TRANSPORT=stdio "
                 "and OAUTH_ENABLED=false (got "
-                f"TRANSPORT={self.transport}, OAUTH_ENABLED={str(self.oauth_enabled).lower()}): "
-                "issue_add_attachment reads any file the server process can read, so "
-                "on a networked server a client could upload the host's secrets "
-                "(.env, ~/.ssh, /proc/self/environ) to an issue."
+                f"TRANSPORT={self.transport}, OAUTH_ENABLED={str(self.oauth_enabled).lower()})."
             )
 
-        return self
+        try:
+            root = self.tracker_file_upload_root
+            if root is not None:
+                root = root.expanduser()
+                if root.is_absolute():
+                    root = root.resolve(strict=True)
+                    if root.is_dir():
+                        self.tracker_file_upload_root = root
+                        return self
+        except (OSError, RuntimeError, ValueError):
+            pass
+
+        raise ValueError(
+            "TRACKER_FILE_UPLOAD_ROOT must name an existing absolute directory "
+            "when TRACKER_FILE_UPLOAD_ENABLED=true."
+        )
 
     @field_validator("tracker_limit_queues", "tracker_read_only_queues", mode="before")
     @classmethod

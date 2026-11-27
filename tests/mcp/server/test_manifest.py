@@ -99,3 +99,13 @@ async def test_manifest_declares_the_file_upload_flag(
         manifest["server"]["mcp_config"]["env"]["TRACKER_FILE_UPLOAD_ENABLED"]
         == "${user_config.tracker_file_upload_enabled}"
     )
+
+
+def test_manifest_configures_a_private_upload_root(manifest: dict[str, Any]) -> None:
+    root = manifest["user_config"]["tracker_file_upload_root"]
+    assert root["type"] == "directory"
+    assert root["sensitive"] is True
+    assert (
+        manifest["server"]["mcp_config"]["env"]["TRACKER_FILE_UPLOAD_ROOT"]
+        == "${user_config.tracker_file_upload_root}"
+    )

@@ -1,5 +1,5 @@
 import datetime
-from collections.abc import Sequence
+from collections.abc import AsyncIterable, Sequence
 from typing import Any, Protocol, runtime_checkable
 
 from .common import YandexAuth
@@ -134,7 +134,7 @@ class IssueProtocol(Protocol):
         self,
         issue_id: str,
         *,
-        content: bytes,
+        content: AsyncIterable[bytes],
         filename: str,
         auth: YandexAuth | None = None,
     ) -> IssueAttachment: ...

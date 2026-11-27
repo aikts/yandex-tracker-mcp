@@ -26,7 +26,8 @@
         "TRACKER_CLOUD_ORG_ID": "${user_config.tracker_cloud_org_id}",
         "TRACKER_ORG_ID": "${user_config.tracker_org_id}",
         "TRACKER_ENTITIES_ENABLED": "${user_config.tracker_entities_enabled}",
-        "TRACKER_FILE_UPLOAD_ENABLED": "${user_config.tracker_file_upload_enabled}"
+        "TRACKER_FILE_UPLOAD_ENABLED": "${user_config.tracker_file_upload_enabled}",
+        "TRACKER_FILE_UPLOAD_ROOT": "${user_config.tracker_file_upload_root}"
       }
     }
   },
@@ -363,7 +364,7 @@
     },
     {
       "name": "issue_add_attachment",
-      "description": "Attach a file from this computer to an issue (requires TRACKER_FILE_UPLOAD_ENABLED)"
+      "description": "Attach a file from the configured upload directory to an issue (requires TRACKER_FILE_UPLOAD_ENABLED)"
     },
     {
       "name": "issue_add_checklist_items",
@@ -462,10 +463,17 @@
     "tracker_file_upload_enabled": {
       "type": "boolean",
       "title": "Enable File Upload to Issues",
-      "description": "Register issue_add_attachment, which uploads a file from this computer to an issue. It can read any file you can, so it is off by default.",
+      "description": "Enable uploads from the configured directory to Tracker issues. Set the upload directory below.",
       "required": false,
       "sensitive": false,
       "default": false
+    },
+    "tracker_file_upload_root": {
+      "type": "directory",
+      "title": "File Upload Directory",
+      "description": "Absolute directory that can supply files for issue attachments. Required when uploads are enabled.",
+      "required": false,
+      "sensitive": true
     }
   },
   "keywords": [

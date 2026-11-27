@@ -76,8 +76,13 @@ def register_all_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         register_component_write_tools(settings, mcp)
         register_issue_write_tools(settings, mcp)
 
-        if settings.tracker_file_upload_enabled:
-            register_issue_file_upload_tools(settings, mcp)
+        if (
+            settings.tracker_file_upload_enabled
+            and settings.tracker_file_upload_root is not None
+        ):
+            register_issue_file_upload_tools(
+                settings, mcp, settings.tracker_file_upload_root
+            )
 
         if settings.tracker_entities_enabled:
             register_project_write_tools(settings, mcp)

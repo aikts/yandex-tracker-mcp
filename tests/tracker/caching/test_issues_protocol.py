@@ -1,3 +1,4 @@
+from collections.abc import AsyncIterator
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -19,6 +20,10 @@ from mcp_tracker.tracker.proto.types.issues import (
     Worklog,
 )
 from mcp_tracker.tracker.proto.types.refs import IssueReference
+
+
+async def attachment_chunks() -> AsyncIterator[bytes]:
+    yield b"data"
 
 
 class TestCachingIssuesProtocol:
@@ -164,23 +169,31 @@ class TestCachingIssuesProtocol:
         mock_original: AsyncMock,
         yandex_auth: YandexAuth,
     ) -> None:
+        new_attachment = IssueAttachment.model_construct(id="att-1", name="a.png")
+        second_attachment = IssueAttachment.model_construct(id="att-2", name="a.png")
         mock_original.issue_add_attachment.side_effect = [
-            IssueAttachment(id="att-1", name="a.png"),
-            IssueAttachment(id="att-2", name="a.png"),
+            new_attachment,
+            second_attachment,
+        ]
+        mock_original.issue_get_attachments.side_effect = [[], [new_attachment]]
+        assert await caching_issues_protocol.issue_get_attachments("TEST-1") == []
+
+        first_stream = attachment_chunks()
+        first = await caching_issues_protocol.issue_add_attachment(
+            "TEST-1", content=first_stream, filename="a.png", auth=yandex_auth
+        )
+        assert await caching_issues_protocol.issue_get_attachments("TEST-1") == [
+            new_attachment
         ]
 
-        first = await caching_issues_protocol.issue_add_attachment(
-            "TEST-1", content=b"data", filename="a.png", auth=yandex_auth
-        )
+        second_stream = attachment_chunks()
         second = await caching_issues_protocol.issue_add_attachment(
-            "TEST-1", content=b"data", filename="a.png", auth=yandex_auth
+            "TEST-1", content=second_stream, filename="a.png", auth=yandex_auth
         )
 
-        # A write is never answered from the cache: the same upload twice is
-        # two attachments.
-        assert mock_original.issue_add_attachment.call_count == 2
-        mock_original.issue_add_attachment.assert_called_with(
-            "TEST-1", content=b"data", filename="a.png", auth=yandex_auth
+        assert mock_original.issue_add_attachment.await_count == 2
+        mock_original.issue_add_attachment.assert_awaited_with(
+            "TEST-1", content=second_stream, filename="a.png", auth=yandex_auth
         )
         assert (first.id, second.id) == ("att-1", "att-2")
 

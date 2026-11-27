@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from mcp.client.session import ClientSession
 from mcp.types import TextResourceContents
 from pydantic import AnyUrl
@@ -7,6 +9,7 @@ class TestConfigurationResource:
     async def test_read_returns_configuration(
         self,
         client_session: ClientSession,
+        upload_root: Path,
     ) -> None:
         result = await client_session.read_resource(
             AnyUrl("tracker-mcp://configuration")
@@ -17,6 +20,8 @@ class TestConfigurationResource:
         content = result.contents[0]
         assert isinstance(content, TextResourceContents)
         assert content.text is not None
+        assert str(upload_root) not in content.text
+        assert "file_upload_root" not in content.text
 
     async def test_contains_expected_fields(
         self,
