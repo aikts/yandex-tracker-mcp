@@ -341,14 +341,14 @@ def make_cached_protocols(
             attachment_id: str,
             *,
             max_bytes: int,
-            limit_setting: str,
+            timeout: float | None = None,
             auth: YandexAuth | None = None,
         ) -> AbstractAsyncContextManager[AttachmentDownload]:
             return self._original.issue_open_attachment(
                 issue_id,
                 attachment_id,
                 max_bytes=max_bytes,
-                limit_setting=limit_setting,
+                timeout=timeout,
                 auth=auth,
             )
 

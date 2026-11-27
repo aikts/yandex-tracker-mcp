@@ -8,6 +8,7 @@ from asyncio import CancelledError
 from collections.abc import AsyncIterable, AsyncIterator, Collection, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
+from email.message import Message
 from typing import Any, Literal
 from urllib.parse import quote
 
@@ -456,8 +457,8 @@ class TrackerClient(
 
         `timeout` replaces the session's per-request budget for this request, and
         `timeout_setting` names the variable that sets it in the timeout error.
-        Only a file upload needs this: the budget covers sending the body, and the
-        default one fails any sizable file.
+        File transfers use their own budgets because the limit covers the
+        entire request and response, including streaming the body.
         """
         # Built before the `try`: the service account's IAM fetch is not a
         # Tracker request and must not be reported as one timing out.
@@ -1085,7 +1086,7 @@ class TrackerClient(
         attachment_id: str,
         *,
         max_bytes: int,
-        limit_setting: str,
+        timeout: float | None = None,
         auth: YandexAuth | None = None,
     ) -> AsyncIterator[AttachmentDownload]:
         path = attachment_path(issue_id, attachment_id)
@@ -1095,7 +1096,7 @@ class TrackerClient(
         ) as response:
             metadata = IssueAttachment.model_validate_json(await response.read())
         if metadata.size is not None and metadata.size > max_bytes:
-            raise AttachmentTooLarge(max_bytes, limit_setting)
+            raise AttachmentTooLarge(max_bytes)
         if metadata.name in {"", ".", ".."}:
             raise not_found
 
@@ -1107,6 +1108,12 @@ class TrackerClient(
             auth=auth,
             not_found=not_found,
             allow_redirects=False,
+            timeout=timeout,
+            timeout_setting=(
+                "TRACKER_ATTACHMENT_DOWNLOAD_TIMEOUT"
+                if timeout is not None
+                else "TRACKER_API_TIMEOUT"
+            ),
         ) as response:
             length = response.content_length
             if (
@@ -1114,20 +1121,32 @@ class TrackerClient(
                 and length is not None
                 and length > max_bytes
             ):
-                raise AttachmentTooLarge(max_bytes, limit_setting)
+                raise AttachmentTooLarge(max_bytes)
 
             async def chunks() -> AsyncIterator[bytes]:
                 total = 0
                 async for chunk in response.content.iter_chunked(64 * 1024):
                     total += len(chunk)
                     if total > max_bytes:
-                        raise AttachmentTooLarge(max_bytes, limit_setting)
+                        raise AttachmentTooLarge(max_bytes)
                     yield chunk
 
+            response_type = Message()
+            response_type["Content-Type"] = (
+                response.headers.get("Content-Type") or "application/octet-stream"
+            )
+            content_type = Message()
+            content_type["Content-Type"] = (
+                metadata.mimetype or response_type.get_content_type()
+            )
+            mime_type = content_type.get_content_type()
+            charset = content_type.get_content_charset()
+            # Tracker metadata can omit a charset supplied by the response.
+            if charset is None and mime_type == response_type.get_content_type():
+                charset = response_type.get_content_charset()
+
             yield AttachmentDownload(
-                metadata,
-                response.headers.get("Content-Type") or "application/octet-stream",
-                chunks(),
+                metadata=metadata, mime_type=mime_type, charset=charset, chunks=chunks()
             )
 
     async def issue_add_attachment(

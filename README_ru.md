@@ -641,9 +641,9 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
 
 Все инструменты этого раздела учитывают `TRACKER_LIMIT_QUEUES` и `TRACKER_READ_ONLY_QUEUES`; те, что пишут, регистрируются, только если не задан `TRACKER_READ_ONLY`.
 
-Для локальных инструментов нужен `stdio` с выключенным OAuth и разрешённой записью. Включайте загрузку через `TRACKER_FILE_UPLOAD_ENABLED=true`, сохранение на диск через `TRACKER_ATTACHMENT_DOWNLOAD_ENABLED=true`. Для загрузки укажите существующий абсолютный каталог в `TRACKER_ATTACHMENTS_DIR`. При включении только скачивания можно опустить каталог. Тогда сервер создаст временную папку и удалит её при завершении. В явно настроенном каталоге скачанные файлы сохраняются. `issue_download_attachment_local` возвращает `file_path` относительно общего каталога. Этот путь можно передать в `issue_add_attachment_local`. В Docker задайте путь внутри контейнера и смонтируйте каталог с разрешением на запись для скачивания.
+Для локальных инструментов нужен `stdio` с выключенным OAuth и разрешённой записью. Включайте загрузку через `TRACKER_FILE_UPLOAD_ENABLED=true`, сохранение на диск через `TRACKER_ATTACHMENT_DOWNLOAD_ENABLED=true`. Для обоих инструментов укажите в `TRACKER_ATTACHMENTS_DIR` абсолютный путь к существующему каталогу. На POSIX для сохранения нужна файловая система с поддержкой жёстких ссылок. `issue_download_attachment_local` возвращает `file_path` относительно общего каталога. Этот путь можно передать в `issue_add_attachment_local`. В Docker задайте путь внутри контейнера и смонтируйте каталог с разрешением на запись для скачивания.
 
-Для выдачи содержимого действует лимит `TRACKER_ATTACHMENT_INLINE_MAX_BYTES` (10 МиБ), для сохранения на диск — `TRACKER_ATTACHMENT_DOWNLOAD_MAX_BYTES` (50 МиБ). Отображение бинарных ресурсов зависит от MCP-клиента.
+Для выдачи содержимого действует лимит `TRACKER_ATTACHMENT_INLINE_MAX_BYTES` (1 МиБ), для сохранения на диск — `TRACKER_ATTACHMENT_DOWNLOAD_MAX_BYTES` (128 МиБ). Лимит загрузки с диска — 128 МиБ. Отображение бинарных ресурсов зависит от MCP-клиента.
 
 </details>
 
@@ -1025,8 +1025,9 @@ TRACKER_ENTITIES_ENABLED=true             # По умолчанию: false - р�
 TRACKER_FILE_UPLOAD_ENABLED=false         # Включить локальную загрузку при stdio и выключенном OAuth
 TRACKER_ATTACHMENT_DOWNLOAD_ENABLED=false # Сохранять вложения на диск при stdio и выключенном OAuth
 # TRACKER_ATTACHMENTS_DIR=/path/to/attachments # Общая папка для локальных операций
-TRACKER_ATTACHMENT_INLINE_MAX_BYTES=10485760 # Лимит выдачи содержимого (10 МиБ)
-TRACKER_ATTACHMENT_DOWNLOAD_MAX_BYTES=52428800 # Лимит сохранения на диск (50 МиБ)
+TRACKER_ATTACHMENT_INLINE_MAX_BYTES=1048576 # Лимит выдачи содержимого (1 МиБ)
+TRACKER_ATTACHMENT_DOWNLOAD_MAX_BYTES=134217728 # Лимит сохранения на диск (128 МиБ)
+TRACKER_ATTACHMENT_DOWNLOAD_TIMEOUT=300 # Таймаут скачивания файла на диск в секундах
 
 # Конфигурация сервера
 HOST=0.0.0.0                              # По умолчанию: 0.0.0.0

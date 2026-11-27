@@ -42,8 +42,9 @@ class Settings(BaseSettings):
     tracker_entities_enabled: bool = False
     tracker_file_upload_enabled: bool = False
     tracker_attachment_download_enabled: bool = False
-    tracker_attachment_inline_max_bytes: int = Field(default=10 * 1024 * 1024, gt=0)
-    tracker_attachment_download_max_bytes: int = Field(default=50 * 1024 * 1024, gt=0)
+    tracker_attachment_inline_max_bytes: int = Field(default=1024 * 1024, gt=0)
+    tracker_attachment_download_max_bytes: int = Field(default=128 * 1024 * 1024, gt=0)
+    tracker_attachment_download_timeout: float = Field(default=300.0, gt=0)
     tracker_attachments_dir: Path | None = Field(default=None, repr=False, exclude=True)
 
     tracker_sa_key_id: str | None = None
@@ -121,12 +122,6 @@ class Settings(BaseSettings):
                 "and OAUTH_ENABLED=false (got "
                 f"TRANSPORT={self.transport}, OAUTH_ENABLED={str(self.oauth_enabled).lower()})."
             )
-
-        if (
-            self.tracker_attachments_dir is None
-            and not self.tracker_file_upload_enabled
-        ):
-            return self
 
         try:
             root = self.tracker_attachments_dir

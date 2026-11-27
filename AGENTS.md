@@ -193,7 +193,8 @@ Optional:
 - `TRACKER_ENTITIES_ENABLED`: When `true`, registers the project/portfolio/goal tools (`project*.py`, `portfolio*.py`, `goal*.py`). Default `false`: they add a large tool manifest and are not covered by the queue restrictions above, since an entity isn't mappable to a single queue.
 - `TRACKER_FILE_UPLOAD_ENABLED`: Default `false`. Set it to `true` to register `issue_add_attachment_local` on a writable server with `TRANSPORT=stdio` and `OAUTH_ENABLED=false`.
 - `TRACKER_ATTACHMENT_DOWNLOAD_ENABLED`: Default `false`. Opt in to `issue_download_attachment_local` on a writable stdio server without OAuth.
-- `TRACKER_ATTACHMENTS_DIR`: Shared absolute directory for local attachment tools, required for uploads. Download-only servers may use a temporary directory cleaned up at shutdown.
+- `TRACKER_ATTACHMENTS_DIR`: Existing absolute directory required for either local attachment tool.
+- `TRACKER_ATTACHMENT_DOWNLOAD_TIMEOUT`: Budget in seconds for streaming a local download (default `300`). Metadata and inline requests use `TRACKER_API_TIMEOUT`.
 - `TRACKER_API_TIMEOUT`: Per-request budget in seconds (default `10`), covering the whole request including the body.
 - `TRACKER_UPLOAD_TIMEOUT`: Budget in seconds for one file upload (default `300`), passed per request through `_request(timeout=..., timeout_setting=...)` so a timeout names this variable rather than `TRACKER_API_TIMEOUT`.
 - `TOOLS_CACHE_ENABLED`: Enable Redis caching

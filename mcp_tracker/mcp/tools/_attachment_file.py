@@ -5,108 +5,27 @@ import re
 import stat
 import sys
 from collections.abc import AsyncIterable, AsyncIterator, Iterator
-from contextlib import AsyncExitStack, ExitStack, asynccontextmanager, contextmanager
+from contextlib import (
+    AsyncExitStack,
+    ExitStack,
+    asynccontextmanager,
+    contextmanager,
+    suppress,
+)
 from pathlib import Path, PureWindowsPath
 from uuid import uuid4
 
 import aiofiles
+from anyio import CancelScope, to_thread
+from anyio.lowlevel import checkpoint_if_cancelled
 
 from mcp_tracker.mcp.errors import TrackerError
 
 if sys.platform == "win32":
-    import ctypes
-    import msvcrt
-    from ctypes import wintypes
-
-    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-    _get_final_path = kernel32.GetFinalPathNameByHandleW
-    _get_final_path.argtypes = (
-        wintypes.HANDLE,
-        wintypes.LPWSTR,
-        wintypes.DWORD,
-        wintypes.DWORD,
-    )
-    _get_final_path.restype = wintypes.DWORD
-    _create_file = kernel32.CreateFileW
-    _create_file.argtypes = (
-        wintypes.LPCWSTR,
-        wintypes.DWORD,
-        wintypes.DWORD,
-        wintypes.LPVOID,
-        wintypes.DWORD,
-        wintypes.DWORD,
-        wintypes.HANDLE,
-    )
-    _create_file.restype = wintypes.HANDLE
-    _close_handle = kernel32.CloseHandle
-    _close_handle.argtypes = (wintypes.HANDLE,)
-    _close_handle.restype = wintypes.BOOL
-
-    def _verify_windows_handle(handle: int, path: Path) -> None:
-        buffer = ctypes.create_unicode_buffer(32768)
-        length = _get_final_path(handle, buffer, len(buffer), 0)
-        if not 0 < length < len(buffer):
-            raise ValueError
-        final = buffer.value
-        if final.startswith("\\\\?\\UNC\\"):
-            final = "\\\\" + final[8:]
-        elif final.startswith("\\\\?\\"):
-            final = final[4:]
-        opened = Path(final)
-        if (
-            opened.anchor.casefold() != path.anchor.casefold()
-            or opened.parts[1:] != path.parts[1:]
-        ):
-            raise ValueError
-
-    @contextmanager
-    def _pin_windows_directory(directory: Path) -> Iterator[None]:
-        # Deny delete sharing on each ancestor so Windows keeps the verified
-        # path in place throughout creation, publication, and cleanup.
-        with ExitStack() as stack:
-            for path in (*reversed(directory.parents), directory):
-                handle = _create_file(
-                    str(path),
-                    0x80,  # FILE_READ_ATTRIBUTES
-                    0x03,  # FILE_SHARE_READ | FILE_SHARE_WRITE
-                    None,
-                    3,  # OPEN_EXISTING
-                    0x02200000,  # FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT
-                    None,
-                )
-                if handle is None or handle == ctypes.c_void_p(-1).value:
-                    raise OSError
-                stack.callback(_close_handle, handle)
-                if (
-                    os.lstat(path).st_file_attributes
-                    & stat.FILE_ATTRIBUTE_REPARSE_POINT
-                ):
-                    raise ValueError
-                _verify_windows_handle(handle, path)
-            yield
-
-    def _windows_open(root: Path, parts: tuple[str, ...], flags: int) -> int:
-        # Resolve before opening to reject devices and junctions. Compare the
-        # canonical directory names exactly for case-sensitive NTFS directories.
-        path = root.joinpath(*parts)
-        resolved = path.resolve(strict=True)
-        if (
-            resolved != path
-            or resolved.anchor.casefold() != root.anchor.casefold()
-            or resolved.parts[1 : len(root.parts)] != root.parts[1:]
-            or not resolved.is_file()
-        ):
-            raise ValueError
-        fd = os.open(resolved, flags)
-        try:
-            _verify_windows_handle(msvcrt.get_osfhandle(fd), resolved)
-        except BaseException:
-            os.close(fd)
-            raise
-        return fd
+    from mcp_tracker.mcp.tools._attachment_file_windows import open_file, pin_directory
 
 
-MAX_ATTACHMENT_SIZE = 1024 * 1024 * 1024
+MAX_ATTACHMENT_SIZE = 128 * 1024 * 1024
 CHUNK_SIZE = 64 * 1024
 
 
@@ -118,7 +37,8 @@ def attachment_path(file_path: str) -> PureWindowsPath:
         path.anchor
         or not path.parts
         or any(
-            part.endswith((".", " "))
+            part == ".."
+            or part.endswith((".", " "))
             or ":" in part
             or any(ord(char) < 32 for char in part)
             for part in path.parts
@@ -131,7 +51,7 @@ def attachment_path(file_path: str) -> PureWindowsPath:
 @contextmanager
 def _open_directory(path: Path) -> Iterator[int | None]:
     if sys.platform == "win32":
-        with _pin_windows_directory(path):
+        with pin_directory(path):
             yield None
         return
 
@@ -151,7 +71,7 @@ def _open_directory(path: Path) -> Iterator[int | None]:
 
 def _open_file(root: Path, parts: tuple[str, ...], flags: int) -> int:
     if sys.platform == "win32":
-        return _windows_open(root, parts, flags)
+        return open_file(root, parts, flags)
 
     with _open_directory(root.joinpath(*parts[:-1])) as directory:
         # Opening a FIFO for inspection must not block.
@@ -203,44 +123,57 @@ async def open_attachment(
         yield chunks()
 
 
+@contextmanager
+def _local_save_errors() -> Iterator[None]:
+    try:
+        yield
+    except (OSError, ValueError):
+        raise TrackerError(
+            "Could not save the attachment in the local attachment directory."
+        ) from None
+
+
 async def save_attachment(
     root: Path,
-    issue_id: str,
-    attachment_id: str,
     original_name: str,
     chunks: AsyncIterable[bytes],
 ) -> tuple[str, int]:
     suffix = PureWindowsPath(original_name).suffix
     if re.fullmatch(r"\.[A-Za-z0-9]{1,12}", suffix) is None:
         suffix = ""
-    # Both identifiers have already been validated. The suffix is the only
-    # part borrowed from the original filename.
-    basename = f"{issue_id}-{attachment_id}-{uuid4().hex}"
+    # The suffix is the only part borrowed from the original filename.
+    basename = uuid4().hex
     file_path = f"{basename}{suffix}"
     partial_name = f".{basename}.part"
 
-    try:
-        with _open_directory(root) as directory:
+    with ExitStack() as stack:
+        with _local_save_errors():
+            directory = stack.enter_context(_open_directory(root))
             partial = root / partial_name if directory is None else Path(partial_name)
             destination = root / file_path if directory is None else Path(file_path)
-            flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
-            if sys.platform == "win32":
-                flags |= os.O_BINARY
-            fd = os.open(partial, flags, 0o600, dir_fd=directory)
-            try:
-                size = 0
-                try:
-                    async with aiofiles.open(fd, "wb", closefd=False) as file:
-                        async for chunk in chunks:
-                            size += await file.write(chunk)
-                finally:
-                    os.close(fd)
 
-                # Publish only after the stream and file close complete.
-                # POSIX rename would overwrite an existing destination.
+            def opener(name: str, flags: int) -> int:
+                return os.open(name, flags, 0o600, dir_fd=directory)
+
+            file = open(partial, "xb", opener=opener)
+
+        try:
+            size = 0
+            try:
+                async for chunk in chunks:
+                    with _local_save_errors():
+                        # Wait for writes already running in the worker before closing.
+                        size += await to_thread.run_sync(file.write, chunk)
+            finally:
+                with CancelScope(shield=True), _local_save_errors():
+                    await to_thread.run_sync(file.close)
+
+            await checkpoint_if_cancelled()
+            with _local_save_errors():
                 if sys.platform == "win32":
                     os.rename(partial, destination)
                 else:
+                    # Publish the complete file without replacing an existing name.
                     os.link(
                         partial,
                         destination,
@@ -248,15 +181,8 @@ async def save_attachment(
                         dst_dir_fd=directory,
                         follow_symlinks=False,
                     )
-            finally:
-                try:
-                    os.unlink(partial, dir_fd=directory)
-                except FileNotFoundError:
-                    pass
-
-    except (OSError, ValueError, RuntimeError):
-        raise TrackerError(
-            "Could not save the attachment in the local attachment directory."
-        ) from None
+        finally:
+            with _local_save_errors(), suppress(FileNotFoundError):
+                os.unlink(partial, dir_fd=directory)
 
     return file_path, size

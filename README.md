@@ -644,9 +644,9 @@ These four are organization-wide. A queue may accept only some of the values the
 
 Every tool here respects `TRACKER_LIMIT_QUEUES` and `TRACKER_READ_ONLY_QUEUES`; the ones that write are registered only when `TRACKER_READ_ONLY` is off.
 
-Local tools require a writable `stdio` server with OAuth disabled. Enable uploads with `TRACKER_FILE_UPLOAD_ENABLED=true` and saving to disk with `TRACKER_ATTACHMENT_DOWNLOAD_ENABLED=true`. Uploads require an existing absolute `TRACKER_ATTACHMENTS_DIR`. A download-only server can omit it to use a temporary directory removed at shutdown. Files in an explicitly configured directory persist. The `file_path` returned by `issue_download_attachment_local` is relative to the shared directory and can be passed to `issue_add_attachment_local`. With Docker, configure the path inside the container and use a writable mount for downloads.
+Local tools require a writable `stdio` server with OAuth disabled. Enable uploads with `TRACKER_FILE_UPLOAD_ENABLED=true` and saving to disk with `TRACKER_ATTACHMENT_DOWNLOAD_ENABLED=true`. Both tools require an existing directory configured with an absolute `TRACKER_ATTACHMENTS_DIR`. On POSIX, saving requires a filesystem that supports hard links. The `file_path` returned by `issue_download_attachment_local` is relative to the shared directory and can be passed to `issue_add_attachment_local`. With Docker, configure the path inside the container and use a writable mount for downloads.
 
-Inline content is limited by `TRACKER_ATTACHMENT_INLINE_MAX_BYTES` (10 MiB). Saving to disk uses `TRACKER_ATTACHMENT_DOWNLOAD_MAX_BYTES` (50 MiB). Binary resource support depends on the MCP client.
+Inline content is limited by `TRACKER_ATTACHMENT_INLINE_MAX_BYTES` (1 MiB). Saving to disk uses `TRACKER_ATTACHMENT_DOWNLOAD_MAX_BYTES` (128 MiB). Local uploads are limited to 128 MiB. Binary resource support depends on the MCP client.
 
 </details>
 
@@ -1028,8 +1028,9 @@ TRACKER_ENTITIES_ENABLED=true             # Default: false - Register project/po
 TRACKER_FILE_UPLOAD_ENABLED=false         # Enable local uploads on stdio with OAuth disabled
 TRACKER_ATTACHMENT_DOWNLOAD_ENABLED=false # Save attachments to disk on stdio with OAuth disabled
 # TRACKER_ATTACHMENTS_DIR=/path/to/attachments # Shared directory for local file tools
-TRACKER_ATTACHMENT_INLINE_MAX_BYTES=10485760 # Inline content limit (10 MiB)
-TRACKER_ATTACHMENT_DOWNLOAD_MAX_BYTES=52428800 # Save-to-disk limit (50 MiB)
+TRACKER_ATTACHMENT_INLINE_MAX_BYTES=1048576 # Inline content limit (1 MiB)
+TRACKER_ATTACHMENT_DOWNLOAD_MAX_BYTES=134217728 # Save-to-disk limit (128 MiB)
+TRACKER_ATTACHMENT_DOWNLOAD_TIMEOUT=300 # Seconds to download a file to disk
 
 # Server Configuration
 HOST=0.0.0.0                              # Default: 0.0.0.0

@@ -1,18 +1,29 @@
 import asyncio
 import base64
-from collections.abc import AsyncIterator
+import errno
+import io
+import subprocess
+import sys
+import threading
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
+import anyio
 import pytest
+from aiohttp import ClientOSError
 from mcp.client.session import ClientSession
 from mcp.types import BlobResourceContents, EmbeddedResource, ImageContent, TextContent
 
 from mcp_tracker.mcp.errors import TrackerError
-from mcp_tracker.mcp.server import create_mcp_server, make_tracker_lifespan
-from mcp_tracker.mcp.tools._attachment_file import save_attachment
-from mcp_tracker.settings import Settings
+from mcp_tracker.mcp.tools import _attachment_file
+from mcp_tracker.mcp.tools._attachment_file import (
+    attachment_path,
+    open_attachment,
+    save_attachment,
+)
 from mcp_tracker.tracker.custom.errors import AttachmentTooLarge
 from mcp_tracker.tracker.proto.common import YandexAuth
 from mcp_tracker.tracker.proto.types.issues import AttachmentDownload, IssueAttachment
@@ -29,8 +40,9 @@ def mock_download(mock_issues_protocol: AsyncMock) -> AttachmentDownload:
 
     download = AttachmentDownload(
         IssueAttachment.model_construct(id="17", name="source.png"),
-        "image/png",
-        chunks(),
+        mime_type="image/png",
+        charset=None,
+        chunks=chunks(),
     )
 
     @asynccontextmanager
@@ -44,17 +56,18 @@ def mock_download(mock_issues_protocol: AsyncMock) -> AttachmentDownload:
 
 
 @pytest.mark.parametrize(
-    ("mime", "payload", "representation"),
+    ("mime", "charset", "payload", "representation"),
     [
-        ("image/png", b"\x89PNG\x00", "image"),
-        ('text/plain; charset="windows-1251"', "Привет".encode("cp1251"), "text"),
-        ("application/octet-stream", b"\xff\x00", "blob"),
+        ("image/png", None, b"\x89PNG\x00", "image"),
+        ("text/plain", "windows-1251", "Привет".encode("cp1251"), "text"),
+        ("application/octet-stream", None, b"\xff\x00", "blob"),
     ],
 )
 async def test_inline_content(
     client_session: ClientSession,
     mock_issues_protocol: AsyncMock,
     mime: str,
+    charset: str | None,
     payload: bytes,
     representation: str,
 ) -> None:
@@ -67,8 +80,9 @@ async def test_inline_content(
     ) -> AsyncIterator[AttachmentDownload]:
         yield AttachmentDownload(
             IssueAttachment.model_construct(id="17", name="fixture"),
-            mime,
-            chunks(),
+            mime_type=mime,
+            charset=charset,
+            chunks=chunks(),
         )
 
     mock_issues_protocol.issue_open_attachment.side_effect = open_download
@@ -91,8 +105,7 @@ async def test_inline_content(
     mock_issues_protocol.issue_open_attachment.assert_called_once_with(
         "TEST-123",
         "17",
-        max_bytes=10 * 1024 * 1024,
-        limit_setting="TRACKER_ATTACHMENT_INLINE_MAX_BYTES",
+        max_bytes=1024 * 1024,
         auth=YandexAuth(),
     )
 
@@ -128,8 +141,8 @@ async def test_local_download_path_can_be_uploaded(
     mock_issues_protocol.issue_open_attachment.assert_called_once_with(
         "TEST-123",
         "17",
-        max_bytes=50 * 1024 * 1024,
-        limit_setting="TRACKER_ATTACHMENT_DOWNLOAD_MAX_BYTES",
+        max_bytes=128 * 1024 * 1024,
+        timeout=300.0,
         auth=YandexAuth(),
     )
 
@@ -151,7 +164,8 @@ async def test_local_download_path_can_be_uploaded(
 @pytest.mark.parametrize(
     "error",
     [
-        AttachmentTooLarge(1, "TRACKER_ATTACHMENT_DOWNLOAD_MAX_BYTES"),
+        AttachmentTooLarge(1),
+        ClientOSError(errno.ECONNRESET, "connection reset"),
         asyncio.CancelledError(),
     ],
 )
@@ -162,9 +176,10 @@ async def test_partial_download_is_removed(
         yield b"first"
         raise error
 
-    with pytest.raises(type(error)):
-        await save_attachment(upload_root, "TEST-123", "17", "file.png", chunks())
+    with pytest.raises(type(error)) as caught:
+        await save_attachment(upload_root, "file.png", chunks())
 
+    assert caught.value is error
     assert list(upload_root.iterdir()) == []
 
 
@@ -180,7 +195,7 @@ async def test_symlink_cannot_redirect_local_download(
     except OSError:
         pytest.skip("Symlinks are unavailable")
     with pytest.raises(TrackerError, match="Could not save"):
-        await save_attachment(upload_root, "TEST-123", "17", "file.png", mock_chunks())
+        await save_attachment(upload_root, "file.png", mock_chunks())
 
     assert list(outside.iterdir()) == []
 
@@ -189,16 +204,75 @@ async def mock_chunks() -> AsyncIterator[bytes]:
     yield b"data"
 
 
-async def test_download_temp_directory_lives_until_shutdown() -> None:
-    settings = Settings.model_construct(
-        tracker_attachment_download_enabled=True,
-        tracker_token="token",
-        tracker_org_id="org",
-    )
-    async with make_tracker_lifespan(settings)(create_mcp_server(settings)) as app:
-        directory = app.temporary_attachments_dir
-        assert directory is not None
-        assert directory.is_dir()
-        (directory / "downloaded").write_bytes(b"bytes")
+async def test_cancellation_waits_for_the_inflight_disk_write(
+    upload_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    loop = asyncio.get_running_loop()
+    write_started = anyio.Event()
+    release_write = threading.Event()
+    order: list[str] = []
+    cancel_scope = anyio.CancelScope()
 
-    assert not directory.exists()
+    def open_slow_file(
+        path: Path, mode: str, *, opener: Callable[[str, int], int]
+    ) -> SimpleNamespace:
+        file = io.FileIO(path, mode, opener=opener)
+
+        def write(data: bytes) -> int:
+            loop.call_soon_threadsafe(write_started.set)
+            assert release_write.wait(timeout=5)
+            count = file.write(data)
+            order.append("written")
+            return count
+
+        def close() -> None:
+            order.append("closed")
+            file.close()
+
+        return SimpleNamespace(write=write, close=close)
+
+    async def download() -> None:
+        with cancel_scope:
+            await save_attachment(upload_root, "file.png", mock_chunks())
+            pytest.fail("A cancelled download published a file")
+
+    monkeypatch.setattr(_attachment_file, "open", open_slow_file, raising=False)
+    with anyio.fail_after(5):
+        async with anyio.create_task_group() as group:
+            group.start_soon(download)
+            try:
+                await write_started.wait()
+                cancel_scope.cancel()
+                await anyio.wait_all_tasks_blocked()
+                assert order == []
+            finally:
+                release_write.set()
+    assert order == ["written", "closed"]
+    assert list(upload_root.iterdir()) == []
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="NTFS junctions require Windows")
+@pytest.mark.parametrize("operation", ["upload", "download"])
+async def test_junction_cannot_redirect_local_files(
+    upload_root: Path, tmp_path: Path, operation: str
+) -> None:
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    link = upload_root / "junction"
+    subprocess.run(
+        ["cmd.exe", "/d", "/c", "mklink", "/J", str(link), str(outside)],
+        check=True,
+        capture_output=True,
+    )
+
+    if operation == "upload":
+        (outside / "fixture.txt").write_bytes(b"fixture")
+        with pytest.raises(TrackerError, match="Could not open"):
+            async with open_attachment(
+                upload_root, attachment_path("junction/fixture.txt")
+            ):
+                pytest.fail("Upload opened a file through a junction")
+    else:
+        with pytest.raises(TrackerError, match="Could not save"):
+            await save_attachment(link, "file.png", mock_chunks())
+        assert list(outside.iterdir()) == []

@@ -28,8 +28,8 @@ class AttachmentNotFound(YandexTrackerError):
 
 
 class AttachmentTooLarge(YandexTrackerError):
-    def __init__(self, limit: int, setting: str) -> None:
-        super().__init__(f"Attachment exceeds the {limit}-byte limit ({setting}).")
+    def __init__(self, limit: int) -> None:
+        super().__init__(f"Attachment exceeds the {limit}-byte limit.")
 
 
 class QueueNotFound(YandexTrackerError):

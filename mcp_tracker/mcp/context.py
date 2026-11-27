@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from pathlib import Path
 
 from mcp_tracker.tracker.proto.boards import BoardsProtocol
 from mcp_tracker.tracker.proto.components import ComponentsProtocol
@@ -21,4 +20,3 @@ class AppContext:
     entities: EntitiesProtocol
     boards: BoardsProtocol
     components: ComponentsProtocol
-    temporary_attachments_dir: Path | None = None

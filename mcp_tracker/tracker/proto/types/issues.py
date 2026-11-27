@@ -210,21 +210,11 @@ AttachmentFieldsEnum = Enum(  # type: ignore[misc]
 )
 
 
-class DownloadedIssueAttachment(BaseModel):
-    issue_id: str
-    attachment_id: str
-    file_path: str = Field(
-        description="File path relative to the local attachment directory."
-    )
-    original_name: str
-    mime_type: str
-    size: int
-
-
 @dataclass(frozen=True)
 class AttachmentDownload:
     metadata: IssueAttachment
-    content_type: str
+    mime_type: str
+    charset: str | None
     chunks: AsyncIterator[bytes]
 
 

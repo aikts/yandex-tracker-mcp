@@ -1,7 +1,6 @@
 """Issue read-only MCP tools."""
 
 import base64
-from email.message import Message
 from typing import Annotated, Any
 
 from mcp.server import FastMCP
@@ -49,11 +48,13 @@ from mcp_tracker.tracker.proto.types.pagination import PaginatedResult
 
 
 def _attachment_blocks(
-    issue_id: str, attachment_id: str, name: str, content_type: str, data: bytearray
+    issue_id: str,
+    attachment_id: str,
+    name: str,
+    mime_type: str,
+    charset: str | None,
+    data: bytearray,
 ) -> list[TextContent | ImageContent | EmbeddedResource]:
-    headers = Message()
-    headers["Content-Type"] = content_type
-    mime_type = headers.get_content_type()
     blocks: list[TextContent | ImageContent | EmbeddedResource] = [
         TextContent(type="text", text=f"{name} ({mime_type}, {len(data)} bytes)")
     ]
@@ -78,9 +79,8 @@ def _attachment_blocks(
         }
         or mime_type.endswith(("+json", "+xml"))
     ):
-        charset = headers.get_content_charset() or "utf-8"
         try:
-            decoded = data.decode(charset, errors="replace")
+            decoded = data.decode(charset or "utf-8", errors="replace")
         except (LookupError, UnicodeError):
             decoded = data.decode("utf-8", errors="replace")
         blocks.append(TextContent(type="text", text=decoded))
@@ -344,22 +344,18 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             issue_id,
             attachment_id,
             max_bytes=settings.tracker_attachment_inline_max_bytes,
-            limit_setting="TRACKER_ATTACHMENT_INLINE_MAX_BYTES",
             auth=get_yandex_auth(ctx),
         ) as download:
             async for chunk in download.chunks:
                 data.extend(chunk)
 
-        content_type = download.metadata.mimetype or download.content_type
-        # Tracker metadata can omit a charset present in the HTTP response.
-        if (
-            ";" not in content_type
-            and download.content_type.partition(";")[0].strip().lower()
-            == content_type.lower()
-        ):
-            content_type = download.content_type
         return _attachment_blocks(
-            issue_id, attachment_id, download.metadata.name, content_type, data
+            issue_id,
+            attachment_id,
+            download.metadata.name,
+            download.mime_type,
+            download.charset,
+            data,
         )
 
     @mcp.tool(

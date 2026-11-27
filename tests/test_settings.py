@@ -66,8 +66,11 @@ class TestFileUploadTransportGuard:
         assert "tracker_attachments_dir" not in settings.model_dump()
 
     @pytest.mark.parametrize("kind", ["unset", "empty", "relative", "missing", "file"])
+    @pytest.mark.parametrize(
+        "flag", ["tracker_file_upload_enabled", "tracker_attachment_download_enabled"]
+    )
     def test_invalid_root_refused_without_disclosing_it(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, kind: str
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, kind: str, flag: str
     ) -> None:
         file = tmp_path / "private-upload-root"
         file.touch()
@@ -83,7 +86,7 @@ class TestFileUploadTransportGuard:
         with pytest.raises(
             ValidationError, match="TRACKER_ATTACHMENTS_DIR"
         ) as exc_info:
-            load_settings(tracker_file_upload_enabled=True)
+            load_settings(**{flag: True})
         assert file.name not in str(exc_info.value)
 
     @pytest.mark.parametrize("transport", ["sse", "streamable-http"])
@@ -129,6 +132,8 @@ def test_download_to_disk_is_stdio_only(overrides: dict[str, Any]) -> None:
         load_settings(tracker_attachment_download_enabled=True, **overrides)
 
 
-def test_download_only_accepts_an_unconfigured_directory() -> None:
-    settings = load_settings(tracker_attachment_download_enabled=True)
-    assert settings.tracker_attachments_dir is None
+def test_download_only_uses_the_configured_directory(tmp_path: Path) -> None:
+    settings = load_settings(
+        tracker_attachment_download_enabled=True, tracker_attachments_dir=tmp_path
+    )
+    assert settings.tracker_attachments_dir == tmp_path.resolve()

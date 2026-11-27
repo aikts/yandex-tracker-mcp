@@ -1,8 +1,6 @@
 import base64
 from collections.abc import AsyncIterator, Callable
-from contextlib import AbstractAsyncContextManager, ExitStack, asynccontextmanager
-from pathlib import Path
-from tempfile import TemporaryDirectory
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from typing import Any
 
 import yarl
@@ -11,7 +9,6 @@ from mcp.server.auth.settings import AuthSettings, ClientRegistrationOptions
 from starlette.routing import Route
 
 from mcp_tracker.mcp.context import AppContext
-from mcp_tracker.mcp.errors import TrackerError
 from mcp_tracker.mcp.oauth.provider import YandexOAuthAuthorizationServerProvider
 from mcp_tracker.mcp.oauth.store import OAuthStore
 from mcp_tracker.mcp.oauth.stores.memory import InMemoryOAuthStore
@@ -108,35 +105,16 @@ def make_tracker_lifespan(settings: Settings) -> Lifespan:
         try:
             await tracker.prepare()
 
-            with ExitStack() as stack:
-                temporary_attachments_dir = None
-                if (
-                    settings.tracker_attachment_download_enabled
-                    and not settings.tracker_read_only
-                    and settings.tracker_attachments_dir is None
-                ):
-                    try:
-                        temporary_attachments_dir = Path(
-                            stack.enter_context(
-                                TemporaryDirectory(prefix="tracker-attachments-")
-                            )
-                        ).resolve(strict=True)
-                    except OSError:
-                        raise TrackerError(
-                            "Could not create the temporary attachment directory."
-                        ) from None
-
-                yield AppContext(
-                    queues=queues,
-                    issues=issues,
-                    fields=global_data,
-                    templates=templates,
-                    users=users,
-                    entities=entities,
-                    boards=boards,
-                    components=components,
-                    temporary_attachments_dir=temporary_attachments_dir,
-                )
+            yield AppContext(
+                queues=queues,
+                issues=issues,
+                fields=global_data,
+                templates=templates,
+                users=users,
+                entities=entities,
+                boards=boards,
+                components=components,
+            )
         finally:
             await tracker.close()
 

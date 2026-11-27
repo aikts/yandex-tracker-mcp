@@ -77,16 +77,12 @@ def register_all_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         register_component_write_tools(settings, mcp)
         register_issue_write_tools(settings, mcp)
 
-        if (
-            settings.tracker_file_upload_enabled
-            and settings.tracker_attachments_dir is not None
-        ):
-            register_issue_file_upload_tools(
-                settings, mcp, settings.tracker_attachments_dir
-            )
-
-        if settings.tracker_attachment_download_enabled:
-            register_issue_file_download_tools(settings, mcp)
+        attachments_dir = settings.tracker_attachments_dir
+        if attachments_dir is not None:
+            if settings.tracker_file_upload_enabled:
+                register_issue_file_upload_tools(settings, mcp, attachments_dir)
+            if settings.tracker_attachment_download_enabled:
+                register_issue_file_download_tools(settings, mcp, attachments_dir)
 
         if settings.tracker_entities_enabled:
             register_project_write_tools(settings, mcp)

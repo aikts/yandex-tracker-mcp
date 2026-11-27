@@ -480,14 +480,14 @@
     "tracker_attachment_download_enabled": {
       "type": "boolean",
       "title": "Save Attachments Locally",
-      "description": "Save issue attachments to the shared directory or to a temporary directory when unset.",
+      "description": "Save issue attachments to the configured local attachment directory.",
       "required": false,
       "default": false
     },
     "tracker_attachments_dir": {
       "type": "directory",
       "title": "Local Attachment Directory",
-      "description": "Absolute directory for local attachment uploads and downloads. Required for uploads.",
+      "description": "Existing absolute directory. Required for local attachment uploads or downloads.",
       "required": false,
       "sensitive": true
     }

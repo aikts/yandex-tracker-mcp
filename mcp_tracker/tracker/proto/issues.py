@@ -138,7 +138,7 @@ class IssueProtocol(Protocol):
         attachment_id: str,
         *,
         max_bytes: int,
-        limit_setting: str,
+        timeout: float | None = None,
         auth: YandexAuth | None = None,
     ) -> AbstractAsyncContextManager[AttachmentDownload]: ...
     async def issue_add_attachment(

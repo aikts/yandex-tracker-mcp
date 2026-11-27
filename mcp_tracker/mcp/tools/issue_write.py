@@ -47,7 +47,6 @@ from mcp_tracker.tracker.proto.types.inputs import (
 )
 from mcp_tracker.tracker.proto.types.issues import (
     ChecklistItem,
-    DownloadedIssueAttachment,
     Issue,
     IssueAttachment,
     IssueComment,
@@ -804,8 +803,19 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         )
 
 
+class DownloadedIssueAttachment(BaseModel):
+    issue_id: str
+    attachment_id: str
+    file_path: str = Field(
+        description="File path relative to the local attachment directory."
+    )
+    original_name: str
+    mime_type: str
+    size: int
+
+
 def register_issue_file_upload_tools(
-    settings: Settings, mcp: FastMCP[Any], upload_root: Path
+    settings: Settings, mcp: FastMCP[Any], attachments_dir: Path
 ) -> None:
     """Register local file upload on a writable, opted-in stdio server."""
 
@@ -848,7 +858,7 @@ def register_issue_file_upload_tools(
                 "Pass a filename without directories or control characters."
             )
 
-        async with open_attachment(upload_root, path) as content:
+        async with open_attachment(attachments_dir, path) as content:
             return (
                 await ctx.request_context.lifespan_context.issues.issue_add_attachment(
                     issue_id,
@@ -859,7 +869,9 @@ def register_issue_file_upload_tools(
             )
 
 
-def register_issue_file_download_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
+def register_issue_file_download_tools(
+    settings: Settings, mcp: FastMCP[Any], attachments_dir: Path
+) -> None:
     @mcp.tool(
         title="Save Issue Attachment Locally",
         description="Save a Yandex Tracker issue attachment (вложение задачи) to the "
@@ -877,19 +889,18 @@ def register_issue_file_download_tools(settings: Settings, mcp: FastMCP[Any]) ->
         # This reads Tracker and writes only to the local directory.
         check_issue_access(settings, issue_id)
         app = ctx.request_context.lifespan_context
-        root = settings.tracker_attachments_dir or app.temporary_attachments_dir
-        if root is None:
-            raise TrackerError("The local attachment directory is unavailable.")
 
         async with app.issues.issue_open_attachment(
             issue_id,
             attachment_id,
             max_bytes=settings.tracker_attachment_download_max_bytes,
-            limit_setting="TRACKER_ATTACHMENT_DOWNLOAD_MAX_BYTES",
+            timeout=settings.tracker_attachment_download_timeout,
             auth=get_yandex_auth(ctx),
         ) as download:
             file_path, size = await save_attachment(
-                root, issue_id, attachment_id, download.metadata.name, download.chunks
+                attachments_dir,
+                download.metadata.name,
+                download.chunks,
             )
 
         return DownloadedIssueAttachment(
@@ -897,9 +908,6 @@ def register_issue_file_download_tools(settings: Settings, mcp: FastMCP[Any]) ->
             attachment_id=attachment_id,
             file_path=file_path,
             original_name=download.metadata.name,
-            mime_type=(download.metadata.mimetype or download.content_type)
-            .partition(";")[0]
-            .strip()
-            .lower(),
+            mime_type=download.mime_type,
             size=size,
         )

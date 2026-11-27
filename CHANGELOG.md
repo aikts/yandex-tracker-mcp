@@ -10,7 +10,7 @@ All notable changes to this project will be documented in this file.
   - Enable with `TRACKER_FILE_UPLOAD_ENABLED` on `stdio` without OAuth, set `TRACKER_ATTACHMENTS_DIR`, and pass a relative path
   - Set the upload time budget with `TRACKER_UPLOAD_TIMEOUT` (default 300 seconds)
 - **`issue_get_attachment_content`** — read an attachment inline as an image, text or binary resource ([#59](https://github.com/aikts/yandex-tracker-mcp/pull/59))
-- **`issue_download_attachment_local`** — opt in to saving attachments to disk and receiving a relative path ([#33](https://github.com/aikts/yandex-tracker-mcp/pull/33))
+- **`issue_download_attachment_local`** — opt in to saving attachments under `TRACKER_ATTACHMENTS_DIR` and receiving a relative path ([#33](https://github.com/aikts/yandex-tracker-mcp/pull/33))
 
 ## [0.10.0] - 2026-09-06
 
