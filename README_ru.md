@@ -620,7 +620,9 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
 | `issue_update_worklog` | Изменить запись о времени | `issue_id`, `worklog_id`, `duration`, `comment`, `start` |
 | `issue_delete_worklog` | Удалить запись о времени | `issue_id`, `worklog_id` |
 | `issue_get_attachments` | Метаданные вложений | `issue_id`, `fields` |
-| `issue_add_attachment` | Загрузить файл из настроенной папки и вернуть ID вложения. Чтобы показать изображение в описании, вставьте `![name](/ajax/v2/attachments/<id>?inline=true)` | `issue_id`, `file_path`, `filename` |
+| `issue_get_attachment_content` | Вернуть небольшое вложение как текст, изображение или бинарный ресурс | ID из `issue_get_attachments` |
+| `issue_download_attachment_local` | Сохранить вложение на диск и вернуть относительный путь | ID из `issue_get_attachments` |
+| `issue_add_attachment_local` | Загрузить файл из настроенной папки и вернуть ID вложения. Чтобы показать изображение в описании, вставьте `![name](/ajax/v2/attachments/<id>?inline=true)` | `issue_id`, `file_path`, `filename` |
 | `issue_get_checklist` | Чек-лист вместе с id пунктов, которые нужны инструментам записи | `issue_id` |
 | `issue_add_checklist_items` | Добавить пункты по порядку, создав чек-лист, если его не было | `issue_id`, `items` (`text`, `checked`, `assignee`, `deadline`) |
 | `issue_update_checklist_item` | Изменить один пункт; непереданные поля сохраняют значение | `issue_id`, `checklist_item_id`, `text`, `checked`, `assignee`, `deadline`, `clear_assignee`, `clear_deadline` |
@@ -639,7 +641,9 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
 
 Все инструменты этого раздела учитывают `TRACKER_LIMIT_QUEUES` и `TRACKER_READ_ONLY_QUEUES`; те, что пишут, регистрируются, только если не задан `TRACKER_READ_ONLY`.
 
-Включите `issue_add_attachment` через `TRACKER_FILE_UPLOAD_ENABLED=true` на сервере с `stdio`, разрешённой записью и выключенным OAuth. Укажите существующую абсолютную папку на сервере в `TRACKER_FILE_UPLOAD_ROOT`. Передавайте относительный `file_path`, например `reports/screenshot.png`. Инструмент принимает обычные файлы и отклоняет переходы в родительские каталоги, символические и жёсткие ссылки. Таймаут задаёт `TRACKER_UPLOAD_TIMEOUT`. В Docker смонтируйте папку через `-v /path/to/uploads:/uploads:ro` и укажите `/uploads` как корень загрузки.
+Для локальных инструментов нужен `stdio` с выключенным OAuth и разрешённой записью. Включайте загрузку через `TRACKER_FILE_UPLOAD_ENABLED=true`, сохранение на диск через `TRACKER_ATTACHMENT_DOWNLOAD_ENABLED=true`. Для загрузки укажите существующий абсолютный каталог в `TRACKER_ATTACHMENTS_DIR`. При включении только скачивания можно опустить каталог. Тогда сервер создаст временную папку и удалит её при завершении. В явно настроенном каталоге скачанные файлы сохраняются. `issue_download_attachment_local` возвращает `file_path` относительно общего каталога. Этот путь можно передать в `issue_add_attachment_local`. В Docker задайте путь внутри контейнера и смонтируйте каталог с разрешением на запись для скачивания.
+
+Для выдачи содержимого действует лимит `TRACKER_ATTACHMENT_INLINE_MAX_BYTES` (10 МиБ), для сохранения на диск — `TRACKER_ATTACHMENT_DOWNLOAD_MAX_BYTES` (50 МиБ). Отображение бинарных ресурсов зависит от MCP-клиента.
 
 </details>
 
@@ -1012,14 +1016,17 @@ TRACKER_ORG_ID=ваш_org_id                # Для организаций Ян
 # Конфигурация API (опционально)
 TRACKER_API_BASE_URL=https://api.tracker.yandex.net  # По умолчанию: https://api.tracker.yandex.net
 TRACKER_API_TIMEOUT=10                    # По умолчанию: 10 - Таймаут одного запроса к API Трекера, в секундах
-TRACKER_UPLOAD_TIMEOUT=300                # По умолчанию: 300 - Таймаут загрузки одного файла (issue_add_attachment), в секундах
+TRACKER_UPLOAD_TIMEOUT=300                # По умолчанию: 300 - Таймаут загрузки одного файла (issue_add_attachment_local), в секундах
 
 # Безопасность - Ограничить доступ к конкретным очередям (опционально)
 TRACKER_LIMIT_QUEUES=PROJ1,PROJ2,DEV      # Ключи очередей через запятую - список разрешённых очередей
 TRACKER_READ_ONLY_QUEUES=PROJ2            # Ключи очередей через запятую - доступны для чтения, но запись отклоняется (режим только для чтения по очередям)
 TRACKER_ENTITIES_ENABLED=true             # По умолчанию: false - регистрировать инструменты проектов/портфелей/целей (НЕ подчиняются ограничениям по очередям выше)
 TRACKER_FILE_UPLOAD_ENABLED=false         # Включить локальную загрузку при stdio и выключенном OAuth
-# TRACKER_FILE_UPLOAD_ROOT=/path/to/uploads # Обязательно при включении локальной загрузки
+TRACKER_ATTACHMENT_DOWNLOAD_ENABLED=false # Сохранять вложения на диск при stdio и выключенном OAuth
+# TRACKER_ATTACHMENTS_DIR=/path/to/attachments # Общая папка для локальных операций
+TRACKER_ATTACHMENT_INLINE_MAX_BYTES=10485760 # Лимит выдачи содержимого (10 МиБ)
+TRACKER_ATTACHMENT_DOWNLOAD_MAX_BYTES=52428800 # Лимит сохранения на диск (50 МиБ)
 
 # Конфигурация сервера
 HOST=0.0.0.0                              # По умолчанию: 0.0.0.0

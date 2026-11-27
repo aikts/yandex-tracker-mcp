@@ -27,7 +27,8 @@
         "TRACKER_ORG_ID": "${user_config.tracker_org_id}",
         "TRACKER_ENTITIES_ENABLED": "${user_config.tracker_entities_enabled}",
         "TRACKER_FILE_UPLOAD_ENABLED": "${user_config.tracker_file_upload_enabled}",
-        "TRACKER_FILE_UPLOAD_ROOT": "${user_config.tracker_file_upload_root}"
+        "TRACKER_ATTACHMENT_DOWNLOAD_ENABLED": "${user_config.tracker_attachment_download_enabled}",
+        "TRACKER_ATTACHMENTS_DIR": "${user_config.tracker_attachments_dir}"
       }
     }
   },
@@ -363,7 +364,15 @@
       "description": "Get attachments for an issue"
     },
     {
-      "name": "issue_add_attachment",
+      "name": "issue_get_attachment_content",
+      "description": "Read an issue attachment as an image, text or binary resource"
+    },
+    {
+      "name": "issue_download_attachment_local",
+      "description": "Save an issue attachment to disk and return its relative path (requires TRACKER_ATTACHMENT_DOWNLOAD_ENABLED)"
+    },
+    {
+      "name": "issue_add_attachment_local",
       "description": "Attach a file from the configured upload directory to an issue (requires TRACKER_FILE_UPLOAD_ENABLED)"
     },
     {
@@ -468,10 +477,17 @@
       "sensitive": false,
       "default": false
     },
-    "tracker_file_upload_root": {
+    "tracker_attachment_download_enabled": {
+      "type": "boolean",
+      "title": "Save Attachments Locally",
+      "description": "Save issue attachments to the shared directory or to a temporary directory when unset.",
+      "required": false,
+      "default": false
+    },
+    "tracker_attachments_dir": {
       "type": "directory",
-      "title": "File Upload Directory",
-      "description": "Absolute directory that can supply files for issue attachments. Required when uploads are enabled.",
+      "title": "Local Attachment Directory",
+      "description": "Absolute directory for local attachment uploads and downloads. Required for uploads.",
       "required": false,
       "sensitive": true
     }

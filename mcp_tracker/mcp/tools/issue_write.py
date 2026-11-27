@@ -1,7 +1,6 @@
 """Issue write MCP tools (conditionally registered based on read-only mode)."""
 
 import datetime
-import re
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -13,6 +12,7 @@ from pydantic import BaseModel, Field, create_model
 from mcp_tracker.mcp.context import AppContext
 from mcp_tracker.mcp.errors import TrackerError
 from mcp_tracker.mcp.params import (
+    AttachmentID,
     IssueChecklistItemAssigneeParam,
     IssueChecklistItemCheckedParam,
     IssueChecklistItemClearAssigneeParam,
@@ -33,15 +33,21 @@ from mcp_tracker.mcp.params import (
     MarkupTypeParam,
 )
 from mcp_tracker.mcp.tools._access import check_issue_access, check_queue_access
-from mcp_tracker.mcp.tools._attachment_file import attachment_path, open_attachment
+from mcp_tracker.mcp.tools._attachment_file import (
+    attachment_path,
+    open_attachment,
+    save_attachment,
+)
 from mcp_tracker.mcp.utils import get_yandex_auth
 from mcp_tracker.settings import Settings
+from mcp_tracker.tracker.custom.attachment_paths import validate_attachment_issue_key
 from mcp_tracker.tracker.proto.types.inputs import (
     IssuePriorityRef,
     IssueTypeRef,
 )
 from mcp_tracker.tracker.proto.types.issues import (
     ChecklistItem,
+    DownloadedIssueAttachment,
     Issue,
     IssueAttachment,
     IssueComment,
@@ -804,14 +810,14 @@ def register_issue_file_upload_tools(
     """Register local file upload on a writable, opted-in stdio server."""
 
     @mcp.tool(
-        title="Attach File to Issue",
+        title="Attach Local File to Issue",
         description="Attach a file from the configured upload directory to a Yandex "
         "Tracker issue ('вложение') and return its ID (requires "
         "TRACKER_FILE_UPLOAD_ENABLED). To show an image in a description, embed "
         "`![name](/ajax/v2/attachments/<id>?inline=true)`.",
         annotations=ToolAnnotations(readOnlyHint=False),
     )
-    async def issue_add_attachment(
+    async def issue_add_attachment_local(
         ctx: Context[Any, AppContext],
         issue_id: IssueID,
         file_path: Annotated[
@@ -829,8 +835,7 @@ def register_issue_file_upload_tools(
             ),
         ] = None,
     ) -> IssueAttachment:
-        if not re.fullmatch(r"[A-Za-z0-9_]+-[0-9]+", issue_id):
-            raise TrackerError("Pass an issue key in the form QUEUE-123.")
+        validate_attachment_issue_key(issue_id)
         check_issue_access(settings, issue_id, write=True)
 
         path = attachment_path(file_path)
@@ -852,3 +857,49 @@ def register_issue_file_upload_tools(
                     auth=get_yandex_auth(ctx),
                 )
             )
+
+
+def register_issue_file_download_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
+    @mcp.tool(
+        title="Save Issue Attachment Locally",
+        description="Save a Yandex Tracker issue attachment (вложение задачи) to the "
+        "local attachment directory and return its relative path. Requires "
+        "TRACKER_ATTACHMENT_DOWNLOAD_ENABLED and refuses files over "
+        "TRACKER_ATTACHMENT_DOWNLOAD_MAX_BYTES.",
+        annotations=ToolAnnotations(readOnlyHint=False),
+    )
+    async def issue_download_attachment_local(
+        ctx: Context[Any, AppContext],
+        issue_id: IssueID,
+        attachment_id: AttachmentID,
+    ) -> DownloadedIssueAttachment:
+        validate_attachment_issue_key(issue_id)
+        # This reads Tracker and writes only to the local directory.
+        check_issue_access(settings, issue_id)
+        app = ctx.request_context.lifespan_context
+        root = settings.tracker_attachments_dir or app.temporary_attachments_dir
+        if root is None:
+            raise TrackerError("The local attachment directory is unavailable.")
+
+        async with app.issues.issue_open_attachment(
+            issue_id,
+            attachment_id,
+            max_bytes=settings.tracker_attachment_download_max_bytes,
+            limit_setting="TRACKER_ATTACHMENT_DOWNLOAD_MAX_BYTES",
+            auth=get_yandex_auth(ctx),
+        ) as download:
+            file_path, size = await save_attachment(
+                root, issue_id, attachment_id, download.metadata.name, download.chunks
+            )
+
+        return DownloadedIssueAttachment(
+            issue_id=issue_id,
+            attachment_id=attachment_id,
+            file_path=file_path,
+            original_name=download.metadata.name,
+            mime_type=(download.metadata.mimetype or download.content_type)
+            .partition(";")[0]
+            .strip()
+            .lower(),
+            size=size,
+        )

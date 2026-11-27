@@ -1,5 +1,6 @@
 import datetime
 from collections.abc import AsyncIterable, Sequence
+from contextlib import AbstractAsyncContextManager
 from typing import Any, Protocol, runtime_checkable
 
 from .common import YandexAuth
@@ -15,6 +16,7 @@ from .types.inputs import (
     IssueTypeRef,
 )
 from .types.issues import (
+    AttachmentDownload,
     ChangelogPage,
     ChecklistItem,
     CommentsPage,
@@ -130,6 +132,15 @@ class IssueProtocol(Protocol):
     async def issue_get_attachments(
         self, issue_id: str, *, auth: YandexAuth | None = None
     ) -> list[IssueAttachment]: ...
+    def issue_open_attachment(
+        self,
+        issue_id: str,
+        attachment_id: str,
+        *,
+        max_bytes: int,
+        limit_setting: str,
+        auth: YandexAuth | None = None,
+    ) -> AbstractAsyncContextManager[AttachmentDownload]: ...
     async def issue_add_attachment(
         self,
         issue_id: str,

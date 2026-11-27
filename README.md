@@ -623,7 +623,9 @@ These four are organization-wide. A queue may accept only some of the values the
 | `issue_update_worklog` | Edit a worklog entry | `issue_id`, `worklog_id`, `duration`, `comment`, `start` |
 | `issue_delete_worklog` | Delete a worklog entry | `issue_id`, `worklog_id` |
 | `issue_get_attachments` | Attachment metadata | `issue_id`, `fields` |
-| `issue_add_attachment` | Upload a file from the configured directory and return its attachment ID. Embed an image in the description as `![name](/ajax/v2/attachments/<id>?inline=true)` | `issue_id`, `file_path`, `filename` |
+| `issue_get_attachment_content` | Return a small attachment as text, an image or a binary resource | ID from `issue_get_attachments` |
+| `issue_download_attachment_local` | Save an attachment to disk and return its relative path | ID from `issue_get_attachments` |
+| `issue_add_attachment_local` | Upload a file from the configured directory and return its attachment ID. Embed an image in the description as `![name](/ajax/v2/attachments/<id>?inline=true)` | `issue_id`, `file_path`, `filename` |
 | `issue_get_checklist` | The checklist, with the item ids the write tools need | `issue_id` |
 | `issue_add_checklist_items` | Append items in order, creating the checklist if there is none | `issue_id`, `items` (`text`, `checked`, `assignee`, `deadline`) |
 | `issue_update_checklist_item` | Change one item; the fields you omit keep their value | `issue_id`, `checklist_item_id`, `text`, `checked`, `assignee`, `deadline`, `clear_assignee`, `clear_deadline` |
@@ -642,7 +644,9 @@ These four are organization-wide. A queue may accept only some of the values the
 
 Every tool here respects `TRACKER_LIMIT_QUEUES` and `TRACKER_READ_ONLY_QUEUES`; the ones that write are registered only when `TRACKER_READ_ONLY` is off.
 
-Enable `issue_add_attachment` with `TRACKER_FILE_UPLOAD_ENABLED=true` on a writable `stdio` server with OAuth disabled. Set `TRACKER_FILE_UPLOAD_ROOT` to an existing absolute directory on the server. Pass a relative `file_path` such as `reports/screenshot.png`. The tool accepts regular files and rejects parent traversal, symlinks and hard links. The upload uses `TRACKER_UPLOAD_TIMEOUT`. With Docker, mount a directory using `-v /path/to/uploads:/uploads:ro` and set the upload root to `/uploads`.
+Local tools require a writable `stdio` server with OAuth disabled. Enable uploads with `TRACKER_FILE_UPLOAD_ENABLED=true` and saving to disk with `TRACKER_ATTACHMENT_DOWNLOAD_ENABLED=true`. Uploads require an existing absolute `TRACKER_ATTACHMENTS_DIR`. A download-only server can omit it to use a temporary directory removed at shutdown. Files in an explicitly configured directory persist. The `file_path` returned by `issue_download_attachment_local` is relative to the shared directory and can be passed to `issue_add_attachment_local`. With Docker, configure the path inside the container and use a writable mount for downloads.
+
+Inline content is limited by `TRACKER_ATTACHMENT_INLINE_MAX_BYTES` (10 MiB). Saving to disk uses `TRACKER_ATTACHMENT_DOWNLOAD_MAX_BYTES` (50 MiB). Binary resource support depends on the MCP client.
 
 </details>
 
@@ -1015,14 +1019,17 @@ TRACKER_ORG_ID=your_org_id                # For Yandex 360 organizations
 # API Configuration (optional)
 TRACKER_API_BASE_URL=https://api.tracker.yandex.net  # Default: https://api.tracker.yandex.net
 TRACKER_API_TIMEOUT=10                    # Default: 10 - Per-request timeout in seconds for Tracker API calls
-TRACKER_UPLOAD_TIMEOUT=300                # Default: 300 - Timeout in seconds for one file upload (issue_add_attachment)
+TRACKER_UPLOAD_TIMEOUT=300                # Default: 300 - Timeout in seconds for one file upload (issue_add_attachment_local)
 
 # Security - Restrict access to specific queues (optional)
 TRACKER_LIMIT_QUEUES=PROJ1,PROJ2,DEV      # Comma-separated queue keys - allow-list of accessible queues
 TRACKER_READ_ONLY_QUEUES=PROJ2            # Comma-separated queue keys - allowed for reads but reject writes (per-queue read-only)
 TRACKER_ENTITIES_ENABLED=true             # Default: false - Register project/portfolio/goal tools (NOT covered by the queue restrictions above)
 TRACKER_FILE_UPLOAD_ENABLED=false         # Enable local uploads on stdio with OAuth disabled
-# TRACKER_FILE_UPLOAD_ROOT=/path/to/uploads # Required when local uploads are enabled
+TRACKER_ATTACHMENT_DOWNLOAD_ENABLED=false # Save attachments to disk on stdio with OAuth disabled
+# TRACKER_ATTACHMENTS_DIR=/path/to/attachments # Shared directory for local file tools
+TRACKER_ATTACHMENT_INLINE_MAX_BYTES=10485760 # Inline content limit (10 MiB)
+TRACKER_ATTACHMENT_DOWNLOAD_MAX_BYTES=52428800 # Save-to-disk limit (50 MiB)
 
 # Server Configuration
 HOST=0.0.0.0                              # Default: 0.0.0.0

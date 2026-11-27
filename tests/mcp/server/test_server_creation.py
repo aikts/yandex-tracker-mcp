@@ -39,6 +39,7 @@ READ_ONLY_TOOL_NAMES = [
     "issues_count",
     "issue_get_worklogs",
     "issue_get_attachments",
+    "issue_get_attachment_content",
     "issue_get_checklist",
     "issue_get_transitions",
     "issue_get_changelog",
@@ -125,12 +126,17 @@ ENTITY_WRITE_TOOL_NAMES = [
 
 # Tools that read local files - require both write mode and TRACKER_FILE_UPLOAD_ENABLED
 FILE_UPLOAD_TOOL_NAMES = [
-    "issue_add_attachment",
+    "issue_add_attachment_local",
 ]
+
+FILE_DOWNLOAD_TOOL_NAMES = ["issue_download_attachment_local"]
 
 ALL_READ_ONLY_TOOL_NAMES = READ_ONLY_TOOL_NAMES + ENTITY_READ_ONLY_TOOL_NAMES
 ALL_WRITE_TOOL_NAMES = (
-    WRITE_TOOL_NAMES + ENTITY_WRITE_TOOL_NAMES + FILE_UPLOAD_TOOL_NAMES
+    WRITE_TOOL_NAMES
+    + ENTITY_WRITE_TOOL_NAMES
+    + FILE_UPLOAD_TOOL_NAMES
+    + FILE_DOWNLOAD_TOOL_NAMES
 )
 
 # All tool names that should be registered in normal mode (entity tools enabled)
@@ -226,7 +232,11 @@ class TestEntityToolRegistration:
         )
 
     @pytest.mark.parametrize(
-        "tool_name", READ_ONLY_TOOL_NAMES + WRITE_TOOL_NAMES + FILE_UPLOAD_TOOL_NAMES
+        "tool_name",
+        READ_ONLY_TOOL_NAMES
+        + WRITE_TOOL_NAMES
+        + FILE_UPLOAD_TOOL_NAMES
+        + FILE_DOWNLOAD_TOOL_NAMES,
     )
     async def test_non_entity_tools_stay_registered(
         self,
@@ -248,6 +258,7 @@ class TestEntityToolRegistration:
             len(READ_ONLY_TOOL_NAMES)
             + len(WRITE_TOOL_NAMES)
             + len(FILE_UPLOAD_TOOL_NAMES)
+            + len(FILE_DOWNLOAD_TOOL_NAMES)
         )
         assert len(result.tools) == expected, (
             f"Expected {expected} tools with entity tools disabled, "
@@ -256,7 +267,7 @@ class TestEntityToolRegistration:
 
 
 class TestFileUploadToolRegistration:
-    """`issue_add_attachment` reads local files, so it needs its own opt-in
+    """`issue_add_attachment_local` reads local files, so it needs its own opt-in
     (TRACKER_FILE_UPLOAD_ENABLED, default off) on top of a writable server."""
 
     @pytest.mark.parametrize(
@@ -296,6 +307,22 @@ class TestFileUploadToolRegistration:
         disabled_names = {tool.name for tool in await disabled.list_tools()}
 
         assert enabled_names - disabled_names == set(FILE_UPLOAD_TOOL_NAMES)
+
+
+async def test_local_download_has_its_own_opt_in() -> None:
+    enabled = create_mcp_server(
+        settings=create_test_settings(file_upload_enabled=False)
+    )
+    disabled = create_mcp_server(
+        settings=create_test_settings(
+            file_upload_enabled=False, attachment_download_enabled=False
+        )
+    )
+
+    enabled_names = {tool.name for tool in await enabled.list_tools()}
+    disabled_names = {tool.name for tool in await disabled.list_tools()}
+    assert enabled_names - disabled_names == set(FILE_DOWNLOAD_TOOL_NAMES)
+    assert not enabled_names.intersection(FILE_UPLOAD_TOOL_NAMES)
 
 
 class TestResourceRegistration:

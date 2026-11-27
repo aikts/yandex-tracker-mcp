@@ -1,6 +1,6 @@
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, Self
 
 from aiocache import Cache
 from aiocache.serializers import PickleSerializer
@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     # Total per-request budget for a Tracker API call. Deep pagination and wide
     # queries are the slow cases; raise this rather than let them time out.
     tracker_api_timeout: float = 10.0
-    # Total budget for one file upload (`issue_add_attachment`). The per-request
+    # Total budget for one file upload (`issue_add_attachment_local`). The per-request
     # budget above also covers sending the body, so it would fail any sizable file.
     tracker_upload_timeout: float = 300.0
     tracker_token: str | None = None
@@ -41,9 +41,10 @@ class Settings(BaseSettings):
     # are not subject to the queue restrictions (an entity has no single queue).
     tracker_entities_enabled: bool = False
     tracker_file_upload_enabled: bool = False
-    tracker_file_upload_root: Path | None = Field(
-        default=None, repr=False, exclude=True
-    )
+    tracker_attachment_download_enabled: bool = False
+    tracker_attachment_inline_max_bytes: int = Field(default=10 * 1024 * 1024, gt=0)
+    tracker_attachment_download_max_bytes: int = Field(default=50 * 1024 * 1024, gt=0)
+    tracker_attachments_dir: Path | None = Field(default=None, repr=False, exclude=True)
 
     tracker_sa_key_id: str | None = None
     tracker_sa_service_account_id: str | None = None
@@ -101,38 +102,46 @@ class Settings(BaseSettings):
 
         return self
 
-    @field_validator("tracker_file_upload_root", mode="before")
+    @field_validator("tracker_attachments_dir", mode="before")
     @classmethod
-    def empty_upload_root(cls, value: Any) -> Any:
+    def empty_attachments_dir(cls, value: Any) -> Any:
         return None if value == "" else value
 
     @model_validator(mode="after")
-    def validate_file_upload(self):
-        if not self.tracker_file_upload_enabled:
+    def validate_local_attachments(self) -> Self:
+        if not (
+            self.tracker_file_upload_enabled or self.tracker_attachment_download_enabled
+        ):
             return self
 
         if self.transport != "stdio" or self.oauth_enabled:
             raise ValueError(
-                "TRACKER_FILE_UPLOAD_ENABLED=true is only allowed with TRANSPORT=stdio "
+                "Local attachment tools (TRACKER_FILE_UPLOAD_ENABLED or "
+                "TRACKER_ATTACHMENT_DOWNLOAD_ENABLED) require TRANSPORT=stdio "
                 "and OAUTH_ENABLED=false (got "
                 f"TRANSPORT={self.transport}, OAUTH_ENABLED={str(self.oauth_enabled).lower()})."
             )
 
+        if (
+            self.tracker_attachments_dir is None
+            and not self.tracker_file_upload_enabled
+        ):
+            return self
+
         try:
-            root = self.tracker_file_upload_root
+            root = self.tracker_attachments_dir
             if root is not None:
                 root = root.expanduser()
                 if root.is_absolute():
                     root = root.resolve(strict=True)
                     if root.is_dir():
-                        self.tracker_file_upload_root = root
+                        self.tracker_attachments_dir = root
                         return self
         except (OSError, RuntimeError, ValueError):
             pass
 
         raise ValueError(
-            "TRACKER_FILE_UPLOAD_ROOT must name an existing absolute directory "
-            "when TRACKER_FILE_UPLOAD_ENABLED=true."
+            "TRACKER_ATTACHMENTS_DIR must name an existing absolute directory."
         )
 
     @field_validator("tracker_limit_queues", "tracker_read_only_queues", mode="before")

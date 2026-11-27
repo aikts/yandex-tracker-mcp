@@ -11,6 +11,7 @@ from mcp.client.session import ClientSession
 from tests.mcp.server.test_server_creation import (
     ENTITY_READ_ONLY_TOOL_NAMES,
     ENTITY_WRITE_TOOL_NAMES,
+    FILE_DOWNLOAD_TOOL_NAMES,
     FILE_UPLOAD_TOOL_NAMES,
 )
 from tests.mcp.server.tool_listing import TOOL_NAMES
@@ -102,10 +103,28 @@ async def test_manifest_declares_the_file_upload_flag(
 
 
 def test_manifest_configures_a_private_upload_root(manifest: dict[str, Any]) -> None:
-    root = manifest["user_config"]["tracker_file_upload_root"]
+    root = manifest["user_config"]["tracker_attachments_dir"]
     assert root["type"] == "directory"
     assert root["sensitive"] is True
     assert (
-        manifest["server"]["mcp_config"]["env"]["TRACKER_FILE_UPLOAD_ROOT"]
-        == "${user_config.tracker_file_upload_root}"
+        manifest["server"]["mcp_config"]["env"]["TRACKER_ATTACHMENTS_DIR"]
+        == "${user_config.tracker_attachments_dir}"
+    )
+
+
+@pytest.mark.parametrize("tool_name", FILE_DOWNLOAD_TOOL_NAMES)
+def test_local_download_is_marked_as_opt_in(
+    manifest: dict[str, Any], tool_name: str
+) -> None:
+    descriptions = {tool["name"]: tool["description"] for tool in manifest["tools"]}
+    assert descriptions[tool_name].endswith(
+        "(requires TRACKER_ATTACHMENT_DOWNLOAD_ENABLED)"
+    )
+    assert (
+        manifest["user_config"]["tracker_attachment_download_enabled"]["default"]
+        is False
+    )
+    assert (
+        manifest["server"]["mcp_config"]["env"]["TRACKER_ATTACHMENT_DOWNLOAD_ENABLED"]
+        == "${user_config.tracker_attachment_download_enabled}"
     )

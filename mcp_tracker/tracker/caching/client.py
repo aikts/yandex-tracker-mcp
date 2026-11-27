@@ -1,5 +1,6 @@
 import datetime
 from collections.abc import AsyncIterable, Sequence
+from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass
 from typing import Any
 
@@ -43,6 +44,7 @@ from mcp_tracker.tracker.proto.types.inputs import (
 )
 from mcp_tracker.tracker.proto.types.issue_types import IssueType
 from mcp_tracker.tracker.proto.types.issues import (
+    AttachmentDownload,
     ChangelogPage,
     ChecklistItem,
     CommentsPage,
@@ -332,6 +334,23 @@ def make_cached_protocols(
             self, issue_id: str, *, auth: YandexAuth | None = None
         ) -> list[IssueAttachment]:
             return await self._original.issue_get_attachments(issue_id, auth=auth)
+
+        def issue_open_attachment(
+            self,
+            issue_id: str,
+            attachment_id: str,
+            *,
+            max_bytes: int,
+            limit_setting: str,
+            auth: YandexAuth | None = None,
+        ) -> AbstractAsyncContextManager[AttachmentDownload]:
+            return self._original.issue_open_attachment(
+                issue_id,
+                attachment_id,
+                max_bytes=max_bytes,
+                limit_setting=limit_setting,
+                auth=auth,
+            )
 
         async def issue_add_attachment(
             self,

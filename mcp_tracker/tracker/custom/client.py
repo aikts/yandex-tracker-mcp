@@ -9,6 +9,7 @@ from collections.abc import AsyncIterable, AsyncIterator, Collection, Mapping, S
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from typing import Any, Literal
+from urllib.parse import quote
 
 import jwt
 import yandexcloud
@@ -19,7 +20,13 @@ from yandex.cloud.iam.v1.iam_token_service_pb2 import CreateIamTokenRequest
 from yandex.cloud.iam.v1.iam_token_service_pb2_grpc import IamTokenServiceStub
 from yarl import URL
 
+from mcp_tracker.tracker.custom.attachment_paths import (
+    attachment_collection_path,
+    attachment_path,
+)
 from mcp_tracker.tracker.custom.errors import (
+    AttachmentNotFound,
+    AttachmentTooLarge,
     BoardNotFound,
     ChecklistBatchPartiallyAdded,
     ChecklistItemEmptyUpdate,
@@ -77,6 +84,7 @@ from mcp_tracker.tracker.proto.types.inputs import (
 )
 from mcp_tracker.tracker.proto.types.issue_types import IssueType
 from mcp_tracker.tracker.proto.types.issues import (
+    AttachmentDownload,
     ChangelogEntry,
     ChangelogPage,
     ChecklistItem,
@@ -1070,6 +1078,58 @@ class TrackerClient(
             )
         ).root
 
+    @asynccontextmanager
+    async def issue_open_attachment(
+        self,
+        issue_id: str,
+        attachment_id: str,
+        *,
+        max_bytes: int,
+        limit_setting: str,
+        auth: YandexAuth | None = None,
+    ) -> AsyncIterator[AttachmentDownload]:
+        path = attachment_path(issue_id, attachment_id)
+        not_found = AttachmentNotFound(issue_id, attachment_id)
+        async with self._request(
+            "GET", path, auth=auth, not_found=not_found, allow_redirects=False
+        ) as response:
+            metadata = IssueAttachment.model_validate_json(await response.read())
+        if metadata.size is not None and metadata.size > max_bytes:
+            raise AttachmentTooLarge(max_bytes, limit_setting)
+        if metadata.name in {"", ".", ".."}:
+            raise not_found
+
+        # Encode the original Tracker filename as one path segment. A basename
+        # used for local storage must never change the name in this request.
+        async with self._request(
+            "GET",
+            f"{path}/{quote(metadata.name, safe='')}",
+            auth=auth,
+            not_found=not_found,
+            allow_redirects=False,
+        ) as response:
+            length = response.content_length
+            if (
+                response.headers.get("Content-Encoding", "identity") == "identity"
+                and length is not None
+                and length > max_bytes
+            ):
+                raise AttachmentTooLarge(max_bytes, limit_setting)
+
+            async def chunks() -> AsyncIterator[bytes]:
+                total = 0
+                async for chunk in response.content.iter_chunked(64 * 1024):
+                    total += len(chunk)
+                    if total > max_bytes:
+                        raise AttachmentTooLarge(max_bytes, limit_setting)
+                    yield chunk
+
+            yield AttachmentDownload(
+                metadata,
+                response.headers.get("Content-Type") or "application/octet-stream",
+                chunks(),
+            )
+
     async def issue_add_attachment(
         self,
         issue_id: str,
@@ -1092,7 +1152,7 @@ class TrackerClient(
         )
         async with self._request(
             "POST",
-            f"v3/issues/{issue_id}/attachments/",
+            f"{attachment_collection_path(issue_id)}/",
             auth=auth,
             params={"filename": filename},
             data=form,

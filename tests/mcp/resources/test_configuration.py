@@ -21,7 +21,7 @@ class TestConfigurationResource:
         assert isinstance(content, TextResourceContents)
         assert content.text is not None
         assert str(upload_root) not in content.text
-        assert "file_upload_root" not in content.text
+        assert "attachments_dir" not in content.text
 
     async def test_contains_expected_fields(
         self,
@@ -38,3 +38,4 @@ class TestConfigurationResource:
         assert "read_only" in content_text
         assert "cache_enabled" in content_text
         assert "file_upload_enabled" in content_text
+        assert "attachment_download_enabled" in content_text

@@ -84,7 +84,8 @@ def create_test_settings(
     read_only_queues: list[str] | None = None,
     entities_enabled: bool = True,
     file_upload_enabled: bool = True,
-    file_upload_root: Path | None = None,
+    attachment_download_enabled: bool = True,
+    attachments_dir: Path | None = None,
 ) -> Settings:
     """Create Settings for testing with minimal required configuration.
 
@@ -104,7 +105,8 @@ def create_test_settings(
         tracker_read_only_queues=Settings.decode_queue_keys(read_only_queues),
         tracker_entities_enabled=entities_enabled,
         tracker_file_upload_enabled=file_upload_enabled,
-        tracker_file_upload_root=file_upload_root or Path.cwd().resolve(),
+        tracker_attachment_download_enabled=attachment_download_enabled,
+        tracker_attachments_dir=attachments_dir or Path.cwd().resolve(),
         tools_cache_enabled=False,
         oauth_enabled=False,
         host="0.0.0.0",
@@ -128,14 +130,14 @@ def upload_root(tmp_path: Path) -> Path:
 @pytest.fixture
 def test_settings(upload_root: Path) -> Settings:
     """Create Settings for testing with minimal required configuration."""
-    return create_test_settings(file_upload_root=upload_root)
+    return create_test_settings(attachments_dir=upload_root)
 
 
 @pytest.fixture
 def test_settings_with_queue_limits(upload_root: Path) -> Settings:
     """Settings with queue restrictions enabled."""
     return create_test_settings(
-        limit_queues=["ALLOWED", "PERMITTED"], file_upload_root=upload_root
+        limit_queues=["ALLOWED", "PERMITTED"], attachments_dir=upload_root
     )
 
 
@@ -296,7 +298,7 @@ def test_settings_with_read_only_queues(upload_root: Path) -> Settings:
     other queues (e.g. ``TEST``) remain read-write.
     """
     return create_test_settings(
-        read_only_queues=["READONLY"], file_upload_root=upload_root
+        read_only_queues=["READONLY"], attachments_dir=upload_root
     )
 
 

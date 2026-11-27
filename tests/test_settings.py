@@ -38,7 +38,9 @@ def load_settings(**overrides: Any) -> Settings:
 
 class TestFileUploadDefaults:
     def test_file_upload_is_off_by_default(self) -> None:
-        assert load_settings().tracker_file_upload_enabled is False
+        settings = load_settings()
+        assert settings.tracker_file_upload_enabled is False
+        assert settings.tracker_attachment_download_enabled is False
 
     def test_upload_timeout_has_its_own_default(self) -> None:
         settings = load_settings()
@@ -53,15 +55,15 @@ class TestFileUploadTransportGuard:
     ) -> None:
         monkeypatch.setenv("TRACKER_FILE_UPLOAD_ENABLED", "true")
 
-        monkeypatch.setenv("TRACKER_FILE_UPLOAD_ROOT", str(tmp_path))
+        monkeypatch.setenv("TRACKER_ATTACHMENTS_DIR", str(tmp_path))
 
         settings = load_settings()
 
         assert settings.transport == "stdio"
         assert settings.tracker_file_upload_enabled is True
-        assert settings.tracker_file_upload_root == tmp_path.resolve()
+        assert settings.tracker_attachments_dir == tmp_path.resolve()
         assert str(tmp_path) not in repr(settings)
-        assert "tracker_file_upload_root" not in settings.model_dump()
+        assert "tracker_attachments_dir" not in settings.model_dump()
 
     @pytest.mark.parametrize("kind", ["unset", "empty", "relative", "missing", "file"])
     def test_invalid_root_refused_without_disclosing_it(
@@ -76,10 +78,10 @@ class TestFileUploadTransportGuard:
             "file": str(file),
         }
         if kind in roots:
-            monkeypatch.setenv("TRACKER_FILE_UPLOAD_ROOT", roots[kind])
+            monkeypatch.setenv("TRACKER_ATTACHMENTS_DIR", roots[kind])
 
         with pytest.raises(
-            ValidationError, match="TRACKER_FILE_UPLOAD_ROOT"
+            ValidationError, match="TRACKER_ATTACHMENTS_DIR"
         ) as exc_info:
             load_settings(tracker_file_upload_enabled=True)
         assert file.name not in str(exc_info.value)
@@ -117,3 +119,16 @@ class TestFileUploadTransportGuard:
         self, overrides: dict[str, Any]
     ) -> None:
         assert load_settings(**overrides).tracker_file_upload_enabled is False
+
+
+@pytest.mark.parametrize(
+    "overrides", [{"transport": "streamable-http"}, OAUTH_SETTINGS]
+)
+def test_download_to_disk_is_stdio_only(overrides: dict[str, Any]) -> None:
+    with pytest.raises(ValidationError, match="TRACKER_ATTACHMENT_DOWNLOAD_ENABLED"):
+        load_settings(tracker_attachment_download_enabled=True, **overrides)
+
+
+def test_download_only_accepts_an_unconfigured_directory() -> None:
+    settings = load_settings(tracker_attachment_download_enabled=True)
+    assert settings.tracker_attachments_dir is None

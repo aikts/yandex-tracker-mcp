@@ -63,6 +63,10 @@ CursorPerPageParam = Annotated[
     ),
 ]
 
+AttachmentID = Annotated[
+    str, Field(description="Attachment ID returned by issue_get_attachments.")
+]
+
 IssueID = Annotated[
     str,
     Field(description="Issue ID in the format '<project>-<id>', like 'SOMEPROJECT-1'"),

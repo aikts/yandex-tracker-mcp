@@ -1395,7 +1395,7 @@ class TestIssueAddAttachment:
 
         mock_issues_protocol.issue_add_attachment.side_effect = receive
         result = await client_session.call_tool(
-            "issue_add_attachment",
+            "issue_add_attachment_local",
             {"issue_id": "TEST-123", "file_path": "reports/screenshot.png", **options},
         )
 
@@ -1431,7 +1431,8 @@ class TestIssueAddAttachment:
         opener = Mock()
         monkeypatch.setattr(_attachment_file.aiofiles, "open", opener)
         result = await client_session.call_tool(
-            "issue_add_attachment", {"issue_id": "TEST-123", "file_path": file_path}
+            "issue_add_attachment_local",
+            {"issue_id": "TEST-123", "file_path": file_path},
         )
         assert "relative file path" in error_text(result)
         assert str(upload_root) not in error_text(result)
@@ -1446,7 +1447,7 @@ class TestIssueAddAttachment:
         upload_root: Path,
     ) -> None:
         result = await client_session.call_tool(
-            "issue_add_attachment",
+            "issue_add_attachment_local",
             {"issue_id": "TEST-123", "file_path": str(upload_file)},
         )
         assert "relative file path" in error_text(result)
@@ -1474,7 +1475,7 @@ class TestIssueAddAttachment:
         except OSError:
             pytest.skip("Symlinks are unavailable on this host")
         result = await client_session.call_tool(
-            "issue_add_attachment",
+            "issue_add_attachment_local",
             {
                 "issue_id": "TEST-123",
                 "file_path": "link/secret.txt" if directory_link else "link",
@@ -1498,7 +1499,8 @@ class TestIssueAddAttachment:
         except OSError:
             pytest.skip("Hard links are unavailable on this host")
         result = await client_session.call_tool(
-            "issue_add_attachment", {"issue_id": "TEST-123", "file_path": "link.txt"}
+            "issue_add_attachment_local",
+            {"issue_id": "TEST-123", "file_path": "link.txt"},
         )
         assert "regular file" in error_text(result)
         assert str(upload_root) not in error_text(result)
@@ -1514,7 +1516,8 @@ class TestIssueAddAttachment:
         file_path: str,
     ) -> None:
         result = await client_session.call_tool(
-            "issue_add_attachment", {"issue_id": "TEST-123", "file_path": file_path}
+            "issue_add_attachment_local",
+            {"issue_id": "TEST-123", "file_path": file_path},
         )
         assert "Could not open" in error_text(result)
         assert str(upload_root) not in error_text(result)
@@ -1530,7 +1533,7 @@ class TestIssueAddAttachment:
     ) -> None:
         monkeypatch.setattr(_attachment_file, "MAX_ATTACHMENT_SIZE", 4)
         result = await client_session.call_tool(
-            "issue_add_attachment",
+            "issue_add_attachment_local",
             {"issue_id": "TEST-123", "file_path": "reports/screenshot.png"},
         )
         assert "upload limit" in error_text(result)
@@ -1556,7 +1559,7 @@ class TestIssueAddAttachment:
         opener = Mock()
         monkeypatch.setattr(_attachment_file.aiofiles, "open", opener)
         result = await client_session_with_limits.call_tool(
-            "issue_add_attachment",
+            "issue_add_attachment_local",
             {"issue_id": issue_id, "file_path": "reports/screenshot.png"},
         )
         assert message in error_text(result)
@@ -1569,7 +1572,7 @@ class TestIssueAddAttachment:
         mock_issues_protocol: AsyncMock,
     ) -> None:
         result = await client_session_with_read_only_queues.call_tool(
-            "issue_add_attachment",
+            "issue_add_attachment_local",
             {"issue_id": "READONLY-1", "file_path": "reports/screenshot.png"},
         )
         assert "read-only" in error_text(result)

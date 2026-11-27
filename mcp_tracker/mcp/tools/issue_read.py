@@ -1,14 +1,23 @@
 """Issue read-only MCP tools."""
 
+import base64
+from email.message import Message
 from typing import Annotated, Any
 
 from mcp.server import FastMCP
 from mcp.server.fastmcp import Context
-from mcp.types import ToolAnnotations
-from pydantic import Field
+from mcp.types import (
+    BlobResourceContents,
+    EmbeddedResource,
+    ImageContent,
+    TextContent,
+    ToolAnnotations,
+)
+from pydantic import AnyUrl, Field
 
 from mcp_tracker.mcp.context import AppContext
 from mcp_tracker.mcp.params import (
+    AttachmentID,
     CommentsCursorParam,
     CursorPerPageParam,
     IssueID,
@@ -20,6 +29,7 @@ from mcp_tracker.mcp.params import (
 from mcp_tracker.mcp.tools._access import check_issue_access
 from mcp_tracker.mcp.utils import get_yandex_auth, set_non_needed_fields_null
 from mcp_tracker.settings import Settings
+from mcp_tracker.tracker.custom.attachment_paths import validate_attachment_issue_key
 from mcp_tracker.tracker.proto.types.issues import (
     AttachmentFieldsEnum,
     ChangelogPage,
@@ -36,6 +46,59 @@ from mcp_tracker.tracker.proto.types.issues import (
     resolve_issue_field,
 )
 from mcp_tracker.tracker.proto.types.pagination import PaginatedResult
+
+
+def _attachment_blocks(
+    issue_id: str, attachment_id: str, name: str, content_type: str, data: bytearray
+) -> list[TextContent | ImageContent | EmbeddedResource]:
+    headers = Message()
+    headers["Content-Type"] = content_type
+    mime_type = headers.get_content_type()
+    blocks: list[TextContent | ImageContent | EmbeddedResource] = [
+        TextContent(type="text", text=f"{name} ({mime_type}, {len(data)} bytes)")
+    ]
+
+    if mime_type.startswith("image/"):
+        blocks.append(
+            ImageContent(
+                type="image",
+                mimeType=mime_type,
+                data=base64.b64encode(data).decode("ascii"),
+            )
+        )
+    elif (
+        mime_type.startswith("text/")
+        or mime_type
+        in {
+            "application/json",
+            "application/xml",
+            "application/yaml",
+            "application/x-yaml",
+            "application/javascript",
+        }
+        or mime_type.endswith(("+json", "+xml"))
+    ):
+        charset = headers.get_content_charset() or "utf-8"
+        try:
+            decoded = data.decode(charset, errors="replace")
+        except (LookupError, UnicodeError):
+            decoded = data.decode("utf-8", errors="replace")
+        blocks.append(TextContent(type="text", text=decoded))
+    else:
+        blocks.append(
+            EmbeddedResource(
+                type="resource",
+                resource=BlobResourceContents(
+                    uri=AnyUrl(
+                        f"tracker://issues/{issue_id}/attachments/{attachment_id}"
+                    ),
+                    mimeType=mime_type,
+                    blob=base64.b64encode(data).decode("ascii"),
+                ),
+            )
+        )
+
+    return blocks
 
 
 def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
@@ -260,6 +323,44 @@ def register_issue_read_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             set_non_needed_fields_null(attachments, {f.name for f in fields})
 
         return attachments
+
+    @mcp.tool(
+        title="Get Issue Attachment Content",
+        description="Read a Yandex Tracker issue attachment (вложение задачи) as an image, "
+        "text or binary resource. Refuses files over TRACKER_ATTACHMENT_INLINE_MAX_BYTES.",
+        annotations=ToolAnnotations(readOnlyHint=True),
+        structured_output=False,
+    )
+    async def issue_get_attachment_content(
+        ctx: Context[Any, AppContext],
+        issue_id: IssueID,
+        attachment_id: AttachmentID,
+    ) -> list[TextContent | ImageContent | EmbeddedResource]:
+        validate_attachment_issue_key(issue_id)
+        check_issue_access(settings, issue_id)
+
+        data = bytearray()
+        async with ctx.request_context.lifespan_context.issues.issue_open_attachment(
+            issue_id,
+            attachment_id,
+            max_bytes=settings.tracker_attachment_inline_max_bytes,
+            limit_setting="TRACKER_ATTACHMENT_INLINE_MAX_BYTES",
+            auth=get_yandex_auth(ctx),
+        ) as download:
+            async for chunk in download.chunks:
+                data.extend(chunk)
+
+        content_type = download.metadata.mimetype or download.content_type
+        # Tracker metadata can omit a charset present in the HTTP response.
+        if (
+            ";" not in content_type
+            and download.content_type.partition(";")[0].strip().lower()
+            == content_type.lower()
+        ):
+            content_type = download.content_type
+        return _attachment_blocks(
+            issue_id, attachment_id, download.metadata.name, content_type, data
+        )
 
     @mcp.tool(
         title="Get Issue Checklist",
