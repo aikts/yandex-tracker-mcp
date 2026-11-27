@@ -620,6 +620,9 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
 | `issue_update_worklog` | Изменить запись о времени | `issue_id`, `worklog_id`, `duration`, `comment`, `start` |
 | `issue_delete_worklog` | Удалить запись о времени | `issue_id`, `worklog_id` |
 | `issue_get_attachments` | Метаданные вложений | `issue_id`, `fields` |
+| `issue_get_attachment_content` | Вернуть небольшое вложение как текст, изображение или бинарный ресурс | ID из `issue_get_attachments` |
+| `issue_download_attachment_local` | Сохранить вложение на диск и вернуть относительный путь | ID из `issue_get_attachments` |
+| `issue_add_attachment_local` | Загрузить файл из настроенной папки и вернуть ID вложения. Чтобы показать изображение в описании, вставьте `![name](/ajax/v2/attachments/<id>?inline=true)` | `issue_id`, `file_path`, `filename` |
 | `issue_get_checklist` | Чек-лист вместе с id пунктов, которые нужны инструментам записи | `issue_id` |
 | `issue_add_checklist_items` | Добавить пункты по порядку, создав чек-лист, если его не было | `issue_id`, `items` (`text`, `checked`, `assignee`, `deadline`) |
 | `issue_update_checklist_item` | Изменить один пункт; непереданные поля сохраняют значение | `issue_id`, `checklist_item_id`, `text`, `checked`, `assignee`, `deadline`, `clear_assignee`, `clear_deadline` |
@@ -637,6 +640,10 @@ claude mcp add yandex-tracker docker "run --rm -i -e TRACKER_TOKEN=ваш_ток
 - **Переходы не угадываются.** `issue_execute_transition` принимает только id из `issue_get_transitions`, а перед `issue_close` прочитайте `type` задачи через `issue_get` и допустимые для этого типа резолюции через `queue_get_metadata` с `expand: ["issueTypesConfig"]` — у каждого типа свой набор. Если клиент поддерживает elicitation, `issue_move` сначала просит подтвердить свои флаги, и отказ отменяет перенос.
 
 Все инструменты этого раздела учитывают `TRACKER_LIMIT_QUEUES` и `TRACKER_READ_ONLY_QUEUES`; те, что пишут, регистрируются, только если не задан `TRACKER_READ_ONLY`.
+
+Для локальных инструментов нужен `stdio` с выключенным OAuth и разрешённой записью. Включайте загрузку через `TRACKER_FILE_UPLOAD_ENABLED=true`, сохранение на диск через `TRACKER_ATTACHMENT_DOWNLOAD_ENABLED=true`. Для обоих инструментов укажите в `TRACKER_ATTACHMENTS_DIR` абсолютный путь к существующему каталогу. На POSIX для сохранения нужна файловая система с поддержкой жёстких ссылок. `issue_download_attachment_local` возвращает `file_path` относительно общего каталога. Этот путь можно передать в `issue_add_attachment_local`. В Docker задайте путь внутри контейнера и смонтируйте каталог с разрешением на запись для скачивания.
+
+Для выдачи содержимого действует лимит `TRACKER_ATTACHMENT_INLINE_MAX_BYTES` (1 МиБ), для сохранения на диск — `TRACKER_ATTACHMENT_DOWNLOAD_MAX_BYTES` (128 МиБ). Лимит загрузки с диска — 128 МиБ. Отображение бинарных ресурсов зависит от MCP-клиента.
 
 </details>
 
@@ -1009,11 +1016,18 @@ TRACKER_ORG_ID=ваш_org_id                # Для организаций Ян
 # Конфигурация API (опционально)
 TRACKER_API_BASE_URL=https://api.tracker.yandex.net  # По умолчанию: https://api.tracker.yandex.net
 TRACKER_API_TIMEOUT=10                    # По умолчанию: 10 - Таймаут одного запроса к API Трекера, в секундах
+TRACKER_UPLOAD_TIMEOUT=300                # По умолчанию: 300 - Таймаут загрузки одного файла (issue_add_attachment_local), в секундах
 
 # Безопасность - Ограничить доступ к конкретным очередям (опционально)
 TRACKER_LIMIT_QUEUES=PROJ1,PROJ2,DEV      # Ключи очередей через запятую - список разрешённых очередей
 TRACKER_READ_ONLY_QUEUES=PROJ2            # Ключи очередей через запятую - доступны для чтения, но запись отклоняется (режим только для чтения по очередям)
 TRACKER_ENTITIES_ENABLED=true             # По умолчанию: false - регистрировать инструменты проектов/портфелей/целей (НЕ подчиняются ограничениям по очередям выше)
+TRACKER_FILE_UPLOAD_ENABLED=false         # Включить локальную загрузку при stdio и выключенном OAuth
+TRACKER_ATTACHMENT_DOWNLOAD_ENABLED=false # Сохранять вложения на диск при stdio и выключенном OAuth
+# TRACKER_ATTACHMENTS_DIR=/path/to/attachments # Общая папка для локальных операций
+TRACKER_ATTACHMENT_INLINE_MAX_BYTES=1048576 # Лимит выдачи содержимого (1 МиБ)
+TRACKER_ATTACHMENT_DOWNLOAD_MAX_BYTES=134217728 # Лимит сохранения на диск (128 МиБ)
+TRACKER_ATTACHMENT_DOWNLOAD_TIMEOUT=300 # Таймаут скачивания файла на диск в секундах
 
 # Конфигурация сервера
 HOST=0.0.0.0                              # По умолчанию: 0.0.0.0

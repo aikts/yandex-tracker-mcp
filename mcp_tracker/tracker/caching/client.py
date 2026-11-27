@@ -1,5 +1,6 @@
 import datetime
-from collections.abc import Sequence
+from collections.abc import AsyncIterable, Sequence
+from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass
 from typing import Any
 
@@ -43,6 +44,7 @@ from mcp_tracker.tracker.proto.types.inputs import (
 )
 from mcp_tracker.tracker.proto.types.issue_types import IssueType
 from mcp_tracker.tracker.proto.types.issues import (
+    AttachmentDownload,
     ChangelogPage,
     ChecklistItem,
     CommentsPage,
@@ -327,11 +329,40 @@ def make_cached_protocols(
                 auth=auth,
             )
 
-        @cached(**cache_config)
+        # Return the new attachment immediately after an upload.
         async def issue_get_attachments(
             self, issue_id: str, *, auth: YandexAuth | None = None
         ) -> list[IssueAttachment]:
             return await self._original.issue_get_attachments(issue_id, auth=auth)
+
+        def issue_open_attachment(
+            self,
+            issue_id: str,
+            attachment_id: str,
+            *,
+            max_bytes: int,
+            timeout: float | None = None,
+            auth: YandexAuth | None = None,
+        ) -> AbstractAsyncContextManager[AttachmentDownload]:
+            return self._original.issue_open_attachment(
+                issue_id,
+                attachment_id,
+                max_bytes=max_bytes,
+                timeout=timeout,
+                auth=auth,
+            )
+
+        async def issue_add_attachment(
+            self,
+            issue_id: str,
+            *,
+            content: AsyncIterable[bytes],
+            filename: str,
+            auth: YandexAuth | None = None,
+        ) -> IssueAttachment:
+            return await self._original.issue_add_attachment(
+                issue_id, content=content, filename=filename, auth=auth
+            )
 
         @cached(**cache_config)
         async def issues_count(

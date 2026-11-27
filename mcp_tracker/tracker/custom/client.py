@@ -1,23 +1,33 @@
 import asyncio
 import datetime
 import logging
+import mimetypes
 import random
 import time
 from asyncio import CancelledError
-from collections.abc import AsyncIterator, Collection, Mapping, Sequence
+from collections.abc import AsyncIterable, AsyncIterator, Collection, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
+from email.message import Message
 from typing import Any, Literal
+from urllib.parse import quote
 
 import jwt
 import yandexcloud
-from aiohttp import ClientResponse, ClientSession, ClientTimeout
+from aiohttp import ClientResponse, ClientSession, ClientTimeout, FormData
+from aiohttp.payload import AsyncIterablePayload
 from pydantic import BaseModel, Field, RootModel
 from yandex.cloud.iam.v1.iam_token_service_pb2 import CreateIamTokenRequest
 from yandex.cloud.iam.v1.iam_token_service_pb2_grpc import IamTokenServiceStub
 from yarl import URL
 
+from mcp_tracker.tracker.custom.attachment_paths import (
+    attachment_collection_path,
+    attachment_path,
+)
 from mcp_tracker.tracker.custom.errors import (
+    AttachmentNotFound,
+    AttachmentTooLarge,
     BoardNotFound,
     ChecklistBatchPartiallyAdded,
     ChecklistItemEmptyUpdate,
@@ -75,6 +85,7 @@ from mcp_tracker.tracker.proto.types.inputs import (
 )
 from mcp_tracker.tracker.proto.types.issue_types import IssueType
 from mcp_tracker.tracker.proto.types.issues import (
+    AttachmentDownload,
     ChangelogEntry,
     ChangelogPage,
     ChecklistItem,
@@ -317,6 +328,7 @@ class TrackerClient(
         cloud_org_id: str | None = None,
         base_url: str = "https://api.tracker.yandex.net",
         timeout: float = 10,
+        upload_timeout: float = 300,
     ):
         self._token = token
         self._token_type = token_type
@@ -328,6 +340,7 @@ class TrackerClient(
         self._cloud_org_id = cloud_org_id
 
         self._timeout = timeout
+        self._upload_timeout = upload_timeout
         self._session = ClientSession(
             base_url=base_url,
             timeout=ClientTimeout(total=timeout),
@@ -385,7 +398,9 @@ class TrackerClient(
         return headers
 
     @staticmethod
-    async def _raise_for_status(response: ClientResponse) -> None:
+    async def _raise_for_status(
+        response: ClientResponse, *, allow_redirects: bool
+    ) -> None:
         """Raise `TrackerAPIError` carrying the API's own explanation of the failure.
 
         `ClientResponse.raise_for_status()` discards the response body, which is
@@ -393,7 +408,7 @@ class TrackerClient(
         issue_create call was rejected with 422), leaving the caller with a bare
         "Unprocessable Entity".
         """
-        if response.status < 400:
+        if response.status < (400 if allow_redirects else 300):
             return
 
         try:
@@ -417,9 +432,13 @@ class TrackerClient(
         auth: YandexAuth | None,
         params: Mapping[str, Any] | None = None,
         json: Any = None,
+        data: Any = None,
         not_found: YandexTrackerError | None = None,
         conflict: YandexTrackerError | None = None,
         allow_statuses: Collection[int] = (),
+        timeout: float | None = None,
+        timeout_setting: str = "TRACKER_API_TIMEOUT",
+        allow_redirects: bool = True,
     ) -> AsyncIterator[ClientResponse]:
         """Every request to the Tracker API goes through here.
 
@@ -435,28 +454,43 @@ class TrackerClient(
 
         `allow_statuses` hands a status back to the caller instead of raising -
         for the one method that answers a 404 with `None` rather than an error.
+
+        `timeout` replaces the session's per-request budget for this request, and
+        `timeout_setting` names the variable that sets it in the timeout error.
+        File transfers use their own budgets because the limit covers the
+        entire request and response, including streaming the body.
         """
         # Built before the `try`: the service account's IAM fetch is not a
         # Tracker request and must not be reported as one timing out.
         headers = await self._build_headers(auth)
+        budget = self._timeout if timeout is None else timeout
 
         try:
             async with self._session.request(
-                method, url, headers=headers, params=params, json=json
+                method,
+                url,
+                headers=headers,
+                params=params,
+                json=json,
+                data=data,
+                timeout=ClientTimeout(total=budget),
+                allow_redirects=allow_redirects,
             ) as response:
                 if response.status not in allow_statuses:
                     if not_found is not None and response.status == 404:
                         raise not_found
                     if conflict is not None and response.status in (409, 412):
                         raise conflict
-                    await self._raise_for_status(response)
+                    await self._raise_for_status(
+                        response, allow_redirects=allow_redirects
+                    )
                 yield response
         except TimeoutError as exc:
             # A body read that times out lands here too: it runs inside the
             # caller's `async with`, and that exception is thrown back in at the
             # `yield` above.
             raise TrackerAPITimeout(
-                method=method, url=url, timeout=self._timeout
+                method=method, url=url, timeout=budget, setting=timeout_setting
             ) from exc
 
     async def _read(
@@ -1044,6 +1078,109 @@ class TrackerClient(
                 not_found=IssueNotFound(issue_id),
             )
         ).root
+
+    @asynccontextmanager
+    async def issue_open_attachment(
+        self,
+        issue_id: str,
+        attachment_id: str,
+        *,
+        max_bytes: int,
+        timeout: float | None = None,
+        auth: YandexAuth | None = None,
+    ) -> AsyncIterator[AttachmentDownload]:
+        path = attachment_path(issue_id, attachment_id)
+        not_found = AttachmentNotFound(issue_id, attachment_id)
+        async with self._request(
+            "GET", path, auth=auth, not_found=not_found, allow_redirects=False
+        ) as response:
+            metadata = IssueAttachment.model_validate_json(await response.read())
+        if metadata.size is not None and metadata.size > max_bytes:
+            raise AttachmentTooLarge(max_bytes)
+        if metadata.name in {"", ".", ".."}:
+            raise not_found
+
+        # Encode the original Tracker filename as one path segment. A basename
+        # used for local storage must never change the name in this request.
+        async with self._request(
+            "GET",
+            f"{path}/{quote(metadata.name, safe='')}",
+            auth=auth,
+            not_found=not_found,
+            allow_redirects=False,
+            timeout=timeout,
+            timeout_setting=(
+                "TRACKER_ATTACHMENT_DOWNLOAD_TIMEOUT"
+                if timeout is not None
+                else "TRACKER_API_TIMEOUT"
+            ),
+        ) as response:
+            length = response.content_length
+            if (
+                response.headers.get("Content-Encoding", "identity") == "identity"
+                and length is not None
+                and length > max_bytes
+            ):
+                raise AttachmentTooLarge(max_bytes)
+
+            async def chunks() -> AsyncIterator[bytes]:
+                total = 0
+                async for chunk in response.content.iter_chunked(64 * 1024):
+                    total += len(chunk)
+                    if total > max_bytes:
+                        raise AttachmentTooLarge(max_bytes)
+                    yield chunk
+
+            response_type = Message()
+            response_type["Content-Type"] = (
+                response.headers.get("Content-Type") or "application/octet-stream"
+            )
+            content_type = Message()
+            content_type["Content-Type"] = (
+                metadata.mimetype or response_type.get_content_type()
+            )
+            mime_type = content_type.get_content_type()
+            charset = content_type.get_content_charset()
+            # Tracker metadata can omit a charset supplied by the response.
+            if charset is None and mime_type == response_type.get_content_type():
+                charset = response_type.get_content_charset()
+
+            yield AttachmentDownload(
+                metadata=metadata, mime_type=mime_type, charset=charset, chunks=chunks()
+            )
+
+    async def issue_add_attachment(
+        self,
+        issue_id: str,
+        *,
+        content: AsyncIterable[bytes],
+        filename: str,
+        auth: YandexAuth | None = None,
+    ) -> IssueAttachment:
+        # The name goes both ways the API documents: as the `filename` query
+        # parameter and as the multipart part's own filename.
+        form = FormData()
+        form.add_field(
+            "file",
+            AsyncIterablePayload(
+                content,
+                content_type=mimetypes.guess_type(filename)[0]
+                or "application/octet-stream",
+            ),
+            filename=filename,
+        )
+        async with self._request(
+            "POST",
+            f"{attachment_collection_path(issue_id)}/",
+            auth=auth,
+            params={"filename": filename},
+            data=form,
+            not_found=IssueNotFound(issue_id),
+            timeout=self._upload_timeout,
+            timeout_setting="TRACKER_UPLOAD_TIMEOUT",
+            allow_redirects=False,
+        ) as response:
+            return IssueAttachment.model_validate_json(await response.read())
 
     async def users_list(
         self, per_page: int = 50, page: int = 1, *, auth: YandexAuth | None = None

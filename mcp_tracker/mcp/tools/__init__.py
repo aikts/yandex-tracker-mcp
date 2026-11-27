@@ -9,7 +9,8 @@ This package organizes MCP tools by category:
 - component.py: Queue component tools (read-only)
 - component_write.py: Queue component write tools (conditional on read-only mode)
 - issue_read.py: Issue read-only tools
-- issue_write.py: Issue write tools (conditional on read-only mode)
+- issue_write.py: Issue write tools (conditional on read-only mode); local file tools
+  additionally require their opt-in flags
 - user.py: User-related tools (read-only)
 - project.py: Project entity tools (read-only)
 - project_write.py: Project entity write tools (conditional on read-only mode)
@@ -30,7 +31,11 @@ from mcp_tracker.mcp.tools.field import register_field_tools
 from mcp_tracker.mcp.tools.goal import register_goal_tools
 from mcp_tracker.mcp.tools.goal_write import register_goal_write_tools
 from mcp_tracker.mcp.tools.issue_read import register_issue_read_tools
-from mcp_tracker.mcp.tools.issue_write import register_issue_write_tools
+from mcp_tracker.mcp.tools.issue_write import (
+    register_issue_file_download_tools,
+    register_issue_file_upload_tools,
+    register_issue_write_tools,
+)
 from mcp_tracker.mcp.tools.portfolio import register_portfolio_tools
 from mcp_tracker.mcp.tools.portfolio_write import register_portfolio_write_tools
 from mcp_tracker.mcp.tools.project import register_project_tools
@@ -48,7 +53,8 @@ def register_all_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
     Args:
         settings: Application settings. If tracker_read_only is True,
             write tools will not be registered. Project/portfolio/goal tools
-            are registered only if tracker_entities_enabled is True.
+            are registered only if tracker_entities_enabled is True, and the
+            local file tools only when their flags are enabled.
         mcp: FastMCP server instance.
     """
     # Always register read-only tools
@@ -70,6 +76,13 @@ def register_all_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
         register_queue_write_tools(settings, mcp)
         register_component_write_tools(settings, mcp)
         register_issue_write_tools(settings, mcp)
+
+        attachments_dir = settings.tracker_attachments_dir
+        if attachments_dir is not None:
+            if settings.tracker_file_upload_enabled:
+                register_issue_file_upload_tools(settings, mcp, attachments_dir)
+            if settings.tracker_attachment_download_enabled:
+                register_issue_file_download_tools(settings, mcp, attachments_dir)
 
         if settings.tracker_entities_enabled:
             register_project_write_tools(settings, mcp)

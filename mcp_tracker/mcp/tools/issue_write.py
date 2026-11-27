@@ -1,6 +1,7 @@
 """Issue write MCP tools (conditionally registered based on read-only mode)."""
 
 import datetime
+from pathlib import Path
 from typing import Annotated, Any
 
 from mcp.server import FastMCP
@@ -11,6 +12,7 @@ from pydantic import BaseModel, Field, create_model
 from mcp_tracker.mcp.context import AppContext
 from mcp_tracker.mcp.errors import TrackerError
 from mcp_tracker.mcp.params import (
+    AttachmentID,
     IssueChecklistItemAssigneeParam,
     IssueChecklistItemCheckedParam,
     IssueChecklistItemClearAssigneeParam,
@@ -31,8 +33,14 @@ from mcp_tracker.mcp.params import (
     MarkupTypeParam,
 )
 from mcp_tracker.mcp.tools._access import check_issue_access, check_queue_access
+from mcp_tracker.mcp.tools._attachment_file import (
+    attachment_path,
+    open_attachment,
+    save_attachment,
+)
 from mcp_tracker.mcp.utils import get_yandex_auth
 from mcp_tracker.settings import Settings
+from mcp_tracker.tracker.custom.attachment_paths import validate_attachment_issue_key
 from mcp_tracker.tracker.proto.types.inputs import (
     IssuePriorityRef,
     IssueTypeRef,
@@ -40,6 +48,7 @@ from mcp_tracker.tracker.proto.types.inputs import (
 from mcp_tracker.tracker.proto.types.issues import (
     ChecklistItem,
     Issue,
+    IssueAttachment,
     IssueComment,
     IssueLink,
     IssueLinkRelationship,
@@ -791,4 +800,114 @@ def register_issue_write_tools(settings: Settings, mcp: FastMCP[Any]) -> None:
             issue_id,
             checklist_item_id,
             auth=get_yandex_auth(ctx),
+        )
+
+
+class DownloadedIssueAttachment(BaseModel):
+    issue_id: str
+    attachment_id: str
+    file_path: str = Field(
+        description="File path relative to the local attachment directory."
+    )
+    original_name: str
+    mime_type: str
+    size: int
+
+
+def register_issue_file_upload_tools(
+    settings: Settings, mcp: FastMCP[Any], attachments_dir: Path
+) -> None:
+    """Register local file upload on a writable, opted-in stdio server."""
+
+    @mcp.tool(
+        title="Attach Local File to Issue",
+        description="Attach a file from the configured upload directory to a Yandex "
+        "Tracker issue ('вложение') and return its ID (requires "
+        "TRACKER_FILE_UPLOAD_ENABLED). To show an image in a description, embed "
+        "`![name](/ajax/v2/attachments/<id>?inline=true)`.",
+        annotations=ToolAnnotations(readOnlyHint=False),
+    )
+    async def issue_add_attachment_local(
+        ctx: Context[Any, AppContext],
+        issue_id: IssueID,
+        file_path: Annotated[
+            str,
+            Field(
+                description="Path relative to the upload directory, such as "
+                "'screenshots/login.png'. Use a regular file."
+            ),
+        ],
+        filename: Annotated[
+            str | None,
+            Field(
+                description="Name to store the attachment under. Defaults to the "
+                "file's own name."
+            ),
+        ] = None,
+    ) -> IssueAttachment:
+        validate_attachment_issue_key(issue_id)
+        check_issue_access(settings, issue_id, write=True)
+
+        path = attachment_path(file_path)
+        if filename and (
+            any(char in filename for char in "/\\:")
+            or any(ord(char) < 32 for char in filename)
+            or filename in (".", "..")
+        ):
+            raise TrackerError(
+                "Pass a filename without directories or control characters."
+            )
+
+        async with open_attachment(attachments_dir, path) as content:
+            return (
+                await ctx.request_context.lifespan_context.issues.issue_add_attachment(
+                    issue_id,
+                    content=content,
+                    filename=filename or path.name,
+                    auth=get_yandex_auth(ctx),
+                )
+            )
+
+
+def register_issue_file_download_tools(
+    settings: Settings, mcp: FastMCP[Any], attachments_dir: Path
+) -> None:
+    @mcp.tool(
+        title="Save Issue Attachment Locally",
+        description="Save a Yandex Tracker issue attachment (вложение задачи) to the "
+        "local attachment directory and return its relative path. Requires "
+        "TRACKER_ATTACHMENT_DOWNLOAD_ENABLED and refuses files over "
+        "TRACKER_ATTACHMENT_DOWNLOAD_MAX_BYTES.",
+        annotations=ToolAnnotations(readOnlyHint=False),
+    )
+    async def issue_download_attachment_local(
+        ctx: Context[Any, AppContext],
+        issue_id: IssueID,
+        attachment_id: AttachmentID,
+    ) -> DownloadedIssueAttachment:
+        validate_attachment_issue_key(issue_id)
+        # This reads Tracker and writes only to the local directory.
+        check_issue_access(settings, issue_id)
+        app = ctx.request_context.lifespan_context
+
+        async with app.issues.issue_open_attachment(
+            issue_id,
+            attachment_id,
+            max_bytes=settings.tracker_attachment_download_max_bytes,
+            timeout=settings.tracker_attachment_download_timeout,
+            auth=get_yandex_auth(ctx),
+        ) as download:
+            file_path, size = await save_attachment(
+                attachments_dir,
+                download.metadata.name,
+                download.chunks,
+            )
+
+        return DownloadedIssueAttachment(
+            issue_id=issue_id,
+            attachment_id=attachment_id,
+            file_path=file_path,
+            original_name=download.metadata.name,
+            mime_type=download.mime_type,
+            size=size,
         )

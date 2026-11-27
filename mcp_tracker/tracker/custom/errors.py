@@ -14,6 +14,24 @@ class IssueNotFound(YandexTrackerError):
         self.issue_id = issue_id
 
 
+class InvalidAttachmentIssueKey(YandexTrackerError):
+    def __init__(self) -> None:
+        super().__init__("Pass an issue key in the form QUEUE-123.")
+
+
+class AttachmentNotFound(YandexTrackerError):
+    def __init__(self, issue_id: str, attachment_id: str) -> None:
+        super().__init__(
+            f"Attachment '{attachment_id}' was not found on issue '{issue_id}'. "
+            "Check the issue key and get its attachment IDs with issue_get_attachments."
+        )
+
+
+class AttachmentTooLarge(YandexTrackerError):
+    def __init__(self, limit: int) -> None:
+        super().__init__(f"Attachment exceeds the {limit}-byte limit.")
+
+
 class QueueNotFound(YandexTrackerError):
     def __init__(self, queue_id: str):
         super().__init__(f"Queue with ID '{queue_id}' not found.")
@@ -89,13 +107,24 @@ class TrackerAPITimeout(YandexTrackerError):
     that time, rather than the request, was the problem.
     """
 
-    def __init__(self, *, method: str, url: str, timeout: float):
+    def __init__(
+        self,
+        *,
+        method: str,
+        url: str,
+        timeout: float,
+        setting: str = "TRACKER_API_TIMEOUT",
+    ):
         self.method = method
         self.url = url
         self.timeout = timeout
+        # The environment variable that sets this request's budget - a file upload
+        # has its own, and naming the wrong one sends the caller to a knob that
+        # changes nothing.
+        self.setting = setting
         super().__init__(
             f"Yandex Tracker API request {method} {url} timed out after "
-            f"{timeout:g}s. Raise TRACKER_API_TIMEOUT if this endpoint is "
+            f"{timeout:g}s. Raise {setting} if this endpoint is "
             f"slow for this organization."
         )
 

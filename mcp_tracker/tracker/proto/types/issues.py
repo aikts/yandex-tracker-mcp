@@ -1,4 +1,6 @@
 import datetime
+from collections.abc import AsyncIterator
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Literal
 
@@ -206,6 +208,14 @@ AttachmentFieldsEnum = Enum(  # type: ignore[misc]
     "AttachmentFieldsEnum",
     {key: key for key in IssueAttachment.model_fields.keys()},
 )
+
+
+@dataclass(frozen=True)
+class AttachmentDownload:
+    metadata: IssueAttachment
+    mime_type: str
+    charset: str | None
+    chunks: AsyncIterator[bytes]
 
 
 class ChecklistItemDeadline(BaseModel):
